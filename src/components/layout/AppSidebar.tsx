@@ -11,6 +11,7 @@ import {
   Settings,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
   Sidebar,
   SidebarContent,
@@ -23,37 +24,65 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 
-const mainItems = [
-  { title: "لوحة التحكم", url: "/", icon: LayoutDashboard },
+type AppRole = "admin" | "accountant" | "sales";
+
+interface MenuItem {
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+  roles: AppRole[];
+}
+
+const mainItems: MenuItem[] = [
+  { title: "لوحة التحكم", url: "/", icon: LayoutDashboard, roles: ["admin", "accountant", "sales"] },
 ];
 
-const accountingItems = [
-  { title: "شجرة الحسابات", url: "/accounts", icon: BookOpen },
-  { title: "القيود المحاسبية", url: "/journal", icon: FileText },
-  { title: "دفتر الأستاذ", url: "/ledger", icon: Calculator },
+const accountingItems: MenuItem[] = [
+  { title: "شجرة الحسابات", url: "/accounts", icon: BookOpen, roles: ["admin", "accountant"] },
+  { title: "القيود المحاسبية", url: "/journal", icon: FileText, roles: ["admin", "accountant"] },
+  { title: "دفتر الأستاذ", url: "/ledger", icon: Calculator, roles: ["admin", "accountant"] },
 ];
 
-const salesItems = [
-  { title: "فواتير البيع", url: "/sales", icon: FileText },
-  { title: "العملاء", url: "/customers", icon: Users },
+const salesItems: MenuItem[] = [
+  { title: "فواتير البيع", url: "/sales", icon: FileText, roles: ["admin", "accountant", "sales"] },
+  { title: "العملاء", url: "/customers", icon: Users, roles: ["admin", "accountant", "sales"] },
 ];
 
-const purchaseItems = [
-  { title: "فواتير الشراء", url: "/purchases", icon: ShoppingCart },
-  { title: "الموردين", url: "/suppliers", icon: Truck },
+const purchaseItems: MenuItem[] = [
+  { title: "فواتير الشراء", url: "/purchases", icon: ShoppingCart, roles: ["admin", "accountant"] },
+  { title: "الموردين", url: "/suppliers", icon: Truck, roles: ["admin", "accountant"] },
 ];
 
-const inventoryItems = [
-  { title: "المنتجات", url: "/products", icon: Package },
+const inventoryItems: MenuItem[] = [
+  { title: "المنتجات", url: "/products", icon: Package, roles: ["admin", "accountant", "sales"] },
 ];
 
-const reportItems = [
-  { title: "التقارير", url: "/reports", icon: BarChart3 },
+const reportItems: MenuItem[] = [
+  { title: "التقارير", url: "/reports", icon: BarChart3, roles: ["admin", "accountant"] },
 ];
 
-const settingsItems = [
-  { title: "الإعدادات", url: "/settings", icon: Settings },
+const settingsItems: MenuItem[] = [
+  { title: "الإعدادات", url: "/settings", icon: Settings, roles: ["admin"] },
 ];
+
+function SidebarMenuItems({ items }: { items: MenuItem[] }) {
+  return (
+    <SidebarMenu>
+      {items.map((item) => (
+        <RoleGuard key={item.title} allowedRoles={item.roles}>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <NavLink to={item.url} end={item.url === "/"} activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold">
+                <item.icon className="w-4 h-4" />
+                <span>{item.title}</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </RoleGuard>
+      ))}
+    </SidebarMenu>
+  );
+}
 
 export function AppSidebar() {
   return (
@@ -73,125 +102,48 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {mainItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} end activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarMenuItems items={mainItems} />
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs">المحاسبة</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {accountingItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarMenuItems items={accountingItems} />
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs">المبيعات</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {salesItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarMenuItems items={salesItems} />
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs">المشتريات</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {purchaseItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarMenuItems items={purchaseItems} />
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs">المخزون</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {inventoryItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarMenuItems items={inventoryItems} />
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs">التقارير</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {reportItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarMenuItems items={reportItems} />
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {settingsItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarMenuItems items={settingsItems} />
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
