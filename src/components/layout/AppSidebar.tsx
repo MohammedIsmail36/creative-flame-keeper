@@ -9,6 +9,7 @@ import {
   BookOpen,
   Calculator,
   Settings,
+  UserCog,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
@@ -62,6 +63,7 @@ const reportItems: MenuItem[] = [
 ];
 
 const settingsItems: MenuItem[] = [
+  { title: "إدارة المستخدمين", url: "/users", icon: UserCog, roles: ["admin"] },
   { title: "الإعدادات", url: "/settings", icon: Settings, roles: ["admin"] },
 ];
 
