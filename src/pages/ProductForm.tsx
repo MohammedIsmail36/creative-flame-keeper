@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LookupCombobox } from "@/components/LookupCombobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { ArrowRight, Save, Plus, ImagePlus, X, Trash2 } from "lucide-react";
@@ -254,36 +254,21 @@ export default function ProductForm() {
             <div className="space-y-2">
               <Label>التصنيف</Label>
               <div className="flex gap-2">
-                <Select value={categoryId} onValueChange={setCategoryId}>
-                  <SelectTrigger className="flex-1"><SelectValue placeholder="اختر التصنيف" /></SelectTrigger>
-                  <SelectContent>
-                    {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <LookupCombobox items={categories} value={categoryId} onValueChange={setCategoryId} placeholder="اختر التصنيف" className="flex-1" />
                 <Button variant="outline" size="icon" onClick={() => { setNewItemName(""); setAddCategoryOpen(true); }}><Plus className="h-4 w-4" /></Button>
               </div>
             </div>
             <div className="space-y-2">
               <Label>وحدة القياس</Label>
               <div className="flex gap-2">
-                <Select value={unitId} onValueChange={setUnitId}>
-                  <SelectTrigger className="flex-1"><SelectValue placeholder="اختر الوحدة" /></SelectTrigger>
-                  <SelectContent>
-                    {units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <LookupCombobox items={units} value={unitId} onValueChange={setUnitId} placeholder="اختر الوحدة" className="flex-1" />
                 <Button variant="outline" size="icon" onClick={() => { setNewItemName(""); setAddUnitOpen(true); }}><Plus className="h-4 w-4" /></Button>
               </div>
             </div>
             <div className="space-y-2">
               <Label>الماركة / المصنع</Label>
               <div className="flex gap-2">
-                <Select value={brandId} onValueChange={setBrandId}>
-                  <SelectTrigger className="flex-1"><SelectValue placeholder="اختر الماركة" /></SelectTrigger>
-                  <SelectContent>
-                    {brands.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <LookupCombobox items={brands} value={brandId} onValueChange={setBrandId} placeholder="اختر الماركة" className="flex-1" />
                 <Button variant="outline" size="icon" onClick={() => { setNewItemName(""); setAddBrandOpen(true); }}><Plus className="h-4 w-4" /></Button>
               </div>
             </div>

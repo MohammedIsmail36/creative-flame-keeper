@@ -57,6 +57,9 @@ const purchaseItems: MenuItem[] = [
 
 const inventoryItems: MenuItem[] = [
   { title: "المنتجات", url: "/products", icon: Package, roles: ["admin", "accountant", "sales"] },
+  { title: "التصنيفات", url: "/inventory/categories", icon: Package, roles: ["admin", "accountant"] },
+  { title: "وحدات القياس", url: "/inventory/units", icon: Package, roles: ["admin", "accountant"] },
+  { title: "الماركات", url: "/inventory/brands", icon: Package, roles: ["admin", "accountant"] },
 ];
 
 const reportItems: MenuItem[] = [
