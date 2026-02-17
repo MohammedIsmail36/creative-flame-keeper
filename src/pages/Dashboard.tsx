@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,10 +9,8 @@ import {
   Package,
   DollarSign,
   ShoppingCart,
-  Users,
   FileText,
   AlertTriangle,
-  BookOpen,
   Calculator,
 } from "lucide-react";
 import {
@@ -28,9 +26,6 @@ import {
 } from "recharts";
 import { useNavigate } from "react-router-dom";
 
-const formatNumber = (val: number) =>
-  val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
 interface AccountBalance {
   id: string;
   code: string;
@@ -41,132 +36,241 @@ interface AccountBalance {
   balance: number;
 }
 
-const salesData = [
-  { name: "يناير", مبيعات: 12000, مشتريات: 8000 },
-  { name: "فبراير", مبيعات: 15000, مشتريات: 9500 },
-  { name: "مارس", مبيعات: 18000, مشتريات: 11000 },
-  { name: "أبريل", مبيعات: 14000, مشتريات: 7500 },
-  { name: "مايو", مبيعات: 22000, مشتريات: 13000 },
-  { name: "يونيو", مبيعات: 19000, مشتريات: 10000 },
-];
+interface SummaryData {
+  totalSales: number;
+  totalPurchases: number;
+  netProfit: number;
+  lowStockCount: number;
+}
 
-const profitData = [
-  { name: "يناير", ربح: 4000 },
-  { name: "فبراير", ربح: 5500 },
-  { name: "مارس", ربح: 7000 },
-  { name: "أبريل", ربح: 6500 },
-  { name: "مايو", ربح: 9000 },
-  { name: "يونيو", ربح: 9000 },
-];
+interface RecentInvoice {
+  id: string;
+  invoice_number: number;
+  customer_name: string;
+  total: number;
+  status: string;
+}
 
-const summaryCards = [
-  {
-    title: "إجمالي المبيعات",
-    value: "٩٨,٥٠٠ ر.س",
-    change: "+١٢.٥%",
-    trend: "up" as const,
-    icon: DollarSign,
-    color: "text-primary",
-    bgColor: "bg-primary/10",
-  },
-  {
-    title: "إجمالي المشتريات",
-    value: "٥٩,٠٠٠ ر.س",
-    change: "+٨.٣%",
-    trend: "up" as const,
-    icon: ShoppingCart,
-    color: "text-warning",
-    bgColor: "bg-warning/10",
-  },
-  {
-    title: "صافي الربح",
-    value: "٣٩,٥٠٠ ر.س",
-    change: "+١٥.٢%",
-    trend: "up" as const,
-    icon: TrendingUp,
-    color: "text-success",
-    bgColor: "bg-success/10",
-  },
-  {
-    title: "المنتجات في المخزون",
-    value: "٢٤٨",
-    change: "-٣ تنبيهات",
-    trend: "down" as const,
-    icon: Package,
-    color: "text-destructive",
-    bgColor: "bg-destructive/10",
-  },
-];
+interface LowStockItem {
+  name: string;
+  quantity_on_hand: number;
+  min_stock_level: number;
+}
 
-const recentInvoices = [
-  { id: "INV-001", customer: "شركة النور", amount: "٥,٢٠٠ ر.س", status: "مدفوعة" },
-  { id: "INV-002", customer: "مؤسسة الأمل", amount: "٣,٨٠٠ ر.س", status: "معلقة" },
-  { id: "INV-003", customer: "شركة البناء", amount: "١٢,٠٠٠ ر.س", status: "مدفوعة" },
-  { id: "INV-004", customer: "مكتبة المعرفة", amount: "١,٥٠٠ ر.س", status: "مسودة" },
-];
+interface MonthlyData {
+  name: string;
+  مبيعات: number;
+  مشتريات: number;
+  ربح: number;
+}
 
-const lowStockItems = [
-  { name: "ورق طباعة A4", current: 15, min: 50 },
-  { name: "حبر طابعة أسود", current: 3, min: 10 },
-  { name: "أقلام حبر جاف", current: 20, min: 100 },
-];
+const MONTH_NAMES = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { formatCurrency, currency } = useSettings();
+  const { formatCurrency } = useSettings();
   const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
-  const [loadingBalances, setLoadingBalances] = useState(true);
+  const [summary, setSummary] = useState<SummaryData>({ totalSales: 0, totalPurchases: 0, netProfit: 0, lowStockCount: 0 });
+  const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
+  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchBalances = async () => {
-      setLoadingBalances(true);
-      const [accountsRes, linesRes] = await Promise.all([
-        supabase.from("accounts").select("id, code, name, account_type").eq("is_active", true).order("code"),
-        supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entry_id"),
+    const fetchAll = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchSummary(),
+        fetchRecentInvoices(),
+        fetchLowStock(),
+        fetchMonthlyData(),
+        fetchBalances(),
       ]);
+      setLoading(false);
+    };
+    fetchAll();
+  }, []);
 
-      if (!accountsRes.data || !linesRes.data) {
-        setLoadingBalances(false);
-        return;
-      }
+  const fetchSummary = async () => {
+    const [salesRes, purchasesRes, productsRes] = await Promise.all([
+      supabase.from("sales_invoices").select("total, status").eq("status", "posted"),
+      supabase.from("purchase_invoices").select("total, status").eq("status", "posted"),
+      supabase.from("products").select("quantity_on_hand, min_stock_level").eq("is_active", true),
+    ]);
 
-      // Get posted entries only
-      const entryIds = [...new Set(linesRes.data.map((l: any) => l.journal_entry_id))];
-      if (entryIds.length === 0) {
-        setLoadingBalances(false);
-        return;
-      }
+    const totalSales = (salesRes.data || []).reduce((s, i) => s + Number(i.total), 0);
+    const totalPurchases = (purchasesRes.data || []).reduce((s, i) => s + Number(i.total), 0);
+    const lowStockCount = (productsRes.data || []).filter(p => Number(p.quantity_on_hand) <= Number(p.min_stock_level)).length;
 
-      const { data: entriesData } = await supabase
-        .from("journal_entries")
-        .select("id, status")
-        .in("id", entryIds)
-        .eq("status", "posted");
+    setSummary({
+      totalSales,
+      totalPurchases,
+      netProfit: totalSales - totalPurchases,
+      lowStockCount,
+    });
+  };
 
-      const postedIds = new Set((entriesData || []).map((e: any) => e.id));
+  const fetchRecentInvoices = async () => {
+    const { data } = await supabase
+      .from("sales_invoices")
+      .select("id, invoice_number, total, status, customer_id")
+      .order("created_at", { ascending: false })
+      .limit(5);
 
-      const balMap = new Map<string, { debit: number; credit: number }>();
-      linesRes.data.forEach((l: any) => {
-        if (!postedIds.has(l.journal_entry_id)) return;
-        const cur = balMap.get(l.account_id) || { debit: 0, credit: 0 };
-        cur.debit += Number(l.debit);
-        cur.credit += Number(l.credit);
-        balMap.set(l.account_id, cur);
-      });
+    if (!data?.length) return;
 
-      const results: AccountBalance[] = accountsRes.data
+    const customerIds = [...new Set(data.filter(d => d.customer_id).map(d => d.customer_id!))];
+    const { data: customers } = customerIds.length
+      ? await supabase.from("customers").select("id, name").in("id", customerIds)
+      : { data: [] };
+
+    const custMap = new Map((customers || []).map(c => [c.id, c.name]));
+
+    setRecentInvoices(data.map(inv => ({
+      id: inv.id,
+      invoice_number: inv.invoice_number,
+      customer_name: custMap.get(inv.customer_id || "") || "عميل نقدي",
+      total: Number(inv.total),
+      status: inv.status,
+    })));
+  };
+
+  const fetchLowStock = async () => {
+    const { data } = await supabase
+      .from("products")
+      .select("name, quantity_on_hand, min_stock_level")
+      .eq("is_active", true)
+      .order("quantity_on_hand", { ascending: true })
+      .limit(10);
+
+    setLowStockItems(
+      (data || [])
+        .filter(p => Number(p.quantity_on_hand) <= Number(p.min_stock_level))
+        .map(p => ({
+          name: p.name,
+          quantity_on_hand: Number(p.quantity_on_hand),
+          min_stock_level: Number(p.min_stock_level),
+        }))
+    );
+  };
+
+  const fetchMonthlyData = async () => {
+    const year = new Date().getFullYear();
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+
+    const [salesRes, purchasesRes] = await Promise.all([
+      supabase.from("sales_invoices").select("invoice_date, total").eq("status", "posted").gte("invoice_date", startDate).lte("invoice_date", endDate),
+      supabase.from("purchase_invoices").select("invoice_date, total").eq("status", "posted").gte("invoice_date", startDate).lte("invoice_date", endDate),
+    ]);
+
+    const monthly: MonthlyData[] = MONTH_NAMES.map(name => ({ name, مبيعات: 0, مشتريات: 0, ربح: 0 }));
+
+    (salesRes.data || []).forEach(inv => {
+      const m = new Date(inv.invoice_date).getMonth();
+      monthly[m].مبيعات += Number(inv.total);
+    });
+    (purchasesRes.data || []).forEach(inv => {
+      const m = new Date(inv.invoice_date).getMonth();
+      monthly[m].مشتريات += Number(inv.total);
+    });
+    monthly.forEach(m => { m.ربح = m.مبيعات - m.مشتريات; });
+
+    // Only show months that have data or up to current month
+    const currentMonth = new Date().getMonth();
+    setMonthlyData(monthly.slice(0, currentMonth + 1));
+  };
+
+  const fetchBalances = async () => {
+    const [accountsRes, linesRes] = await Promise.all([
+      supabase.from("accounts").select("id, code, name, account_type").eq("is_active", true).order("code"),
+      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entry_id"),
+    ]);
+
+    if (!accountsRes.data || !linesRes.data) return;
+
+    const entryIds = [...new Set(linesRes.data.map((l: any) => l.journal_entry_id))];
+    if (!entryIds.length) return;
+
+    const { data: entriesData } = await supabase
+      .from("journal_entries")
+      .select("id, status")
+      .in("id", entryIds)
+      .eq("status", "posted");
+
+    const postedIds = new Set((entriesData || []).map((e: any) => e.id));
+    const balMap = new Map<string, { debit: number; credit: number }>();
+
+    linesRes.data.forEach((l: any) => {
+      if (!postedIds.has(l.journal_entry_id)) return;
+      const cur = balMap.get(l.account_id) || { debit: 0, credit: 0 };
+      cur.debit += Number(l.debit);
+      cur.credit += Number(l.credit);
+      balMap.set(l.account_id, cur);
+    });
+
+    setAccountBalances(
+      accountsRes.data
         .filter((a: any) => balMap.has(a.id))
         .map((a: any) => {
           const b = balMap.get(a.id)!;
           return { ...a, debit: b.debit, credit: b.credit, balance: b.debit - b.credit };
-        });
+        })
+    );
+  };
 
-      setAccountBalances(results);
-      setLoadingBalances(false);
-    };
+  const statusLabel = (s: string) => {
+    switch (s) {
+      case "posted": return "مرحّلة";
+      case "draft": return "مسودة";
+      case "paid": return "مدفوعة";
+      default: return s;
+    }
+  };
 
-    fetchBalances();
-  }, []);
+  const statusClass = (s: string) => {
+    switch (s) {
+      case "posted": return "bg-success/10 text-success";
+      case "paid": return "bg-success/10 text-success";
+      case "draft": return "bg-muted text-muted-foreground";
+      default: return "bg-warning/10 text-warning";
+    }
+  };
+
+  const profitMargin = summary.totalSales > 0 ? ((summary.netProfit / summary.totalSales) * 100).toFixed(1) : "0";
+
+  const summaryCards = [
+    {
+      title: "إجمالي المبيعات",
+      value: formatCurrency(summary.totalSales),
+      icon: DollarSign,
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+    },
+    {
+      title: "إجمالي المشتريات",
+      value: formatCurrency(summary.totalPurchases),
+      icon: ShoppingCart,
+      color: "text-warning",
+      bgColor: "bg-warning/10",
+    },
+    {
+      title: "صافي الربح",
+      value: formatCurrency(summary.netProfit),
+      subtitle: `هامش الربح: ${profitMargin}%`,
+      icon: summary.netProfit >= 0 ? TrendingUp : TrendingDown,
+      color: summary.netProfit >= 0 ? "text-success" : "text-destructive",
+      bgColor: summary.netProfit >= 0 ? "bg-success/10" : "bg-destructive/10",
+    },
+    {
+      title: "تنبيهات المخزون",
+      value: `${summary.lowStockCount}`,
+      subtitle: "منتجات أقل من الحد الأدنى",
+      icon: Package,
+      color: summary.lowStockCount > 0 ? "text-destructive" : "text-success",
+      bgColor: summary.lowStockCount > 0 ? "bg-destructive/10" : "bg-success/10",
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -184,16 +288,9 @@ export default function Dashboard() {
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">{card.title}</p>
                   <p className="text-2xl font-bold">{card.value}</p>
-                  <div className="flex items-center gap-1 text-xs">
-                    {card.trend === "up" ? (
-                      <TrendingUp className="w-3 h-3 text-success" />
-                    ) : (
-                      <TrendingDown className="w-3 h-3 text-destructive" />
-                    )}
-                    <span className={card.trend === "up" ? "text-success" : "text-destructive"}>
-                      {card.change}
-                    </span>
-                  </div>
+                  {card.subtitle && (
+                    <p className="text-xs text-muted-foreground">{card.subtitle}</p>
+                  )}
                 </div>
                 <div className={`p-2.5 rounded-lg ${card.bgColor}`}>
                   <card.icon className={`w-5 h-5 ${card.color}`} />
@@ -204,7 +301,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Account Balances Summary */}
+      {/* Account Balances */}
       {accountBalances.length > 0 && (
         <Card>
           <CardHeader className="border-b bg-muted/30 py-3">
@@ -213,10 +310,7 @@ export default function Dashboard() {
                 <Calculator className="h-4 w-4" />
                 ملخص أرصدة الحسابات
               </CardTitle>
-              <button
-                onClick={() => navigate("/ledger")}
-                className="text-sm text-primary hover:underline"
-              >
+              <button onClick={() => navigate("/ledger")} className="text-sm text-primary hover:underline">
                 عرض التفاصيل ←
               </button>
             </div>
@@ -234,11 +328,7 @@ export default function Dashboard() {
               </TableHeader>
               <TableBody>
                 {accountBalances.map((acc) => (
-                  <TableRow
-                    key={acc.id}
-                    className="cursor-pointer hover:bg-muted/30"
-                    onClick={() => navigate("/ledger")}
-                  >
+                  <TableRow key={acc.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate("/ledger")}>
                     <TableCell className="font-mono text-sm">{acc.code}</TableCell>
                     <TableCell className="font-medium">{acc.name}</TableCell>
                     <TableCell>{formatCurrency(acc.debit)}</TableCell>
@@ -258,11 +348,11 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">المبيعات والمشتريات</CardTitle>
+            <CardTitle className="text-base">المبيعات والمشتريات ({new Date().getFullYear()})</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={salesData}>
+              <BarChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                 <XAxis dataKey="name" fontSize={12} />
                 <YAxis fontSize={12} />
@@ -276,22 +366,16 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">صافي الربح</CardTitle>
+            <CardTitle className="text-base">صافي الربح الشهري ({new Date().getFullYear()})</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={profitData}>
+              <LineChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                 <XAxis dataKey="name" fontSize={12} />
                 <YAxis fontSize={12} />
                 <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="ربح"
-                  stroke="hsl(142, 71%, 45%)"
-                  strokeWidth={2.5}
-                  dot={{ r: 4 }}
-                />
+                <Line type="monotone" dataKey="ربح" stroke="hsl(142, 71%, 45%)" strokeWidth={2.5} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -308,30 +392,26 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {recentInvoices.map((inv) => (
-                <div key={inv.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                  <div>
-                    <p className="text-sm font-medium">{inv.customer}</p>
-                    <p className="text-xs text-muted-foreground">{inv.id}</p>
+            {recentInvoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">لا توجد فواتير بعد</p>
+            ) : (
+              <div className="space-y-3">
+                {recentInvoices.map((inv) => (
+                  <div key={inv.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div>
+                      <p className="text-sm font-medium">{inv.customer_name}</p>
+                      <p className="text-xs text-muted-foreground">#{inv.invoice_number}</p>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold">{formatCurrency(inv.total)}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusClass(inv.status)}`}>
+                        {statusLabel(inv.status)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="text-sm font-semibold">{inv.amount}</p>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${
-                        inv.status === "مدفوعة"
-                          ? "bg-success/10 text-success"
-                          : inv.status === "معلقة"
-                          ? "bg-warning/10 text-warning"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {inv.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -343,17 +423,21 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {lowStockItems.map((item) => (
-                <div key={item.name} className="flex items-center justify-between py-2 border-b last:border-0">
-                  <div>
-                    <p className="text-sm font-medium">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">الحد الأدنى: {item.min}</p>
+            {lowStockItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">لا توجد تنبيهات حالياً ✓</p>
+            ) : (
+              <div className="space-y-3">
+                {lowStockItems.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div>
+                      <p className="text-sm font-medium">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">الحد الأدنى: {item.min_stock_level}</p>
+                    </div>
+                    <span className="text-sm font-bold text-destructive">{item.quantity_on_hand}</span>
                   </div>
-                  <span className="text-sm font-bold text-destructive">{item.current}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
