@@ -164,7 +164,7 @@ export default function BalanceSheet() {
   };
 
   const handleExportExcel = async () => {
-    const XLSX = await import("xlsx");
+    const { exportToExcel } = await import("@/lib/excel-export");
     const data: any[] = [];
     data.push({ "القسم": "الأصول", "الكود": "", "الحساب": "", "المبلغ (EGP)": "" });
     assetRows.forEach((r) => data.push({ "القسم": "", "الكود": r.account.code, "الحساب": r.account.name, "المبلغ (EGP)": r.balance }));
@@ -179,10 +179,7 @@ export default function BalanceSheet() {
     if (netIncome !== 0) data.push({ "القسم": "", "الكود": "", "الحساب": netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", "المبلغ (EGP)": netIncome });
     data.push({ "القسم": "", "الكود": "", "الحساب": "إجمالي حقوق الملكية", "المبلغ (EGP)": totalEquity });
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Balance Sheet");
-    XLSX.writeFile(wb, "Balance_Sheet.xlsx");
+    await exportToExcel(data, "Balance Sheet", "Balance_Sheet.xlsx");
     toast({ title: "تم التصدير", description: "تم تصدير الميزانية العمومية بصيغة Excel" });
     setExportMenuOpen(false);
   };

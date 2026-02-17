@@ -142,7 +142,7 @@ export default function TrialBalance() {
   };
 
   const handleExportExcel = async () => {
-    const XLSX = await import("xlsx");
+    const { exportToExcel } = await import("@/lib/excel-export");
     const data = trialBalanceData.map((r) => ({
       "Code": r.account.code,
       "Account": r.account.name,
@@ -161,10 +161,7 @@ export default function TrialBalance() {
       "Balance Debit (EGP)": grandBalanceDebit,
       "Balance Credit (EGP)": grandBalanceCredit,
     });
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Trial Balance");
-    XLSX.writeFile(wb, "Trial_Balance.xlsx");
+    await exportToExcel(data, "Trial Balance", "Trial_Balance.xlsx");
     toast({ title: "تم التصدير", description: "تم تصدير ميزان المراجعة بصيغة Excel" });
     setExportMenuOpen(false);
   };
