@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Users } from "lucide-react";
+import { Users, Trash2 } from "lucide-react";
 
 type AppRole = "admin" | "accountant" | "sales";
 
@@ -89,6 +91,27 @@ export default function UserManagement() {
     setUsers((prev) => prev.map((u) => (u.user_id === userId ? { ...u, role: newRole } : u)));
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    if (userId === user?.id) {
+      toast({ title: "تنبيه", description: "لا يمكنك حذف حسابك بنفسك", variant: "destructive" });
+      return;
+    }
+
+    const { error: roleError } = await supabase.from("user_roles").delete().eq("user_id", userId);
+    if (roleError) {
+      toast({ title: "خطأ", description: "فشل في حذف دور المستخدم", variant: "destructive" });
+      return;
+    }
+
+    const { error: profileError } = await supabase.from("profiles").delete().eq("id", userId);
+    if (profileError) {
+      console.error("Failed to delete profile:", profileError);
+    }
+
+    toast({ title: "تم الحذف", description: "تم حذف المستخدم بنجاح" });
+    setUsers((prev) => prev.filter((u) => u.user_id !== userId));
+  };
+
   return (
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center gap-3">
@@ -115,6 +138,7 @@ export default function UserManagement() {
                   <TableHead className="text-right">الدور الحالي</TableHead>
                   <TableHead className="text-right">تغيير الدور</TableHead>
                   <TableHead className="text-right">تاريخ الإنشاء</TableHead>
+                  <TableHead className="text-right">إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -147,6 +171,31 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(u.created_at).toLocaleDateString("ar-SA")}
+                    </TableCell>
+                    <TableCell>
+                      {u.user_id !== user?.id ? (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="icon">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent dir="rtl">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                هل أنت متأكد من حذف المستخدم "{u.full_name}"؟ لا يمكن التراجع عن هذا الإجراء.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter className="flex-row-reverse gap-2">
+                              <AlertDialogAction onClick={() => handleDeleteUser(u.user_id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                حذف
+                              </AlertDialogAction>
+                              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 ))}
