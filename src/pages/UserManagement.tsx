@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Users, Trash2, UserPlus, Search, Download, Filter, Shield, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Users, Trash2, UserPlus, Search, Download, Filter, Shield, ShieldCheck, ShieldAlert, Pencil } from "lucide-react";
 
 type AppRole = "admin" | "accountant" | "sales";
 
@@ -54,6 +54,12 @@ export default function UserManagement() {
   const [newFullName, setNewFullName] = useState("");
   const [newRole, setNewRole] = useState<AppRole>("sales");
   const [addLoading, setAddLoading] = useState(false);
+
+  // Edit name dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editUserId, setEditUserId] = useState("");
+  const [editFullName, setEditFullName] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -178,6 +184,24 @@ export default function UserManagement() {
     } finally {
       setAddLoading(false);
     }
+  };
+
+  const handleEditName = async () => {
+    if (!editFullName.trim()) return;
+    setEditLoading(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: editFullName.trim() })
+      .eq("id", editUserId);
+
+    if (error) {
+      toast({ title: "خطأ", description: "فشل في تحديث الاسم", variant: "destructive" });
+    } else {
+      toast({ title: "تم التحديث", description: "تم تغيير اسم المستخدم بنجاح" });
+      setUsers((prev) => prev.map((u) => (u.user_id === editUserId ? { ...u, full_name: editFullName.trim() } : u)));
+      setEditDialogOpen(false);
+    }
+    setEditLoading(false);
   };
 
   const handleExport = () => {
@@ -394,29 +418,43 @@ export default function UserManagement() {
                           {new Date(u.created_at).toLocaleDateString("ar-SA")}
                         </TableCell>
                         <TableCell className="text-center">
-                          {u.user_id !== user?.id ? (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent dir="rtl">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    هل أنت متأكد من حذف المستخدم "{u.full_name}"؟ لا يمكن التراجع عن هذا الإجراء.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter className="flex-row-reverse gap-2">
-                                  <AlertDialogAction onClick={() => handleDeleteUser(u.user_id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    حذف
-                                  </AlertDialogAction>
-                                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          ) : null}
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                              onClick={() => {
+                                setEditUserId(u.user_id);
+                                setEditFullName(u.full_name);
+                                setEditDialogOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            {u.user_id !== user?.id && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent dir="rtl">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      هل أنت متأكد من حذف المستخدم "{u.full_name}"؟ لا يمكن التراجع عن هذا الإجراء.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter className="flex-row-reverse gap-2">
+                                    <AlertDialogAction onClick={() => handleDeleteUser(u.user_id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                      حذف
+                                    </AlertDialogAction>
+                                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -427,6 +465,27 @@ export default function UserManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Name Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent dir="rtl" className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل اسم المستخدم</DialogTitle>
+            <DialogDescription>أدخل الاسم الجديد للمستخدم</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="editFullName">الاسم الكامل</Label>
+              <Input id="editFullName" value={editFullName} onChange={(e) => setEditFullName(e.target.value)} placeholder="أدخل الاسم الكامل" required />
+            </div>
+            <DialogFooter className="flex-row-reverse gap-2 pt-2">
+              <Button onClick={handleEditName} disabled={editLoading || !editFullName.trim()} className="gap-2">
+                {editLoading ? "جارٍ الحفظ..." : "حفظ التعديل"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
