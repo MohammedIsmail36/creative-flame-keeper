@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -31,8 +32,13 @@ export default function SalesInvoiceForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { role } = useAuth();
+  const { settings, formatCurrency } = useSettings();
   const isNew = !id;
   const canEdit = role === "admin" || role === "accountant" || role === "sales";
+
+  const showTax = settings?.show_tax_on_invoice ?? false;
+  const showDiscount = settings?.show_discount_on_invoice ?? true;
+  const taxRate = settings?.tax_rate ?? 0;
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -108,6 +114,8 @@ export default function SalesInvoiceForm() {
   function removeItem(index: number) { setItems(prev => prev.filter((_, i) => i !== index)); }
 
   const subtotal = items.reduce((s, i) => s + i.total, 0);
+  const taxAmount = showTax ? subtotal * (taxRate / 100) : 0;
+  const grandTotal = subtotal + taxAmount;
 
   async function handleSave() {
     if (!customerId || items.length === 0) {
@@ -122,7 +130,7 @@ export default function SalesInvoiceForm() {
     try {
       const payload: any = {
         customer_id: customerId, invoice_date: invoiceDate,
-        subtotal, discount: 0, tax: 0, total: subtotal,
+        subtotal, discount: 0, tax: taxAmount, total: grandTotal,
         notes: notes.trim() || null, reference: reference.trim() || null, status: "draft",
       };
 
@@ -180,7 +188,7 @@ export default function SalesInvoiceForm() {
         }
       }
 
-      const totalDebit = subtotal + totalCost;
+      const totalDebit = grandTotal + totalCost;
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
         description: `فاتورة بيع رقم ${invoiceNumber}`, entry_date: invoiceDate,
         total_debit: totalDebit, total_credit: totalDebit, status: "posted",
@@ -188,8 +196,8 @@ export default function SalesInvoiceForm() {
       if (jeError) throw jeError;
 
       const lines: any[] = [
-        { journal_entry_id: je.id, account_id: customersAcc.id, debit: subtotal, credit: 0, description: `مبيعات - فاتورة ${invoiceNumber}` },
-        { journal_entry_id: je.id, account_id: revenueAcc.id, debit: 0, credit: subtotal, description: `إيراد مبيعات - فاتورة ${invoiceNumber}` },
+        { journal_entry_id: je.id, account_id: customersAcc.id, debit: grandTotal, credit: 0, description: `مبيعات - فاتورة ${invoiceNumber}` },
+        { journal_entry_id: je.id, account_id: revenueAcc.id, debit: 0, credit: grandTotal, description: `إيراد مبيعات - فاتورة ${invoiceNumber}` },
       ];
       if (totalCost > 0) {
         lines.push(
@@ -218,7 +226,7 @@ export default function SalesInvoiceForm() {
       // Update customer balance
       const cust = customers.find(c => c.id === customerId);
       if (cust) {
-        await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) + subtotal }).eq("id", customerId);
+        await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) + grandTotal }).eq("id", customerId);
       }
 
       toast({ title: "تم الترحيل", description: "تم ترحيل فاتورة البيع وتوليد القيد المحاسبي وتحديث المخزون" });
@@ -251,18 +259,17 @@ export default function SalesInvoiceForm() {
           await supabase.from("products").update({ quantity_on_hand: prod.quantity_on_hand + item.quantity } as any).eq("id", item.product_id);
           totalCost += prod.purchase_price * item.quantity;
         }
-        // Delete related inventory movements
         await (supabase.from("inventory_movements" as any) as any).delete().eq("reference_id", id).eq("product_id", item.product_id);
       }
 
       const cust = customers.find(c => c.id === customerId);
       if (cust) {
-        await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) - subtotal }).eq("id", customerId);
+        await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) - grandTotal }).eq("id", customerId);
       }
 
       if (inv?.journal_entry_id) {
         const { data: origLines } = await supabase.from("journal_entry_lines").select("*").eq("journal_entry_id", inv.journal_entry_id);
-        const totalDebit = subtotal + totalCost;
+        const totalDebit = grandTotal + totalCost;
         const { data: reverseJe } = await supabase.from("journal_entries").insert({
           description: `عكس فاتورة بيع رقم ${invoiceNumber}`, entry_date: new Date().toISOString().split("T")[0],
           total_debit: totalDebit, total_credit: totalDebit, status: "posted",
@@ -299,22 +306,30 @@ export default function SalesInvoiceForm() {
     doc.text(`التاريخ: ${invoiceDate}`, doc.internal.pageSize.getWidth() - 15, infoY + 8, { align: "right" });
     doc.text(`الحالة: ${status === "posted" ? "مُرحّل" : "مسودة"}`, doc.internal.pageSize.getWidth() - 15, infoY + 16, { align: "right" });
 
-    const tableData = items.map((item, i) => [
-      item.total.toLocaleString("en-US", { minimumFractionDigits: 2 }),
-      item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 }),
-      item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 }),
-      item.quantity.toString(),
-      item.product_name,
-      (i + 1).toString(),
-    ]);
+    const heads: string[] = [];
+    if (showDiscount) heads.push("الإجمالي", "الخصم", "السعر", "الكمية", "المنتج", "#");
+    else heads.push("الإجمالي", "السعر", "الكمية", "المنتج", "#");
+
+    const tableData = items.map((item, i) => {
+      const row: string[] = [item.total.toLocaleString("en-US", { minimumFractionDigits: 2 })];
+      if (showDiscount) row.push(item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 }));
+      row.push(item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 }), item.quantity.toString(), item.product_name, (i + 1).toString());
+      return row;
+    });
+
+    const footRows: string[][] = [];
+    const emptyCount = showDiscount ? 4 : 3;
+    footRows.push([...Array(emptyCount).fill(""), "الإجمالي الفرعي", formatCurrency(subtotal)]);
+    if (showTax) footRows.push([...Array(emptyCount).fill(""), `الضريبة (${taxRate}%)`, formatCurrency(taxAmount)]);
+    footRows.push([...Array(emptyCount).fill(""), "الإجمالي الكلي", formatCurrency(grandTotal)]);
 
     autoTable(doc, {
-      head: [["الإجمالي", "الخصم", "السعر", "الكمية", "المنتج", "#"]],
+      head: [heads],
       body: tableData,
       startY: infoY + 25,
       styles: { ...styles, fontSize: 11 },
       headStyles: { ...styles, fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
-      foot: [["", "", "", "", "الإجمالي الكلي", subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 }) + " EGP"]],
+      foot: footRows,
       footStyles: { ...styles, fontStyle: "bold", fillColor: [236, 240, 241] },
     });
 
@@ -333,6 +348,8 @@ export default function SalesInvoiceForm() {
 
   const isDraft = status === "draft";
   const isEditable = editMode && isDraft && canEdit;
+
+  const colCount = 3 + (showDiscount ? 1 : 0) + 1 + (isEditable ? 1 : 0); // product + qty + price + discount? + total + action?
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -450,14 +467,14 @@ export default function SalesInvoiceForm() {
                 <TableHead className="text-right w-[35%]">المنتج</TableHead>
                 <TableHead className="text-right w-[12%]">الكمية</TableHead>
                 <TableHead className="text-right w-[18%]">السعر</TableHead>
-                <TableHead className="text-right w-[13%]">الخصم</TableHead>
+                {showDiscount && <TableHead className="text-right w-[13%]">الخصم</TableHead>}
                 <TableHead className="text-right w-[18%]">الإجمالي</TableHead>
                 {isEditable && <TableHead className="w-[4%]"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
-                <TableRow><TableCell colSpan={isEditable ? 6 : 5} className="text-center py-8 text-muted-foreground">لا توجد أصناف</TableCell></TableRow>
+                <TableRow><TableCell colSpan={colCount} className="text-center py-8 text-muted-foreground">لا توجد أصناف</TableCell></TableRow>
               ) : items.map((item, i) => (
                 <TableRow key={i}>
                   <TableCell>
@@ -476,9 +493,11 @@ export default function SalesInvoiceForm() {
                   <TableCell>
                     {isEditable ? <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", +e.target.value)} className="font-mono" /> : <span className="font-mono">{item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}
                   </TableCell>
-                  <TableCell>
-                    {isEditable ? <Input type="number" min="0" step="0.01" value={item.discount} onChange={e => updateItem(i, "discount", +e.target.value)} className="font-mono" /> : <span className="font-mono">{item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}
-                  </TableCell>
+                  {showDiscount && (
+                    <TableCell>
+                      {isEditable ? <Input type="number" min="0" step="0.01" value={item.discount} onChange={e => updateItem(i, "discount", +e.target.value)} className="font-mono" /> : <span className="font-mono">{item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}
+                    </TableCell>
+                  )}
                   <TableCell className="font-mono font-semibold">{item.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
                   {isEditable && <TableCell><Button variant="ghost" size="icon" onClick={() => removeItem(i)}><X className="h-4 w-4 text-destructive" /></Button></TableCell>}
                 </TableRow>
@@ -507,12 +526,24 @@ export default function SalesInvoiceForm() {
         </CardContent>
       </Card>
 
-      {/* Total */}
+      {/* Totals */}
       {items.length > 0 && (
         <Card>
-          <CardContent className="p-4 flex justify-between items-center">
-            <span className="text-lg font-bold">الإجمالي الكلي</span>
-            <span className="text-2xl font-bold font-mono">{subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })} EGP</span>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">الإجمالي الفرعي</span>
+              <span className="font-mono">{formatCurrency(subtotal)}</span>
+            </div>
+            {showTax && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">الضريبة ({taxRate}%)</span>
+                <span className="font-mono">{formatCurrency(taxAmount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center border-t pt-2">
+              <span className="text-lg font-bold">الإجمالي الكلي</span>
+              <span className="text-2xl font-bold font-mono">{formatCurrency(grandTotal)}</span>
+            </div>
           </CardContent>
         </Card>
       )}
