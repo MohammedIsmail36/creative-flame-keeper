@@ -90,71 +90,28 @@ export default function IncomeStatement() {
   const formatCurrency = (val: number) => `${formatNum(val)} ${currency}`;
 
   const handleExportPDF = async () => {
-    const { createArabicPDF, addPdfHeader, addPdfFooter } = await import("@/lib/pdf-arabic");
-    const autoTable = (await import("jspdf-autotable")).default;
-    const doc = await createArabicPDF();
-    let startY = addPdfHeader(doc, settings, "قائمة الدخل");
-    if (dateFrom || dateTo) {
-      doc.setFont("Amiri", "normal");
-      doc.setFontSize(9);
-      doc.text(`الفترة: ${dateFrom ? format(dateFrom, "yyyy-MM-dd") : "البداية"} إلى ${dateTo ? format(dateTo, "yyyy-MM-dd") : "النهاية"}`, 105, startY, { align: "center" });
-      startY += 6;
-    }
+    const { exportReportPdf } = await import("@/lib/pdf-arabic");
 
-    // Revenue section
-    const revenueData = revenueRows.map((r) => [r.account.code, r.account.name, formatNum(r.amount)]);
-    revenueData.push(["", "إجمالي الإيرادات", formatNum(totalRevenue)]);
+    const allRows: (string | number)[][] = [];
+    revenueRows.forEach((r) => allRows.push([r.account.code, r.account.name, "إيرادات", formatNum(r.amount)]));
+    allRows.push(["", "إجمالي الإيرادات", "", formatNum(totalRevenue)]);
+    expenseRows.forEach((r) => allRows.push([r.account.code, r.account.name, "مصروفات", formatNum(r.amount)]));
+    allRows.push(["", "إجمالي المصروفات", "", formatNum(totalExpenses)]);
+    allRows.push(["", netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", "", formatNum(netIncome)]);
 
-    autoTable(doc, {
-      head: [["الكود", "حساب الإيرادات", `المبلغ (${currency})`]],
-      body: revenueData,
-      startY,
-      styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
-      headStyles: { fillColor: [34, 197, 94], textColor: 255 },
-      didParseCell: (data: any) => {
-        if (data.row.index === revenueData.length - 1) {
-          data.cell.styles.fontStyle = "bold";
-          data.cell.styles.fillColor = [240, 253, 244];
-        }
-      },
+    await exportReportPdf({
+      title: "قائمة الدخل",
+      settings,
+      headers: ["الكود", "الحساب", "النوع", `المبلغ (${currency})`],
+      rows: allRows,
+      summaryCards: [
+        { label: "إجمالي الإيرادات", value: formatCurrency(totalRevenue) },
+        { label: "إجمالي المصروفات", value: formatCurrency(totalExpenses) },
+        { label: netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", value: formatCurrency(Math.abs(netIncome)) },
+      ],
+      filename: "Income_Statement",
     });
-
-    const afterRevenue = (doc as any).lastAutoTable.finalY + 6;
-
-    // Expenses section
-    const expenseData = expenseRows.map((r) => [r.account.code, r.account.name, formatNum(r.amount)]);
-    expenseData.push(["", "إجمالي المصروفات", formatNum(totalExpenses)]);
-
-    autoTable(doc, {
-      head: [["الكود", "حساب المصروفات", `المبلغ (${currency})`]],
-      body: expenseData,
-      startY: afterRevenue,
-      styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
-      headStyles: { fillColor: [239, 68, 68], textColor: 255 },
-      didParseCell: (data: any) => {
-        if (data.row.index === expenseData.length - 1) {
-          data.cell.styles.fontStyle = "bold";
-          data.cell.styles.fillColor = [254, 242, 242];
-        }
-      },
-    });
-
-    const afterExpenses = (doc as any).lastAutoTable.finalY + 6;
-
-    // Net Income
-    autoTable(doc, {
-      body: [[netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", `${formatNum(netIncome)} ${currency}`]],
-      startY: afterExpenses,
-      styles: { fontSize: 11, cellPadding: 4, fontStyle: "bold", font: "Amiri" },
-      bodyStyles: {
-        fillColor: netIncome >= 0 ? [240, 253, 244] : [254, 242, 242],
-        textColor: netIncome >= 0 ? [22, 163, 74] : [220, 38, 38],
-      },
-      columnStyles: { 1: { halign: "right" } },
-    });
-
-    addPdfFooter(doc, settings);
-    doc.save("Income_Statement.pdf");
+    
     toast({ title: "تم التصدير", description: "تم تصدير قائمة الدخل بصيغة PDF" });
     setExportMenuOpen(false);
   };

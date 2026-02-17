@@ -12,8 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { toast } from "@/hooks/use-toast";
-import { createArabicPDF, getAutoTableArabicStyles, addPdfHeader, addPdfFooter } from "@/lib/pdf-arabic";
-import autoTable from "jspdf-autotable";
+import { exportInvoicePdf } from "@/lib/pdf-arabic";
 import { ArrowRight, Plus, X, Save, CheckCircle, Printer, Pencil, Trash2, Ban } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
@@ -261,52 +260,24 @@ export default function PurchaseInvoiceForm() {
   }
 
   async function handlePrint() {
-    const doc = await createArabicPDF();
-    const styles = getAutoTableArabicStyles();
-
-    let infoY = addPdfHeader(doc, settings, `فاتورة شراء رقم #${invoiceNumber || "جديدة"}`);
-
-    doc.setFont("Amiri", "normal");
-    doc.setFontSize(11);
-    doc.text(`المورد: ${supplierName || suppliers.find(s => s.id === supplierId)?.name || "—"}`, doc.internal.pageSize.getWidth() - 15, infoY, { align: "right" });
-    doc.text(`التاريخ: ${invoiceDate}`, doc.internal.pageSize.getWidth() - 15, infoY + 7, { align: "right" });
-    doc.text(`الحالة: ${status === "posted" ? "مُرحّل" : "مسودة"}`, doc.internal.pageSize.getWidth() - 15, infoY + 14, { align: "right" });
-    infoY += 14;
-
-    const heads: string[] = [];
-    if (showDiscount) heads.push("الإجمالي", "الخصم", "السعر", "الكمية", "المنتج", "#");
-    else heads.push("الإجمالي", "السعر", "الكمية", "المنتج", "#");
-
-    const tableData = items.map((item, i) => {
-      const row: string[] = [item.total.toLocaleString("en-US", { minimumFractionDigits: 2 })];
-      if (showDiscount) row.push(item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 }));
-      row.push(item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 }), item.quantity.toString(), item.product_name, (i + 1).toString());
-      return row;
+    exportInvoicePdf({
+      type: "purchase_invoice",
+      number: invoiceNumber || "جديدة",
+      date: invoiceDate,
+      partyName: supplierName || suppliers.find(s => s.id === supplierId)?.name || "—",
+      partyLabel: "المورد",
+      reference: reference || undefined,
+      notes: notes || undefined,
+      items: items.map(i => ({ name: i.product_name, quantity: i.quantity, unitPrice: i.unit_price, discount: i.discount, total: i.total })),
+      subtotal,
+      taxAmount,
+      taxRate,
+      grandTotal,
+      showTax,
+      showDiscount,
+      settings,
+      status,
     });
-
-    const footRows: string[][] = [];
-    const emptyCount = showDiscount ? 4 : 3;
-    footRows.push([...Array(emptyCount).fill(""), "الإجمالي الفرعي", formatCurrency(subtotal)]);
-    if (showTax) footRows.push([...Array(emptyCount).fill(""), `الضريبة (${taxRate}%)`, formatCurrency(taxAmount)]);
-    footRows.push([...Array(emptyCount).fill(""), "الإجمالي الكلي", formatCurrency(grandTotal)]);
-
-    autoTable(doc, {
-      head: [heads],
-      body: tableData,
-      startY: infoY + 25,
-      styles: { ...styles, fontSize: 11 },
-      headStyles: { ...styles, fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
-      foot: footRows,
-      footStyles: { ...styles, fontStyle: "bold", fillColor: [236, 240, 241] },
-    });
-
-    if (notes) {
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
-      doc.text(`ملاحظات: ${notes}`, doc.internal.pageSize.getWidth() - 15, finalY, { align: "right" });
-    }
-
-    addPdfFooter(doc, settings);
-    doc.save(`فاتورة-شراء-${invoiceNumber || "جديدة"}.pdf`);
   }
 
   const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل", cancelled: "ملغي" };

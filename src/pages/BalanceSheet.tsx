@@ -95,70 +95,33 @@ export default function BalanceSheet() {
   const formatCurrency = (val: number) => `${formatNum(val)} ${currency}`;
 
   const handleExportPDF = async () => {
-    const { createArabicPDF, addPdfHeader, addPdfFooter } = await import("@/lib/pdf-arabic");
-    const autoTable = (await import("jspdf-autotable")).default;
-    const doc = await createArabicPDF();
-    const startY = addPdfHeader(doc, settings, "الميزانية العمومية");
+    const { exportReportPdf } = await import("@/lib/pdf-arabic");
 
-    const baseStyles = { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" as const };
-
+    const allRows: (string | number)[][] = [];
     // Assets
-    const assetData = assetRows.map((r) => [r.account.code, r.account.name, formatNum(r.balance)]);
-    assetData.push(["", "إجمالي الأصول", formatNum(totalAssets)]);
-    autoTable(doc, {
-      head: [["الكود", "الأصول", `المبلغ (${currency})`]],
-      body: assetData, startY,
-      styles: baseStyles,
-      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-      didParseCell: (data: any) => {
-        if (data.row.index === assetData.length - 1) { data.cell.styles.fontStyle = "bold"; data.cell.styles.fillColor = [239, 246, 255]; }
-      },
-    });
-
-    const y1 = (doc as any).lastAutoTable.finalY + 6;
-
+    assetRows.forEach((r) => allRows.push([r.account.code, r.account.name, "أصول", formatNum(r.balance)]));
+    allRows.push(["", "إجمالي الأصول", "", formatNum(totalAssets)]);
     // Liabilities
-    const liabData = liabilityRows.map((r) => [r.account.code, r.account.name, formatNum(r.balance)]);
-    liabData.push(["", "إجمالي الخصوم", formatNum(totalLiabilities)]);
-    autoTable(doc, {
-      head: [["الكود", "الخصوم", `المبلغ (${currency})`]],
-      body: liabData,
-      startY: y1,
-      styles: baseStyles,
-      headStyles: { fillColor: [239, 68, 68], textColor: 255 },
-      didParseCell: (data: any) => {
-        if (data.row.index === liabData.length - 1) { data.cell.styles.fontStyle = "bold"; data.cell.styles.fillColor = [254, 242, 242]; }
-      },
-    });
-
-    const y2 = (doc as any).lastAutoTable.finalY + 6;
-
+    liabilityRows.forEach((r) => allRows.push([r.account.code, r.account.name, "خصوم", formatNum(r.balance)]));
+    allRows.push(["", "إجمالي الخصوم", "", formatNum(totalLiabilities)]);
     // Equity
-    const eqData = equityRows.map((r) => [r.account.code, r.account.name, formatNum(r.balance)]);
-    if (netIncome !== 0) eqData.push(["", netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", formatNum(netIncome)]);
-    eqData.push(["", "إجمالي حقوق الملكية", formatNum(totalEquity)]);
-    autoTable(doc, {
-      head: [["الكود", "حقوق الملكية", `المبلغ (${currency})`]],
-      body: eqData,
-      startY: y2,
-      styles: baseStyles,
-      headStyles: { fillColor: [34, 197, 94], textColor: 255 },
-      didParseCell: (data: any) => {
-        if (data.row.index === eqData.length - 1) { data.cell.styles.fontStyle = "bold"; data.cell.styles.fillColor = [240, 253, 244]; }
-      },
-    });
+    equityRows.forEach((r) => allRows.push([r.account.code, r.account.name, "حقوق ملكية", formatNum(r.balance)]));
+    if (netIncome !== 0) allRows.push(["", netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", "", formatNum(netIncome)]);
+    allRows.push(["", "إجمالي حقوق الملكية", "", formatNum(totalEquity)]);
 
-    const y3 = (doc as any).lastAutoTable.finalY + 6;
-    autoTable(doc, {
-      body: [["إجمالي الخصوم وحقوق الملكية", formatNum(totalLiabilities + totalEquity)]],
-      startY: y3,
-      styles: { fontSize: 11, cellPadding: 4, fontStyle: "bold", font: "Amiri" },
-      bodyStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59] },
-      columnStyles: { 1: { halign: "right" } },
+    await exportReportPdf({
+      title: "الميزانية العمومية",
+      settings,
+      headers: ["الكود", "الحساب", "النوع", `المبلغ (${currency})`],
+      rows: allRows,
+      summaryCards: [
+        { label: "إجمالي الأصول", value: formatCurrency(totalAssets) },
+        { label: "إجمالي الخصوم", value: formatCurrency(totalLiabilities) },
+        { label: "حقوق الملكية", value: formatCurrency(totalEquity) },
+      ],
+      filename: "Balance_Sheet",
     });
-
-    addPdfFooter(doc, settings);
-    doc.save("Balance_Sheet.pdf");
+    
     toast({ title: "تم التصدير", description: "تم تصدير الميزانية العمومية بصيغة PDF" });
     setExportMenuOpen(false);
   };
