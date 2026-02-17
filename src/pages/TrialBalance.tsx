@@ -104,23 +104,23 @@ export default function TrialBalance() {
   };
 
   const handleExportPDF = async () => {
-    const { default: jsPDF } = await import("jspdf");
+    const { createArabicPDF } = await import("@/lib/pdf-arabic");
     const autoTable = (await import("jspdf-autotable")).default;
-    const doc = new jsPDF({ orientation: "landscape" });
+    const doc = await createArabicPDF("landscape");
 
     doc.setFontSize(16);
-    doc.text("Trial Balance", 148, 15, { align: "center" });
+    doc.text("ميزان المراجعة", 148, 15, { align: "center" });
     doc.setFontSize(10);
-    let subtitle = `Date: ${new Date().toLocaleDateString("en-US")} | Currency: EGP`;
+    let subtitle = `التاريخ: ${new Date().toLocaleDateString("en-US")} | العملة: EGP`;
     if (dateFrom || dateTo) {
-      subtitle += ` | Period: ${dateFrom ? format(dateFrom, "yyyy-MM-dd") : "Start"} to ${dateTo ? format(dateTo, "yyyy-MM-dd") : "End"}`;
+      subtitle += ` | الفترة: ${dateFrom ? format(dateFrom, "yyyy-MM-dd") : "البداية"} إلى ${dateTo ? format(dateTo, "yyyy-MM-dd") : "النهاية"}`;
     }
     doc.text(subtitle, 148, 22, { align: "center" });
 
     const tableData = trialBalanceData.map((r) => [
       r.account.code,
       r.account.name,
-      r.account.account_type,
+      getAccountTypeLabel(r.account.account_type),
       formatNum(r.totalDebit),
       formatNum(r.totalCredit),
       formatNum(r.balanceDebit),
@@ -128,12 +128,12 @@ export default function TrialBalance() {
     ]);
 
     autoTable(doc, {
-      head: [["Code", "Account", "Type", "Total Debit", "Total Credit", "Balance Debit", "Balance Credit"]],
+      head: [["الكود", "الحساب", "النوع", "إجمالي مدين", "إجمالي دائن", "رصيد مدين", "رصيد دائن"]],
       body: tableData,
       startY: 28,
-      styles: { fontSize: 9, cellPadding: 3 },
+      styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-      foot: [["", "", "Total", formatNum(grandTotalDebit), formatNum(grandTotalCredit), formatNum(grandBalanceDebit), formatNum(grandBalanceCredit)]],
+      foot: [["", "", "الإجمالي", formatNum(grandTotalDebit), formatNum(grandTotalCredit), formatNum(grandBalanceDebit), formatNum(grandBalanceCredit)]],
       footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: "bold" },
     });
 
