@@ -203,7 +203,6 @@ export default function SupplierPayments() {
       <DataTable
         columns={columns}
         data={payments}
-        searchKey="global"
         searchPlaceholder="بحث..."
         isLoading={loading}
         emptyMessage="لا توجد مدفوعات"

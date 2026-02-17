@@ -397,7 +397,6 @@ export default function UserManagement() {
       <DataTable
         columns={columns}
         data={filteredUsers}
-        searchKey="global"
         searchPlaceholder="البحث بالاسم..."
         isLoading={loading}
         emptyMessage="لا توجد نتائج مطابقة"

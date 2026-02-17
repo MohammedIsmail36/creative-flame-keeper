@@ -154,7 +154,6 @@ export default function Suppliers() {
       <DataTable
         columns={columns}
         data={suppliers}
-        searchKey="global"
         searchPlaceholder="بحث بالاسم أو الكود أو الهاتف..."
         isLoading={loading}
         emptyMessage="لا يوجد موردين"

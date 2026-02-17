@@ -89,7 +89,6 @@ export default function PurchaseReturns() {
       <DataTable
         columns={columns}
         data={returns}
-        searchKey="global"
         searchPlaceholder="بحث..."
         isLoading={loading}
         emptyMessage="لا توجد مرتجعات"

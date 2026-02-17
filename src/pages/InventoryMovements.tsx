@@ -226,7 +226,6 @@ export default function InventoryMovements() {
       <DataTable
         columns={columns}
         data={movementsWithBalance}
-        searchKey="global"
         searchPlaceholder="بحث..."
         isLoading={isLoading}
         emptyMessage="لا توجد حركات مخزون"
