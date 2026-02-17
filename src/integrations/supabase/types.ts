@@ -145,53 +145,200 @@ export type Database = {
           },
         ]
       }
+      product_brands: {
+        Row: {
+          country: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
+      product_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      product_images: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string
+          product_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url: string
+          product_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string
+          product_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_units: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          symbol: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          symbol?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          symbol?: string | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
+          barcode: string | null
+          brand_id: string | null
           category: string | null
+          category_id: string | null
           code: string
           created_at: string
           description: string | null
           id: string
           is_active: boolean
+          main_image_url: string | null
           min_stock_level: number
+          model_number: string | null
           name: string
           purchase_price: number
           quantity_on_hand: number
           selling_price: number
           unit: string | null
+          unit_id: string | null
           updated_at: string
         }
         Insert: {
+          barcode?: string | null
+          brand_id?: string | null
           category?: string | null
+          category_id?: string | null
           code: string
           created_at?: string
           description?: string | null
           id?: string
           is_active?: boolean
+          main_image_url?: string | null
           min_stock_level?: number
+          model_number?: string | null
           name: string
           purchase_price?: number
           quantity_on_hand?: number
           selling_price?: number
           unit?: string | null
+          unit_id?: string | null
           updated_at?: string
         }
         Update: {
+          barcode?: string | null
+          brand_id?: string | null
           category?: string | null
+          category_id?: string | null
           code?: string
           created_at?: string
           description?: string | null
           id?: string
           is_active?: boolean
+          main_image_url?: string | null
           min_stock_level?: number
+          model_number?: string | null
           name?: string
           purchase_price?: number
           quantity_on_hand?: number
           selling_price?: number
           unit?: string | null
+          unit_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "product_units"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
