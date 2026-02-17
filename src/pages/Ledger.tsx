@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Calculator, Search, Download, Filter, BookOpen, ArrowUpDown, TrendingUp, TrendingDown, CalendarIcon, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Calculator, Download, BookOpen, ArrowUpDown, TrendingUp, TrendingDown, X } from "lucide-react";
 
 interface Account {
   id: string;
@@ -31,6 +30,10 @@ interface LedgerLine {
   entry_date: string;
   entry_description: string;
   entry_status: string;
+  runningBalance?: number;
+  showBalance?: boolean;
+  accountName?: string;
+  accountCode?: string;
 }
 
 const formatNumber = (val: number) =>
@@ -38,40 +41,27 @@ const formatNumber = (val: number) =>
 
 const formatCurrency = (val: number) => `${formatNumber(val)} EGP`;
 
-const formatDate = (dateStr: string) => {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
-};
-
 export default function Ledger() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [lines, setLines] = useState<LedgerLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   const fetchData = async () => {
     setLoading(true);
     const [accountsRes, linesRes] = await Promise.all([
       supabase.from("accounts").select("id, code, name, account_type").eq("is_active", true).order("code"),
-      supabase
-        .from("journal_entry_lines")
-        .select("id, journal_entry_id, account_id, debit, credit, description, created_at")
-        .order("created_at", { ascending: true }),
+      supabase.from("journal_entry_lines").select("id, journal_entry_id, account_id, debit, credit, description, created_at").order("created_at", { ascending: true }),
     ]);
 
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
 
     if (linesRes.data && linesRes.data.length > 0) {
-      // Fetch journal entries for metadata
       const entryIds = [...new Set(linesRes.data.map((l: any) => l.journal_entry_id))];
-      const { data: entriesData } = await supabase
-        .from("journal_entries")
-        .select("id, entry_number, entry_date, description, status")
-        .in("id", entryIds);
+      const { data: entriesData } = await supabase.from("journal_entries").select("id, entry_number, entry_date, description, status").in("id", entryIds);
 
       const entryMap = new Map<string, any>();
       (entriesData || []).forEach((e: any) => entryMap.set(e.id, e));
@@ -80,15 +70,7 @@ export default function Ledger() {
         .map((l: any) => {
           const entry = entryMap.get(l.journal_entry_id);
           if (!entry || entry.status !== "posted") return null;
-          return {
-            ...l,
-            debit: Number(l.debit),
-            credit: Number(l.credit),
-            entry_number: entry.entry_number,
-            entry_date: entry.entry_date,
-            entry_description: entry.description,
-            entry_status: entry.status,
-          };
+          return { ...l, debit: Number(l.debit), credit: Number(l.credit), entry_number: entry.entry_number, entry_date: entry.entry_date, entry_description: entry.description, entry_status: entry.status };
         })
         .filter(Boolean) as LedgerLine[];
 
@@ -96,13 +78,10 @@ export default function Ledger() {
     } else {
       setLines([]);
     }
-
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const accountMap = useMemo(() => {
     const map = new Map<string, Account>();
@@ -110,7 +89,6 @@ export default function Ledger() {
     return map;
   }, [accounts]);
 
-  // Compute balances per account
   const accountBalances = useMemo(() => {
     const balances = new Map<string, { debit: number; credit: number; balance: number }>();
     lines.forEach((l) => {
@@ -123,152 +101,120 @@ export default function Ledger() {
     return balances;
   }, [lines]);
 
-  // Accounts that have movements
-  const activeAccounts = useMemo(() => {
-    return accounts.filter((a) => accountBalances.has(a.id));
-  }, [accounts, accountBalances]);
+  const activeAccounts = useMemo(() => accounts.filter((a) => accountBalances.has(a.id)), [accounts, accountBalances]);
 
-  // Filtered lines for selected account and date range
   const filteredLines = useMemo(() => {
     let filtered = lines;
-    if (selectedAccountId !== "all") {
-      filtered = filtered.filter((l) => l.account_id === selectedAccountId);
-    }
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (l) =>
-          l.entry_description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          String(l.entry_number).includes(searchQuery) ||
-          (l.description || "").toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    if (dateFrom) {
-      const fromStr = format(dateFrom, "yyyy-MM-dd");
-      filtered = filtered.filter((l) => l.entry_date >= fromStr);
-    }
-    if (dateTo) {
-      const toStr = format(dateTo, "yyyy-MM-dd");
-      filtered = filtered.filter((l) => l.entry_date <= toStr);
-    }
+    if (selectedAccountId !== "all") filtered = filtered.filter((l) => l.account_id === selectedAccountId);
+    if (dateFrom) filtered = filtered.filter((l) => l.entry_date >= dateFrom);
+    if (dateTo) filtered = filtered.filter((l) => l.entry_date <= dateTo);
     return filtered;
-  }, [lines, selectedAccountId, searchQuery, dateFrom, dateTo]);
+  }, [lines, selectedAccountId, dateFrom, dateTo]);
 
-  // Running balance for filtered lines (only meaningful for single account)
   const linesWithBalance = useMemo(() => {
     if (selectedAccountId === "all") {
-      return filteredLines.map((l) => ({ ...l, runningBalance: 0, showBalance: false }));
+      return filteredLines.map((l) => {
+        const acc = accountMap.get(l.account_id);
+        return { ...l, runningBalance: 0, showBalance: false, accountName: acc?.name || "", accountCode: acc?.code || "" };
+      });
     }
     let balance = 0;
     return filteredLines.map((l) => {
       balance += l.debit - l.credit;
-      return { ...l, runningBalance: balance, showBalance: true };
+      const acc = accountMap.get(l.account_id);
+      return { ...l, runningBalance: balance, showBalance: true, accountName: acc?.name || "", accountCode: acc?.code || "" };
     });
-  }, [filteredLines, selectedAccountId]);
+  }, [filteredLines, selectedAccountId, accountMap]);
 
   const totalDebit = filteredLines.reduce((s, l) => s + l.debit, 0);
   const totalCredit = filteredLines.reduce((s, l) => s + l.credit, 0);
 
-  // Stats
-  const totalAccounts = activeAccounts.length;
-  const totalMovements = lines.length;
-  const netBalance = lines.reduce((s, l) => s + l.debit - l.credit, 0);
+  const hasFilters = selectedAccountId !== "all" || dateFrom || dateTo;
+  const clearFilters = () => { setSelectedAccountId("all"); setDateFrom(""); setDateTo(""); };
 
   const handleExportPDF = async () => {
     const { createArabicPDF } = await import("@/lib/pdf-arabic");
     const autoTable = (await import("jspdf-autotable")).default;
-
     const doc = await createArabicPDF("landscape");
     const selectedAccount = selectedAccountId !== "all" ? accountMap.get(selectedAccountId) : null;
-    const title = selectedAccount
-      ? `دفتر الأستاذ - ${selectedAccount.code} ${selectedAccount.name}`
-      : "دفتر الأستاذ العام - جميع الحسابات";
-
+    const title = selectedAccount ? `دفتر الأستاذ - ${selectedAccount.code} ${selectedAccount.name}` : "دفتر الأستاذ العام";
     doc.setFontSize(16);
     doc.text(title, 148, 15, { align: "center" });
-    doc.setFontSize(10);
-    doc.text(`التاريخ: ${new Date().toLocaleDateString("en-US")} | العملة: EGP`, 148, 22, { align: "center" });
-
-    const tableData = linesWithBalance.map((l) => {
-      const acc = accountMap.get(l.account_id);
-      return [
-        l.entry_number,
-        formatDate(l.entry_date),
-        acc ? `${acc.code} - ${acc.name}` : l.account_id,
-        l.entry_description,
-        l.debit > 0 ? formatNumber(l.debit) : "-",
-        l.credit > 0 ? formatNumber(l.credit) : "-",
-        l.showBalance ? formatNumber(l.runningBalance) : "-",
-      ];
-    });
-
+    const tableData = linesWithBalance.map((l) => [l.entry_number, l.entry_date, l.accountCode ? `${l.accountCode} - ${l.accountName}` : "", l.entry_description, l.debit > 0 ? formatNumber(l.debit) : "-", l.credit > 0 ? formatNumber(l.credit) : "-", l.showBalance ? formatNumber(l.runningBalance!) : "-"]);
     autoTable(doc, {
-      head: [["#", "التاريخ", "الحساب", "الوصف", "مدين (EGP)", "دائن (EGP)", "الرصيد (EGP)"]],
-      body: tableData,
-      startY: 28,
+      head: [["#", "التاريخ", "الحساب", "الوصف", "مدين", "دائن", "الرصيد"]],
+      body: tableData, startY: 22,
       styles: { fontSize: 8, cellPadding: 3, font: "Amiri", halign: "right" },
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-      foot: [["", "", "", "الإجمالي", formatNumber(totalDebit), formatNumber(totalCredit), formatNumber(totalDebit - totalCredit)]],
-      footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: "bold" },
     });
-
     doc.save("General_Ledger.pdf");
-    toast({ title: "تم التصدير", description: "تم تصدير دفتر الأستاذ بصيغة PDF" });
+    toast({ title: "تم التصدير" });
     setExportMenuOpen(false);
   };
 
   const handleExportExcel = async () => {
     const XLSX = await import("xlsx");
-    const data = linesWithBalance.map((l) => {
-      const acc = accountMap.get(l.account_id);
-      return {
-        "Entry #": l.entry_number,
-        Date: formatDate(l.entry_date),
-        "Account Code": acc?.code || "",
-        "Account Name": acc?.name || "",
-        Description: l.entry_description,
-        "Debit (EGP)": l.debit,
-        "Credit (EGP)": l.credit,
-        "Balance (EGP)": l.showBalance ? l.runningBalance : "",
-      };
-    });
+    const data = linesWithBalance.map((l) => ({ "#": l.entry_number, "التاريخ": l.entry_date, "الحساب": `${l.accountCode} - ${l.accountName}`, "الوصف": l.entry_description, "مدين": l.debit, "دائن": l.credit, "الرصيد": l.showBalance ? l.runningBalance : "" }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Ledger");
     XLSX.writeFile(wb, "General_Ledger.xlsx");
-    toast({ title: "تم التصدير", description: "تم تصدير دفتر الأستاذ بصيغة Excel" });
+    toast({ title: "تم التصدير" });
     setExportMenuOpen(false);
   };
 
-  const handleExportCSV = () => {
-    const headers = ["Entry #", "Date", "Account Code", "Account Name", "Description", "Debit (EGP)", "Credit (EGP)", "Balance (EGP)"];
-    const rows = linesWithBalance.map((l) => {
-      const acc = accountMap.get(l.account_id);
-      return [
-        l.entry_number,
-        formatDate(l.entry_date),
-        acc?.code || "",
-        acc?.name || "",
-        l.entry_description,
-        l.debit,
-        l.credit,
-        l.showBalance ? l.runningBalance : "",
-      ];
-    });
-    const csvContent = "\uFEFF" + [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "General_Ledger.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: "تم التصدير", description: "تم تصدير دفتر الأستاذ بصيغة CSV" });
-    setExportMenuOpen(false);
-  };
+  const columns: ColumnDef<LedgerLine, any>[] = [
+    {
+      accessorKey: "entry_number",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="رقم القيد" />,
+      cell: ({ row }) => <span className="font-mono text-sm">{row.original.entry_number}</span>,
+    },
+    {
+      accessorKey: "entry_date",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.entry_date}</span>,
+    },
+    ...(selectedAccountId === "all" ? [{
+      id: "account",
+      header: "الحساب",
+      cell: ({ row }: any) => (
+        <button className="text-primary hover:underline text-sm" onClick={() => setSelectedAccountId(row.original.account_id)}>
+          {row.original.accountCode} - {row.original.accountName}
+        </button>
+      ),
+    } as ColumnDef<LedgerLine, any>] : []),
+    {
+      accessorKey: "entry_description",
+      header: "البيان",
+      cell: ({ row }) => <span className="text-sm">{row.original.entry_description}</span>,
+    },
+    {
+      accessorKey: "debit",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="مدين (EGP)" />,
+      cell: ({ row }) => <span className={`font-mono text-sm ${row.original.debit > 0 ? "text-green-600 font-medium" : "text-muted-foreground"}`}>{row.original.debit > 0 ? formatNumber(row.original.debit) : "-"}</span>,
+    },
+    {
+      accessorKey: "credit",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="دائن (EGP)" />,
+      cell: ({ row }) => <span className={`font-mono text-sm ${row.original.credit > 0 ? "text-red-600 font-medium" : "text-muted-foreground"}`}>{row.original.credit > 0 ? formatNumber(row.original.credit) : "-"}</span>,
+    },
+    ...(selectedAccountId !== "all" ? [{
+      id: "balance",
+      header: "الرصيد (EGP)",
+      cell: ({ row }: any) => {
+        const bal = row.original.runningBalance ?? 0;
+        return (
+          <span className={`font-mono text-sm font-bold ${bal >= 0 ? "text-green-600" : "text-red-600"}`}>
+            {formatNumber(Math.abs(bal))}
+            <span className="text-xs text-muted-foreground mr-1">{bal >= 0 ? "مدين" : "دائن"}</span>
+          </span>
+        );
+      },
+    } as ColumnDef<LedgerLine, any>] : []),
+  ];
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -281,11 +227,10 @@ export default function Ledger() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "حسابات نشطة", value: totalAccounts, icon: BookOpen, color: "bg-foreground/5 text-foreground" },
-          { label: "إجمالي الحركات", value: totalMovements, icon: ArrowUpDown, color: "bg-blue-500/10 text-blue-600" },
+          { label: "حسابات نشطة", value: activeAccounts.length, icon: BookOpen, color: "bg-foreground/5 text-foreground" },
+          { label: "إجمالي الحركات", value: lines.length, icon: ArrowUpDown, color: "bg-blue-500/10 text-blue-600" },
           { label: "إجمالي المدين", value: formatCurrency(lines.reduce((s, l) => s + l.debit, 0)), icon: TrendingUp, color: "bg-green-500/10 text-green-600" },
           { label: "إجمالي الدائن", value: formatCurrency(lines.reduce((s, l) => s + l.credit, 0)), icon: TrendingDown, color: "bg-red-500/10 text-red-600" },
         ].map(({ label, value, icon: Icon, color }) => (
@@ -303,202 +248,57 @@ export default function Ledger() {
         ))}
       </div>
 
-      {/* Search & Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="البحث في الحركات..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pr-10"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-                  <SelectTrigger className="w-56 gap-2">
-                    <Filter className="h-4 w-4" />
-                    <SelectValue placeholder="اختر حساب" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">جميع الحسابات</SelectItem>
-                    {accounts.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.code} - {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="relative">
-                  <Button variant="outline" className="gap-2" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
-                    <Download className="h-4 w-4" />
-                    تصدير
-                  </Button>
-                  {exportMenuOpen && (
-                    <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
-                      <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
-                        PDF تصدير
-                      </button>
-                      <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
-                        Excel تصدير
-                      </button>
-                      <button onClick={handleExportCSV} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
-                        CSV تصدير
-                      </button>
-                    </div>
-                  )}
+      <DataTable
+        columns={columns}
+        data={linesWithBalance}
+        searchPlaceholder="البحث في الحركات..."
+        isLoading={loading}
+        emptyMessage="لا توجد حركات محاسبية"
+        toolbarContent={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+              <SelectTrigger className="w-56 h-9 text-sm">
+                <SelectValue placeholder="اختر حساب" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع الحسابات</SelectItem>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36 h-9 text-sm" placeholder="من تاريخ" />
+            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36 h-9 text-sm" placeholder="إلى تاريخ" />
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1 text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+                مسح الفلاتر
+              </Button>
+            )}
+            <div className="relative">
+              <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
+                <Download className="h-4 w-4" />
+                تصدير
+              </Button>
+              {exportMenuOpen && (
+                <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
+                  <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">PDF تصدير</button>
+                  <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">Excel تصدير</button>
                 </div>
-              </div>
-            </div>
-            {/* Date Range Filter */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-muted-foreground">الفترة:</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn("w-[160px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}
-                  >
-                    <CalendarIcon className="ml-2 h-4 w-4" />
-                    {dateFrom ? format(dateFrom, "yyyy-MM-dd") : "من تاريخ"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateFrom}
-                    onSelect={setDateFrom}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-              <span className="text-sm text-muted-foreground">إلى</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn("w-[160px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}
-                  >
-                    <CalendarIcon className="ml-2 h-4 w-4" />
-                    {dateTo ? format(dateTo, "yyyy-MM-dd") : "إلى تاريخ"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateTo}
-                    onSelect={setDateTo}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-              {(dateFrom || dateTo) && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Ledger Table */}
-      <Card className="overflow-hidden">
-        <CardHeader className="border-b bg-muted/30 py-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Calculator className="h-4 w-4" />
-            {selectedAccountId !== "all"
-              ? `حركات الحساب: ${accountMap.get(selectedAccountId)?.name || ""}`
-              : "جميع الحركات"}
-            <span className="text-muted-foreground font-normal">({filteredLines.length} حركة)</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="p-8 text-center text-muted-foreground">جاري التحميل...</div>
-          ) : filteredLines.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              <Calculator className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>لا توجد حركات محاسبية</p>
-              <p className="text-xs mt-1">ستظهر الحركات بعد اعتماد القيود المحاسبية</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/20">
-                  <TableHead className="text-right">رقم القيد</TableHead>
-                  <TableHead className="text-right">التاريخ</TableHead>
-                  {selectedAccountId === "all" && <TableHead className="text-right">الحساب</TableHead>}
-                  <TableHead className="text-right">البيان</TableHead>
-                  <TableHead className="text-right">مدين (EGP)</TableHead>
-                  <TableHead className="text-right">دائن (EGP)</TableHead>
-                  {selectedAccountId !== "all" && <TableHead className="text-right">الرصيد (EGP)</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {linesWithBalance.map((l) => {
-                  const acc = accountMap.get(l.account_id);
-                  return (
-                    <TableRow key={l.id} className="hover:bg-muted/30">
-                      <TableCell className="font-mono text-sm">{l.entry_number}</TableCell>
-                      <TableCell className="text-sm">{formatDate(l.entry_date)}</TableCell>
-                      {selectedAccountId === "all" && (
-                        <TableCell>
-                          <button
-                            className="text-primary hover:underline text-sm"
-                            onClick={() => setSelectedAccountId(l.account_id)}
-                          >
-                            {acc ? `${acc.code} - ${acc.name}` : "—"}
-                          </button>
-                        </TableCell>
-                      )}
-                      <TableCell className="text-sm">{l.entry_description}</TableCell>
-                      <TableCell className={`font-mono text-sm ${l.debit > 0 ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
-                        {l.debit > 0 ? formatNumber(l.debit) : "-"}
-                      </TableCell>
-                      <TableCell className={`font-mono text-sm ${l.credit > 0 ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
-                        {l.credit > 0 ? formatNumber(l.credit) : "-"}
-                      </TableCell>
-                      {l.showBalance && (
-                        <TableCell className={`font-mono text-sm font-bold ${l.runningBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                          {formatNumber(Math.abs(l.runningBalance))}
-                          <span className="text-xs text-muted-foreground mr-1">{l.runningBalance >= 0 ? "مدين" : "دائن"}</span>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })}
-                {/* Totals Row */}
-                <TableRow className="bg-muted/30 font-bold border-t-2">
-                  <TableCell colSpan={selectedAccountId === "all" ? 4 : 3} className="text-left">
-                    الإجمالي
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-green-600">{formatNumber(totalDebit)}</TableCell>
-                  <TableCell className="font-mono text-sm text-red-600">{formatNumber(totalCredit)}</TableCell>
-                  {selectedAccountId !== "all" && (
-                    <TableCell className="font-mono text-sm font-bold">
-                      {formatNumber(Math.abs(totalDebit - totalCredit))}
-                      <span className="text-xs text-muted-foreground mr-1">
-                        {totalDebit - totalCredit >= 0 ? "مدين" : "دائن"}
-                      </span>
-                    </TableCell>
-                  )}
-                </TableRow>
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+        }
+        columnLabels={{
+          entry_number: "رقم القيد",
+          entry_date: "التاريخ",
+          account: "الحساب",
+          entry_description: "البيان",
+          debit: "مدين",
+          credit: "دائن",
+          balance: "الرصيد",
+        }}
+      />
     </div>
   );
 }

@@ -2,22 +2,23 @@ import React, { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AccountCombobox } from "@/components/AccountCombobox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { FileText, Plus, Pencil, Trash2, Search, Download, Filter, Eye, CheckCircle, Clock, BookOpen, X, CalendarIcon } from "lucide-react";
+import { FileText, Plus, Pencil, Trash2, Download, Eye, CheckCircle, Clock, BookOpen, X, CalendarIcon } from "lucide-react";
 
 interface Account {
   id: string;
@@ -51,10 +52,9 @@ export default function Journal() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "posted">("all");
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -92,9 +92,7 @@ export default function Journal() {
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const statusCounts = useMemo(() => {
     const counts = { all: entries.length, draft: 0, posted: 0 };
@@ -110,13 +108,12 @@ export default function Journal() {
 
   const filteredEntries = useMemo(() => {
     return entries.filter((e) => {
-      const matchesSearch = !searchQuery || e.description.includes(searchQuery) || String(e.entry_number).includes(searchQuery);
-      const matchesStatus = statusFilter === "all" || e.status === statusFilter;
-      const matchesDateFrom = !dateFrom || e.entry_date >= format(dateFrom, "yyyy-MM-dd");
-      const matchesDateTo = !dateTo || e.entry_date <= format(dateTo, "yyyy-MM-dd");
-      return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
+      if (statusFilter !== "all" && e.status !== statusFilter) return false;
+      if (dateFrom && e.entry_date < dateFrom) return false;
+      if (dateTo && e.entry_date > dateTo) return false;
+      return true;
     });
-  }, [entries, searchQuery, statusFilter, dateFrom, dateTo]);
+  }, [entries, statusFilter, dateFrom, dateTo]);
 
   const accountMap = useMemo(() => {
     const map = new Map<string, Account>();
@@ -144,15 +141,10 @@ export default function Journal() {
     setEditingEntry(entry);
     setFormDate(entry.entry_date);
     setFormDescription(entry.description);
-
     const { data } = await supabase.from("journal_entry_lines").select("*").eq("journal_entry_id", entry.id).order("created_at");
     if (data && data.length > 0) {
       setFormLines(data.map((l: any) => ({
-        id: l.id,
-        account_id: l.account_id,
-        debit: Number(l.debit),
-        credit: Number(l.credit),
-        description: l.description || "",
+        id: l.id, account_id: l.account_id, debit: Number(l.debit), credit: Number(l.credit), description: l.description || "",
       })));
     } else {
       setFormLines([
@@ -168,11 +160,7 @@ export default function Journal() {
     setViewingEntry({
       ...entry,
       lines: (data || []).map((l: any) => ({
-        id: l.id,
-        account_id: l.account_id,
-        debit: Number(l.debit),
-        credit: Number(l.credit),
-        description: l.description || "",
+        id: l.id, account_id: l.account_id, debit: Number(l.debit), credit: Number(l.credit), description: l.description || "",
       })),
     });
     setViewDialogOpen(true);
@@ -190,12 +178,8 @@ export default function Journal() {
   const updateLine = (index: number, field: keyof JournalEntryLine, value: any) => {
     const updated = [...formLines];
     (updated[index] as any)[field] = value;
-    // Auto-clear the opposite field
-    if (field === "debit" && Number(value) > 0) {
-      updated[index].credit = 0;
-    } else if (field === "credit" && Number(value) > 0) {
-      updated[index].debit = 0;
-    }
+    if (field === "debit" && Number(value) > 0) updated[index].credit = 0;
+    else if (field === "credit" && Number(value) > 0) updated[index].debit = 0;
     setFormLines(updated);
   };
 
@@ -204,64 +188,37 @@ export default function Journal() {
       toast({ title: "تنبيه", description: "يرجى إدخال وصف القيد", variant: "destructive" });
       return;
     }
-
     const validLines = formLines.filter((l) => l.account_id && (l.debit > 0 || l.credit > 0));
     if (validLines.length < 2) {
       toast({ title: "تنبيه", description: "يجب إضافة سطرين على الأقل", variant: "destructive" });
       return;
     }
-
     if (!isBalanced) {
-      toast({ title: "تنبيه", description: "القيد غير متوازن - مجموع المدين يجب أن يساوي مجموع الدائن", variant: "destructive" });
+      toast({ title: "تنبيه", description: "القيد غير متوازن", variant: "destructive" });
       return;
     }
-
     setSaving(true);
-
     const entryPayload = {
-      entry_date: formDate,
-      description: formDescription.trim(),
-      status: asPosted ? "posted" : "draft",
-      total_debit: formTotalDebit,
-      total_credit: formTotalCredit,
-      created_by: user?.id || null,
+      entry_date: formDate, description: formDescription.trim(), status: asPosted ? "posted" : "draft",
+      total_debit: formTotalDebit, total_credit: formTotalCredit, created_by: user?.id || null,
     };
-
     try {
       if (editingEntry) {
         const { error } = await supabase.from("journal_entries").update(entryPayload).eq("id", editingEntry.id);
         if (error) throw error;
-
-        // Delete old lines and insert new ones
         await supabase.from("journal_entry_lines").delete().eq("journal_entry_id", editingEntry.id);
-        const linesPayload = validLines.map((l) => ({
-          journal_entry_id: editingEntry.id,
-          account_id: l.account_id,
-          debit: l.debit,
-          credit: l.credit,
-          description: l.description || null,
-        }));
+        const linesPayload = validLines.map((l) => ({ journal_entry_id: editingEntry.id, account_id: l.account_id, debit: l.debit, credit: l.credit, description: l.description || null }));
         const { error: linesError } = await supabase.from("journal_entry_lines").insert(linesPayload);
         if (linesError) throw linesError;
-
         toast({ title: "تم التحديث", description: "تم تعديل القيد بنجاح" });
       } else {
         const { data, error } = await supabase.from("journal_entries").insert(entryPayload).select("id").single();
         if (error) throw error;
-
-        const linesPayload = validLines.map((l) => ({
-          journal_entry_id: data.id,
-          account_id: l.account_id,
-          debit: l.debit,
-          credit: l.credit,
-          description: l.description || null,
-        }));
+        const linesPayload = validLines.map((l) => ({ journal_entry_id: data.id, account_id: l.account_id, debit: l.debit, credit: l.credit, description: l.description || null }));
         const { error: linesError } = await supabase.from("journal_entry_lines").insert(linesPayload);
         if (linesError) throw linesError;
-
         toast({ title: "تمت الإضافة", description: "تم إنشاء القيد بنجاح" });
       }
-
       setDialogOpen(false);
       fetchData();
     } catch (error: any) {
@@ -291,17 +248,15 @@ export default function Journal() {
   };
 
   const formatNum = (val: number) => Number(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatCurrency = (val: number) => `${formatNum(Number(val))} EGP`;
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
 
   const handleExportExcel = async () => {
     const XLSX = await import("xlsx");
     const data = filteredEntries.map((e) => ({
-      "Entry #": e.entry_number,
-      "Date": e.entry_date,
-      "Description": e.description,
+      "Entry #": e.entry_number, "Date": e.entry_date, "Description": e.description,
       "Status": e.status === "posted" ? "Posted" : "Draft",
-      "Debit (EGP)": Number(e.total_debit),
-      "Credit (EGP)": Number(e.total_credit),
+      "Debit (EGP)": Number(e.total_debit), "Credit (EGP)": Number(e.total_credit),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -314,33 +269,20 @@ export default function Journal() {
   const handleExportPDF = async () => {
     const { createArabicPDF } = await import("@/lib/pdf-arabic");
     const autoTable = (await import("jspdf-autotable")).default;
-
     const doc = await createArabicPDF("landscape");
-
     doc.setFontSize(16);
     doc.text("القيود المحاسبية", 148, 15, { align: "center" });
     doc.setFontSize(10);
     doc.text(`التاريخ: ${new Date().toLocaleDateString("en-US")} | العملة: EGP`, 148, 22, { align: "center" });
-
-    const tableData = filteredEntries.map((e) => [
-      e.entry_number,
-      formatDate(e.entry_date),
-      e.description,
-      e.status === "posted" ? "معتمد" : "مسودة",
-      formatNum(Number(e.total_debit)),
-      formatNum(Number(e.total_credit)),
-    ]);
-
+    const tableData = filteredEntries.map((e) => [e.entry_number, formatDate(e.entry_date), e.description, e.status === "posted" ? "معتمد" : "مسودة", formatNum(Number(e.total_debit)), formatNum(Number(e.total_credit))]);
     autoTable(doc, {
       head: [["#", "التاريخ", "الوصف", "الحالة", "مدين (EGP)", "دائن (EGP)"]],
-      body: tableData,
-      startY: 28,
+      body: tableData, startY: 28,
       styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
       foot: [["", "", "", "الإجمالي", formatNum(totalDebit), formatNum(totalCredit)]],
       footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: "bold" },
     });
-
     doc.save("Journal_Entries.pdf");
     toast({ title: "تم التصدير", description: "تم تصدير القيود بصيغة PDF" });
     setExportMenuOpen(false);
@@ -348,27 +290,101 @@ export default function Journal() {
 
   const handleExportCSV = () => {
     const headers = ["Entry #", "Date", "Description", "Status", "Debit (EGP)", "Credit (EGP)"];
-    const rows = filteredEntries.map((e) => [
-      e.entry_number,
-      e.entry_date,
-      e.description,
-      e.status === "posted" ? "Posted" : "Draft",
-      e.total_debit,
-      e.total_credit,
-    ]);
+    const rows = filteredEntries.map((e) => [e.entry_number, e.entry_date, e.description, e.status === "posted" ? "Posted" : "Draft", e.total_debit, e.total_credit]);
     const csvContent = "\uFEFF" + [headers, ...rows].map((r) => r.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = "Journal_Entries.csv";
-    a.click();
+    a.href = url; a.download = "Journal_Entries.csv"; a.click();
     URL.revokeObjectURL(url);
     toast({ title: "تم التصدير", description: "تم تصدير القيود بصيغة CSV" });
     setExportMenuOpen(false);
   };
 
-  const formatCurrency = (val: number) => `${formatNum(Number(val))} EGP`;
+  const hasFilters = statusFilter !== "all" || dateFrom || dateTo;
+  const clearFilters = () => { setStatusFilter("all"); setDateFrom(""); setDateTo(""); };
+
+  const columns: ColumnDef<JournalEntry, any>[] = [
+    {
+      accessorKey: "entry_number",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="رقم القيد" />,
+      cell: ({ row }) => <span className="font-mono font-medium">{row.original.entry_number}</span>,
+    },
+    {
+      accessorKey: "entry_date",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.entry_date}</span>,
+    },
+    {
+      accessorKey: "description",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الوصف" />,
+      cell: ({ row }) => <span className="font-medium max-w-[200px] truncate block">{row.original.description}</span>,
+    },
+    {
+      accessorKey: "status",
+      header: "الحالة",
+      cell: ({ row }) => (
+        <Badge variant={row.original.status === "posted" ? "default" : "secondary"}
+          className={row.original.status === "posted" ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"}>
+          {row.original.status === "posted" ? "معتمد" : "مسودة"}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "total_debit",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="مدين" />,
+      cell: ({ row }) => <span className="font-mono">{formatCurrency(row.original.total_debit)}</span>,
+    },
+    {
+      accessorKey: "total_credit",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="دائن" />,
+      cell: ({ row }) => <span className="font-mono">{formatCurrency(row.original.total_credit)}</span>,
+    },
+    {
+      id: "actions",
+      header: "إجراءات",
+      enableHiding: false,
+      cell: ({ row }) => {
+        const entry = row.original;
+        return (
+          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openViewDialog(entry)}>
+              <Eye className="h-4 w-4" />
+            </Button>
+            {canEdit && entry.status === "draft" && (
+              <>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(entry)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={() => handlePost(entry)} title="اعتماد القيد">
+                  <CheckCircle className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+            {canDelete && entry.status === "draft" && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent dir="rtl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+                    <AlertDialogDescription>هل أنت متأكد من حذف القيد رقم {entry.entry_number}؟</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="flex-row-reverse gap-2">
+                    <AlertDialogAction onClick={() => handleDelete(entry)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
+                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -394,218 +410,67 @@ export default function Journal() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "إجمالي القيود", value: entries.length, icon: BookOpen, color: "bg-foreground/5 text-foreground" },
-          { label: "مسودات", value: statusCounts.draft, icon: Clock, color: "bg-amber-500/10 text-amber-600" },
-          { label: "معتمدة", value: statusCounts.posted, icon: CheckCircle, color: "bg-green-500/10 text-green-600" },
-          { label: "إجمالي المبالغ", value: formatCurrency(totalDebit), icon: FileText, color: "bg-blue-500/10 text-blue-600" },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <Card key={label} className="border">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-1">
-                <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${color}`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <span className="text-xl font-bold text-foreground">{value}</span>
+          { label: "إجمالي القيود", value: entries.length, icon: BookOpen, color: "bg-foreground/5 text-foreground", filter: "all" },
+          { label: "مسودات", value: statusCounts.draft, icon: Clock, color: "bg-amber-500/10 text-amber-600", filter: "draft" },
+          { label: "معتمدة", value: statusCounts.posted, icon: CheckCircle, color: "bg-green-500/10 text-green-600", filter: "posted" },
+          { label: "إجمالي المبالغ", value: formatCurrency(totalDebit), icon: FileText, color: "bg-blue-500/10 text-blue-600", filter: "" },
+        ].map(({ label, value, icon: Icon, color, filter }) => (
+          <button key={label} onClick={() => filter && setStatusFilter(filter)}
+            className={`rounded-xl border p-3 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}>
+            <div className="flex items-center justify-between mb-1">
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${color}`}>
+                <Icon className="h-4 w-4" />
               </div>
-              <p className="text-xs text-muted-foreground">{label}</p>
-            </CardContent>
-          </Card>
+              <span className="text-xl font-bold text-foreground">{value}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">{label}</p>
+          </button>
         ))}
       </div>
 
-      {/* Search & Actions */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="البحث في القيود..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pr-10"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-                  <SelectTrigger className="w-36 gap-2">
-                    <Filter className="h-4 w-4" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">الكل ({statusCounts.all})</SelectItem>
-                    <SelectItem value="draft">مسودة ({statusCounts.draft})</SelectItem>
-                    <SelectItem value="posted">معتمد ({statusCounts.posted})</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="relative">
-                  <Button variant="outline" className="gap-2" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
-                    <Download className="h-4 w-4" />
-                    تصدير
-                  </Button>
-                  {exportMenuOpen && (
-                    <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
-                      <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
-                        PDF تصدير
-                      </button>
-                      <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
-                        Excel تصدير
-                      </button>
-                      <button onClick={handleExportCSV} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
-                        CSV تصدير
-                      </button>
-                    </div>
-                  )}
+      {/* DataTable */}
+      <DataTable
+        columns={columns}
+        data={filteredEntries}
+        searchPlaceholder="البحث في القيود..."
+        isLoading={loading}
+        emptyMessage="لا توجد قيود محاسبية"
+        toolbarContent={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-36 h-9 text-sm">
+                <SelectValue placeholder="الحالة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الحالات ({statusCounts.all})</SelectItem>
+                <SelectItem value="draft">مسودة ({statusCounts.draft})</SelectItem>
+                <SelectItem value="posted">معتمد ({statusCounts.posted})</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36 h-9 text-sm" placeholder="من تاريخ" />
+            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36 h-9 text-sm" placeholder="إلى تاريخ" />
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1 text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+                مسح الفلاتر
+              </Button>
+            )}
+            <div className="relative">
+              <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
+                <Download className="h-4 w-4" />
+                تصدير
+              </Button>
+              {exportMenuOpen && (
+                <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
+                  <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">PDF تصدير</button>
+                  <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">Excel تصدير</button>
+                  <button onClick={handleExportCSV} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">CSV تصدير</button>
                 </div>
-              </div>
-            </div>
-            {/* Date Range Filter */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-muted-foreground">الفترة:</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn("w-[160px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}
-                  >
-                    <CalendarIcon className="ml-2 h-4 w-4" />
-                    {dateFrom ? format(dateFrom, "yyyy-MM-dd") : "من تاريخ"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateFrom}
-                    onSelect={setDateFrom}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-              <span className="text-sm text-muted-foreground">إلى</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn("w-[160px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}
-                  >
-                    <CalendarIcon className="ml-2 h-4 w-4" />
-                    {dateTo ? format(dateTo, "yyyy-MM-dd") : "إلى تاريخ"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateTo}
-                    onSelect={setDateTo}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-              {(dateFrom || dateTo) && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Entries Table */}
-      <Card className="overflow-hidden">
-        <CardHeader className="border-b bg-muted/30 py-4">
-          <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            سجل القيود
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="p-12 text-center text-muted-foreground">جاري التحميل...</div>
-          ) : filteredEntries.length === 0 ? (
-            <div className="p-12 text-center text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>لا توجد قيود محاسبية</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/20">
-                  <TableHead className="text-right">رقم القيد</TableHead>
-                  <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">الوصف</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right">مدين</TableHead>
-                  <TableHead className="text-right">دائن</TableHead>
-                  <TableHead className="text-center">إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEntries.map((entry) => (
-                  <TableRow key={entry.id} className="group hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-mono font-medium">{entry.entry_number}</TableCell>
-                    <TableCell className="text-muted-foreground">{entry.entry_date}</TableCell>
-                    <TableCell className="font-medium max-w-[200px] truncate">{entry.description}</TableCell>
-                    <TableCell>
-                      <Badge variant={entry.status === "posted" ? "default" : "secondary"} className={entry.status === "posted" ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"}>
-                        {entry.status === "posted" ? "معتمد" : "مسودة"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono">{formatCurrency(entry.total_debit)}</TableCell>
-                    <TableCell className="font-mono">{formatCurrency(entry.total_credit)}</TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => openViewDialog(entry)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {canEdit && entry.status === "draft" && (
-                          <>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => openEditDialog(entry)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-green-600 hover:bg-green-500/10" onClick={() => handlePost(entry)} title="اعتماد القيد">
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                        {canDelete && entry.status === "draft" && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent dir="rtl">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  هل أنت متأكد من حذف القيد رقم {entry.entry_number}؟
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter className="flex-row-reverse gap-2">
-                                <AlertDialogAction onClick={() => handleDelete(entry)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
-                                <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+        }
+      />
 
       {/* View Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
@@ -669,22 +534,13 @@ export default function Journal() {
                 <Label>التاريخ</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn("w-full justify-start text-left font-normal", !formDate && "text-muted-foreground")}
-                    >
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !formDate && "text-muted-foreground")}>
                       <CalendarIcon className="ml-2 h-4 w-4" />
                       {formDate || "اختر التاريخ"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formDate ? new Date(formDate + "T00:00:00") : undefined}
-                      onSelect={(date) => date && setFormDate(format(date, "yyyy-MM-dd"))}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                    />
+                    <Calendar mode="single" selected={formDate ? new Date(formDate + "T00:00:00") : undefined} onSelect={(date) => date && setFormDate(format(date, "yyyy-MM-dd"))} initialFocus className={cn("p-3 pointer-events-auto")} />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -694,7 +550,6 @@ export default function Journal() {
               </div>
             </div>
 
-            {/* Lines */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-base font-semibold">بنود القيد</Label>
@@ -719,11 +574,7 @@ export default function Journal() {
                     {formLines.map((line, index) => (
                       <TableRow key={index}>
                         <TableCell className="p-2">
-                          <AccountCombobox
-                            accounts={accounts}
-                            value={line.account_id}
-                            onValueChange={(v) => updateLine(index, "account_id", v)}
-                          />
+                          <AccountCombobox accounts={accounts} value={line.account_id} onValueChange={(v) => updateLine(index, "account_id", v)} />
                         </TableCell>
                         <TableCell className="p-2">
                           <Input className="h-9" value={line.description} onChange={(e) => updateLine(index, "description", e.target.value)} placeholder="بيان" />
