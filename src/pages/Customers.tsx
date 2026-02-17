@@ -1,24 +1,199 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { toast } from "@/hooks/use-toast";
+import { Plus, Pencil, Trash2, Search, Users } from "lucide-react";
+
+interface Customer {
+  id: string; code: string; name: string; phone: string | null; email: string | null;
+  address: string | null; tax_number: string | null; contact_person: string | null;
+  notes: string | null; balance: number; is_active: boolean;
+}
 
 export default function Customers() {
+  const { role } = useAuth();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editItem, setEditItem] = useState<Customer | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ code: "", name: "", phone: "", email: "", address: "", tax_number: "", contact_person: "", notes: "" });
+
+  const canEdit = role === "admin" || role === "accountant" || role === "sales";
+
+  useEffect(() => { fetchCustomers(); }, []);
+
+  async function fetchCustomers() {
+    setLoading(true);
+    const { data } = await (supabase.from("customers" as any) as any).select("*").eq("is_active", true).order("code");
+    setCustomers(data || []);
+    setLoading(false);
+  }
+
+  function openAdd() {
+    setEditItem(null);
+    setForm({ code: "", name: "", phone: "", email: "", address: "", tax_number: "", contact_person: "", notes: "" });
+    setDialogOpen(true);
+  }
+
+  function openEdit(c: Customer) {
+    setEditItem(c);
+    setForm({ code: c.code, name: c.name, phone: c.phone || "", email: c.email || "", address: c.address || "", tax_number: c.tax_number || "", contact_person: c.contact_person || "", notes: c.notes || "" });
+    setDialogOpen(true);
+  }
+
+  async function handleSave() {
+    if (!form.code.trim() || !form.name.trim()) {
+      toast({ title: "تنبيه", description: "يرجى إدخال الكود والاسم", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    const payload: any = {
+      code: form.code.trim(), name: form.name.trim(),
+      phone: form.phone.trim() || null, email: form.email.trim() || null,
+      address: form.address.trim() || null, tax_number: form.tax_number.trim() || null,
+      contact_person: form.contact_person.trim() || null, notes: form.notes.trim() || null,
+    };
+    try {
+      if (editItem) {
+        const { error } = await (supabase.from("customers" as any) as any).update(payload).eq("id", editItem.id);
+        if (error) throw error;
+        toast({ title: "تم التحديث", description: "تم تعديل بيانات العميل" });
+      } else {
+        const { error } = await (supabase.from("customers" as any) as any).insert(payload);
+        if (error) throw error;
+        toast({ title: "تمت الإضافة", description: "تم إضافة العميل بنجاح" });
+      }
+      setDialogOpen(false);
+      fetchCustomers();
+    } catch (error: any) {
+      const msg = error.message?.includes("duplicate") ? "كود العميل موجود مسبقاً" : error.message;
+      toast({ title: "خطأ", description: msg, variant: "destructive" });
+    }
+    setSaving(false);
+  }
+
+  async function handleDelete(c: Customer) {
+    const { count } = await (supabase.from("sales_invoices" as any) as any).select("id", { count: "exact", head: true }).eq("customer_id", c.id);
+    if (count && count > 0) {
+      toast({ title: "لا يمكن الحذف", description: `العميل مرتبط بـ ${count} فاتورة بيع`, variant: "destructive" });
+      return;
+    }
+    const { error } = await (supabase.from("customers" as any) as any).delete().eq("id", c.id);
+    if (error) { toast({ title: "خطأ", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "تم الحذف", description: "تم حذف العميل" });
+    fetchCustomers();
+  }
+
+  const filtered = customers.filter(c => c.name.includes(search) || c.code.includes(search) || c.phone?.includes(search));
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">العملاء</h1>
-        <p className="text-muted-foreground text-sm mt-1">إدارة بيانات العملاء</p>
+    <div className="space-y-6" dir="rtl">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Users className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">العملاء</h1>
+            <p className="text-sm text-muted-foreground">{customers.length} عميل</p>
+          </div>
+        </div>
+        {canEdit && <Button onClick={openAdd} className="gap-2"><Plus className="h-4 w-4" />إضافة عميل</Button>}
       </div>
+
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Users className="w-4 h-4" />
-            قائمة العملاء
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-sm">سيتم بناء إدارة العملاء بعد إنشاء قاعدة البيانات</p>
+        <CardContent className="p-4">
+          <div className="relative max-w-sm">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="بحث بالاسم أو الكود أو الهاتف..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
+          </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-right">الكود</TableHead>
+                  <TableHead className="text-right">الاسم</TableHead>
+                  <TableHead className="text-right">الهاتف</TableHead>
+                  <TableHead className="text-right">البريد</TableHead>
+                  <TableHead className="text-right">الرصيد</TableHead>
+                  {canEdit && <TableHead className="text-right w-[100px]">إجراءات</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 ? (
+                  <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">لا يوجد عملاء</TableCell></TableRow>
+                ) : filtered.map(c => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-mono text-sm">{c.code}</TableCell>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{c.phone || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{c.email || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={c.balance > 0 ? "destructive" : "secondary"}>
+                        {c.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </Badge>
+                    </TableCell>
+                    {canEdit && (
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(c)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent dir="rtl" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editItem ? "تعديل عميل" : "إضافة عميل جديد"}</DialogTitle>
+            <DialogDescription>أدخل بيانات العميل</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>الكود *</Label><Input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} placeholder="C001" className="font-mono" /></div>
+              <div className="space-y-2"><Label>الاسم *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="اسم العميل" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>الهاتف</Label><Input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="رقم الهاتف" /></div>
+              <div className="space-y-2"><Label>البريد الإلكتروني</Label><Input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="email@example.com" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>الرقم الضريبي</Label><Input value={form.tax_number} onChange={e => setForm(p => ({ ...p, tax_number: e.target.value }))} placeholder="الرقم الضريبي" /></div>
+              <div className="space-y-2"><Label>جهة الاتصال</Label><Input value={form.contact_person} onChange={e => setForm(p => ({ ...p, contact_person: e.target.value }))} placeholder="اسم المسؤول" /></div>
+            </div>
+            <div className="space-y-2"><Label>العنوان</Label><Input value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} placeholder="العنوان" /></div>
+            <div className="space-y-2"><Label>ملاحظات</Label><Textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="ملاحظات (اختياري)" rows={2} /></div>
+          </div>
+          <DialogFooter className="flex-row-reverse gap-2">
+            <Button onClick={handleSave} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>إلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
