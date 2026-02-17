@@ -16,6 +16,7 @@ import Purchases from "./pages/Purchases";
 import Suppliers from "./pages/Suppliers";
 import Products from "./pages/Products";
 import Reports from "./pages/Reports";
+import TrialBalance from "./pages/TrialBalance";
 import SettingsPage from "./pages/SettingsPage";
 import UserManagement from "./pages/UserManagement";
 import Auth from "./pages/Auth";
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Purchases /></AppLayout></ProtectedRoute>} />
             <Route path="/suppliers" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Suppliers /></AppLayout></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Products /></AppLayout></ProtectedRoute>} />
+            <Route path="/trial-balance" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><TrialBalance /></AppLayout></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Reports /></AppLayout></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout><UserManagement /></AppLayout></ProtectedRoute>} />

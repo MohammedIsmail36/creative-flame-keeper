@@ -42,6 +42,7 @@ const accountingItems: MenuItem[] = [
   { title: "شجرة الحسابات", url: "/accounts", icon: BookOpen, roles: ["admin", "accountant"] },
   { title: "القيود المحاسبية", url: "/journal", icon: FileText, roles: ["admin", "accountant"] },
   { title: "دفتر الأستاذ", url: "/ledger", icon: Calculator, roles: ["admin", "accountant"] },
+  { title: "ميزان المراجعة", url: "/trial-balance", icon: BarChart3, roles: ["admin", "accountant"] },
 ];
 
 const salesItems: MenuItem[] = [
