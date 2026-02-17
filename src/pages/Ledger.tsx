@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { Calculator, Search, Download, Filter, BookOpen, ArrowUpDown, TrendingUp, TrendingDown } from "lucide-react";
+import { Calculator, Search, Download, Filter, BookOpen, ArrowUpDown, TrendingUp, TrendingDown, CalendarIcon, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Account {
   id: string;
@@ -46,6 +50,8 @@ export default function Ledger() {
   const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   const fetchData = async () => {
     setLoading(true);
@@ -122,7 +128,7 @@ export default function Ledger() {
     return accounts.filter((a) => accountBalances.has(a.id));
   }, [accounts, accountBalances]);
 
-  // Filtered lines for selected account
+  // Filtered lines for selected account and date range
   const filteredLines = useMemo(() => {
     let filtered = lines;
     if (selectedAccountId !== "all") {
@@ -136,8 +142,16 @@ export default function Ledger() {
           (l.description || "").toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
+    if (dateFrom) {
+      const fromStr = format(dateFrom, "yyyy-MM-dd");
+      filtered = filtered.filter((l) => l.entry_date >= fromStr);
+    }
+    if (dateTo) {
+      const toStr = format(dateTo, "yyyy-MM-dd");
+      filtered = filtered.filter((l) => l.entry_date <= toStr);
+    }
     return filtered;
-  }, [lines, selectedAccountId, searchQuery]);
+  }, [lines, selectedAccountId, searchQuery, dateFrom, dateTo]);
 
   // Running balance for filtered lines (only meaningful for single account)
   const linesWithBalance = useMemo(() => {
@@ -337,50 +351,107 @@ export default function Ledger() {
       {/* Search & Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="البحث في الحركات..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pr-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-                <SelectTrigger className="w-56 gap-2">
-                  <Filter className="h-4 w-4" />
-                  <SelectValue placeholder="اختر حساب" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">جميع الحسابات</SelectItem>
-                  {accounts.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.code} - {a.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="relative">
-                <Button variant="outline" className="gap-2" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
-                  <Download className="h-4 w-4" />
-                  تصدير
-                </Button>
-                {exportMenuOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
-                    <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
-                      PDF تصدير
-                    </button>
-                    <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
-                      Excel تصدير
-                    </button>
-                    <button onClick={handleExportCSV} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
-                      CSV تصدير
-                    </button>
-                  </div>
-                )}
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="البحث في الحركات..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pr-10"
+                />
               </div>
+              <div className="flex gap-2">
+                <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                  <SelectTrigger className="w-56 gap-2">
+                    <Filter className="h-4 w-4" />
+                    <SelectValue placeholder="اختر حساب" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">جميع الحسابات</SelectItem>
+                    {accounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.code} - {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="relative">
+                  <Button variant="outline" className="gap-2" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
+                    <Download className="h-4 w-4" />
+                    تصدير
+                  </Button>
+                  {exportMenuOpen && (
+                    <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
+                      <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
+                        PDF تصدير
+                      </button>
+                      <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
+                        Excel تصدير
+                      </button>
+                      <button onClick={handleExportCSV} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
+                        CSV تصدير
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            {/* Date Range Filter */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-muted-foreground">الفترة:</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-[160px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {dateFrom ? format(dateFrom, "yyyy-MM-dd") : "من تاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={setDateFrom}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-sm text-muted-foreground">إلى</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-[160px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {dateTo ? format(dateTo, "yyyy-MM-dd") : "إلى تاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={setDateTo}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              {(dateFrom || dateTo) && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
