@@ -106,37 +106,20 @@ export default function TrialBalance() {
   };
 
   const handleExportPDF = async () => {
-    const { createArabicPDF, addPdfHeader, addPdfFooter } = await import("@/lib/pdf-arabic");
-    const autoTable = (await import("jspdf-autotable")).default;
-    const doc = await createArabicPDF("landscape");
-    let startY = addPdfHeader(doc, settings, "ميزان المراجعة");
-    if (dateFrom || dateTo) {
-      doc.setFont("Amiri", "normal");
-      doc.setFontSize(9);
-      doc.text(`الفترة: ${dateFrom ? format(dateFrom, "yyyy-MM-dd") : "البداية"} إلى ${dateTo ? format(dateTo, "yyyy-MM-dd") : "النهاية"}`, 148, startY, { align: "center" });
-      startY += 6;
-    }
-
+    const { exportReportPdf } = await import("@/lib/pdf-arabic");
     const tableData = trialBalanceData.map((r) => [
-      r.account.code,
-      r.account.name,
-      getAccountTypeLabel(r.account.account_type),
-      formatNum(r.totalDebit),
-      formatNum(r.totalCredit),
-      formatNum(r.balanceDebit),
-      formatNum(r.balanceCredit),
+      r.account.code, r.account.name, getAccountTypeLabel(r.account.account_type),
+      formatNum(r.totalDebit), formatNum(r.totalCredit), formatNum(r.balanceDebit), formatNum(r.balanceCredit),
     ]);
-
-    autoTable(doc, {
-      head: [["الكود", "الحساب", "النوع", "إجمالي مدين", "إجمالي دائن", "رصيد مدين", "رصيد دائن"]],
-      body: tableData, startY,
-      styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
-      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-      foot: [["", "", "الإجمالي", formatNum(grandTotalDebit), formatNum(grandTotalCredit), formatNum(grandBalanceDebit), formatNum(grandBalanceCredit)]],
-      footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: "bold" },
+    tableData.push(["", "", "الإجمالي", formatNum(grandTotalDebit), formatNum(grandTotalCredit), formatNum(grandBalanceDebit), formatNum(grandBalanceCredit)]);
+    await exportReportPdf({
+      title: "ميزان المراجعة",
+      settings,
+      headers: ["الكود", "الحساب", "النوع", "إجمالي مدين", "إجمالي دائن", "رصيد مدين", "رصيد دائن"],
+      rows: tableData,
+      orientation: "landscape",
+      filename: "Trial_Balance",
     });
-    addPdfFooter(doc, settings);
-    doc.save("Trial_Balance.pdf");
     toast({ title: "تم التصدير", description: "تم تصدير ميزان المراجعة بصيغة PDF" });
     setExportMenuOpen(false);
   };

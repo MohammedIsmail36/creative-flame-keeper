@@ -133,21 +133,22 @@ export default function Ledger() {
   const clearFilters = () => { setSelectedAccountId("all"); setDateFrom(""); setDateTo(""); };
 
   const handleExportPDF = async () => {
-    const { createArabicPDF } = await import("@/lib/pdf-arabic");
-    const autoTable = (await import("jspdf-autotable")).default;
-    const doc = await createArabicPDF("landscape");
+    const { exportReportPdf } = await import("@/lib/pdf-arabic");
     const selectedAccount = selectedAccountId !== "all" ? accountMap.get(selectedAccountId) : null;
-    const title = selectedAccount ? `دفتر الأستاذ - ${selectedAccount.code} ${selectedAccount.name}` : "دفتر الأستاذ العام";
-    doc.setFontSize(16);
-    doc.text(title, 148, 15, { align: "center" });
-    const tableData = linesWithBalance.map((l) => [l.entry_number, l.entry_date, l.accountCode ? `${l.accountCode} - ${l.accountName}` : "", l.entry_description, l.debit > 0 ? formatNumber(l.debit) : "-", l.credit > 0 ? formatNumber(l.credit) : "-", l.showBalance ? formatNumber(l.runningBalance!) : "-"]);
-    autoTable(doc, {
-      head: [["#", "التاريخ", "الحساب", "الوصف", "مدين", "دائن", "الرصيد"]],
-      body: tableData, startY: 22,
-      styles: { fontSize: 8, cellPadding: 3, font: "Amiri", halign: "right" },
-      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+    const pdfTitle = selectedAccount ? `دفتر الأستاذ - ${selectedAccount.code} ${selectedAccount.name}` : "دفتر الأستاذ العام";
+    const tableData = linesWithBalance.map((l) => [
+      l.entry_number, l.entry_date, l.accountCode ? `${l.accountCode} - ${l.accountName}` : "",
+      l.entry_description, l.debit > 0 ? formatNumber(l.debit) : "-", l.credit > 0 ? formatNumber(l.credit) : "-",
+      l.showBalance ? formatNumber(l.runningBalance!) : "-",
+    ]);
+    await exportReportPdf({
+      title: pdfTitle,
+      settings: null,
+      headers: ["#", "التاريخ", "الحساب", "الوصف", "مدين", "دائن", "الرصيد"],
+      rows: tableData,
+      orientation: "landscape",
+      filename: "General_Ledger",
     });
-    doc.save("General_Ledger.pdf");
     toast({ title: "تم التصدير" });
     setExportMenuOpen(false);
   };
