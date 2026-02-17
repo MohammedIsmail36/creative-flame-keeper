@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Users, Trash2, UserPlus, Download, Shield, ShieldCheck, ShieldAlert, Pencil } from "lucide-react";
+import { Users, Trash2, UserPlus, Download, Shield, ShieldCheck, ShieldAlert, Pencil, X } from "lucide-react";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 
@@ -402,10 +402,29 @@ export default function UserManagement() {
         emptyMessage="لا توجد نتائج مطابقة"
         pageSize={10}
         toolbarContent={
-          <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
-            <Download className="h-4 w-4" />
-            تصدير
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as AppRole | "all")}>
+              <SelectTrigger className="w-36 h-9 text-sm">
+                <SelectValue placeholder="الدور" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الأدوار</SelectItem>
+                <SelectItem value="admin">مدير</SelectItem>
+                <SelectItem value="accountant">محاسب</SelectItem>
+                <SelectItem value="sales">موظف مبيعات</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={handleExport} className="gap-2 h-9">
+              <Download className="h-4 w-4" />
+              تصدير
+            </Button>
+            {roleFilter !== "all" && (
+              <Button variant="ghost" size="sm" onClick={() => setRoleFilter("all")} className="h-9 gap-1 text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+                مسح الفلاتر
+              </Button>
+            )}
+          </div>
         }
       />
 
