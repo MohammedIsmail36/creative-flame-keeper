@@ -68,7 +68,7 @@ export function ExportMenu({ config, disabled }: ExportMenuProps) {
         تصدير
       </Button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[150px]">
+        <div className="absolute end-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[150px]">
           <button onClick={handleCSV} className="w-full flex items-center gap-2 text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
             <FileDown className="h-4 w-4 text-muted-foreground" /> CSV
           </button>

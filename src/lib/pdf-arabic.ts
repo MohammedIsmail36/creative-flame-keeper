@@ -56,26 +56,35 @@ export function getAutoTableArabicStyles() {
 }
 
 /**
- * Add company header to PDF (company name, address, phone, tax number)
- * Returns the Y position after the header for content to start
+ * Reverse headers and each row so columns render RTL (rightmost column first)
+ */
+export function toRTL(headers: string[], rows: (string | number)[][]): { headers: string[]; rows: (string | number)[][] } {
+  return {
+    headers: [...headers].reverse(),
+    rows: rows.map((r) => [...r].reverse()),
+  };
+}
+
+/**
+ * Add company header to PDF
  */
 export function addPdfHeader(doc: jsPDF, settings: CompanySettings | null, title: string): number {
   const pageWidth = doc.internal.pageSize.getWidth();
   const center = pageWidth / 2;
-  let y = 12;
+  let y = 14;
 
   // Company name
   doc.setFont("Amiri", "bold");
-  doc.setFontSize(14);
+  doc.setFontSize(16);
   doc.text(settings?.company_name || "النظام المحاسبي", center, y, { align: "center" });
-  y += 6;
+  y += 7;
 
   // Business activity
   if (settings?.business_activity) {
     doc.setFont("Amiri", "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(10);
     doc.text(settings.business_activity, center, y, { align: "center" });
-    y += 5;
+    y += 6;
   }
 
   // Contact info line
@@ -83,38 +92,39 @@ export function addPdfHeader(doc: jsPDF, settings: CompanySettings | null, title
   if (settings?.phone) infoParts.push(`هاتف: ${settings.phone}`);
   if (settings?.tax_number) infoParts.push(`الرقم الضريبي: ${settings.tax_number}`);
   if (infoParts.length > 0) {
-    doc.setFontSize(8);
-    doc.text(infoParts.join(" | "), center, y, { align: "center" });
-    y += 5;
+    doc.setFontSize(9);
+    doc.text(infoParts.join("  |  "), center, y, { align: "center" });
+    y += 6;
   }
 
   // Separator line
-  doc.setDrawColor(200, 200, 200);
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(0.5);
   doc.line(15, y, pageWidth - 15, y);
-  y += 5;
+  y += 7;
 
   // Report title
   doc.setFont("Amiri", "bold");
-  doc.setFontSize(13);
+  doc.setFontSize(14);
   doc.text(title, center, y, { align: "center" });
-  y += 5;
+  y += 6;
 
   // Date and currency
   doc.setFont("Amiri", "normal");
   doc.setFontSize(9);
   doc.text(
-    `التاريخ: ${new Date().toLocaleDateString("en-US")} | العملة: ${settings?.default_currency || "EGP"}`,
+    `التاريخ: ${new Date().toLocaleDateString("ar-EG")}  |  العملة: ${settings?.default_currency || "EGP"}`,
     center,
     y,
     { align: "center" }
   );
-  y += 7;
+  y += 8;
 
   return y;
 }
 
 /**
- * Add footer to each page of the PDF
+ * Add footer to each page
  */
 export function addPdfFooter(doc: jsPDF, settings: CompanySettings | null) {
   const pageCount = doc.getNumberOfPages();
@@ -125,16 +135,13 @@ export function addPdfFooter(doc: jsPDF, settings: CompanySettings | null) {
     doc.setPage(i);
     doc.setFont("Amiri", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(130, 130, 130);
+    doc.setTextColor(120, 120, 120);
 
-    // Footer text from settings
     if (settings?.invoice_footer) {
       doc.text(settings.invoice_footer, pageWidth / 2, pageHeight - 12, { align: "center" });
     }
 
-    // Page number
     doc.text(`صفحة ${i} من ${pageCount}`, pageWidth / 2, pageHeight - 7, { align: "center" });
-
     doc.setTextColor(0, 0, 0);
   }
 }
