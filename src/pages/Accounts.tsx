@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { BookOpen, Plus, Pencil, Trash2, Search, Download, Filter, ChevronLeft, ChevronDown, FolderOpen, FileText, TrendingUp, TrendingDown, Wallet, DollarSign, Receipt } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, Search, Download, Filter, ChevronLeft, ChevronDown, FolderOpen, FileText, TrendingUp, TrendingDown, Wallet, DollarSign, Receipt, X } from "lucide-react";
 
 type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
 
@@ -377,42 +377,46 @@ export default function Accounts() {
         ))}
       </div>
 
-      {/* Search & Actions */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="البحث بالرمز أو الاسم..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pr-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as AccountType | "all")}>
-                <SelectTrigger className="w-40 gap-2">
-                  <Filter className="h-4 w-4" />
-                  <SelectValue placeholder="تصفية بالنوع" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">جميع الأنواع</SelectItem>
-                  <SelectItem value="asset">أصول</SelectItem>
-                  <SelectItem value="liability">خصوم</SelectItem>
-                  <SelectItem value="equity">حقوق ملكية</SelectItem>
-                  <SelectItem value="revenue">إيرادات</SelectItem>
-                  <SelectItem value="expense">مصروفات</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline" onClick={handleExport} className="gap-2">
-                <Download className="h-4 w-4" />
-                تصدير
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Search & Filters Toolbar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="البحث بالرمز أو الاسم..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pr-9 h-9 text-sm"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as AccountType | "all")}>
+          <SelectTrigger className="w-40 h-9 text-sm">
+            <SelectValue placeholder="تصفية بالنوع" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">جميع الأنواع</SelectItem>
+            <SelectItem value="asset">أصول ({typeCounts.asset})</SelectItem>
+            <SelectItem value="liability">خصوم ({typeCounts.liability})</SelectItem>
+            <SelectItem value="equity">حقوق ملكية ({typeCounts.equity})</SelectItem>
+            <SelectItem value="revenue">إيرادات ({typeCounts.revenue})</SelectItem>
+            <SelectItem value="expense">مصروفات ({typeCounts.expense})</SelectItem>
+          </SelectContent>
+        </Select>
+        {(searchQuery || typeFilter !== "all") && (
+          <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(""); setTypeFilter("all"); }} className="h-9 gap-1 text-muted-foreground hover:text-foreground">
+            <X className="h-3.5 w-3.5" />
+            مسح الفلاتر
+          </Button>
+        )}
+        <Button variant="outline" size="sm" onClick={handleExport} className="gap-2 h-9 mr-auto">
+          <Download className="h-4 w-4" />
+          تصدير
+        </Button>
+      </div>
 
       {/* Accounts Table */}
       <Card className="overflow-hidden">

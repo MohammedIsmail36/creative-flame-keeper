@@ -1,19 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ArrowRight, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowRight, X } from "lucide-react";
 
 interface LookupConfig {
   table: string;
-  fkColumn: string; // foreign key column in products table
+  fkColumn: string;
   title: string;
   singularTitle: string;
   extraFields?: { key: string; label: string; placeholder: string }[];
@@ -50,7 +52,6 @@ export default function LookupManagement() {
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<any | null>(null);
   const [formName, setFormName] = useState("");
@@ -58,6 +59,7 @@ export default function LookupManagement() {
   const [saving, setSaving] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
     if (config) fetchItems();
@@ -119,7 +121,6 @@ export default function LookupManagement() {
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
-      // Check if linked to any product
       const { count } = await (supabase.from("products") as any).select("id", { count: "exact", head: true }).eq(config.fkColumn, deleteTarget.id);
       if (count && count > 0) {
         toast({ title: "لا يمكن الحذف", description: `هذا ${config.singularTitle} مرتبط بـ ${count} منتج. قم بتعطيله بدلاً من حذفه.`, variant: "destructive" });
@@ -141,72 +142,91 @@ export default function LookupManagement() {
     fetchItems();
   }
 
-  const filtered = items.filter(i => i.name?.includes(search));
+  const filteredItems = useMemo(() => {
+    if (statusFilter === "all") return items;
+    return items.filter(i => statusFilter === "active" ? i.is_active : !i.is_active);
+  }, [items, statusFilter]);
+
+  const hasFilters = statusFilter !== "all";
+  const clearFilters = () => setStatusFilter("all");
+
+  const columns: ColumnDef<any, any>[] = [
+    {
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الاسم" />,
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
+    ...(config.extraFields?.map(f => ({
+      accessorKey: f.key,
+      header: f.label,
+      cell: ({ row }: any) => <span className="text-muted-foreground">{row.original[f.key] || "—"}</span>,
+    })) || []) as ColumnDef<any, any>[],
+    {
+      id: "status",
+      header: "الحالة",
+      cell: ({ row }) => (
+        <div onClick={e => e.stopPropagation()}>
+          <Switch checked={row.original.is_active} onCheckedChange={() => toggleActive(row.original)} />
+        </div>
+      ),
+    },
+    {
+      id: "actions",
+      header: "إجراءات",
+      enableHiding: false,
+      cell: ({ row }) => (
+        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(row.original)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setDeleteTarget(row.original); setDeleteDialogOpen(true); }}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/products")}>
-          <ArrowRight className="h-5 w-5" />
-        </Button>
-        <h1 className="text-2xl font-bold text-foreground">{config.title}</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/products")}>
+            <ArrowRight className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold text-foreground">{config.title}</h1>
+          <Badge variant="secondary">{items.length} عنصر</Badge>
+        </div>
+        <Button onClick={openAdd} className="gap-2"><Plus className="h-4 w-4" />إضافة {config.singularTitle}</Button>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <CardTitle className="text-base">قائمة {config.title}</CardTitle>
-          <Button onClick={openAdd} className="gap-2"><Plus className="h-4 w-4" />إضافة {config.singularTitle}</Button>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="بحث..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
+      <DataTable
+        columns={columns}
+        data={filteredItems}
+        searchPlaceholder={`بحث في ${config.title}...`}
+        isLoading={loading}
+        emptyMessage="لا توجد بيانات"
+        toolbarContent={
+          <div className="flex items-center gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-32 h-9 text-sm">
+                <SelectValue placeholder="الحالة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل ({items.length})</SelectItem>
+                <SelectItem value="active">نشط ({items.filter(i => i.is_active).length})</SelectItem>
+                <SelectItem value="inactive">معطل ({items.filter(i => !i.is_active).length})</SelectItem>
+              </SelectContent>
+            </Select>
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1 text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+                مسح الفلاتر
+              </Button>
+            )}
           </div>
-
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-right">الاسم</TableHead>
-                    {config.extraFields?.map(f => (
-                      <TableHead key={f.key} className="text-right">{f.label}</TableHead>
-                    ))}
-                    <TableHead className="text-right">الحالة</TableHead>
-                    <TableHead className="text-right w-[120px]">إجراءات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={3 + (config.extraFields?.length || 0)} className="text-center py-8 text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
-                  ) : filtered.map(item => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.name}</TableCell>
-                      {config.extraFields?.map(f => (
-                        <TableCell key={f.key} className="text-muted-foreground">{item[f.key] || "—"}</TableCell>
-                      ))}
-                      <TableCell>
-                        <Switch
-                          checked={item.is_active}
-                          onCheckedChange={() => toggleActive(item)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => { setDeleteTarget(item); setDeleteDialogOpen(true); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        }
+      />
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -223,11 +243,7 @@ export default function LookupManagement() {
             {config.extraFields?.map(f => (
               <div key={f.key} className="space-y-2">
                 <Label>{f.label}</Label>
-                <Input
-                  value={formExtras[f.key] || ""}
-                  onChange={e => setFormExtras(prev => ({ ...prev, [f.key]: e.target.value }))}
-                  placeholder={f.placeholder}
-                />
+                <Input value={formExtras[f.key] || ""} onChange={e => setFormExtras(prev => ({ ...prev, [f.key]: e.target.value }))} placeholder={f.placeholder} />
               </div>
             ))}
           </div>
