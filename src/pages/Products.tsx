@@ -100,17 +100,14 @@ export default function Products() {
   };
 
   const handleExportExcel = async () => {
-    const XLSX = await import("xlsx");
+    const { exportToExcel } = await import("@/lib/excel-export");
     const data = filteredProducts.map(p => ({
       "الكود": p.code, "الاسم": p.name, "الباركود": p.barcode || "",
       "التصنيف": getCategoryName(p),
       "سعر الشراء": p.purchase_price, "سعر البيع": p.selling_price,
       "الكمية": p.quantity_on_hand, "الحد الأدنى": p.min_stock_level,
     }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Products");
-    XLSX.writeFile(wb, "Products.xlsx");
+    await exportToExcel(data, "Products", "Products.xlsx");
     toast({ title: "تم التصدير", description: "تم تصدير المنتجات بصيغة Excel" });
     setExportMenuOpen(false);
   };

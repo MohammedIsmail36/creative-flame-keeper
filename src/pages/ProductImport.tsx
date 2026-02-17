@@ -52,11 +52,16 @@ export default function ProductImport() {
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const XLSX = await import("xlsx");
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data);
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json<any>(ws);
+    const { readExcelFile } = await import("@/lib/excel-export");
+    const { rows: rawRows } = await readExcelFile(file);
+    // Skip header row (index 0), ExcelJS row.values has index-1 offset
+    const json = rawRows.slice(1).map((row) => {
+      const headers = rawRows[0].slice(1); // remove undefined at index 0
+      const vals = row.slice(1);
+      const obj: any = {};
+      headers.forEach((h: any, i: number) => { obj[String(h)] = vals[i]; });
+      return obj;
+    });
 
     const parsed: ImportRow[] = json.map((row: any) => {
       const code = String(row["الكود"] || row["code"] || "").trim();
@@ -130,12 +135,9 @@ export default function ProductImport() {
   };
 
   const downloadTemplate = async () => {
-    const XLSX = await import("xlsx");
+    const { exportToExcel } = await import("@/lib/excel-export");
     const template = [{ "الكود": "P001", "الاسم": "منتج تجريبي", "الوصف": "", "التصنيف": "عام", "الوحدة": "قطعة", "الماركة": "", "رقم الموديل": "", "الباركود": "", "سعر الشراء": 100, "سعر البيع": 150, "الكمية": 50, "الحد الأدنى": 10 }];
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Products");
-    XLSX.writeFile(wb, "products-template.xlsx");
+    await exportToExcel(template, "Products", "products-template.xlsx");
   };
 
   const validCount = rows.filter(r => r.status === "valid").length;

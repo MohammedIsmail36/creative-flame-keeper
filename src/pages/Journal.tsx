@@ -254,16 +254,13 @@ export default function Journal() {
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
 
   const handleExportExcel = async () => {
-    const XLSX = await import("xlsx");
+    const { exportToExcel } = await import("@/lib/excel-export");
     const data = filteredEntries.map((e) => ({
       "Entry #": e.entry_number, "Date": e.entry_date, "Description": e.description,
       "Status": e.status === "posted" ? "Posted" : "Draft",
       [`Debit (${currency})`]: Number(e.total_debit), [`Credit (${currency})`]: Number(e.total_credit),
     }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Journal Entries");
-    XLSX.writeFile(wb, "Journal_Entries.xlsx");
+    await exportToExcel(data, "Journal Entries", "Journal_Entries.xlsx");
     toast({ title: "تم التصدير", description: "تم تصدير القيود بصيغة Excel" });
     setExportMenuOpen(false);
   };

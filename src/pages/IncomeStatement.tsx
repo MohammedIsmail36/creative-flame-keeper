@@ -160,7 +160,7 @@ export default function IncomeStatement() {
   };
 
   const handleExportExcel = async () => {
-    const XLSX = await import("xlsx");
+    const { exportToExcel } = await import("@/lib/excel-export");
     const data: any[] = [];
     data.push({ "Section": "Revenue", "Code": "", "Account": "", [`Amount (${currency})`]: "" });
     revenueRows.forEach((r) => data.push({ "Section": "", "Code": r.account.code, "Account": r.account.name, [`Amount (${currency})`]: r.amount }));
@@ -172,10 +172,7 @@ export default function IncomeStatement() {
     data.push({ "Section": "", "Code": "", "Account": "", [`Amount (${currency})`]: "" });
     data.push({ "Section": "", "Code": "", "Account": "Net Income", [`Amount (${currency})`]: netIncome });
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Income Statement");
-    XLSX.writeFile(wb, "Income_Statement.xlsx");
+    await exportToExcel(data, "Income Statement", "Income_Statement.xlsx");
     toast({ title: "تم التصدير", description: "تم تصدير قائمة الدخل بصيغة Excel" });
     setExportMenuOpen(false);
   };
