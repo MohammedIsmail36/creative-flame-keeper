@@ -11,8 +11,10 @@ import Accounts from "./pages/Accounts";
 import Journal from "./pages/Journal";
 import Ledger from "./pages/Ledger";
 import Sales from "./pages/Sales";
+import SalesInvoiceForm from "./pages/SalesInvoiceForm";
 import Customers from "./pages/Customers";
 import Purchases from "./pages/Purchases";
+import PurchaseInvoiceForm from "./pages/PurchaseInvoiceForm";
 import Suppliers from "./pages/Suppliers";
 import Products from "./pages/Products";
 import ProductForm from "./pages/ProductForm";
@@ -44,8 +46,12 @@ const App = () => (
             <Route path="/journal" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Journal /></AppLayout></ProtectedRoute>} />
             <Route path="/ledger" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Ledger /></AppLayout></ProtectedRoute>} />
             <Route path="/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Sales /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/new" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesInvoiceForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesInvoiceForm /></AppLayout></ProtectedRoute>} />
             <Route path="/customers" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Customers /></AppLayout></ProtectedRoute>} />
             <Route path="/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Purchases /></AppLayout></ProtectedRoute>} />
+            <Route path="/purchases/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseInvoiceForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/purchases/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseInvoiceForm /></AppLayout></ProtectedRoute>} />
             <Route path="/suppliers" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Suppliers /></AppLayout></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Products /></AppLayout></ProtectedRoute>} />
             <Route path="/products/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ProductForm /></AppLayout></ProtectedRoute>} />
