@@ -13,18 +13,26 @@ import { toast } from "@/hooks/use-toast";
 import { CreditCard, Plus, Link2, Unlink } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-interface Payment {
+interface Allocation {
+  id: string;
+  payment_id: string;
+  allocated_amount: number;
+  payment_number: number;
+  payment_date: string;
+  payment_amount: number;
+  payment_method: string;
+  reference: string | null;
+}
+
+interface AvailablePayment {
   id: string;
   payment_number: number;
   payment_date: string;
   amount: number;
   payment_method: string;
   reference: string | null;
-  notes: string | null;
-}
-
-interface UnlinkedPayment extends Payment {
-  remaining?: number;
+  total_allocated: number;
+  remaining: number;
 }
 
 interface Props {
@@ -47,12 +55,14 @@ const ACCOUNT_CODES = {
 const methodLabels: Record<string, string> = { cash: "نقدي", bank: "تحويل بنكي", check: "شيك" };
 
 export default function InvoicePaymentSection({ type, invoiceId, entityId, entityName, invoiceTotal, invoiceNumber, onPaymentAdded }: Props) {
-  const [linkedPayments, setLinkedPayments] = useState<Payment[]>([]);
-  const [unlinkedPayments, setUnlinkedPayments] = useState<UnlinkedPayment[]>([]);
+  const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [availablePayments, setAvailablePayments] = useState<AvailablePayment[]>([]);
   const [paidAmount, setPaidAmount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [linkAmounts, setLinkAmounts] = useState<Record<string, number>>({});
 
   // New payment form
   const [amount, setAmount] = useState(0);
@@ -61,45 +71,103 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
 
-  useEffect(() => { fetchPayments(); }, [invoiceId, entityId]);
-
   const isSales = type === "sales";
   const paymentTable = isSales ? "customer_payments" : "supplier_payments";
+  const allocationTable = isSales ? "customer_payment_allocations" : "supplier_payment_allocations";
   const invoiceTable = isSales ? "sales_invoices" : "purchase_invoices";
-  const invoiceIdCol = isSales ? "sales_invoice_id" : "purchase_invoice_id";
   const entityIdCol = isSales ? "customer_id" : "supplier_id";
   const entityTable = isSales ? "customers" : "suppliers";
 
-  async function fetchPayments() {
-    setLoading(true);
-    // Fetch linked payments for this invoice
-    const { data: linked } = await (supabase.from(paymentTable as any) as any)
-      .select("id, payment_number, payment_date, amount, payment_method, reference, notes")
-      .eq(invoiceIdCol, invoiceId)
-      .order("payment_date");
+  useEffect(() => { fetchData(); }, [invoiceId, entityId]);
 
-    // Fetch unlinked payments for same entity (no invoice linked)
-    const { data: unlinked } = await (supabase.from(paymentTable as any) as any)
-      .select("id, payment_number, payment_date, amount, payment_method, reference, notes")
+  async function fetchData() {
+    setLoading(true);
+
+    // 1. Fetch allocations for this invoice (with payment details)
+    const { data: allocData } = await (supabase.from(allocationTable as any) as any)
+      .select("id, payment_id, allocated_amount")
+      .eq("invoice_id", invoiceId);
+
+    let enrichedAllocations: Allocation[] = [];
+    if (allocData && allocData.length > 0) {
+      const paymentIds = allocData.map((a: any) => a.payment_id);
+      const { data: payments } = await (supabase.from(paymentTable as any) as any)
+        .select("id, payment_number, payment_date, amount, payment_method, reference")
+        .in("id", paymentIds);
+
+      const paymentMap = new Map((payments || []).map((p: any) => [p.id, p]));
+      enrichedAllocations = allocData.map((a: any) => {
+        const p = paymentMap.get(a.payment_id) || {};
+        return {
+          id: a.id,
+          payment_id: a.payment_id,
+          allocated_amount: a.allocated_amount,
+          payment_number: (p as any).payment_number || 0,
+          payment_date: (p as any).payment_date || "",
+          payment_amount: (p as any).amount || 0,
+          payment_method: (p as any).payment_method || "",
+          reference: (p as any).reference || null,
+        };
+      });
+    }
+
+    // 2. Calculate paid amount from allocations
+    const totalPaid = enrichedAllocations.reduce((s, a) => s + a.allocated_amount, 0);
+
+    // 3. Fetch available payments (posted, same entity) with their remaining amounts
+    const { data: entityPayments } = await (supabase.from(paymentTable as any) as any)
+      .select("id, payment_number, payment_date, amount, payment_method, reference")
       .eq(entityIdCol, entityId)
-      .is(invoiceIdCol, null)
       .eq("status", "posted")
       .order("payment_date");
 
-    // Get current paid_amount from invoice
-    const { data: inv } = await (supabase.from(invoiceTable as any) as any)
-      .select("paid_amount")
-      .eq("id", invoiceId)
-      .single();
+    // Get all allocations for these payments to calculate remaining
+    let available: AvailablePayment[] = [];
+    if (entityPayments && entityPayments.length > 0) {
+      const allPaymentIds = entityPayments.map((p: any) => p.id);
+      const { data: allAllocs } = await (supabase.from(allocationTable as any) as any)
+        .select("payment_id, allocated_amount")
+        .in("payment_id", allPaymentIds);
 
-    setLinkedPayments(linked || []);
-    setUnlinkedPayments(unlinked || []);
-    setPaidAmount(inv?.paid_amount || 0);
+      const allocByPayment = new Map<string, number>();
+      (allAllocs || []).forEach((a: any) => {
+        allocByPayment.set(a.payment_id, (allocByPayment.get(a.payment_id) || 0) + a.allocated_amount);
+      });
+
+      available = entityPayments
+        .map((p: any) => {
+          const totalAlloc = allocByPayment.get(p.id) || 0;
+          return {
+            ...p,
+            total_allocated: totalAlloc,
+            remaining: p.amount - totalAlloc,
+          };
+        })
+        .filter((p: AvailablePayment) => p.remaining > 0);
+
+      // Exclude payments already fully allocated to THIS invoice
+      const thisInvoicePaymentIds = new Set(enrichedAllocations.map(a => a.payment_id));
+      // Keep payments that either aren't allocated to this invoice, or have remaining
+      available = available.filter(p => !thisInvoicePaymentIds.has(p.id) || p.remaining > 0);
+      // Actually, if already allocated to this invoice, don't show again
+      available = available.filter(p => !thisInvoicePaymentIds.has(p.id));
+    }
+
+    setAllocations(enrichedAllocations);
+    setPaidAmount(totalPaid);
+    setAvailablePayments(available);
+
+    // Sync invoice paid_amount if it differs
+    await (supabase.from(invoiceTable as any) as any)
+      .update({ paid_amount: totalPaid })
+      .eq("id", invoiceId);
+
     setLoading(false);
   }
 
   const remaining = invoiceTotal - paidAmount;
 
+  // ========== Create new payment & allocate ==========
   async function handleNewPayment() {
     if (amount <= 0) {
       toast({ title: "تنبيه", description: "يرجى إدخال مبلغ صحيح", variant: "destructive" });
@@ -140,20 +208,22 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
           ];
       await supabase.from("journal_entry_lines").insert(lines as any);
 
-      // Insert payment linked to invoice
-      await (supabase.from(paymentTable as any) as any).insert({
+      // Insert payment
+      const { data: newPayment } = await (supabase.from(paymentTable as any) as any).insert({
         [entityIdCol]: entityId,
-        [invoiceIdCol]: invoiceId,
         payment_date: paymentDate, amount,
         payment_method: paymentMethod,
         reference: reference.trim() || null,
         notes: notes.trim() || null,
         journal_entry_id: je.id, status: "posted",
-      });
+      }).select("id").single();
 
-      // Update invoice paid_amount
-      const newPaid = paidAmount + amount;
-      await (supabase.from(invoiceTable as any) as any).update({ paid_amount: newPaid }).eq("id", invoiceId);
+      // Create allocation
+      await (supabase.from(allocationTable as any) as any).insert({
+        payment_id: newPayment.id,
+        invoice_id: invoiceId,
+        allocated_amount: amount,
+      });
 
       // Update entity balance
       const { data: entity } = await (supabase.from(entityTable as any) as any).select("balance").eq("id", entityId).single();
@@ -161,12 +231,12 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
         await (supabase.from(entityTable as any) as any).update({ balance: (entity.balance || 0) - amount }).eq("id", entityId);
       }
 
-      toast({ title: "تم التسجيل", description: "تم تسجيل الدفعة وربطها بالفاتورة" });
+      toast({ title: "تم التسجيل", description: "تم تسجيل الدفعة وتخصيصها للفاتورة" });
       setDialogOpen(false);
       setAmount(0);
       setReference("");
       setNotes("");
-      fetchPayments();
+      fetchData();
       onPaymentAdded();
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
@@ -174,44 +244,42 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     setSaving(false);
   }
 
-  async function linkExistingPayment(payment: UnlinkedPayment) {
-    const linkAmount = Math.min(payment.amount, remaining);
-    if (linkAmount <= 0) return;
+  // ========== Link existing payment (create allocation) ==========
+  async function linkPayment(payment: AvailablePayment, allocAmount: number) {
+    const maxAlloc = Math.min(payment.remaining, remaining);
+    if (allocAmount <= 0 || allocAmount > maxAlloc) {
+      toast({ title: "تنبيه", description: `المبلغ يجب أن يكون بين 0.01 و ${maxAlloc.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, variant: "destructive" });
+      return;
+    }
 
     try {
-      // Link payment to invoice (keep original amount unchanged)
-      await (supabase.from(paymentTable as any) as any)
-        .update({ [invoiceIdCol]: invoiceId })
-        .eq("id", payment.id);
+      await (supabase.from(allocationTable as any) as any).insert({
+        payment_id: payment.id,
+        invoice_id: invoiceId,
+        allocated_amount: allocAmount,
+      });
 
-      // Update invoice paid_amount (only add the needed amount, not the full payment)
-      const newPaid = paidAmount + linkAmount;
-      await (supabase.from(invoiceTable as any) as any).update({ paid_amount: newPaid }).eq("id", invoiceId);
-
-      toast({ title: "تم الربط", description: `تم ربط ${linkAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })} من الدفعة #${payment.payment_number} بالفاتورة` });
-      fetchPayments();
+      toast({
+        title: "تم التخصيص",
+        description: `تم تخصيص ${allocAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })} من الدفعة #${payment.payment_number} للفاتورة`
+      });
+      setLinkAmounts({});
+      fetchData();
       onPaymentAdded();
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
     }
   }
 
-  async function unlinkPayment(payment: Payment) {
+  // ========== Unlink (delete allocation) ==========
+  async function unlinkAllocation(allocation: Allocation) {
     try {
-      // Remove invoice link from payment
-      await (supabase.from(paymentTable as any) as any)
-        .update({ [invoiceIdCol]: null })
-        .eq("id", payment.id);
+      await (supabase.from(allocationTable as any) as any)
+        .delete()
+        .eq("id", allocation.id);
 
-      // Deduct only the allocated amount (min of payment amount and current paid)
-      const allocatedAmount = Math.min(payment.amount, paidAmount);
-      const newPaid = Math.max(0, paidAmount - allocatedAmount);
-      await (supabase.from(invoiceTable as any) as any)
-        .update({ paid_amount: newPaid })
-        .eq("id", invoiceId);
-
-      toast({ title: "تم فك الربط", description: `تم فك ربط الدفعة #${payment.payment_number} من الفاتورة` });
-      fetchPayments();
+      toast({ title: "تم فك التخصيص", description: `تم فك تخصيص ${allocation.allocated_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} من الدفعة #${allocation.payment_number}` });
+      fetchData();
       onPaymentAdded();
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
@@ -234,48 +302,108 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
             <Badge variant={statusVariant as any}>{statusText}</Badge>
           </div>
           {!isPaid && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-1"><Plus className="h-3.5 w-3.5" />تسجيل دفعة</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md" dir="rtl">
-                <DialogHeader><DialogTitle>تسجيل دفعة - {entityName}</DialogTitle></DialogHeader>
-                <div className="space-y-4">
-                  <div className="flex justify-between text-sm bg-muted/50 p-3 rounded-lg">
-                    <span>إجمالي الفاتورة: <strong className="font-mono">{invoiceTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
-                    <span>المتبقي: <strong className="font-mono text-destructive">{remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+            <div className="flex gap-2">
+              {availablePayments.length > 0 && (
+                <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline" className="gap-1"><Link2 className="h-3.5 w-3.5" />تخصيص دفعة</Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg" dir="rtl">
+                    <DialogHeader><DialogTitle>تخصيص دفعات موجودة - {entityName}</DialogTitle></DialogHeader>
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm bg-muted/50 p-3 rounded-lg">
+                        <span>إجمالي الفاتورة: <strong className="font-mono">{invoiceTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+                        <span>المتبقي: <strong className="font-mono text-destructive">{remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-right">#</TableHead>
+                            <TableHead className="text-right">التاريخ</TableHead>
+                            <TableHead className="text-right">المبلغ</TableHead>
+                            <TableHead className="text-right">المتاح</TableHead>
+                            <TableHead className="text-right">التخصيص</TableHead>
+                            <TableHead className="text-right w-16"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {availablePayments.map(p => {
+                            const maxAlloc = Math.min(p.remaining, remaining);
+                            const currentVal = linkAmounts[p.id] ?? maxAlloc;
+                            return (
+                              <TableRow key={p.id}>
+                                <TableCell className="font-mono">#{p.payment_number}</TableCell>
+                                <TableCell className="text-muted-foreground text-xs">{p.payment_date}</TableCell>
+                                <TableCell className="font-mono text-xs">{p.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="font-mono text-xs text-primary">{p.remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min={0.01}
+                                    max={maxAlloc}
+                                    step="0.01"
+                                    value={currentVal}
+                                    onChange={e => setLinkAmounts({ ...linkAmounts, [p.id]: +e.target.value })}
+                                    className="font-mono h-8 w-24"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Button size="sm" variant="outline" onClick={() => linkPayment(p, currentVal)} className="text-xs h-8">
+                                    تخصيص
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-1"><Plus className="h-3.5 w-3.5" />دفعة جديدة</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md" dir="rtl">
+                  <DialogHeader><DialogTitle>تسجيل دفعة جديدة - {entityName}</DialogTitle></DialogHeader>
+                  <div className="space-y-4">
+                    <div className="flex justify-between text-sm bg-muted/50 p-3 rounded-lg">
+                      <span>إجمالي الفاتورة: <strong className="font-mono">{invoiceTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+                      <span>المتبقي: <strong className="font-mono text-destructive">{remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>المبلغ *</Label>
+                      <Input type="number" min="0" max={remaining} step="0.01" value={amount} onChange={e => setAmount(+e.target.value)} className="font-mono" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>التاريخ</Label>
+                      <Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>طريقة الدفع</Label>
+                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">نقدي</SelectItem>
+                          <SelectItem value="bank">تحويل بنكي</SelectItem>
+                          <SelectItem value="check">شيك</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>مرجع</Label>
+                      <Input value={reference} onChange={e => setReference(e.target.value)} placeholder="رقم إيصال أو شيك" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>ملاحظات</Label>
+                      <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
+                    </div>
+                    <Button onClick={handleNewPayment} disabled={saving} className="w-full">{saving ? "جاري الحفظ..." : "تسجيل الدفعة"}</Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label>المبلغ *</Label>
-                    <Input type="number" min="0" max={remaining} step="0.01" value={amount} onChange={e => setAmount(+e.target.value)} className="font-mono" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>التاريخ</Label>
-                    <Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>طريقة الدفع</Label>
-                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cash">نقدي</SelectItem>
-                        <SelectItem value="bank">تحويل بنكي</SelectItem>
-                        <SelectItem value="check">شيك</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>مرجع</Label>
-                    <Input value={reference} onChange={e => setReference(e.target.value)} placeholder="رقم إيصال أو شيك" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>ملاحظات</Label>
-                    <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
-                  </div>
-                  <Button onClick={handleNewPayment} disabled={saving} className="w-full">{saving ? "جاري الحفظ..." : "تسجيل الدفعة"}</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            </div>
           )}
         </div>
       </CardHeader>
@@ -293,27 +421,27 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
           </div>
         )}
 
-        {/* Linked payments table */}
-        {linkedPayments.length > 0 && (
+        {/* Allocations table */}
+        {allocations.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-right">#</TableHead>
+                <TableHead className="text-right">الدفعة</TableHead>
                 <TableHead className="text-right">التاريخ</TableHead>
-                <TableHead className="text-right">المبلغ</TableHead>
+                <TableHead className="text-right">مبلغ الدفعة</TableHead>
+                <TableHead className="text-right">المخصص</TableHead>
                 <TableHead className="text-right">الطريقة</TableHead>
-                <TableHead className="text-right">المرجع</TableHead>
-                <TableHead className="text-right w-24"></TableHead>
+                <TableHead className="text-right w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {linkedPayments.map(p => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-mono">#{p.payment_number}</TableCell>
-                  <TableCell className="text-muted-foreground">{p.payment_date}</TableCell>
-                  <TableCell className="font-mono font-semibold">{p.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell><Badge variant="outline">{methodLabels[p.payment_method] || p.payment_method}</Badge></TableCell>
-                  <TableCell className="text-muted-foreground">{p.reference || "—"}</TableCell>
+              {allocations.map(a => (
+                <TableRow key={a.id}>
+                  <TableCell className="font-mono">#{a.payment_number}</TableCell>
+                  <TableCell className="text-muted-foreground">{a.payment_date}</TableCell>
+                  <TableCell className="font-mono text-muted-foreground">{a.payment_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="font-mono font-semibold text-primary">{a.allocated_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell><Badge variant="outline">{methodLabels[a.payment_method] || a.payment_method}</Badge></TableCell>
                   <TableCell>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -323,14 +451,15 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
                       </AlertDialogTrigger>
                       <AlertDialogContent dir="rtl">
                         <AlertDialogHeader>
-                          <AlertDialogTitle>فك ربط الدفعة</AlertDialogTitle>
+                          <AlertDialogTitle>فك تخصيص الدفعة</AlertDialogTitle>
                           <AlertDialogDescription>
-                            هل تريد فك ربط الدفعة #{p.payment_number} بمبلغ {p.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} من هذه الفاتورة؟ ستصبح الدفعة غير مرتبطة ومتاحة للتخصيص لفاتورة أخرى.
+                            هل تريد فك تخصيص {a.allocated_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} من الدفعة #{a.payment_number} من هذه الفاتورة؟
+                            سيعود المبلغ متاحاً للتخصيص على فواتير أخرى. الدفعة الأصلية والقيد المحاسبي لن يتأثرا.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter className="flex-row-reverse gap-2">
                           <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => unlinkPayment(p)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">فك الربط</AlertDialogAction>
+                          <AlertDialogAction onClick={() => unlinkAllocation(a)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">فك التخصيص</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -341,44 +470,18 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
           </Table>
         )}
 
-        {/* Unlinked payments available for allocation */}
-        {!isPaid && unlinkedPayments.length > 0 && (
-          <div className="border-t pt-4 space-y-2">
-            <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+        {/* Available payments hint */}
+        {!isPaid && availablePayments.length > 0 && (
+          <div className="border-t pt-3">
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
               <Link2 className="h-4 w-4" />
-              دفعات غير مرتبطة بفواتير ({isSales ? entityName : entityName})
+              يوجد {availablePayments.length} دفعة متاحة للتخصيص بإجمالي {availablePayments.reduce((s, p) => s + p.remaining, 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
             </p>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">#</TableHead>
-                  <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">المبلغ</TableHead>
-                  <TableHead className="text-right">الطريقة</TableHead>
-                  <TableHead className="text-right w-24"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {unlinkedPayments.map(p => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-mono">#{p.payment_number}</TableCell>
-                    <TableCell className="text-muted-foreground">{p.payment_date}</TableCell>
-                    <TableCell className="font-mono font-semibold">{p.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell><Badge variant="outline">{methodLabels[p.payment_method] || p.payment_method}</Badge></TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="outline" onClick={() => linkExistingPayment(p)} className="gap-1 text-xs">
-                        <Link2 className="h-3 w-3" />ربط
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           </div>
         )}
 
-        {linkedPayments.length === 0 && unlinkedPayments.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-2">لا توجد دفعات مسجلة لهذه الفاتورة</p>
+        {allocations.length === 0 && availablePayments.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-2">لا توجد دفعات مسجلة أو متاحة لهذه الفاتورة</p>
         )}
       </CardContent>
     </Card>
