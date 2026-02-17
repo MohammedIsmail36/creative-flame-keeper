@@ -312,32 +312,32 @@ export default function Journal() {
   };
 
   const handleExportPDF = async () => {
-    const { default: jsPDF } = await import("jspdf");
+    const { createArabicPDF } = await import("@/lib/pdf-arabic");
     const autoTable = (await import("jspdf-autotable")).default;
 
-    const doc = new jsPDF({ orientation: "landscape" });
+    const doc = await createArabicPDF("landscape");
 
     doc.setFontSize(16);
-    doc.text("Journal Entries", 148, 15, { align: "center" });
+    doc.text("القيود المحاسبية", 148, 15, { align: "center" });
     doc.setFontSize(10);
-    doc.text(`Date: ${new Date().toLocaleDateString("en-US")} | Currency: EGP`, 148, 22, { align: "center" });
+    doc.text(`التاريخ: ${new Date().toLocaleDateString("en-US")} | العملة: EGP`, 148, 22, { align: "center" });
 
     const tableData = filteredEntries.map((e) => [
       e.entry_number,
       formatDate(e.entry_date),
       e.description,
-      e.status === "posted" ? "Posted" : "Draft",
+      e.status === "posted" ? "معتمد" : "مسودة",
       formatNum(Number(e.total_debit)),
       formatNum(Number(e.total_credit)),
     ]);
 
     autoTable(doc, {
-      head: [["#", "Date", "Description", "Status", "Debit (EGP)", "Credit (EGP)"]],
+      head: [["#", "التاريخ", "الوصف", "الحالة", "مدين (EGP)", "دائن (EGP)"]],
       body: tableData,
       startY: 28,
-      styles: { fontSize: 9, cellPadding: 3 },
+      styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-      foot: [["", "", "", "Total", formatNum(totalDebit), formatNum(totalCredit)]],
+      foot: [["", "", "", "الإجمالي", formatNum(totalDebit), formatNum(totalCredit)]],
       footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: "bold" },
     });
 

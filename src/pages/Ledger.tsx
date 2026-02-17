@@ -174,19 +174,19 @@ export default function Ledger() {
   const netBalance = lines.reduce((s, l) => s + l.debit - l.credit, 0);
 
   const handleExportPDF = async () => {
-    const { default: jsPDF } = await import("jspdf");
+    const { createArabicPDF } = await import("@/lib/pdf-arabic");
     const autoTable = (await import("jspdf-autotable")).default;
 
-    const doc = new jsPDF({ orientation: "landscape" });
+    const doc = await createArabicPDF("landscape");
     const selectedAccount = selectedAccountId !== "all" ? accountMap.get(selectedAccountId) : null;
     const title = selectedAccount
-      ? `General Ledger - ${selectedAccount.code} ${selectedAccount.name}`
-      : "General Ledger - All Accounts";
+      ? `دفتر الأستاذ - ${selectedAccount.code} ${selectedAccount.name}`
+      : "دفتر الأستاذ العام - جميع الحسابات";
 
     doc.setFontSize(16);
     doc.text(title, 148, 15, { align: "center" });
     doc.setFontSize(10);
-    doc.text(`Date: ${new Date().toLocaleDateString("en-US")} | Currency: EGP`, 148, 22, { align: "center" });
+    doc.text(`التاريخ: ${new Date().toLocaleDateString("en-US")} | العملة: EGP`, 148, 22, { align: "center" });
 
     const tableData = linesWithBalance.map((l) => {
       const acc = accountMap.get(l.account_id);
@@ -202,12 +202,12 @@ export default function Ledger() {
     });
 
     autoTable(doc, {
-      head: [["#", "Date", "Account", "Description", "Debit (EGP)", "Credit (EGP)", "Balance (EGP)"]],
+      head: [["#", "التاريخ", "الحساب", "الوصف", "مدين (EGP)", "دائن (EGP)", "الرصيد (EGP)"]],
       body: tableData,
       startY: 28,
-      styles: { fontSize: 8, cellPadding: 3 },
+      styles: { fontSize: 8, cellPadding: 3, font: "Amiri", halign: "right" },
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-      foot: [["", "", "", "Total", formatNumber(totalDebit), formatNumber(totalCredit), formatNumber(totalDebit - totalCredit)]],
+      foot: [["", "", "", "الإجمالي", formatNumber(totalDebit), formatNumber(totalCredit), formatNumber(totalDebit - totalCredit)]],
       footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: "bold" },
     });
 

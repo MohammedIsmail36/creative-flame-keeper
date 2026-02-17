@@ -88,28 +88,28 @@ export default function IncomeStatement() {
   const formatCurrency = (val: number) => `${formatNum(val)} EGP`;
 
   const handleExportPDF = async () => {
-    const { default: jsPDF } = await import("jspdf");
+    const { createArabicPDF } = await import("@/lib/pdf-arabic");
     const autoTable = (await import("jspdf-autotable")).default;
-    const doc = new jsPDF();
+    const doc = await createArabicPDF();
 
     doc.setFontSize(16);
-    doc.text("Income Statement", 105, 15, { align: "center" });
+    doc.text("قائمة الدخل", 105, 15, { align: "center" });
     doc.setFontSize(10);
-    let subtitle = `Date: ${new Date().toLocaleDateString("en-US")} | Currency: EGP`;
+    let subtitle = `التاريخ: ${new Date().toLocaleDateString("en-US")} | العملة: EGP`;
     if (dateFrom || dateTo) {
-      subtitle += ` | Period: ${dateFrom ? format(dateFrom, "yyyy-MM-dd") : "Start"} to ${dateTo ? format(dateTo, "yyyy-MM-dd") : "End"}`;
+      subtitle += ` | الفترة: ${dateFrom ? format(dateFrom, "yyyy-MM-dd") : "البداية"} إلى ${dateTo ? format(dateTo, "yyyy-MM-dd") : "النهاية"}`;
     }
     doc.text(subtitle, 105, 22, { align: "center" });
 
     // Revenue section
     const revenueData = revenueRows.map((r) => [r.account.code, r.account.name, formatNum(r.amount)]);
-    revenueData.push(["", "Total Revenue", formatNum(totalRevenue)]);
+    revenueData.push(["", "إجمالي الإيرادات", formatNum(totalRevenue)]);
 
     autoTable(doc, {
-      head: [["Code", "Revenue Account", "Amount (EGP)"]],
+      head: [["الكود", "حساب الإيرادات", "المبلغ (EGP)"]],
       body: revenueData,
       startY: 28,
-      styles: { fontSize: 9, cellPadding: 3 },
+      styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
       headStyles: { fillColor: [34, 197, 94], textColor: 255 },
       didParseCell: (data: any) => {
         if (data.row.index === revenueData.length - 1) {
@@ -123,13 +123,13 @@ export default function IncomeStatement() {
 
     // Expenses section
     const expenseData = expenseRows.map((r) => [r.account.code, r.account.name, formatNum(r.amount)]);
-    expenseData.push(["", "Total Expenses", formatNum(totalExpenses)]);
+    expenseData.push(["", "إجمالي المصروفات", formatNum(totalExpenses)]);
 
     autoTable(doc, {
-      head: [["Code", "Expense Account", "Amount (EGP)"]],
+      head: [["الكود", "حساب المصروفات", "المبلغ (EGP)"]],
       body: expenseData,
       startY: afterRevenue,
-      styles: { fontSize: 9, cellPadding: 3 },
+      styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
       headStyles: { fillColor: [239, 68, 68], textColor: 255 },
       didParseCell: (data: any) => {
         if (data.row.index === expenseData.length - 1) {
@@ -143,9 +143,9 @@ export default function IncomeStatement() {
 
     // Net Income
     autoTable(doc, {
-      body: [["Net Income", `${formatNum(netIncome)} EGP`]],
+      body: [[netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", `${formatNum(netIncome)} EGP`]],
       startY: afterExpenses,
-      styles: { fontSize: 11, cellPadding: 4, fontStyle: "bold" },
+      styles: { fontSize: 11, cellPadding: 4, fontStyle: "bold", font: "Amiri" },
       bodyStyles: {
         fillColor: netIncome >= 0 ? [240, 253, 244] : [254, 242, 242],
         textColor: netIncome >= 0 ? [22, 163, 74] : [220, 38, 38],
