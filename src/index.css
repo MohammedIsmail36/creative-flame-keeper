@@ -7,25 +7,25 @@
 @layer base {
   :root {
     --background: 220 20% 97%;
-    --foreground: 220 25% 10%;
+    --foreground: 220 30% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 25% 10%;
+    --card-foreground: 220 30% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 10%;
+    --popover-foreground: 220 30% 8%;
 
     --primary: 217 91% 50%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 92%;
-    --secondary-foreground: 220 25% 10%;
+    --secondary-foreground: 220 30% 8%;
 
     --muted: 220 14% 95%;
-    --muted-foreground: 220 10% 46%;
+    --muted-foreground: 220 12% 40%;
 
     --accent: 217 91% 95%;
-    --accent-foreground: 217 91% 30%;
+    --accent-foreground: 217 91% 28%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
@@ -36,8 +36,8 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 220 13% 88%;
-    --input: 220 13% 88%;
+    --border: 220 16% 82%;
+    --input: 220 16% 82%;
     --ring: 217 91% 50%;
 
     --radius: 0.625rem;
@@ -106,9 +106,51 @@
   html {
     direction: rtl;
     font-family: 'Tajawal', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
     @apply bg-background text-foreground;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1.7;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* Stronger table text */
+  table {
+    font-weight: 500;
+  }
+
+  th {
+    font-weight: 700 !important;
+  }
+
+  /* Better button text */
+  button, [role="button"] {
+    font-weight: 600;
+  }
+
+  /* Fix scrollbar for RTL */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
   }
 }
