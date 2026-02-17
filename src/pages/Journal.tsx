@@ -281,20 +281,23 @@ export default function Journal() {
     }
   };
 
+  const formatNum = (val: number) => Number(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
+
   const handleExportExcel = async () => {
     const XLSX = await import("xlsx");
     const data = filteredEntries.map((e) => ({
-      "رقم القيد": e.entry_number,
-      "التاريخ": e.entry_date,
-      "الوصف": e.description,
-      "الحالة": e.status === "posted" ? "معتمد" : "مسودة",
-      "مدين": Number(e.total_debit).toLocaleString("ar-SA"),
-      "دائن": Number(e.total_credit).toLocaleString("ar-SA"),
+      "Entry #": e.entry_number,
+      "Date": e.entry_date,
+      "Description": e.description,
+      "Status": e.status === "posted" ? "Posted" : "Draft",
+      "Debit (EGP)": Number(e.total_debit),
+      "Credit (EGP)": Number(e.total_credit),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "القيود");
-    XLSX.writeFile(wb, "القيود_المحاسبية.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Journal Entries");
+    XLSX.writeFile(wb, "Journal_Entries.xlsx");
     toast({ title: "تم التصدير", description: "تم تصدير القيود بصيغة Excel" });
     setExportMenuOpen(false);
   };
@@ -305,43 +308,42 @@ export default function Journal() {
 
     const doc = new jsPDF({ orientation: "landscape" });
 
-    // Title
     doc.setFontSize(16);
-    doc.text("Journal Entries - القيود المحاسبية", 148, 15, { align: "center" });
+    doc.text("Journal Entries", 148, 15, { align: "center" });
     doc.setFontSize(10);
-    doc.text(`Date: ${new Date().toLocaleDateString("ar-SA")}`, 148, 22, { align: "center" });
+    doc.text(`Date: ${new Date().toLocaleDateString("en-US")} | Currency: EGP`, 148, 22, { align: "center" });
 
     const tableData = filteredEntries.map((e) => [
       e.entry_number,
-      e.entry_date,
+      formatDate(e.entry_date),
       e.description,
       e.status === "posted" ? "Posted" : "Draft",
-      Number(e.total_debit).toLocaleString(),
-      Number(e.total_credit).toLocaleString(),
+      formatNum(Number(e.total_debit)),
+      formatNum(Number(e.total_credit)),
     ]);
 
     autoTable(doc, {
-      head: [["#", "Date", "Description", "Status", "Debit", "Credit"]],
+      head: [["#", "Date", "Description", "Status", "Debit (EGP)", "Credit (EGP)"]],
       body: tableData,
       startY: 28,
       styles: { fontSize: 9, cellPadding: 3 },
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-      foot: [["", "", "", "Total", totalDebit.toLocaleString(), totalCredit.toLocaleString()]],
+      foot: [["", "", "", "Total", formatNum(totalDebit), formatNum(totalCredit)]],
       footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: "bold" },
     });
 
-    doc.save("القيود_المحاسبية.pdf");
+    doc.save("Journal_Entries.pdf");
     toast({ title: "تم التصدير", description: "تم تصدير القيود بصيغة PDF" });
     setExportMenuOpen(false);
   };
 
   const handleExportCSV = () => {
-    const headers = ["رقم القيد", "التاريخ", "الوصف", "الحالة", "مدين", "دائن"];
+    const headers = ["Entry #", "Date", "Description", "Status", "Debit (EGP)", "Credit (EGP)"];
     const rows = filteredEntries.map((e) => [
       e.entry_number,
       e.entry_date,
       e.description,
-      e.status === "posted" ? "معتمد" : "مسودة",
+      e.status === "posted" ? "Posted" : "Draft",
       e.total_debit,
       e.total_credit,
     ]);
@@ -350,14 +352,14 @@ export default function Journal() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "القيود_المحاسبية.csv";
+    a.download = "Journal_Entries.csv";
     a.click();
     URL.revokeObjectURL(url);
     toast({ title: "تم التصدير", description: "تم تصدير القيود بصيغة CSV" });
     setExportMenuOpen(false);
   };
 
-  const formatCurrency = (val: number) => Number(val).toLocaleString("ar-SA", { minimumFractionDigits: 2 });
+  const formatCurrency = (val: number) => `${formatNum(Number(val))} EGP`;
 
   return (
     <div className="space-y-6" dir="rtl">
