@@ -284,7 +284,6 @@ export default function Products() {
       <DataTable
         columns={columns}
         data={filteredProducts}
-        searchKey="global"
         searchPlaceholder="البحث بالاسم أو الكود أو الباركود..."
         isLoading={loading}
         emptyMessage="لا توجد منتجات"

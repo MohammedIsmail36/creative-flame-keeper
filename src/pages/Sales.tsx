@@ -107,7 +107,6 @@ export default function Sales() {
       <DataTable
         columns={columns}
         data={filtered}
-        searchKey="global"
         searchPlaceholder="بحث برقم الفاتورة أو اسم العميل..."
         isLoading={loading}
         emptyMessage="لا توجد فواتير"

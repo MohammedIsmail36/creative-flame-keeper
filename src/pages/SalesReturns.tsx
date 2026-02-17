@@ -87,7 +87,6 @@ export default function SalesReturns() {
       <DataTable
         columns={columns}
         data={returns}
-        searchKey="global"
         searchPlaceholder="بحث..."
         isLoading={loading}
         emptyMessage="لا توجد مرتجعات"

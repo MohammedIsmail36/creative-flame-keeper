@@ -154,7 +154,6 @@ export default function Customers() {
       <DataTable
         columns={columns}
         data={customers}
-        searchKey="global"
         searchPlaceholder="بحث بالاسم أو الكود أو الهاتف..."
         isLoading={loading}
         emptyMessage="لا يوجد عملاء"
