@@ -230,9 +230,10 @@ export default function SupplierPayments() {
         }
       }
 
-      // 4. Reverse journal entry
+      // 4. Reverse journal entry status to cancelled
       if (cancelTarget.journal_entry_id) {
-        await supabase.from("journal_entries").update({ status: "cancelled" } as any).eq("id", cancelTarget.journal_entry_id);
+        const { error: jeError } = await (supabase.from("journal_entries") as any).update({ status: "cancelled" }).eq("id", cancelTarget.journal_entry_id);
+        if (jeError) console.error("Failed to update journal entry status:", jeError);
       }
 
       // 5. Restore supplier balance
