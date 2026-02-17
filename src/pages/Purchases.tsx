@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ const statusColors: Record<string, string> = { draft: "secondary", posted: "defa
 
 export default function Purchases() {
   const { role } = useAuth();
+  const { formatCurrency } = useSettings();
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +71,7 @@ export default function Purchases() {
     {
       accessorKey: "total",
       header: ({ column }) => <DataTableColumnHeader column={column} title="الإجمالي" />,
-      cell: ({ row }) => <span className="font-mono">{row.original.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>,
+      cell: ({ row }) => <span className="font-mono">{formatCurrency(row.original.total)}</span>,
     },
     {
       accessorKey: "status",
@@ -108,7 +110,7 @@ export default function Purchases() {
           { label: "الكل", value: invoices.length, filter: "all" },
           { label: "مسودة", value: invoices.filter(i => i.status === "draft").length, filter: "draft" },
           { label: "مُرحّل", value: invoices.filter(i => i.status === "posted").length, filter: "posted" },
-          { label: "إجمالي المشتريات", value: invoices.filter(i => i.status === "posted").reduce((s, i) => s + i.total, 0).toLocaleString("en-US", { minimumFractionDigits: 2 }) + " EGP", filter: "" },
+          { label: "إجمالي المشتريات", value: formatCurrency(invoices.filter(i => i.status === "posted").reduce((s, i) => s + i.total, 0)), filter: "" },
         ].map(({ label, value, filter }) => (
           <button key={label} onClick={() => filter && setStatusFilter(filter)}
             className={`rounded-xl border p-3 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}>

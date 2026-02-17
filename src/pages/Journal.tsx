@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AccountCombobox } from "@/components/AccountCombobox";
@@ -49,6 +50,7 @@ interface JournalEntry {
 
 export default function Journal() {
   const { role, user } = useAuth();
+  const { settings, currency, formatCurrency: fmtCurrency } = useSettings();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -248,7 +250,7 @@ export default function Journal() {
   };
 
   const formatNum = (val: number) => Number(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const formatCurrency = (val: number) => `${formatNum(Number(val))} EGP`;
+  const formatCurrency = (val: number) => fmtCurrency(Number(val));
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
 
   const handleExportExcel = async () => {
@@ -256,7 +258,7 @@ export default function Journal() {
     const data = filteredEntries.map((e) => ({
       "Entry #": e.entry_number, "Date": e.entry_date, "Description": e.description,
       "Status": e.status === "posted" ? "Posted" : "Draft",
-      "Debit (EGP)": Number(e.total_debit), "Credit (EGP)": Number(e.total_credit),
+      [`Debit (${currency})`]: Number(e.total_debit), [`Credit (${currency})`]: Number(e.total_credit),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -267,29 +269,27 @@ export default function Journal() {
   };
 
   const handleExportPDF = async () => {
-    const { createArabicPDF } = await import("@/lib/pdf-arabic");
+    const { createArabicPDF, addPdfHeader, addPdfFooter } = await import("@/lib/pdf-arabic");
     const autoTable = (await import("jspdf-autotable")).default;
     const doc = await createArabicPDF("landscape");
-    doc.setFontSize(16);
-    doc.text("القيود المحاسبية", 148, 15, { align: "center" });
-    doc.setFontSize(10);
-    doc.text(`التاريخ: ${new Date().toLocaleDateString("en-US")} | العملة: EGP`, 148, 22, { align: "center" });
+    const startY = addPdfHeader(doc, settings, "القيود المحاسبية");
     const tableData = filteredEntries.map((e) => [e.entry_number, formatDate(e.entry_date), e.description, e.status === "posted" ? "معتمد" : "مسودة", formatNum(Number(e.total_debit)), formatNum(Number(e.total_credit))]);
     autoTable(doc, {
-      head: [["#", "التاريخ", "الوصف", "الحالة", "مدين (EGP)", "دائن (EGP)"]],
-      body: tableData, startY: 28,
+      head: [[`#`, "التاريخ", "الوصف", "الحالة", `مدين (${currency})`, `دائن (${currency})`]],
+      body: tableData, startY,
       styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
       foot: [["", "", "", "الإجمالي", formatNum(totalDebit), formatNum(totalCredit)]],
       footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: "bold" },
     });
+    addPdfFooter(doc, settings);
     doc.save("Journal_Entries.pdf");
     toast({ title: "تم التصدير", description: "تم تصدير القيود بصيغة PDF" });
     setExportMenuOpen(false);
   };
 
   const handleExportCSV = () => {
-    const headers = ["Entry #", "Date", "Description", "Status", "Debit (EGP)", "Credit (EGP)"];
+    const headers = ["Entry #", "Date", "Description", "Status", `Debit (${currency})`, `Credit (${currency})`];
     const rows = filteredEntries.map((e) => [e.entry_number, e.entry_date, e.description, e.status === "posted" ? "Posted" : "Draft", e.total_debit, e.total_credit]);
     const csvContent = "\uFEFF" + [headers, ...rows].map((r) => r.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });

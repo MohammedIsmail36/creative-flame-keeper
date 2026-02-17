@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ interface BalanceRow {
 }
 
 export default function BalanceSheet() {
+  const { settings, currency } = useSettings();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,18 +92,13 @@ export default function BalanceSheet() {
 
   const isBalanced = Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 0.01;
   const formatNum = (val: number) => Math.abs(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const formatCurrency = (val: number) => `${formatNum(val)} EGP`;
+  const formatCurrency = (val: number) => `${formatNum(val)} ${currency}`;
 
   const handleExportPDF = async () => {
-    const { createArabicPDF } = await import("@/lib/pdf-arabic");
+    const { createArabicPDF, addPdfHeader, addPdfFooter } = await import("@/lib/pdf-arabic");
     const autoTable = (await import("jspdf-autotable")).default;
     const doc = await createArabicPDF();
-
-    doc.setFontSize(16);
-    doc.text("الميزانية العمومية", 105, 15, { align: "center" });
-    doc.setFontSize(10);
-    const dateLabel = asOfDate ? format(asOfDate, "yyyy-MM-dd") : new Date().toLocaleDateString("en-US");
-    doc.text(`كما في: ${dateLabel} | العملة: EGP`, 105, 22, { align: "center" });
+    const startY = addPdfHeader(doc, settings, "الميزانية العمومية");
 
     const baseStyles = { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" as const };
 
@@ -109,9 +106,8 @@ export default function BalanceSheet() {
     const assetData = assetRows.map((r) => [r.account.code, r.account.name, formatNum(r.balance)]);
     assetData.push(["", "إجمالي الأصول", formatNum(totalAssets)]);
     autoTable(doc, {
-      head: [["الكود", "الأصول", "المبلغ (EGP)"]],
-      body: assetData,
-      startY: 28,
+      head: [["الكود", "الأصول", `المبلغ (${currency})`]],
+      body: assetData, startY,
       styles: baseStyles,
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
       didParseCell: (data: any) => {
@@ -125,7 +121,7 @@ export default function BalanceSheet() {
     const liabData = liabilityRows.map((r) => [r.account.code, r.account.name, formatNum(r.balance)]);
     liabData.push(["", "إجمالي الخصوم", formatNum(totalLiabilities)]);
     autoTable(doc, {
-      head: [["الكود", "الخصوم", "المبلغ (EGP)"]],
+      head: [["الكود", "الخصوم", `المبلغ (${currency})`]],
       body: liabData,
       startY: y1,
       styles: baseStyles,
@@ -142,7 +138,7 @@ export default function BalanceSheet() {
     if (netIncome !== 0) eqData.push(["", netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", formatNum(netIncome)]);
     eqData.push(["", "إجمالي حقوق الملكية", formatNum(totalEquity)]);
     autoTable(doc, {
-      head: [["الكود", "حقوق الملكية", "المبلغ (EGP)"]],
+      head: [["الكود", "حقوق الملكية", `المبلغ (${currency})`]],
       body: eqData,
       startY: y2,
       styles: baseStyles,
@@ -161,6 +157,7 @@ export default function BalanceSheet() {
       columnStyles: { 1: { halign: "right" } },
     });
 
+    addPdfFooter(doc, settings);
     doc.save("Balance_Sheet.pdf");
     toast({ title: "تم التصدير", description: "تم تصدير الميزانية العمومية بصيغة PDF" });
     setExportMenuOpen(false);

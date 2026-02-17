@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSettings, type CompanySettings } from "@/contexts/SettingsContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,52 +23,10 @@ import {
   FileText,
   Save,
   Loader2,
+  Upload,
+  X,
+  Image,
 } from "lucide-react";
-
-interface CompanySettings {
-  id: string;
-  company_name: string;
-  company_name_en: string;
-  logo_url: string;
-  address: string;
-  phone: string;
-  email: string;
-  website: string;
-  tax_number: string;
-  commercial_register: string;
-  default_currency: string;
-  fiscal_year_start: string;
-  tax_rate: number;
-  sales_invoice_prefix: string;
-  purchase_invoice_prefix: string;
-  payment_terms_days: number;
-  show_tax_on_invoice: boolean;
-  show_discount_on_invoice: boolean;
-  invoice_notes: string;
-  invoice_footer: string;
-}
-
-const defaultSettings: Omit<CompanySettings, "id"> = {
-  company_name: "",
-  company_name_en: "",
-  logo_url: "",
-  address: "",
-  phone: "",
-  email: "",
-  website: "",
-  tax_number: "",
-  commercial_register: "",
-  default_currency: "EGP",
-  fiscal_year_start: "01-01",
-  tax_rate: 0,
-  sales_invoice_prefix: "INV-",
-  purchase_invoice_prefix: "PUR-",
-  payment_terms_days: 30,
-  show_tax_on_invoice: true,
-  show_discount_on_invoice: true,
-  invoice_notes: "",
-  invoice_footer: "",
-};
 
 const currencies = [
   { value: "EGP", label: "جنيه مصري (EGP)" },
@@ -92,9 +51,11 @@ const fiscalYearOptions = [
 ];
 
 export default function SettingsPage() {
+  const { settings: globalSettings, refetch } = useSettings();
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -112,7 +73,7 @@ export default function SettingsPage() {
       toast.error("خطأ في تحميل الإعدادات");
       console.error(error);
     } else if (data) {
-      setSettings(data as CompanySettings);
+      setSettings(data as unknown as CompanySettings);
     }
     setLoading(false);
   };
@@ -124,7 +85,7 @@ export default function SettingsPage() {
     const { id, ...updateData } = settings;
     const { error } = await supabase
       .from("company_settings")
-      .update(updateData)
+      .update(updateData as any)
       .eq("id", id);
 
     if (error) {
@@ -132,6 +93,7 @@ export default function SettingsPage() {
       console.error(error);
     } else {
       toast.success("تم حفظ الإعدادات بنجاح");
+      await refetch();
     }
     setSaving(false);
   };
@@ -139,6 +101,47 @@ export default function SettingsPage() {
   const updateField = <K extends keyof CompanySettings>(field: K, value: CompanySettings[K]) => {
     if (!settings) return;
     setSettings({ ...settings, [field]: value });
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !settings) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("يجب اختيار ملف صورة");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("حجم الصورة يجب أن لا يتجاوز 2 ميجابايت");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `company-logo-${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(fileName);
+
+      updateField("logo_url", urlData.publicUrl);
+      toast.success("تم رفع الشعار بنجاح. اضغط حفظ لتأكيد التغييرات.");
+    } catch (err: any) {
+      toast.error("خطأ في رفع الشعار: " + err.message);
+    }
+    setUploading(false);
+  };
+
+  const removeLogo = () => {
+    updateField("logo_url", "");
   };
 
   if (loading) {
@@ -194,6 +197,44 @@ export default function SettingsPage() {
               <CardDescription>البيانات الأساسية للشركة التي تظهر في الفواتير والتقارير</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Logo */}
+              <div className="space-y-2">
+                <Label>شعار الشركة</Label>
+                <div className="flex items-center gap-4">
+                  {settings.logo_url ? (
+                    <div className="relative">
+                      <img
+                        src={settings.logo_url}
+                        alt="شعار الشركة"
+                        className="w-20 h-20 rounded-lg object-contain border bg-muted/30 p-1"
+                      />
+                      <button
+                        onClick={removeLogo}
+                        className="absolute -top-2 -left-2 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/80"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/10">
+                      <Image className="h-6 w-6 text-muted-foreground/40" />
+                    </div>
+                  )}
+                  <div>
+                    <Button variant="outline" size="sm" className="gap-2" disabled={uploading} asChild>
+                      <label className="cursor-pointer">
+                        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        {uploading ? "جاري الرفع..." : "رفع شعار"}
+                        <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                      </label>
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-1">PNG أو JPG, الحد الأقصى 2 ميجابايت</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>اسم الشركة (عربي)</Label>
@@ -212,6 +253,15 @@ export default function SettingsPage() {
                     dir="ltr"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>نشاط الشركة</Label>
+                <Input
+                  value={settings.business_activity || ""}
+                  onChange={(e) => updateField("business_activity", e.target.value)}
+                  placeholder="مثال: تجارة مواد البناء والتوريدات"
+                />
               </div>
 
               <div className="space-y-2">
@@ -349,65 +399,72 @@ export default function SettingsPage() {
         <TabsContent value="invoices" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">إعدادات الفواتير</CardTitle>
-              <CardDescription>بادئة الترقيم وشروط الدفع وخيارات العرض</CardDescription>
+              <CardTitle className="text-base">بادئات الترقيم</CardTitle>
+              <CardDescription>بادئة ترقيم الفواتير والمرتجعات والمدفوعات</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>بادئة فواتير المبيعات</Label>
-                  <Input
-                    value={settings.sales_invoice_prefix}
-                    onChange={(e) => updateField("sales_invoice_prefix", e.target.value)}
-                    placeholder="INV-"
-                    dir="ltr"
-                  />
+                  <Label>فواتير المبيعات</Label>
+                  <Input value={settings.sales_invoice_prefix} onChange={(e) => updateField("sales_invoice_prefix", e.target.value)} dir="ltr" />
                 </div>
                 <div className="space-y-2">
-                  <Label>بادئة فواتير المشتريات</Label>
-                  <Input
-                    value={settings.purchase_invoice_prefix}
-                    onChange={(e) => updateField("purchase_invoice_prefix", e.target.value)}
-                    placeholder="PUR-"
-                    dir="ltr"
-                  />
+                  <Label>فواتير المشتريات</Label>
+                  <Input value={settings.purchase_invoice_prefix} onChange={(e) => updateField("purchase_invoice_prefix", e.target.value)} dir="ltr" />
                 </div>
                 <div className="space-y-2">
                   <Label>مدة الدفع (أيام)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={settings.payment_terms_days}
-                    onChange={(e) => updateField("payment_terms_days", Number(e.target.value))}
-                    placeholder="30"
-                  />
+                  <Input type="number" min={0} value={settings.payment_terms_days} onChange={(e) => updateField("payment_terms_days", Number(e.target.value))} />
                 </div>
               </div>
 
-              <Separator />
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>إظهار الضريبة في الفاتورة</Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">عرض تفاصيل الضريبة في الفواتير المطبوعة</p>
-                  </div>
-                  <Switch
-                    checked={settings.show_tax_on_invoice}
-                    onCheckedChange={(v) => updateField("show_tax_on_invoice", v)}
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label>مرتجعات المبيعات</Label>
+                  <Input value={settings.sales_return_prefix} onChange={(e) => updateField("sales_return_prefix", e.target.value)} dir="ltr" />
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>إظهار الخصم في الفاتورة</Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">عرض تفاصيل الخصم في الفواتير المطبوعة</p>
-                  </div>
-                  <Switch
-                    checked={settings.show_discount_on_invoice}
-                    onCheckedChange={(v) => updateField("show_discount_on_invoice", v)}
-                  />
+                <div className="space-y-2">
+                  <Label>مرتجعات المشتريات</Label>
+                  <Input value={settings.purchase_return_prefix} onChange={(e) => updateField("purchase_return_prefix", e.target.value)} dir="ltr" />
                 </div>
+                <div className="space-y-2">
+                  <Label>مدفوعات العملاء</Label>
+                  <Input value={settings.customer_payment_prefix} onChange={(e) => updateField("customer_payment_prefix", e.target.value)} dir="ltr" />
+                </div>
+                <div className="space-y-2">
+                  <Label>مدفوعات الموردين</Label>
+                  <Input value={settings.supplier_payment_prefix} onChange={(e) => updateField("supplier_payment_prefix", e.target.value)} dir="ltr" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">خيارات العرض</CardTitle>
+              <CardDescription>التحكم في محتوى الفواتير المطبوعة</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>إظهار الضريبة في الفاتورة</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">عرض تفاصيل الضريبة في الفواتير المطبوعة</p>
+                </div>
+                <Switch
+                  checked={settings.show_tax_on_invoice}
+                  onCheckedChange={(v) => updateField("show_tax_on_invoice", v)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>إظهار الخصم في الفاتورة</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">عرض تفاصيل الخصم في الفواتير المطبوعة</p>
+                </div>
+                <Switch
+                  checked={settings.show_discount_on_invoice}
+                  onCheckedChange={(v) => updateField("show_discount_on_invoice", v)}
+                />
               </div>
 
               <Separator />

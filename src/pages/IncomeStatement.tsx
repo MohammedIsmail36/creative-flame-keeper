@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ interface IncomeRow {
 }
 
 export default function IncomeStatement() {
+  const { settings, currency } = useSettings();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,30 +87,28 @@ export default function IncomeStatement() {
   }, [accounts, lines, dateFrom, dateTo]);
 
   const formatNum = (val: number) => Math.abs(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const formatCurrency = (val: number) => `${formatNum(val)} EGP`;
+  const formatCurrency = (val: number) => `${formatNum(val)} ${currency}`;
 
   const handleExportPDF = async () => {
-    const { createArabicPDF } = await import("@/lib/pdf-arabic");
+    const { createArabicPDF, addPdfHeader, addPdfFooter } = await import("@/lib/pdf-arabic");
     const autoTable = (await import("jspdf-autotable")).default;
     const doc = await createArabicPDF();
-
-    doc.setFontSize(16);
-    doc.text("قائمة الدخل", 105, 15, { align: "center" });
-    doc.setFontSize(10);
-    let subtitle = `التاريخ: ${new Date().toLocaleDateString("en-US")} | العملة: EGP`;
+    let startY = addPdfHeader(doc, settings, "قائمة الدخل");
     if (dateFrom || dateTo) {
-      subtitle += ` | الفترة: ${dateFrom ? format(dateFrom, "yyyy-MM-dd") : "البداية"} إلى ${dateTo ? format(dateTo, "yyyy-MM-dd") : "النهاية"}`;
+      doc.setFont("Amiri", "normal");
+      doc.setFontSize(9);
+      doc.text(`الفترة: ${dateFrom ? format(dateFrom, "yyyy-MM-dd") : "البداية"} إلى ${dateTo ? format(dateTo, "yyyy-MM-dd") : "النهاية"}`, 105, startY, { align: "center" });
+      startY += 6;
     }
-    doc.text(subtitle, 105, 22, { align: "center" });
 
     // Revenue section
     const revenueData = revenueRows.map((r) => [r.account.code, r.account.name, formatNum(r.amount)]);
     revenueData.push(["", "إجمالي الإيرادات", formatNum(totalRevenue)]);
 
     autoTable(doc, {
-      head: [["الكود", "حساب الإيرادات", "المبلغ (EGP)"]],
+      head: [["الكود", "حساب الإيرادات", `المبلغ (${currency})`]],
       body: revenueData,
-      startY: 28,
+      startY,
       styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
       headStyles: { fillColor: [34, 197, 94], textColor: 255 },
       didParseCell: (data: any) => {
@@ -126,7 +126,7 @@ export default function IncomeStatement() {
     expenseData.push(["", "إجمالي المصروفات", formatNum(totalExpenses)]);
 
     autoTable(doc, {
-      head: [["الكود", "حساب المصروفات", "المبلغ (EGP)"]],
+      head: [["الكود", "حساب المصروفات", `المبلغ (${currency})`]],
       body: expenseData,
       startY: afterRevenue,
       styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
@@ -143,7 +143,7 @@ export default function IncomeStatement() {
 
     // Net Income
     autoTable(doc, {
-      body: [[netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", `${formatNum(netIncome)} EGP`]],
+      body: [[netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", `${formatNum(netIncome)} ${currency}`]],
       startY: afterExpenses,
       styles: { fontSize: 11, cellPadding: 4, fontStyle: "bold", font: "Amiri" },
       bodyStyles: {
@@ -153,6 +153,7 @@ export default function IncomeStatement() {
       columnStyles: { 1: { halign: "right" } },
     });
 
+    addPdfFooter(doc, settings);
     doc.save("Income_Statement.pdf");
     toast({ title: "تم التصدير", description: "تم تصدير قائمة الدخل بصيغة PDF" });
     setExportMenuOpen(false);
@@ -161,15 +162,15 @@ export default function IncomeStatement() {
   const handleExportExcel = async () => {
     const XLSX = await import("xlsx");
     const data: any[] = [];
-    data.push({ "Section": "Revenue", "Code": "", "Account": "", "Amount (EGP)": "" });
-    revenueRows.forEach((r) => data.push({ "Section": "", "Code": r.account.code, "Account": r.account.name, "Amount (EGP)": r.amount }));
-    data.push({ "Section": "", "Code": "", "Account": "Total Revenue", "Amount (EGP)": totalRevenue });
-    data.push({ "Section": "", "Code": "", "Account": "", "Amount (EGP)": "" });
-    data.push({ "Section": "Expenses", "Code": "", "Account": "", "Amount (EGP)": "" });
-    expenseRows.forEach((r) => data.push({ "Section": "", "Code": r.account.code, "Account": r.account.name, "Amount (EGP)": r.amount }));
-    data.push({ "Section": "", "Code": "", "Account": "Total Expenses", "Amount (EGP)": totalExpenses });
-    data.push({ "Section": "", "Code": "", "Account": "", "Amount (EGP)": "" });
-    data.push({ "Section": "", "Code": "", "Account": "Net Income", "Amount (EGP)": netIncome });
+    data.push({ "Section": "Revenue", "Code": "", "Account": "", [`Amount (${currency})`]: "" });
+    revenueRows.forEach((r) => data.push({ "Section": "", "Code": r.account.code, "Account": r.account.name, [`Amount (${currency})`]: r.amount }));
+    data.push({ "Section": "", "Code": "", "Account": "Total Revenue", [`Amount (${currency})`]: totalRevenue });
+    data.push({ "Section": "", "Code": "", "Account": "", [`Amount (${currency})`]: "" });
+    data.push({ "Section": "Expenses", "Code": "", "Account": "", [`Amount (${currency})`]: "" });
+    expenseRows.forEach((r) => data.push({ "Section": "", "Code": r.account.code, "Account": r.account.name, [`Amount (${currency})`]: r.amount }));
+    data.push({ "Section": "", "Code": "", "Account": "Total Expenses", [`Amount (${currency})`]: totalExpenses });
+    data.push({ "Section": "", "Code": "", "Account": "", [`Amount (${currency})`]: "" });
+    data.push({ "Section": "", "Code": "", "Account": "Net Income", [`Amount (${currency})`]: netIncome });
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();

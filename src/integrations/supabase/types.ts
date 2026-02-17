@@ -64,10 +64,12 @@ export type Database = {
       company_settings: {
         Row: {
           address: string | null
+          business_activity: string | null
           commercial_register: string | null
           company_name: string
           company_name_en: string | null
           created_at: string
+          customer_payment_prefix: string
           default_currency: string
           email: string | null
           fiscal_year_start: string
@@ -78,9 +80,12 @@ export type Database = {
           payment_terms_days: number
           phone: string | null
           purchase_invoice_prefix: string
+          purchase_return_prefix: string
           sales_invoice_prefix: string
+          sales_return_prefix: string
           show_discount_on_invoice: boolean
           show_tax_on_invoice: boolean
+          supplier_payment_prefix: string
           tax_number: string | null
           tax_rate: number
           updated_at: string
@@ -88,10 +93,12 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          business_activity?: string | null
           commercial_register?: string | null
           company_name?: string
           company_name_en?: string | null
           created_at?: string
+          customer_payment_prefix?: string
           default_currency?: string
           email?: string | null
           fiscal_year_start?: string
@@ -102,9 +109,12 @@ export type Database = {
           payment_terms_days?: number
           phone?: string | null
           purchase_invoice_prefix?: string
+          purchase_return_prefix?: string
           sales_invoice_prefix?: string
+          sales_return_prefix?: string
           show_discount_on_invoice?: boolean
           show_tax_on_invoice?: boolean
+          supplier_payment_prefix?: string
           tax_number?: string | null
           tax_rate?: number
           updated_at?: string
@@ -112,10 +122,12 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          business_activity?: string | null
           commercial_register?: string | null
           company_name?: string
           company_name_en?: string | null
           created_at?: string
+          customer_payment_prefix?: string
           default_currency?: string
           email?: string | null
           fiscal_year_start?: string
@@ -126,9 +138,12 @@ export type Database = {
           payment_terms_days?: number
           phone?: string | null
           purchase_invoice_prefix?: string
+          purchase_return_prefix?: string
           sales_invoice_prefix?: string
+          sales_return_prefix?: string
           show_discount_on_invoice?: boolean
           show_tax_on_invoice?: boolean
+          supplier_payment_prefix?: string
           tax_number?: string | null
           tax_rate?: number
           updated_at?: string

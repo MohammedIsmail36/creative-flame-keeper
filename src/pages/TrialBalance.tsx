@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ interface TrialBalanceRow {
 }
 
 export default function TrialBalance() {
+  const { settings, currency } = useSettings();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,7 +96,7 @@ export default function TrialBalance() {
   const isBalanced = Math.abs(grandBalanceDebit - grandBalanceCredit) < 0.01;
 
   const formatNum = (val: number) => Number(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const formatCurrency = (val: number) => `${formatNum(val)} EGP`;
+  const formatCurrency = (val: number) => `${formatNum(val)} ${currency}`;
 
   const getAccountTypeLabel = (type: string) => {
     const map: Record<string, string> = {
@@ -104,18 +106,16 @@ export default function TrialBalance() {
   };
 
   const handleExportPDF = async () => {
-    const { createArabicPDF } = await import("@/lib/pdf-arabic");
+    const { createArabicPDF, addPdfHeader, addPdfFooter } = await import("@/lib/pdf-arabic");
     const autoTable = (await import("jspdf-autotable")).default;
     const doc = await createArabicPDF("landscape");
-
-    doc.setFontSize(16);
-    doc.text("ميزان المراجعة", 148, 15, { align: "center" });
-    doc.setFontSize(10);
-    let subtitle = `التاريخ: ${new Date().toLocaleDateString("en-US")} | العملة: EGP`;
+    let startY = addPdfHeader(doc, settings, "ميزان المراجعة");
     if (dateFrom || dateTo) {
-      subtitle += ` | الفترة: ${dateFrom ? format(dateFrom, "yyyy-MM-dd") : "البداية"} إلى ${dateTo ? format(dateTo, "yyyy-MM-dd") : "النهاية"}`;
+      doc.setFont("Amiri", "normal");
+      doc.setFontSize(9);
+      doc.text(`الفترة: ${dateFrom ? format(dateFrom, "yyyy-MM-dd") : "البداية"} إلى ${dateTo ? format(dateTo, "yyyy-MM-dd") : "النهاية"}`, 148, startY, { align: "center" });
+      startY += 6;
     }
-    doc.text(subtitle, 148, 22, { align: "center" });
 
     const tableData = trialBalanceData.map((r) => [
       r.account.code,
@@ -129,14 +129,13 @@ export default function TrialBalance() {
 
     autoTable(doc, {
       head: [["الكود", "الحساب", "النوع", "إجمالي مدين", "إجمالي دائن", "رصيد مدين", "رصيد دائن"]],
-      body: tableData,
-      startY: 28,
+      body: tableData, startY,
       styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
       foot: [["", "", "الإجمالي", formatNum(grandTotalDebit), formatNum(grandTotalCredit), formatNum(grandBalanceDebit), formatNum(grandBalanceCredit)]],
       footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: "bold" },
     });
-
+    addPdfFooter(doc, settings);
     doc.save("Trial_Balance.pdf");
     toast({ title: "تم التصدير", description: "تم تصدير ميزان المراجعة بصيغة PDF" });
     setExportMenuOpen(false);

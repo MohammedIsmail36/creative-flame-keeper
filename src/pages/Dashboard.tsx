@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -29,7 +30,6 @@ import { useNavigate } from "react-router-dom";
 
 const formatNumber = (val: number) =>
   val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const formatCurrency = (val: number) => `${formatNumber(val)} EGP`;
 
 interface AccountBalance {
   id: string;
@@ -113,6 +113,7 @@ const lowStockItems = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { formatCurrency, currency } = useSettings();
   const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
   const [loadingBalances, setLoadingBalances] = useState(true);
 
