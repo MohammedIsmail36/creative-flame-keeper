@@ -178,16 +178,45 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     if (linkAmount <= 0) return;
 
     try {
-      // Link the payment to this invoice
-      await (supabase.from(paymentTable as any) as any)
-        .update({ [invoiceIdCol]: invoiceId })
-        .eq("id", payment.id);
+      if (payment.amount > remaining) {
+        // Split: update original payment to the linked amount and link it
+        const excessAmount = payment.amount - remaining;
+        await (supabase.from(paymentTable as any) as any)
+          .update({ amount: linkAmount, [invoiceIdCol]: invoiceId })
+          .eq("id", payment.id);
+
+        // Create a new unlinked payment for the excess
+        // Get the original payment's full data for copying
+        const { data: origPayment } = await (supabase.from(paymentTable as any) as any)
+          .select("*")
+          .eq("id", payment.id)
+          .single();
+
+        if (origPayment) {
+          const newPaymentData: any = {
+            [entityIdCol]: entityId,
+            payment_date: origPayment.payment_date,
+            amount: excessAmount,
+            payment_method: origPayment.payment_method,
+            reference: origPayment.reference,
+            notes: origPayment.notes ? `${origPayment.notes} (تقسيم من دفعة #${payment.payment_number})` : `تقسيم من دفعة #${payment.payment_number}`,
+            journal_entry_id: null,
+            status: "posted",
+          };
+          await (supabase.from(paymentTable as any) as any).insert(newPaymentData);
+        }
+      } else {
+        // Full link: payment amount <= remaining
+        await (supabase.from(paymentTable as any) as any)
+          .update({ [invoiceIdCol]: invoiceId })
+          .eq("id", payment.id);
+      }
 
       // Update invoice paid_amount
       const newPaid = paidAmount + linkAmount;
       await (supabase.from(invoiceTable as any) as any).update({ paid_amount: newPaid }).eq("id", invoiceId);
 
-      toast({ title: "تم الربط", description: `تم ربط الدفعة #${payment.payment_number} بالفاتورة` });
+      toast({ title: "تم الربط", description: `تم ربط ${linkAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })} من الدفعة #${payment.payment_number} بالفاتورة` });
       fetchPayments();
       onPaymentAdded();
     } catch (error: any) {
