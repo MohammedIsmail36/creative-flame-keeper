@@ -213,21 +213,44 @@ export default function CustomerPayments() {
     if (!cancelTarget) return;
     setSaving(true);
     try {
-      // Reverse journal entry
+      // 1. Get all allocations for this payment to update related invoices
+      const { data: allocations } = await (supabase.from("customer_payment_allocations" as any) as any)
+        .select("id, invoice_id, allocated_amount")
+        .eq("payment_id", cancelTarget.id);
+
+      // 2. Delete all allocations for this payment
+      if (allocations && allocations.length > 0) {
+        await (supabase.from("customer_payment_allocations" as any) as any)
+          .delete()
+          .eq("payment_id", cancelTarget.id);
+
+        // 3. Recalculate paid_amount for each affected invoice
+        for (const alloc of allocations) {
+          const { data: remainingAllocs } = await (supabase.from("customer_payment_allocations" as any) as any)
+            .select("allocated_amount")
+            .eq("invoice_id", alloc.invoice_id);
+          const newPaid = (remainingAllocs || []).reduce((s: number, a: any) => s + a.allocated_amount, 0);
+          await (supabase.from("sales_invoices" as any) as any)
+            .update({ paid_amount: newPaid })
+            .eq("id", alloc.invoice_id);
+        }
+      }
+
+      // 4. Reverse journal entry
       if (cancelTarget.journal_entry_id) {
         await supabase.from("journal_entries").update({ status: "cancelled" } as any).eq("id", cancelTarget.journal_entry_id);
       }
 
-      // Restore customer balance
+      // 5. Restore customer balance
       const { data: cust } = await (supabase.from("customers" as any) as any).select("balance").eq("id", cancelTarget.customer_id).single();
       if (cust) {
         await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) + cancelTarget.amount }).eq("id", cancelTarget.customer_id);
       }
 
-      // Update payment status
+      // 6. Update payment status
       await (supabase.from("customer_payments" as any) as any).update({ status: "cancelled" }).eq("id", cancelTarget.id);
 
-      toast({ title: "تم الإلغاء", description: `تم إلغاء الدفعة #${cancelTarget.payment_number} وعكس القيد المحاسبي` });
+      toast({ title: "تم الإلغاء", description: `تم إلغاء الدفعة #${cancelTarget.payment_number} وعكس القيد المحاسبي وفك جميع التخصيصات` });
       setCancelTarget(null);
       fetchAll();
     } catch (error: any) {
