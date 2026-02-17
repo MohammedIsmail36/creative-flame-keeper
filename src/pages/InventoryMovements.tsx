@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { Package, Download } from "lucide-react";
+import { Package } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
+import { useSettings } from "@/contexts/SettingsContext";
 import { format } from "date-fns";
 
 const movementTypeLabels: Record<string, string> = {
@@ -45,6 +47,7 @@ interface MovementRow {
 }
 
 export default function InventoryMovements() {
+  const { settings } = useSettings();
   const [selectedProduct, setSelectedProduct] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -91,24 +94,6 @@ export default function InventoryMovements() {
 
   const totalIn = movementsWithBalance.filter(m => inTypes.includes(m.movement_type)).reduce((s, m) => s + Number(m.quantity), 0);
   const totalOut = movementsWithBalance.filter(m => !inTypes.includes(m.movement_type)).reduce((s, m) => s + Number(m.quantity), 0);
-
-  const handleExportCSV = () => {
-    const headers = ["التاريخ", "المنتج", "الكود", "نوع الحركة", "الكمية", "سعر الوحدة", "الإجمالي", "الرصيد التراكمي", "ملاحظات"];
-    const rows = movementsWithBalance.map(m => [
-      m.movement_date, m.products?.name || "", m.products?.code || "",
-      movementTypeLabels[m.movement_type] || m.movement_type,
-      m.quantity, m.unit_cost, m.total_cost, m.cumulativeBalance, m.notes || "",
-    ]);
-    const bom = "\uFEFF";
-    const csv = bom + [headers, ...rows].map(r => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `inventory-movements-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const columns: ColumnDef<MovementRow, any>[] = [
     {
@@ -181,10 +166,15 @@ export default function InventoryMovements() {
           <h1 className="text-2xl font-bold">تقرير حركة المخزون</h1>
           <p className="text-muted-foreground text-sm mt-1">عرض جميع حركات المخزون مع الأرصدة التراكمية</p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={movementsWithBalance.length === 0}>
-          <Download className="w-4 h-4 ml-2" />
-          تصدير CSV
-        </Button>
+        <ExportMenu config={{
+          filenamePrefix: "حركات-المخزون",
+          sheetName: "حركات المخزون",
+          pdfTitle: "حركات المخزون",
+          headers: ["التاريخ", "المنتج", "الكود", "نوع الحركة", "الكمية", "سعر الوحدة", "الإجمالي", "الرصيد التراكمي"],
+          rows: movementsWithBalance.map(m => [m.movement_date, m.products?.name || "", m.products?.code || "", movementTypeLabels[m.movement_type] || m.movement_type, m.quantity, m.unit_cost, m.total_cost, m.cumulativeBalance]),
+          settings,
+          pdfOrientation: "landscape",
+        }} disabled={movementsWithBalance.length === 0} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -255,6 +245,15 @@ export default function InventoryMovements() {
             </Select>
             <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
+            <ExportMenu config={{
+              filenamePrefix: "حركات-المخزون",
+              sheetName: "حركات المخزون",
+              pdfTitle: "حركات المخزون",
+              headers: ["التاريخ", "المنتج", "الكود", "نوع الحركة", "الكمية", "سعر الوحدة", "الإجمالي", "الرصيد التراكمي"],
+              rows: movementsWithBalance.map(m => [m.movement_date, m.products?.name || "", m.products?.code || "", movementTypeLabels[m.movement_type] || m.movement_type, m.quantity, m.unit_cost, m.total_cost, m.cumulativeBalance]),
+              settings,
+              pdfOrientation: "landscape",
+            }} disabled={isLoading} />
           </div>
         }
       />

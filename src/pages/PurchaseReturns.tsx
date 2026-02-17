@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus, RotateCcw, Eye, X } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface Return {
   id: string; return_number: number; supplier_id: string | null; supplier_name?: string;
@@ -21,6 +23,7 @@ const statusColors: Record<string, string> = { draft: "secondary", posted: "defa
 export default function PurchaseReturns() {
   const { role } = useAuth();
   const navigate = useNavigate();
+  const { settings, formatCurrency } = useSettings();
   const [returns, setReturns] = useState<Return[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -131,6 +134,14 @@ export default function PurchaseReturns() {
                 مسح الفلاتر
               </Button>
             )}
+            <ExportMenu config={{
+              filenamePrefix: "مرتجعات-المشتريات",
+              sheetName: "مرتجعات المشتريات",
+              pdfTitle: "مرتجعات المشتريات",
+              headers: ["رقم المرتجع", "المورد", "التاريخ", "الإجمالي", "الحالة"],
+              rows: filtered.map(r => [`#${r.return_number}`, r.supplier_name || "—", r.return_date, formatCurrency(r.total), statusLabels[r.status] || r.status]),
+              settings,
+            }} disabled={loading} />
           </div>
         }
       />

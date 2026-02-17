@@ -10,7 +10,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Package, Plus, Pencil, Trash2, AlertTriangle, Archive, DollarSign, Download, Eye, Upload } from "lucide-react";
+import { Package, Plus, Pencil, Trash2, AlertTriangle, Archive, DollarSign, Eye, Upload } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface ProductRow {
   id: string; code: string; name: string; description: string | null;
@@ -32,7 +34,7 @@ export default function Products() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const { settings } = useSettings();
 
   const canEdit = role === "admin" || role === "accountant";
   const canDelete = role === "admin";
@@ -99,39 +101,15 @@ export default function Products() {
     return <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">متوفر</Badge>;
   };
 
-  const handleExportExcel = async () => {
-    const { exportToExcel } = await import("@/lib/excel-export");
-    const data = filteredProducts.map(p => ({
-      "الكود": p.code, "الاسم": p.name, "الباركود": p.barcode || "",
-      "التصنيف": getCategoryName(p),
-      "سعر الشراء": p.purchase_price, "سعر البيع": p.selling_price,
-      "الكمية": p.quantity_on_hand, "الحد الأدنى": p.min_stock_level,
-    }));
-    await exportToExcel(data, "Products", "Products.xlsx");
-    toast({ title: "تم التصدير", description: "تم تصدير المنتجات بصيغة Excel" });
-    setExportMenuOpen(false);
-  };
-
-  const handleExportPDF = async () => {
-    const { createArabicPDF } = await import("@/lib/pdf-arabic");
-    const autoTable = (await import("jspdf-autotable")).default;
-    const doc = await createArabicPDF("landscape");
-    doc.setFontSize(16);
-    doc.text("قائمة المنتجات", 148, 15, { align: "center" });
-    const tableData = filteredProducts.map(p => [
-      p.code, p.name, p.barcode || "", getCategoryName(p),
-      formatNum(p.purchase_price), formatNum(p.selling_price), p.quantity_on_hand, p.min_stock_level,
-    ]);
-    autoTable(doc, {
-      head: [["الكود", "الاسم", "الباركود", "التصنيف", "سعر الشراء", "سعر البيع", "الكمية", "الحد الأدنى"]],
-      body: tableData, startY: 28,
-      styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
-      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-    });
-    doc.save("Products.pdf");
-    toast({ title: "تم التصدير", description: "تم تصدير المنتجات بصيغة PDF" });
-    setExportMenuOpen(false);
-  };
+  const exportConfig = useMemo(() => ({
+    filenamePrefix: "المنتجات",
+    sheetName: "المنتجات",
+    pdfTitle: "قائمة المنتجات",
+    headers: ["الكود", "الاسم", "الباركود", "التصنيف", "سعر الشراء", "سعر البيع", "الكمية", "الحد الأدنى"],
+    rows: filteredProducts.map(p => [p.code, p.name, p.barcode || "", getCategoryName(p), formatNum(p.purchase_price), formatNum(p.selling_price), Number(p.quantity_on_hand), Number(p.min_stock_level)]),
+    settings,
+    pdfOrientation: "landscape" as const,
+  }), [filteredProducts, settings]);
 
   const columns: ColumnDef<ProductRow, any>[] = [
     {
@@ -302,18 +280,7 @@ export default function Products() {
                 <SelectItem value="out">نفذ</SelectItem>
               </SelectContent>
             </Select>
-            <div className="relative">
-              <Button variant="outline" className="gap-2" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
-                <Download className="h-4 w-4" />
-                تصدير
-              </Button>
-              {exportMenuOpen && (
-                <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
-                  <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">PDF تصدير</button>
-                  <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">Excel تصدير</button>
-                </div>
-              )}
-            </div>
+            <ExportMenu config={exportConfig} disabled={loading} />
           </div>
         }
       />

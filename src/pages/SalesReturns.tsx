@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus, RotateCcw, Eye, X } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface Return {
   id: string; return_number: number; customer_id: string | null; customer_name?: string;
@@ -20,6 +22,7 @@ const statusColors: Record<string, string> = { draft: "secondary", posted: "defa
 
 export default function SalesReturns() {
   const navigate = useNavigate();
+  const { settings, formatCurrency } = useSettings();
   const [returns, setReturns] = useState<Return[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -129,6 +132,14 @@ export default function SalesReturns() {
                 مسح الفلاتر
               </Button>
             )}
+            <ExportMenu config={{
+              filenamePrefix: "مرتجعات-المبيعات",
+              sheetName: "مرتجعات المبيعات",
+              pdfTitle: "مرتجعات المبيعات",
+              headers: ["رقم المرتجع", "العميل", "التاريخ", "الإجمالي", "الحالة"],
+              rows: filtered.map(r => [`#${r.return_number}`, r.customer_name || "—", r.return_date, formatCurrency(r.total), statusLabels[r.status] || r.status]),
+              settings,
+            }} disabled={loading} />
           </div>
         }
       />

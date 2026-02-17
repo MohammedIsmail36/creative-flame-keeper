@@ -12,6 +12,8 @@ import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Users, X } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface Customer {
   id: string; code: string; name: string; phone: string | null; email: string | null;
@@ -21,6 +23,7 @@ interface Customer {
 
 export default function Customers() {
   const { role } = useAuth();
+  const { settings } = useSettings();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -187,6 +190,14 @@ export default function Customers() {
                 مسح الفلاتر
               </Button>
             )}
+            <ExportMenu config={{
+              filenamePrefix: "العملاء",
+              sheetName: "العملاء",
+              pdfTitle: "قائمة العملاء",
+              headers: ["الكود", "الاسم", "الهاتف", "البريد", "الرصيد"],
+              rows: filtered.map(c => [c.code, c.name, c.phone || "", c.email || "", Number(c.balance).toLocaleString("en-US", { minimumFractionDigits: 2 })]),
+              settings,
+            }} disabled={loading} />
           </div>
         }
       />

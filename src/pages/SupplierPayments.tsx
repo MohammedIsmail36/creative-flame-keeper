@@ -14,6 +14,8 @@ import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle, Pencil } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface Supplier { id: string; code: string; name: string; balance?: number; }
 interface Payment {
@@ -29,6 +31,7 @@ const statusVariants: Record<string, string> = { draft: "secondary", posted: "de
 
 export default function SupplierPayments() {
   const { role } = useAuth();
+  const { settings, formatCurrency: fmtCurrency } = useSettings();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -428,6 +431,15 @@ export default function SupplierPayments() {
                 مسح الفلاتر
               </Button>
             )}
+            <ExportMenu config={{
+              filenamePrefix: "مدفوعات-الموردين",
+              sheetName: "مدفوعات الموردين",
+              pdfTitle: "مدفوعات الموردين",
+              headers: ["#", "المورد", "التاريخ", "المبلغ", "الطريقة", "الحالة"],
+              rows: filtered.map(p => [p.payment_number, p.supplier_name || "—", p.payment_date, fmtCurrency(p.amount), methodLabels[p.payment_method] || p.payment_method, statusLabels[p.status] || p.status]),
+              settings,
+              pdfOrientation: "landscape",
+            }} disabled={loading} />
           </div>
         }
       />
