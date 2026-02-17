@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Truck } from "lucide-react";
+import { Plus, Pencil, Trash2, Truck, X } from "lucide-react";
 
 interface Supplier {
   id: string; code: string; name: string; phone: string | null; email: string | null;
@@ -26,6 +27,7 @@ export default function Suppliers() {
   const [editItem, setEditItem] = useState<Supplier | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ code: "", name: "", phone: "", email: "", address: "", tax_number: "", contact_person: "", notes: "" });
+  const [balanceFilter, setBalanceFilter] = useState("all");
 
   const canEdit = role === "admin" || role === "accountant";
 
@@ -37,6 +39,16 @@ export default function Suppliers() {
     setSuppliers(data || []);
     setLoading(false);
   }
+
+  const filtered = useMemo(() => {
+    if (balanceFilter === "all") return suppliers;
+    if (balanceFilter === "has_balance") return suppliers.filter(s => s.balance > 0);
+    if (balanceFilter === "no_balance") return suppliers.filter(s => s.balance <= 0);
+    return suppliers;
+  }, [suppliers, balanceFilter]);
+
+  const hasFilters = balanceFilter !== "all";
+  const clearFilters = () => setBalanceFilter("all");
 
   function openAdd() {
     setEditItem(null);
@@ -153,10 +165,30 @@ export default function Suppliers() {
 
       <DataTable
         columns={columns}
-        data={suppliers}
+        data={filtered}
         searchPlaceholder="بحث بالاسم أو الكود أو الهاتف..."
         isLoading={loading}
         emptyMessage="لا يوجد موردين"
+        toolbarContent={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={balanceFilter} onValueChange={setBalanceFilter}>
+              <SelectTrigger className="w-36 h-9 text-sm">
+                <SelectValue placeholder="الرصيد" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الموردين</SelectItem>
+                <SelectItem value="has_balance">عليه رصيد</SelectItem>
+                <SelectItem value="no_balance">بدون رصيد</SelectItem>
+              </SelectContent>
+            </Select>
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1 text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+                مسح الفلاتر
+              </Button>
+            )}
+          </div>
+        }
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { Plus, ShoppingCart, Eye } from "lucide-react";
+import { Plus, ShoppingCart, Eye, X } from "lucide-react";
 
 interface Invoice {
   id: string; invoice_number: number; supplier_id: string | null; supplier_name?: string;
@@ -22,6 +24,8 @@ export default function Purchases() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const canEdit = role === "admin" || role === "accountant";
 
   useEffect(() => { fetchAll(); }, []);
@@ -34,7 +38,17 @@ export default function Purchases() {
     setLoading(false);
   }
 
-  const filtered = statusFilter === "all" ? invoices : invoices.filter(i => i.status === statusFilter);
+  const filtered = useMemo(() => {
+    return invoices.filter(i => {
+      if (statusFilter !== "all" && i.status !== statusFilter) return false;
+      if (dateFrom && i.invoice_date < dateFrom) return false;
+      if (dateTo && i.invoice_date > dateTo) return false;
+      return true;
+    });
+  }, [invoices, statusFilter, dateFrom, dateTo]);
+
+  const hasFilters = statusFilter !== "all" || dateFrom || dateTo;
+  const clearFilters = () => { setStatusFilter("all"); setDateFrom(""); setDateTo(""); };
 
   const columns: ColumnDef<Invoice, any>[] = [
     {
@@ -111,6 +125,29 @@ export default function Purchases() {
         isLoading={loading}
         emptyMessage="لا توجد فواتير"
         onRowClick={(inv) => navigate(`/purchases/${inv.id}`)}
+        toolbarContent={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-32 h-9 text-sm">
+                <SelectValue placeholder="الحالة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الحالات</SelectItem>
+                <SelectItem value="draft">مسودة</SelectItem>
+                <SelectItem value="posted">مُرحّل</SelectItem>
+                <SelectItem value="cancelled">ملغي</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36 h-9 text-sm" />
+            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36 h-9 text-sm" />
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1 text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+                مسح الفلاتر
+              </Button>
+            )}
+          </div>
+        }
       />
     </div>
   );

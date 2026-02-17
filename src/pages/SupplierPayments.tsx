@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, CreditCard } from "lucide-react";
+import { Plus, CreditCard, X } from "lucide-react";
 
 interface Supplier { id: string; code: string; name: string; balance?: number; }
 interface Payment {
@@ -30,6 +30,9 @@ export default function SupplierPayments() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [methodFilter, setMethodFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const [supplierId, setSupplierId] = useState("");
   const [amount, setAmount] = useState(0);
@@ -53,6 +56,18 @@ export default function SupplierPayments() {
     setPayments((payRes.data || []).map((p: any) => ({ ...p, supplier_name: p.suppliers?.name })));
     setLoading(false);
   }
+
+  const filtered = useMemo(() => {
+    return payments.filter(p => {
+      if (methodFilter !== "all" && p.payment_method !== methodFilter) return false;
+      if (dateFrom && p.payment_date < dateFrom) return false;
+      if (dateTo && p.payment_date > dateTo) return false;
+      return true;
+    });
+  }, [payments, methodFilter, dateFrom, dateTo]);
+
+  const hasFilters = methodFilter !== "all" || dateFrom || dateTo;
+  const clearFilters = () => { setMethodFilter("all"); setDateFrom(""); setDateTo(""); };
 
   async function handleSubmit() {
     if (!supplierId || amount <= 0) {
@@ -202,10 +217,33 @@ export default function SupplierPayments() {
 
       <DataTable
         columns={columns}
-        data={payments}
+        data={filtered}
         searchPlaceholder="بحث..."
         isLoading={loading}
         emptyMessage="لا توجد مدفوعات"
+        toolbarContent={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={methodFilter} onValueChange={setMethodFilter}>
+              <SelectTrigger className="w-36 h-9 text-sm">
+                <SelectValue placeholder="طريقة الدفع" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الطرق</SelectItem>
+                <SelectItem value="cash">نقدي</SelectItem>
+                <SelectItem value="bank">تحويل بنكي</SelectItem>
+                <SelectItem value="check">شيك</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36 h-9 text-sm" />
+            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36 h-9 text-sm" />
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1 text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+                مسح الفلاتر
+              </Button>
+            )}
+          </div>
+        }
       />
     </div>
   );
