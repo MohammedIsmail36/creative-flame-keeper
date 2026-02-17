@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -24,8 +25,13 @@ export default function SalesReturnForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { role } = useAuth();
+  const { settings, formatCurrency } = useSettings();
   const isNew = !id;
   const canEdit = role === "admin" || role === "accountant" || role === "sales";
+
+  const showTax = settings?.show_tax_on_invoice ?? false;
+  const showDiscount = settings?.show_discount_on_invoice ?? true;
+  const taxRate = settings?.tax_rate ?? 0;
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -101,6 +107,8 @@ export default function SalesReturnForm() {
   function removeItem(index: number) { setItems(prev => prev.filter((_, i) => i !== index)); }
 
   const subtotal = items.reduce((s, i) => s + i.total, 0);
+  const taxAmount = showTax ? subtotal * (taxRate / 100) : 0;
+  const grandTotal = subtotal + taxAmount;
 
   async function handleSave() {
     if (!customerId || items.length === 0) {
@@ -111,7 +119,7 @@ export default function SalesReturnForm() {
     try {
       const payload: any = {
         customer_id: customerId, return_date: returnDate,
-        subtotal, discount: 0, tax: 0, total: subtotal,
+        subtotal, discount: 0, tax: taxAmount, total: grandTotal,
         notes: notes.trim() || null, reference: reference.trim() || null, status: "draft",
       };
 
@@ -154,7 +162,6 @@ export default function SalesReturnForm() {
         return;
       }
 
-      // Calculate COGS for returned items
       let totalCost = 0;
       for (const item of items) {
         if (!item.product_id) continue;
@@ -162,8 +169,7 @@ export default function SalesReturnForm() {
         if (prod) totalCost += prod.purchase_price * item.quantity;
       }
 
-      const totalDebit = subtotal + totalCost;
-      // Journal: Debit Revenue + Debit Inventory, Credit Customers + Credit COGS
+      const totalDebit = grandTotal + totalCost;
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
         description: `مرتجع بيع رقم ${returnNumber}`, entry_date: returnDate,
         total_debit: totalDebit, total_credit: totalDebit, status: "posted",
@@ -171,8 +177,8 @@ export default function SalesReturnForm() {
       if (jeError) throw jeError;
 
       const lines: any[] = [
-        { journal_entry_id: je.id, account_id: revenueAcc.id, debit: subtotal, credit: 0, description: `مرتجع مبيعات - ${returnNumber}` },
-        { journal_entry_id: je.id, account_id: customersAcc.id, debit: 0, credit: subtotal, description: `خصم ذمم عملاء - ${returnNumber}` },
+        { journal_entry_id: je.id, account_id: revenueAcc.id, debit: grandTotal, credit: 0, description: `مرتجع مبيعات - ${returnNumber}` },
+        { journal_entry_id: je.id, account_id: customersAcc.id, debit: 0, credit: grandTotal, description: `خصم ذمم عملاء - ${returnNumber}` },
       ];
       if (totalCost > 0 && inventoryAcc && cogsAcc) {
         lines.push(
@@ -184,7 +190,6 @@ export default function SalesReturnForm() {
 
       await (supabase.from("sales_returns" as any) as any).update({ status: "posted", journal_entry_id: je.id }).eq("id", id);
 
-      // Update stock (add back) & inventory movements
       for (const item of items) {
         if (!item.product_id) continue;
         const { data: prod } = await supabase.from("products").select("quantity_on_hand").eq("id", item.product_id).single();
@@ -198,10 +203,9 @@ export default function SalesReturnForm() {
         });
       }
 
-      // Decrease customer balance
       const cust = customers.find(c => c.id === customerId);
       if (cust) {
-        await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) - subtotal }).eq("id", customerId);
+        await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) - grandTotal }).eq("id", customerId);
       }
 
       toast({ title: "تم الترحيل", description: "تم ترحيل مرتجع البيع" });
@@ -229,6 +233,7 @@ export default function SalesReturnForm() {
 
   const isDraft = status === "draft";
   const isEditable = editMode && isDraft && canEdit;
+  const colCount = 3 + (showDiscount ? 1 : 0) + 1 + (isEditable ? 1 : 0);
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -312,14 +317,14 @@ export default function SalesReturnForm() {
                 <TableHead className="text-right w-[35%]">المنتج</TableHead>
                 <TableHead className="text-right w-[12%]">الكمية</TableHead>
                 <TableHead className="text-right w-[18%]">السعر</TableHead>
-                <TableHead className="text-right w-[13%]">الخصم</TableHead>
+                {showDiscount && <TableHead className="text-right w-[13%]">الخصم</TableHead>}
                 <TableHead className="text-right w-[18%]">الإجمالي</TableHead>
                 {isEditable && <TableHead className="w-[4%]"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
-                <TableRow><TableCell colSpan={isEditable ? 6 : 5} className="text-center py-8 text-muted-foreground">لا توجد أصناف</TableCell></TableRow>
+                <TableRow><TableCell colSpan={colCount} className="text-center py-8 text-muted-foreground">لا توجد أصناف</TableCell></TableRow>
               ) : items.map((item, i) => (
                 <TableRow key={i}>
                   <TableCell>
@@ -329,7 +334,9 @@ export default function SalesReturnForm() {
                   </TableCell>
                   <TableCell>{isEditable ? <Input type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", +e.target.value)} className="font-mono" /> : <span className="font-mono">{item.quantity}</span>}</TableCell>
                   <TableCell>{isEditable ? <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", +e.target.value)} className="font-mono" /> : <span className="font-mono">{item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}</TableCell>
-                  <TableCell>{isEditable ? <Input type="number" min="0" step="0.01" value={item.discount} onChange={e => updateItem(i, "discount", +e.target.value)} className="font-mono" /> : <span className="font-mono">{item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}</TableCell>
+                  {showDiscount && (
+                    <TableCell>{isEditable ? <Input type="number" min="0" step="0.01" value={item.discount} onChange={e => updateItem(i, "discount", +e.target.value)} className="font-mono" /> : <span className="font-mono">{item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}</TableCell>
+                  )}
                   <TableCell className="font-mono font-semibold">{item.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
                   {isEditable && <TableCell><Button variant="ghost" size="icon" onClick={() => removeItem(i)}><X className="h-4 w-4 text-destructive" /></Button></TableCell>}
                 </TableRow>
@@ -357,9 +364,21 @@ export default function SalesReturnForm() {
 
       {items.length > 0 && (
         <Card>
-          <CardContent className="p-4 flex justify-between items-center">
-            <span className="text-lg font-bold">الإجمالي الكلي</span>
-            <span className="text-2xl font-bold font-mono">{subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })} EGP</span>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">الإجمالي الفرعي</span>
+              <span className="font-mono">{formatCurrency(subtotal)}</span>
+            </div>
+            {showTax && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">الضريبة ({taxRate}%)</span>
+                <span className="font-mono">{formatCurrency(taxAmount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center border-t pt-2">
+              <span className="text-lg font-bold">الإجمالي الكلي</span>
+              <span className="text-2xl font-bold font-mono">{formatCurrency(grandTotal)}</span>
+            </div>
           </CardContent>
         </Card>
       )}
