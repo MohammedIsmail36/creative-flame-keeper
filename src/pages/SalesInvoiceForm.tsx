@@ -43,6 +43,7 @@ export default function SalesInvoiceForm() {
   const [customerName, setCustomerName] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
+  const [reference, setReference] = useState("");
   const [status, setStatus] = useState("draft");
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [editMode, setEditMode] = useState(true);
@@ -66,6 +67,7 @@ export default function SalesInvoiceForm() {
         setCustomerName(inv.customers?.name || "");
         setInvoiceDate(inv.invoice_date);
         setNotes(inv.notes || "");
+        setReference(inv.reference || "");
         setStatus(inv.status);
         setEditMode(inv.status === "draft");
 
@@ -120,7 +122,7 @@ export default function SalesInvoiceForm() {
       const payload: any = {
         customer_id: customerId, invoice_date: invoiceDate,
         subtotal, discount: 0, tax: 0, total: subtotal,
-        notes: notes.trim() || null, status: "draft",
+        notes: notes.trim() || null, reference: reference.trim() || null, status: "draft",
       };
 
       if (isNew) {
@@ -308,6 +310,7 @@ export default function SalesInvoiceForm() {
         </div>
       </div>
 
+      {/* Invoice Info */}
       <Card>
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -328,36 +331,32 @@ export default function SalesInvoiceForm() {
               )}
             </div>
             <div className="space-y-2">
-              <Label>ملاحظات</Label>
+              <Label>مرجع الفاتورة</Label>
               {isEditable ? (
-                <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="ملاحظات (اختياري)" rows={1} />
+                <Input value={reference} onChange={e => setReference(e.target.value)} placeholder="رقم مرجعي (اختياري)" />
               ) : (
-                <p className="text-sm p-2 bg-muted/30 rounded">{notes || "—"}</p>
+                <p className="text-sm font-medium p-2 bg-muted/30 rounded">{reference || "—"}</p>
               )}
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Items */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">الأصناف</CardTitle>
-            {isEditable && (
-              <Button variant="outline" size="sm" onClick={addItem} className="gap-1"><Plus className="h-3 w-3" />إضافة صنف</Button>
-            )}
-          </div>
+          <CardTitle className="text-lg">الأصناف</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-right">المنتج</TableHead>
-                <TableHead className="text-right w-[90px]">الكمية</TableHead>
-                <TableHead className="text-right w-[110px]">السعر</TableHead>
-                <TableHead className="text-right w-[90px]">الخصم</TableHead>
-                <TableHead className="text-right w-[110px]">الإجمالي</TableHead>
-                {isEditable && <TableHead className="w-[40px]"></TableHead>}
+                <TableHead className="text-right w-[35%]">المنتج</TableHead>
+                <TableHead className="text-right w-[12%]">الكمية</TableHead>
+                <TableHead className="text-right w-[18%]">السعر</TableHead>
+                <TableHead className="text-right w-[13%]">الخصم</TableHead>
+                <TableHead className="text-right w-[18%]">الإجمالي</TableHead>
+                {isEditable && <TableHead className="w-[4%]"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -390,9 +389,29 @@ export default function SalesInvoiceForm() {
               ))}
             </TableBody>
           </Table>
+          {isEditable && (
+            <div className="p-3 border-t">
+              <Button variant="outline" size="sm" onClick={addItem} className="gap-1 w-full"><Plus className="h-3 w-3" />إضافة صنف</Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
+      {/* Notes */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="space-y-2">
+            <Label>ملاحظات</Label>
+            {isEditable ? (
+              <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="ملاحظات (اختياري)" rows={2} />
+            ) : (
+              <p className="text-sm p-2 bg-muted/30 rounded">{notes || "—"}</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Total */}
       {items.length > 0 && (
         <Card>
           <CardContent className="p-4 flex justify-between items-center">

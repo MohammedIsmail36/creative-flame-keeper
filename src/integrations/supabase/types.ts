@@ -469,6 +469,7 @@ export type Database = {
           journal_entry_id: string | null
           notes: string | null
           paid_amount: number
+          reference: string | null
           status: string
           subtotal: number
           supplier_id: string | null
@@ -487,6 +488,7 @@ export type Database = {
           journal_entry_id?: string | null
           notes?: string | null
           paid_amount?: number
+          reference?: string | null
           status?: string
           subtotal?: number
           supplier_id?: string | null
@@ -505,6 +507,7 @@ export type Database = {
           journal_entry_id?: string | null
           notes?: string | null
           paid_amount?: number
+          reference?: string | null
           status?: string
           subtotal?: number
           supplier_id?: string | null
@@ -593,6 +596,7 @@ export type Database = {
           journal_entry_id: string | null
           notes: string | null
           paid_amount: number
+          reference: string | null
           status: string
           subtotal: number
           tax: number
@@ -611,6 +615,7 @@ export type Database = {
           journal_entry_id?: string | null
           notes?: string | null
           paid_amount?: number
+          reference?: string | null
           status?: string
           subtotal?: number
           tax?: number
@@ -629,6 +634,7 @@ export type Database = {
           journal_entry_id?: string | null
           notes?: string | null
           paid_amount?: number
+          reference?: string | null
           status?: string
           subtotal?: number
           tax?: number
