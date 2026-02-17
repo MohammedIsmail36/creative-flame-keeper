@@ -61,6 +61,7 @@ const inventoryItems: MenuItem[] = [
 
 const reportItems: MenuItem[] = [
   { title: "قائمة الدخل", url: "/income-statement", icon: BarChart3, roles: ["admin", "accountant"] },
+  { title: "الميزانية العمومية", url: "/balance-sheet", icon: BarChart3, roles: ["admin", "accountant"] },
   { title: "التقارير", url: "/reports", icon: BarChart3, roles: ["admin", "accountant"] },
 ];
 
