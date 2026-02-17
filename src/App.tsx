@@ -12,9 +12,15 @@ import Journal from "./pages/Journal";
 import Ledger from "./pages/Ledger";
 import Sales from "./pages/Sales";
 import SalesInvoiceForm from "./pages/SalesInvoiceForm";
+import SalesReturns from "./pages/SalesReturns";
+import SalesReturnForm from "./pages/SalesReturnForm";
+import CustomerPayments from "./pages/CustomerPayments";
 import Customers from "./pages/Customers";
 import Purchases from "./pages/Purchases";
 import PurchaseInvoiceForm from "./pages/PurchaseInvoiceForm";
+import PurchaseReturns from "./pages/PurchaseReturns";
+import PurchaseReturnForm from "./pages/PurchaseReturnForm";
+import SupplierPayments from "./pages/SupplierPayments";
 import Suppliers from "./pages/Suppliers";
 import Products from "./pages/Products";
 import ProductForm from "./pages/ProductForm";
@@ -48,10 +54,18 @@ const App = () => (
             <Route path="/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Sales /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/new" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesInvoiceForm /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesInvoiceForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales-returns" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesReturns /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales-returns/new" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesReturnForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/sales-returns/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesReturnForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/customer-payments" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><CustomerPayments /></AppLayout></ProtectedRoute>} />
             <Route path="/customers" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Customers /></AppLayout></ProtectedRoute>} />
             <Route path="/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Purchases /></AppLayout></ProtectedRoute>} />
             <Route path="/purchases/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseInvoiceForm /></AppLayout></ProtectedRoute>} />
             <Route path="/purchases/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseInvoiceForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/purchase-returns" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseReturns /></AppLayout></ProtectedRoute>} />
+            <Route path="/purchase-returns/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseReturnForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/purchase-returns/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseReturnForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/supplier-payments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><SupplierPayments /></AppLayout></ProtectedRoute>} />
             <Route path="/suppliers" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Suppliers /></AppLayout></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Products /></AppLayout></ProtectedRoute>} />
             <Route path="/products/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ProductForm /></AppLayout></ProtectedRoute>} />

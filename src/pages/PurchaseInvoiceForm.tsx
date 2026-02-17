@@ -13,7 +13,8 @@ import { LookupCombobox } from "@/components/LookupCombobox";
 import { toast } from "@/hooks/use-toast";
 import { createArabicPDF, getAutoTableArabicStyles } from "@/lib/pdf-arabic";
 import autoTable from "jspdf-autotable";
-import { ArrowRight, Plus, X, Save, CheckCircle, Printer, Pencil } from "lucide-react";
+import { ArrowRight, Plus, X, Save, CheckCircle, Printer, Pencil, Trash2, Ban } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface Supplier { id: string; code: string; name: string; balance?: number; }
 interface Product { id: string; code: string; name: string; purchase_price: number; }
@@ -197,6 +198,57 @@ export default function PurchaseInvoiceForm() {
     }
   }
 
+  async function handleDeleteDraft() {
+    try {
+      await (supabase.from("purchase_invoice_items" as any) as any).delete().eq("invoice_id", id);
+      await (supabase.from("purchase_invoices" as any) as any).delete().eq("id", id);
+      toast({ title: "تم الحذف", description: "تم حذف فاتورة الشراء المسودة" });
+      navigate("/purchases");
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    }
+  }
+
+  async function handleCancelPosted() {
+    try {
+      const { data: inv } = await (supabase.from("purchase_invoices" as any) as any).select("journal_entry_id").eq("id", id).single();
+      
+      for (const item of items) {
+        if (!item.product_id) continue;
+        const { data: prod } = await supabase.from("products").select("quantity_on_hand").eq("id", item.product_id).single();
+        if (prod) {
+          await supabase.from("products").update({ quantity_on_hand: prod.quantity_on_hand - item.quantity } as any).eq("id", item.product_id);
+        }
+      }
+
+      const sup = suppliers.find(s => s.id === supplierId);
+      if (sup) {
+        await (supabase.from("suppliers" as any) as any).update({ balance: (sup.balance || 0) - subtotal }).eq("id", supplierId);
+      }
+
+      if (inv?.journal_entry_id) {
+        const { data: origLines } = await supabase.from("journal_entry_lines").select("*").eq("journal_entry_id", inv.journal_entry_id);
+        const { data: reverseJe } = await supabase.from("journal_entries").insert({
+          description: `عكس فاتورة شراء رقم ${invoiceNumber}`, entry_date: new Date().toISOString().split("T")[0],
+          total_debit: subtotal, total_credit: subtotal, status: "posted",
+        } as any).select("id").single();
+        if (reverseJe && origLines) {
+          const reverseLines = origLines.map((line: any) => ({
+            journal_entry_id: reverseJe.id, account_id: line.account_id,
+            debit: line.credit, credit: line.debit, description: `عكس - ${line.description}`,
+          }));
+          await supabase.from("journal_entry_lines").insert(reverseLines as any);
+        }
+      }
+
+      await (supabase.from("purchase_invoices" as any) as any).update({ status: "cancelled" }).eq("id", id);
+      toast({ title: "تم الإلغاء", description: "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات" });
+      loadData();
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    }
+  }
+
   async function handlePrint() {
     const doc = await createArabicPDF();
     const styles = getAutoTableArabicStyles();
@@ -262,7 +314,41 @@ export default function PurchaseInvoiceForm() {
             {!isNew && <Badge variant={statusColors[status] as any} className="mt-1">{statusLabels[status]}</Badge>}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {!isNew && isDraft && canEdit && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="gap-2"><Trash2 className="h-4 w-4" />حذف</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent dir="rtl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>حذف الفاتورة المسودة</AlertDialogTitle>
+                  <AlertDialogDescription>هل أنت متأكد من حذف هذه الفاتورة؟ لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteDraft} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {!isNew && status === "posted" && canEdit && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="gap-2 border-destructive text-destructive hover:bg-destructive/10"><Ban className="h-4 w-4" />إلغاء الفاتورة</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent dir="rtl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>إلغاء الفاتورة المرحّلة</AlertDialogTitle>
+                  <AlertDialogDescription>سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد المورد. هل تريد المتابعة؟</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel>تراجع</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleCancelPosted} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">إلغاء الفاتورة</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           {!isNew && (
             <Button variant="outline" onClick={handlePrint} className="gap-2">
               <Printer className="h-4 w-4" />طباعة

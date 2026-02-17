@@ -10,6 +10,8 @@ import {
   Calculator,
   Settings,
   UserCog,
+  RotateCcw,
+  CreditCard,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
@@ -47,11 +49,15 @@ const accountingItems: MenuItem[] = [
 
 const salesItems: MenuItem[] = [
   { title: "فواتير البيع", url: "/sales", icon: FileText, roles: ["admin", "accountant", "sales"] },
+  { title: "مرتجعات البيع", url: "/sales-returns", icon: RotateCcw, roles: ["admin", "accountant", "sales"] },
+  { title: "مدفوعات العملاء", url: "/customer-payments", icon: CreditCard, roles: ["admin", "accountant", "sales"] },
   { title: "العملاء", url: "/customers", icon: Users, roles: ["admin", "accountant", "sales"] },
 ];
 
 const purchaseItems: MenuItem[] = [
   { title: "فواتير الشراء", url: "/purchases", icon: ShoppingCart, roles: ["admin", "accountant"] },
+  { title: "مرتجعات الشراء", url: "/purchase-returns", icon: RotateCcw, roles: ["admin", "accountant"] },
+  { title: "مدفوعات الموردين", url: "/supplier-payments", icon: CreditCard, roles: ["admin", "accountant"] },
   { title: "الموردين", url: "/suppliers", icon: Truck, roles: ["admin", "accountant"] },
 ];
 
