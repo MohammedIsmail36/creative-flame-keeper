@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { CreditCard, Plus, Link2 } from "lucide-react";
+import { CreditCard, Plus, Link2, Unlink } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface Payment {
   id: string;
@@ -224,6 +225,27 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     }
   }
 
+  async function unlinkPayment(payment: Payment) {
+    try {
+      // Remove invoice link from payment
+      await (supabase.from(paymentTable as any) as any)
+        .update({ [invoiceIdCol]: null })
+        .eq("id", payment.id);
+
+      // Update invoice paid_amount
+      const newPaid = Math.max(0, paidAmount - payment.amount);
+      await (supabase.from(invoiceTable as any) as any)
+        .update({ paid_amount: newPaid })
+        .eq("id", invoiceId);
+
+      toast({ title: "تم فك الربط", description: `تم فك ربط الدفعة #${payment.payment_number} من الفاتورة` });
+      fetchPayments();
+      onPaymentAdded();
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    }
+  }
+
   if (loading) return null;
 
   const isPaid = remaining <= 0;
@@ -309,6 +331,7 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
                 <TableHead className="text-right">المبلغ</TableHead>
                 <TableHead className="text-right">الطريقة</TableHead>
                 <TableHead className="text-right">المرجع</TableHead>
+                <TableHead className="text-right w-24"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -319,6 +342,27 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
                   <TableCell className="font-mono font-semibold">{p.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell><Badge variant="outline">{methodLabels[p.payment_method] || p.payment_method}</Badge></TableCell>
                   <TableCell className="text-muted-foreground">{p.reference || "—"}</TableCell>
+                  <TableCell>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="ghost" className="gap-1 text-xs text-destructive hover:text-destructive">
+                          <Unlink className="h-3 w-3" />فك
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent dir="rtl">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>فك ربط الدفعة</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            هل تريد فك ربط الدفعة #{p.payment_number} بمبلغ {p.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} من هذه الفاتورة؟ ستصبح الدفعة غير مرتبطة ومتاحة للتخصيص لفاتورة أخرى.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="flex-row-reverse gap-2">
+                          <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => unlinkPayment(p)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">فك الربط</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
