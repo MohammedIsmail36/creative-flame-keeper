@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle } from "lucide-react";
+import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle, Pencil } from "lucide-react";
 
 interface Supplier { id: string; code: string; name: string; balance?: number; }
 interface Payment {
@@ -45,6 +45,8 @@ export default function SupplierPayments() {
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [editTarget, setEditTarget] = useState<Payment | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
   const [postTarget, setPostTarget] = useState<Payment | null>(null);
@@ -78,6 +80,17 @@ export default function SupplierPayments() {
   const hasFilters = methodFilter !== "all" || statusFilter !== "all" || dateFrom || dateTo;
   const clearFilters = () => { setMethodFilter("all"); setStatusFilter("all"); setDateFrom(""); setDateTo(""); };
 
+  function openEditDialog(p: Payment) {
+    setEditTarget(p);
+    setSupplierId(p.supplier_id);
+    setAmount(p.amount);
+    setPaymentDate(p.payment_date);
+    setPaymentMethod(p.payment_method);
+    setReference(p.reference || "");
+    setNotes(p.notes || "");
+    setDialogOpen(true);
+  }
+
   async function handleSaveDraft() {
     if (!supplierId || amount <= 0) {
       toast({ title: "تنبيه", description: "يرجى اختيار المورد وإدخال المبلغ", variant: "destructive" });
@@ -85,12 +98,18 @@ export default function SupplierPayments() {
     }
     setSaving(true);
     try {
-      await (supabase.from("supplier_payments" as any) as any).insert({
+      const data = {
         supplier_id: supplierId, payment_date: paymentDate, amount,
         payment_method: paymentMethod, reference: reference.trim() || null,
         notes: notes.trim() || null, status: "draft",
-      });
-      toast({ title: "تم الحفظ", description: "تم حفظ الدفعة كمسودة" });
+      };
+      if (editTarget) {
+        await (supabase.from("supplier_payments" as any) as any).update(data).eq("id", editTarget.id);
+        toast({ title: "تم التحديث", description: "تم تحديث المسودة بنجاح" });
+      } else {
+        await (supabase.from("supplier_payments" as any) as any).insert(data);
+        toast({ title: "تم الحفظ", description: "تم حفظ الدفعة كمسودة" });
+      }
       setDialogOpen(false);
       resetForm();
       fetchAll();
@@ -209,6 +228,7 @@ export default function SupplierPayments() {
   }
 
   function resetForm() {
+    setEditTarget(null);
     setSupplierId(""); setAmount(0); setPaymentDate(new Date().toISOString().split("T")[0]);
     setPaymentMethod("cash"); setReference(""); setNotes("");
   }
@@ -259,6 +279,9 @@ export default function SupplierPayments() {
           <div className="flex items-center gap-1">
             {p.status === "draft" && (
               <>
+                <Button variant="ghost" size="sm" onClick={() => openEditDialog(p)} className="gap-1 text-xs h-7 px-2">
+                  <Pencil className="h-3.5 w-3.5" />تعديل
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => setPostTarget(p)} className="gap-1 text-xs h-7 px-2">
                   <CheckCircle className="h-3.5 w-3.5" />ترحيل
                 </Button>
@@ -291,12 +314,12 @@ export default function SupplierPayments() {
           </div>
         </div>
         {canEdit && (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(v) => { setDialogOpen(v); if (!v) resetForm(); }}>
             <DialogTrigger asChild>
               <Button className="gap-2"><Plus className="h-4 w-4" />تسجيل سداد</Button>
             </DialogTrigger>
             <DialogContent className="max-w-md" dir="rtl">
-              <DialogHeader><DialogTitle>تسجيل سداد مورد</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{editTarget ? `تعديل الدفعة #${editTarget.payment_number}` : "تسجيل سداد مورد"}</DialogTitle></DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>المورد *</Label>
@@ -331,8 +354,8 @@ export default function SupplierPayments() {
                   <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={handleSaveDraft} disabled={saving} variant="outline" className="flex-1">{saving ? "جاري الحفظ..." : "حفظ كمسودة"}</Button>
-                  <Button onClick={handleSubmitPosted} disabled={saving} className="flex-1">{saving ? "جاري الحفظ..." : "حفظ وترحيل"}</Button>
+                  <Button onClick={handleSaveDraft} disabled={saving} variant="outline" className="flex-1">{saving ? "جاري الحفظ..." : editTarget ? "تحديث المسودة" : "حفظ كمسودة"}</Button>
+                  {!editTarget && <Button onClick={handleSubmitPosted} disabled={saving} className="flex-1">{saving ? "جاري الحفظ..." : "حفظ وترحيل"}</Button>}
                 </div>
               </div>
             </DialogContent>
