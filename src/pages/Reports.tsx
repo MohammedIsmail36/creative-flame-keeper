@@ -1,24 +1,34 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BarChart3, ShoppingCart, Package, Clock, TrendingUp } from "lucide-react";
+import SalesReport from "./reports/SalesReport";
+import PurchasesReport from "./reports/PurchasesReport";
+import InventoryReport from "./reports/InventoryReport";
+import DebtAgingReport from "./reports/DebtAgingReport";
+import GrowthAnalytics from "./reports/GrowthAnalytics";
 
 export default function Reports() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       <div>
         <h1 className="text-2xl font-bold">التقارير</h1>
-        <p className="text-muted-foreground text-sm mt-1">التقارير المالية والتشغيلية</p>
+        <p className="text-muted-foreground text-sm mt-1">التقارير التشغيلية والتحليلية</p>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <BarChart3 className="w-4 h-4" />
-            التقارير
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-sm">سيتم بناء التقارير بعد إنشاء قاعدة البيانات</p>
-        </CardContent>
-      </Card>
+
+      <Tabs defaultValue="growth" dir="rtl">
+        <TabsList className="flex-wrap h-auto gap-1">
+          <TabsTrigger value="growth" className="gap-1.5"><TrendingUp className="w-4 h-4" />تحليلات النمو</TabsTrigger>
+          <TabsTrigger value="sales" className="gap-1.5"><BarChart3 className="w-4 h-4" />المبيعات</TabsTrigger>
+          <TabsTrigger value="purchases" className="gap-1.5"><ShoppingCart className="w-4 h-4" />المشتريات</TabsTrigger>
+          <TabsTrigger value="inventory" className="gap-1.5"><Package className="w-4 h-4" />المخزون</TabsTrigger>
+          <TabsTrigger value="aging" className="gap-1.5"><Clock className="w-4 h-4" />أعمار الديون</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="growth"><GrowthAnalytics /></TabsContent>
+        <TabsContent value="sales"><SalesReport /></TabsContent>
+        <TabsContent value="purchases"><PurchasesReport /></TabsContent>
+        <TabsContent value="inventory"><InventoryReport /></TabsContent>
+        <TabsContent value="aging"><DebtAgingReport /></TabsContent>
+      </Tabs>
     </div>
   );
 }
