@@ -19,7 +19,8 @@ import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { FileText, Plus, Pencil, Trash2, Download, Eye, CheckCircle, Clock, BookOpen, X, CalendarIcon, Ban } from "lucide-react";
+import { FileText, Plus, Pencil, Trash2, Eye, CheckCircle, Clock, BookOpen, X, CalendarIcon, Ban } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
 
 interface Account {
   id: string;
@@ -70,7 +71,6 @@ export default function Journal() {
     { account_id: "", debit: 0, credit: 0, description: "" },
   ]);
   const [saving, setSaving] = useState(false);
-  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   const canEdit = role === "admin" || role === "accountant";
   const canDelete = role === "admin";
@@ -287,50 +287,15 @@ export default function Journal() {
   const formatCurrency = (val: number) => fmtCurrency(Number(val));
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
 
-  const handleExportExcel = async () => {
-    const { exportToExcel } = await import("@/lib/excel-export");
-    const data = filteredEntries.map((e) => ({
-      "Entry #": e.entry_number, "Date": e.entry_date, "Description": e.description,
-      "Status": e.status === "posted" ? "Posted" : e.status === "cancelled" ? "Cancelled" : "Draft",
-      [`Debit (${currency})`]: Number(e.total_debit), [`Credit (${currency})`]: Number(e.total_credit),
-    }));
-    await exportToExcel(data, "Journal Entries", "Journal_Entries.xlsx");
-    toast({ title: "تم التصدير", description: "تم تصدير القيود بصيغة Excel" });
-    setExportMenuOpen(false);
-  };
-
-  const handleExportPDF = async () => {
-    const { createArabicPDF, addPdfHeader, addPdfFooter } = await import("@/lib/pdf-arabic");
-    const autoTable = (await import("jspdf-autotable")).default;
-    const doc = await createArabicPDF("landscape");
-    const startY = addPdfHeader(doc, settings, "القيود المحاسبية");
-    const tableData = filteredEntries.map((e) => [e.entry_number, formatDate(e.entry_date), e.description, e.status === "posted" ? "معتمد" : e.status === "cancelled" ? "ملغي" : "مسودة", formatNum(Number(e.total_debit)), formatNum(Number(e.total_credit))]);
-    autoTable(doc, {
-      head: [[`#`, "التاريخ", "الوصف", "الحالة", `مدين (${currency})`, `دائن (${currency})`]],
-      body: tableData, startY,
-      styles: { fontSize: 9, cellPadding: 3, font: "Amiri", halign: "right" },
-      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-      foot: [["", "", "", "الإجمالي", formatNum(totalDebit), formatNum(totalCredit)]],
-      footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: "bold" },
-    });
-    addPdfFooter(doc, settings);
-    doc.save("Journal_Entries.pdf");
-    toast({ title: "تم التصدير", description: "تم تصدير القيود بصيغة PDF" });
-    setExportMenuOpen(false);
-  };
-
-  const handleExportCSV = () => {
-    const headers = ["Entry #", "Date", "Description", "Status", `Debit (${currency})`, `Credit (${currency})`];
-    const rows = filteredEntries.map((e) => [e.entry_number, e.entry_date, e.description, e.status === "posted" ? "Posted" : e.status === "cancelled" ? "Cancelled" : "Draft", e.total_debit, e.total_credit]);
-    const csvContent = "\uFEFF" + [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "Journal_Entries.csv"; a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: "تم التصدير", description: "تم تصدير القيود بصيغة CSV" });
-    setExportMenuOpen(false);
-  };
+  const journalExportConfig = useMemo(() => ({
+    filenamePrefix: "القيود-المحاسبية",
+    sheetName: "القيود المحاسبية",
+    pdfTitle: "القيود المحاسبية",
+    headers: ["#", "التاريخ", "الوصف", "الحالة", `مدين (${currency})`, `دائن (${currency})`],
+    rows: filteredEntries.map((e) => [e.entry_number, e.entry_date, e.description, e.status === "posted" ? "معتمد" : e.status === "cancelled" ? "ملغي" : "مسودة", formatNum(Number(e.total_debit)), formatNum(Number(e.total_credit))]),
+    settings,
+    pdfOrientation: "landscape" as const,
+  }), [filteredEntries, settings, currency]);
 
   const hasFilters = statusFilter !== "all" || dateFrom || dateTo;
   const clearFilters = () => { setStatusFilter("all"); setDateFrom(""); setDateTo(""); };
@@ -518,19 +483,7 @@ export default function Journal() {
                 مسح الفلاتر
               </Button>
             )}
-            <div className="relative">
-              <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
-                <Download className="h-4 w-4" />
-                تصدير
-              </Button>
-              {exportMenuOpen && (
-                <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
-                  <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">PDF تصدير</button>
-                  <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">Excel تصدير</button>
-                  <button onClick={handleExportCSV} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">CSV تصدير</button>
-                </div>
-              )}
-            </div>
+            <ExportMenu config={journalExportConfig} disabled={loading} />
           </div>
         }
       />

@@ -12,7 +12,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { BookOpen, Plus, Pencil, Trash2, Search, Download, Filter, ChevronLeft, ChevronDown, FolderOpen, FileText, TrendingUp, TrendingDown, Wallet, DollarSign, Receipt, X } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, Search, Filter, ChevronLeft, ChevronDown, FolderOpen, FileText, TrendingUp, TrendingDown, Wallet, DollarSign, Receipt, X } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
+import { useSettings } from "@/contexts/SettingsContext";
 
 type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
 
@@ -54,6 +56,7 @@ const typeColors: Record<AccountType, string> = {
 
 export default function Accounts() {
   const { role } = useAuth();
+  const { settings } = useSettings();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -207,25 +210,14 @@ export default function Accounts() {
     }
   };
 
-  const handleExport = () => {
-    const headers = ["الرمز", "الاسم", "النوع", "حساب رئيسي", "الوصف"];
-    const rows = (filteredAccounts || accounts).map((a) => [
-      a.code,
-      a.name,
-      typeLabels[a.account_type],
-      a.is_parent ? "نعم" : "لا",
-      a.description || "",
-    ]);
-    const csvContent = "\uFEFF" + [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "شجرة_الحسابات.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-    toast({ title: "تم التصدير", description: "تم تصدير شجرة الحسابات بنجاح" });
-  };
+  const exportData = useMemo(() => ({
+    filenamePrefix: "شجرة-الحسابات",
+    sheetName: "الحسابات",
+    pdfTitle: "شجرة الحسابات",
+    headers: ["الرمز", "الاسم", "النوع", "حساب رئيسي", "الوصف"],
+    rows: (filteredAccounts || accounts).map((a) => [a.code, a.name, typeLabels[a.account_type], a.is_parent ? "نعم" : "لا", a.description || ""]),
+    settings,
+  }), [filteredAccounts, accounts, settings]);
 
   const renderTreeRow = (account: Account, depth: number = 0): React.ReactNode => {
     const children = accountTree.get(account.id) || [];
@@ -412,10 +404,9 @@ export default function Accounts() {
             مسح الفلاتر
           </Button>
         )}
-        <Button variant="outline" size="sm" onClick={handleExport} className="gap-2 h-9 mr-auto">
-          <Download className="h-4 w-4" />
-          تصدير
-        </Button>
+        <div className="mr-auto">
+          <ExportMenu config={exportData} disabled={loading} />
+        </div>
       </div>
 
       {/* Accounts Table */}

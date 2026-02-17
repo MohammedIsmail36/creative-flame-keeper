@@ -12,6 +12,8 @@ import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Truck, X } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface Supplier {
   id: string; code: string; name: string; phone: string | null; email: string | null;
@@ -21,6 +23,7 @@ interface Supplier {
 
 export default function Suppliers() {
   const { role } = useAuth();
+  const { settings } = useSettings();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -187,6 +190,14 @@ export default function Suppliers() {
                 مسح الفلاتر
               </Button>
             )}
+            <ExportMenu config={{
+              filenamePrefix: "الموردين",
+              sheetName: "الموردين",
+              pdfTitle: "قائمة الموردين",
+              headers: ["الكود", "الاسم", "الهاتف", "البريد", "الرصيد"],
+              rows: filtered.map(s => [s.code, s.name, s.phone || "", s.email || "", Number(s.balance).toLocaleString("en-US", { minimumFractionDigits: 2 })]),
+              settings,
+            }} disabled={loading} />
           </div>
         }
       />

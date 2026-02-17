@@ -14,6 +14,8 @@ import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle, Pencil } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface Customer { id: string; code: string; name: string; balance?: number; }
 interface Payment {
@@ -29,6 +31,7 @@ const statusVariants: Record<string, string> = { draft: "secondary", posted: "de
 
 export default function CustomerPayments() {
   const { role } = useAuth();
+  const { settings, formatCurrency: fmtCurrency } = useSettings();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -431,6 +434,15 @@ export default function CustomerPayments() {
                 مسح الفلاتر
               </Button>
             )}
+            <ExportMenu config={{
+              filenamePrefix: "مدفوعات-العملاء",
+              sheetName: "مدفوعات العملاء",
+              pdfTitle: "مدفوعات العملاء",
+              headers: ["#", "العميل", "التاريخ", "المبلغ", "الطريقة", "الحالة"],
+              rows: filtered.map(p => [p.payment_number, p.customer_name || "—", p.payment_date, fmtCurrency(p.amount), methodLabels[p.payment_method] || p.payment_method, statusLabels[p.status] || p.status]),
+              settings,
+              pdfOrientation: "landscape",
+            }} disabled={loading} />
           </div>
         }
       />

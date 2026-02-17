@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus, FileText, Eye, X } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
 
 interface Invoice {
   id: string; invoice_number: number; customer_id: string | null; customer_name?: string;
@@ -147,6 +148,15 @@ export default function Sales() {
                 مسح الفلاتر
               </Button>
             )}
+            <ExportMenu config={{
+              filenamePrefix: "فواتير-البيع",
+              sheetName: "فواتير البيع",
+              pdfTitle: "فواتير البيع",
+              headers: ["رقم الفاتورة", "العميل", "التاريخ", "الإجمالي", "الحالة"],
+              rows: filtered.map(i => [`#${i.invoice_number}`, i.customer_name || "—", i.invoice_date, formatCurrency(i.total), statusLabels[i.status] || i.status]),
+              settings: null,
+              pdfOrientation: "landscape",
+            }} disabled={loading} />
           </div>
         }
       />
