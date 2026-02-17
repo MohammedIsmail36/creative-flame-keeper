@@ -201,12 +201,17 @@ export default function SalesInvoiceForm() {
 
       await (supabase.from("sales_invoices" as any) as any).update({ status: "posted", journal_entry_id: je.id }).eq("id", id);
 
-      // Update stock
+      // Update stock & record inventory movements
       for (const item of items) {
         if (!item.product_id) continue;
-        const { data: prod } = await supabase.from("products").select("quantity_on_hand").eq("id", item.product_id).single();
+        const { data: prod } = await supabase.from("products").select("quantity_on_hand, purchase_price").eq("id", item.product_id).single();
         if (prod) {
           await supabase.from("products").update({ quantity_on_hand: prod.quantity_on_hand - item.quantity } as any).eq("id", item.product_id);
+          await (supabase.from("inventory_movements" as any) as any).insert({
+            product_id: item.product_id, movement_type: "sale",
+            quantity: item.quantity, unit_cost: item.unit_price, total_cost: item.total,
+            reference_id: id, reference_type: "sales_invoice", movement_date: invoiceDate,
+          });
         }
       }
 
@@ -246,6 +251,8 @@ export default function SalesInvoiceForm() {
           await supabase.from("products").update({ quantity_on_hand: prod.quantity_on_hand + item.quantity } as any).eq("id", item.product_id);
           totalCost += prod.purchase_price * item.quantity;
         }
+        // Delete related inventory movements
+        await (supabase.from("inventory_movements" as any) as any).delete().eq("reference_id", id).eq("product_id", item.product_id);
       }
 
       const cust = customers.find(c => c.id === customerId);
