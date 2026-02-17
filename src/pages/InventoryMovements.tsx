@@ -1,13 +1,14 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Package, Search, Download, Filter } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
+import { Package, Download } from "lucide-react";
 import { format } from "date-fns";
 
 const movementTypeLabels: Record<string, string> = {
@@ -28,11 +29,22 @@ const movementTypeColors: Record<string, string> = {
   adjustment: "bg-gray-100 text-gray-800",
 };
 
-// Types that increase stock
 const inTypes = ["opening_balance", "purchase", "sale_return"];
 
+interface MovementRow {
+  id: string;
+  product_id: string;
+  movement_type: string;
+  quantity: number;
+  unit_cost: number;
+  total_cost: number;
+  movement_date: string;
+  notes: string | null;
+  products: { code: string; name: string } | null;
+  cumulativeBalance: number;
+}
+
 export default function InventoryMovements() {
-  const [search, setSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -55,18 +67,10 @@ export default function InventoryMovements() {
         .order("movement_date", { ascending: true })
         .order("created_at", { ascending: true });
 
-      if (selectedProduct !== "all") {
-        query = query.eq("product_id", selectedProduct);
-      }
-      if (selectedType !== "all") {
-        query = query.eq("movement_type", selectedType);
-      }
-      if (dateFrom) {
-        query = query.gte("movement_date", dateFrom);
-      }
-      if (dateTo) {
-        query = query.lte("movement_date", dateTo);
-      }
+      if (selectedProduct !== "all") query = query.eq("product_id", selectedProduct);
+      if (selectedType !== "all") query = query.eq("movement_type", selectedType);
+      if (dateFrom) query = query.gte("movement_date", dateFrom);
+      if (dateTo) query = query.lte("movement_date", dateTo);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -74,8 +78,7 @@ export default function InventoryMovements() {
     },
   });
 
-  // Calculate cumulative balances per product
-  const movementsWithBalance = useMemo(() => {
+  const movementsWithBalance: MovementRow[] = useMemo(() => {
     const balances: Record<string, number> = {};
     return movements.map((m: any) => {
       const pid = m.product_id;
@@ -86,36 +89,18 @@ export default function InventoryMovements() {
     });
   }, [movements]);
 
-  const filtered = useMemo(() => {
-    if (!search) return movementsWithBalance;
-    const s = search.toLowerCase();
-    return movementsWithBalance.filter(
-      (m: any) =>
-        m.products?.name?.toLowerCase().includes(s) ||
-        m.products?.code?.toLowerCase().includes(s) ||
-        m.notes?.toLowerCase().includes(s)
-    );
-  }, [movementsWithBalance, search]);
-
-  // Summary stats
-  const totalIn = filtered.filter((m: any) => inTypes.includes(m.movement_type)).reduce((s: number, m: any) => s + Number(m.quantity), 0);
-  const totalOut = filtered.filter((m: any) => !inTypes.includes(m.movement_type)).reduce((s: number, m: any) => s + Number(m.quantity), 0);
+  const totalIn = movementsWithBalance.filter(m => inTypes.includes(m.movement_type)).reduce((s, m) => s + Number(m.quantity), 0);
+  const totalOut = movementsWithBalance.filter(m => !inTypes.includes(m.movement_type)).reduce((s, m) => s + Number(m.quantity), 0);
 
   const handleExportCSV = () => {
     const headers = ["التاريخ", "المنتج", "الكود", "نوع الحركة", "الكمية", "سعر الوحدة", "الإجمالي", "الرصيد التراكمي", "ملاحظات"];
-    const rows = filtered.map((m: any) => [
-      m.movement_date,
-      m.products?.name || "",
-      m.products?.code || "",
+    const rows = movementsWithBalance.map(m => [
+      m.movement_date, m.products?.name || "", m.products?.code || "",
       movementTypeLabels[m.movement_type] || m.movement_type,
-      m.quantity,
-      m.unit_cost,
-      m.total_cost,
-      m.cumulativeBalance,
-      m.notes || "",
+      m.quantity, m.unit_cost, m.total_cost, m.cumulativeBalance, m.notes || "",
     ]);
     const bom = "\uFEFF";
-    const csv = bom + [headers, ...rows].map((r) => r.join(",")).join("\n");
+    const csv = bom + [headers, ...rows].map(r => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -125,6 +110,70 @@ export default function InventoryMovements() {
     URL.revokeObjectURL(url);
   };
 
+  const columns: ColumnDef<MovementRow, any>[] = [
+    {
+      accessorKey: "movement_date",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+      cell: ({ row }) => <span>{row.original.movement_date}</span>,
+    },
+    {
+      id: "product",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="المنتج" />,
+      accessorFn: (row) => row.products?.name || "",
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium">{row.original.products?.name}</div>
+          <div className="text-xs text-muted-foreground">{row.original.products?.code}</div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "movement_type",
+      header: "نوع الحركة",
+      cell: ({ row }) => (
+        <Badge variant="secondary" className={movementTypeColors[row.original.movement_type] || ""}>
+          {movementTypeLabels[row.original.movement_type] || row.original.movement_type}
+        </Badge>
+      ),
+    },
+    {
+      id: "in_qty",
+      header: "وارد",
+      cell: ({ row }) => {
+        const isIn = inTypes.includes(row.original.movement_type);
+        return <span className="text-green-700 font-medium">{isIn ? Number(row.original.quantity).toLocaleString() : "-"}</span>;
+      },
+    },
+    {
+      id: "out_qty",
+      header: "صادر",
+      cell: ({ row }) => {
+        const isIn = inTypes.includes(row.original.movement_type);
+        return <span className="text-red-700 font-medium">{!isIn ? Number(row.original.quantity).toLocaleString() : "-"}</span>;
+      },
+    },
+    {
+      accessorKey: "unit_cost",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="سعر الوحدة" />,
+      cell: ({ row }) => <span>{Number(row.original.unit_cost).toLocaleString()}</span>,
+    },
+    {
+      accessorKey: "total_cost",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الإجمالي" />,
+      cell: ({ row }) => <span>{Number(row.original.total_cost).toLocaleString()}</span>,
+    },
+    {
+      id: "balance",
+      header: "الرصيد التراكمي",
+      cell: ({ row }) => <span className="font-bold">{row.original.cumulativeBalance.toLocaleString()}</span>,
+    },
+    {
+      accessorKey: "notes",
+      header: "ملاحظات",
+      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.notes || "-"}</span>,
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -132,13 +181,12 @@ export default function InventoryMovements() {
           <h1 className="text-2xl font-bold">تقرير حركة المخزون</h1>
           <p className="text-muted-foreground text-sm mt-1">عرض جميع حركات المخزون مع الأرصدة التراكمية</p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={filtered.length === 0}>
+        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={movementsWithBalance.length === 0}>
           <Download className="w-4 h-4 ml-2" />
           تصدير CSV
         </Button>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
@@ -169,28 +217,23 @@ export default function InventoryMovements() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">عدد الحركات</p>
-              <p className="text-lg font-bold text-blue-700">{filtered.length.toLocaleString()}</p>
+              <p className="text-lg font-bold text-blue-700">{movementsWithBalance.length.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            الفلاتر
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-            <div className="relative">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="بحث..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-9" />
-            </div>
+      <DataTable
+        columns={columns}
+        data={movementsWithBalance}
+        searchKey="global"
+        searchPlaceholder="بحث..."
+        isLoading={isLoading}
+        emptyMessage="لا توجد حركات مخزون"
+        toolbarContent={
+          <div className="flex gap-2 flex-wrap">
             <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-              <SelectTrigger>
+              <SelectTrigger className="w-48">
                 <SelectValue placeholder="جميع المنتجات" />
               </SelectTrigger>
               <SelectContent>
@@ -201,7 +244,7 @@ export default function InventoryMovements() {
               </SelectContent>
             </Select>
             <Select value={selectedType} onValueChange={setSelectedType}>
-              <SelectTrigger>
+              <SelectTrigger className="w-40">
                 <SelectValue placeholder="جميع الأنواع" />
               </SelectTrigger>
               <SelectContent>
@@ -211,71 +254,11 @@ export default function InventoryMovements() {
                 ))}
               </SelectContent>
             </Select>
-            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} placeholder="من تاريخ" />
-            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} placeholder="إلى تاريخ" />
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Movements Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-right">التاريخ</TableHead>
-                <TableHead className="text-right">المنتج</TableHead>
-                <TableHead className="text-right">نوع الحركة</TableHead>
-                <TableHead className="text-right">وارد</TableHead>
-                <TableHead className="text-right">صادر</TableHead>
-                <TableHead className="text-right">سعر الوحدة</TableHead>
-                <TableHead className="text-right">الإجمالي</TableHead>
-                <TableHead className="text-right">الرصيد التراكمي</TableHead>
-                <TableHead className="text-right">ملاحظات</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">جاري التحميل...</TableCell>
-                </TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">لا توجد حركات مخزون</TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((m: any) => {
-                  const isIn = inTypes.includes(m.movement_type);
-                  return (
-                    <TableRow key={m.id}>
-                      <TableCell className="text-right">{m.movement_date}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="font-medium">{m.products?.name}</div>
-                        <div className="text-xs text-muted-foreground">{m.products?.code}</div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary" className={movementTypeColors[m.movement_type] || ""}>
-                          {movementTypeLabels[m.movement_type] || m.movement_type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right text-green-700 font-medium">
-                        {isIn ? Number(m.quantity).toLocaleString() : "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-red-700 font-medium">
-                        {!isIn ? Number(m.quantity).toLocaleString() : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">{Number(m.unit_cost).toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{Number(m.total_cost).toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-bold">{m.cumulativeBalance.toLocaleString()}</TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground">{m.notes || "-"}</TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        }
+      />
     </div>
   );
 }

@@ -2,24 +2,24 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, RotateCcw, Eye } from "lucide-react";
+import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
+import { Plus, RotateCcw, Eye } from "lucide-react";
 
 interface Return {
   id: string; return_number: number; customer_id: string | null; customer_name?: string;
   return_date: string; status: string; total: number;
 }
 
+const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل", cancelled: "ملغي" };
+const statusColors: Record<string, string> = { draft: "secondary", posted: "default", cancelled: "destructive" };
+
 export default function SalesReturns() {
-  const { role } = useAuth();
   const navigate = useNavigate();
   const [returns, setReturns] = useState<Return[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -31,13 +31,43 @@ export default function SalesReturns() {
     setLoading(false);
   }
 
-  const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل", cancelled: "ملغي" };
-  const statusColors: Record<string, string> = { draft: "secondary", posted: "default", cancelled: "destructive" };
-
-  const filtered = returns.filter(r => {
-    const matchSearch = !search || r.customer_name?.includes(search) || String(r.return_number).includes(search);
-    return matchSearch;
-  });
+  const columns: ColumnDef<Return, any>[] = [
+    {
+      accessorKey: "return_number",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="رقم المرتجع" />,
+      cell: ({ row }) => <span className="font-mono">#{row.original.return_number}</span>,
+    },
+    {
+      accessorKey: "customer_name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="العميل" />,
+      cell: ({ row }) => <span className="font-medium">{row.original.customer_name || "—"}</span>,
+    },
+    {
+      accessorKey: "return_date",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.return_date}</span>,
+    },
+    {
+      accessorKey: "total",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الإجمالي" />,
+      cell: ({ row }) => <span className="font-mono">{row.original.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>,
+    },
+    {
+      accessorKey: "status",
+      header: "الحالة",
+      cell: ({ row }) => <Badge variant={statusColors[row.original.status] as any}>{statusLabels[row.original.status]}</Badge>,
+    },
+    {
+      id: "actions",
+      header: "عرض",
+      enableHiding: false,
+      cell: ({ row }) => (
+        <Button variant="ghost" size="icon" onClick={e => { e.stopPropagation(); navigate(`/sales-returns/${row.original.id}`); }}>
+          <Eye className="h-4 w-4" />
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -54,53 +84,15 @@ export default function SalesReturns() {
         <Button onClick={() => navigate("/sales-returns/new")} className="gap-2"><Plus className="h-4 w-4" />مرتجع جديد</Button>
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="بحث..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">رقم المرتجع</TableHead>
-                  <TableHead className="text-right">العميل</TableHead>
-                  <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">الإجمالي</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right w-[80px]">عرض</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">لا توجد مرتجعات</TableCell></TableRow>
-                ) : filtered.map(r => (
-                  <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/sales-returns/${r.id}`)}>
-                    <TableCell className="font-mono">#{r.return_number}</TableCell>
-                    <TableCell className="font-medium">{r.customer_name || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{r.return_date}</TableCell>
-                    <TableCell className="font-mono">{r.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell><Badge variant={statusColors[r.status] as any}>{statusLabels[r.status]}</Badge></TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={e => { e.stopPropagation(); navigate(`/sales-returns/${r.id}`); }}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={returns}
+        searchKey="global"
+        searchPlaceholder="بحث..."
+        isLoading={loading}
+        emptyMessage="لا توجد مرتجعات"
+        onRowClick={(r) => navigate(`/sales-returns/${r.id}`)}
+      />
     </div>
   );
 }
