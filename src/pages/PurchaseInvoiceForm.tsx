@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { toast } from "@/hooks/use-toast";
-import { createArabicPDF, getAutoTableArabicStyles } from "@/lib/pdf-arabic";
+import { createArabicPDF, getAutoTableArabicStyles, addPdfHeader, addPdfFooter } from "@/lib/pdf-arabic";
 import autoTable from "jspdf-autotable";
 import { ArrowRight, Plus, X, Save, CheckCircle, Printer, Pencil, Trash2, Ban } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -263,16 +263,14 @@ export default function PurchaseInvoiceForm() {
     const doc = await createArabicPDF();
     const styles = getAutoTableArabicStyles();
 
-    doc.setFont("Amiri", "bold");
-    doc.setFontSize(18);
-    doc.text(`فاتورة شراء رقم #${invoiceNumber || "جديدة"}`, doc.internal.pageSize.getWidth() / 2, 25, { align: "center" });
+    let infoY = addPdfHeader(doc, settings, `فاتورة شراء رقم #${invoiceNumber || "جديدة"}`);
 
     doc.setFont("Amiri", "normal");
-    doc.setFontSize(12);
-    const infoY = 40;
+    doc.setFontSize(11);
     doc.text(`المورد: ${supplierName || suppliers.find(s => s.id === supplierId)?.name || "—"}`, doc.internal.pageSize.getWidth() - 15, infoY, { align: "right" });
-    doc.text(`التاريخ: ${invoiceDate}`, doc.internal.pageSize.getWidth() - 15, infoY + 8, { align: "right" });
-    doc.text(`الحالة: ${status === "posted" ? "مُرحّل" : "مسودة"}`, doc.internal.pageSize.getWidth() - 15, infoY + 16, { align: "right" });
+    doc.text(`التاريخ: ${invoiceDate}`, doc.internal.pageSize.getWidth() - 15, infoY + 7, { align: "right" });
+    doc.text(`الحالة: ${status === "posted" ? "مُرحّل" : "مسودة"}`, doc.internal.pageSize.getWidth() - 15, infoY + 14, { align: "right" });
+    infoY += 14;
 
     const heads: string[] = [];
     if (showDiscount) heads.push("الإجمالي", "الخصم", "السعر", "الكمية", "المنتج", "#");
@@ -306,6 +304,7 @@ export default function PurchaseInvoiceForm() {
       doc.text(`ملاحظات: ${notes}`, doc.internal.pageSize.getWidth() - 15, finalY, { align: "right" });
     }
 
+    addPdfFooter(doc, settings);
     doc.save(`فاتورة-شراء-${invoiceNumber || "جديدة"}.pdf`);
   }
 
