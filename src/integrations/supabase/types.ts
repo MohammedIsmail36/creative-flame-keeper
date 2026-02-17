@@ -61,6 +61,81 @@ export type Database = {
           },
         ]
       }
+      company_settings: {
+        Row: {
+          address: string | null
+          commercial_register: string | null
+          company_name: string
+          company_name_en: string | null
+          created_at: string
+          default_currency: string
+          email: string | null
+          fiscal_year_start: string
+          id: string
+          invoice_footer: string | null
+          invoice_notes: string | null
+          logo_url: string | null
+          payment_terms_days: number
+          phone: string | null
+          purchase_invoice_prefix: string
+          sales_invoice_prefix: string
+          show_discount_on_invoice: boolean
+          show_tax_on_invoice: boolean
+          tax_number: string | null
+          tax_rate: number
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          commercial_register?: string | null
+          company_name?: string
+          company_name_en?: string | null
+          created_at?: string
+          default_currency?: string
+          email?: string | null
+          fiscal_year_start?: string
+          id?: string
+          invoice_footer?: string | null
+          invoice_notes?: string | null
+          logo_url?: string | null
+          payment_terms_days?: number
+          phone?: string | null
+          purchase_invoice_prefix?: string
+          sales_invoice_prefix?: string
+          show_discount_on_invoice?: boolean
+          show_tax_on_invoice?: boolean
+          tax_number?: string | null
+          tax_rate?: number
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          commercial_register?: string | null
+          company_name?: string
+          company_name_en?: string | null
+          created_at?: string
+          default_currency?: string
+          email?: string | null
+          fiscal_year_start?: string
+          id?: string
+          invoice_footer?: string | null
+          invoice_notes?: string | null
+          logo_url?: string | null
+          payment_terms_days?: number
+          phone?: string | null
+          purchase_invoice_prefix?: string
+          sales_invoice_prefix?: string
+          show_discount_on_invoice?: boolean
+          show_tax_on_invoice?: boolean
+          tax_number?: string | null
+          tax_rate?: number
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       customer_payments: {
         Row: {
           amount: number
