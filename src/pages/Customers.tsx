@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Users } from "lucide-react";
 
 interface Customer {
   id: string; code: string; name: string; phone: string | null; email: string | null;
@@ -22,7 +22,6 @@ export default function Customers() {
   const { role } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<Customer | null>(null);
   const [saving, setSaving] = useState(false);
@@ -94,7 +93,48 @@ export default function Customers() {
     fetchCustomers();
   }
 
-  const filtered = customers.filter(c => c.name.includes(search) || c.code.includes(search) || c.phone?.includes(search));
+  const columns: ColumnDef<Customer, any>[] = [
+    {
+      accessorKey: "code",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الكود" />,
+      cell: ({ row }) => <span className="font-mono text-sm">{row.original.code}</span>,
+    },
+    {
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الاسم" />,
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
+    {
+      accessorKey: "phone",
+      header: "الهاتف",
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.phone || "—"}</span>,
+    },
+    {
+      accessorKey: "email",
+      header: "البريد",
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.email || "—"}</span>,
+    },
+    {
+      accessorKey: "balance",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الرصيد" />,
+      cell: ({ row }) => (
+        <Badge variant={row.original.balance > 0 ? "destructive" : "secondary"}>
+          {row.original.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+        </Badge>
+      ),
+    },
+    ...(canEdit ? [{
+      id: "actions" as const,
+      header: "إجراءات" as const,
+      enableHiding: false,
+      cell: ({ row }: any) => (
+        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" onClick={() => openEdit(row.original)}><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => handleDelete(row.original)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      ),
+    } as ColumnDef<Customer, any>] : []),
+  ];
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -111,60 +151,14 @@ export default function Customers() {
         {canEdit && <Button onClick={openAdd} className="gap-2"><Plus className="h-4 w-4" />إضافة عميل</Button>}
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="بحث بالاسم أو الكود أو الهاتف..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">الكود</TableHead>
-                  <TableHead className="text-right">الاسم</TableHead>
-                  <TableHead className="text-right">الهاتف</TableHead>
-                  <TableHead className="text-right">البريد</TableHead>
-                  <TableHead className="text-right">الرصيد</TableHead>
-                  {canEdit && <TableHead className="text-right w-[100px]">إجراءات</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">لا يوجد عملاء</TableCell></TableRow>
-                ) : filtered.map(c => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-mono text-sm">{c.code}</TableCell>
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{c.phone || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{c.email || "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant={c.balance > 0 ? "destructive" : "secondary"}>
-                        {c.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                      </Badge>
-                    </TableCell>
-                    {canEdit && (
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(c)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={customers}
+        searchKey="global"
+        searchPlaceholder="بحث بالاسم أو الكود أو الهاتف..."
+        isLoading={loading}
+        emptyMessage="لا يوجد عملاء"
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent dir="rtl" className="max-w-lg">

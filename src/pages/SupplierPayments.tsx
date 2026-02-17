@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Search, CreditCard } from "lucide-react";
+import { Plus, CreditCard } from "lucide-react";
 
 interface Supplier { id: string; code: string; name: string; balance?: number; }
 interface Payment {
@@ -22,13 +22,13 @@ interface Payment {
 }
 
 const ACCOUNT_CODES = { SUPPLIERS: "2101", CASH: "1101", BANK: "1102" };
+const methodLabels: Record<string, string> = { cash: "نقدي", bank: "تحويل بنكي", check: "شيك" };
 
 export default function SupplierPayments() {
   const { role } = useAuth();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const [supplierId, setSupplierId] = useState("");
@@ -71,7 +71,6 @@ export default function SupplierPayments() {
         return;
       }
 
-      // Journal: Debit Suppliers, Credit Cash/Bank
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
         description: `سداد لمورد`, entry_date: paymentDate,
         total_debit: amount, total_credit: amount, status: "posted",
@@ -89,7 +88,6 @@ export default function SupplierPayments() {
         notes: notes.trim() || null, journal_entry_id: je.id, status: "posted",
       });
 
-      // Update supplier balance
       const sup = suppliers.find(s => s.id === supplierId);
       if (sup) {
         await (supabase.from("suppliers" as any) as any).update({ balance: (sup.balance || 0) - amount }).eq("id", supplierId);
@@ -110,11 +108,38 @@ export default function SupplierPayments() {
     setPaymentMethod("cash"); setReference(""); setNotes("");
   }
 
-  const methodLabels: Record<string, string> = { cash: "نقدي", bank: "تحويل بنكي", check: "شيك" };
-
-  const filtered = payments.filter(p =>
-    !search || p.supplier_name?.includes(search) || String(p.payment_number).includes(search)
-  );
+  const columns: ColumnDef<Payment, any>[] = [
+    {
+      accessorKey: "payment_number",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="#" />,
+      cell: ({ row }) => <span className="font-mono">#{row.original.payment_number}</span>,
+    },
+    {
+      accessorKey: "supplier_name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="المورد" />,
+      cell: ({ row }) => <span className="font-medium">{row.original.supplier_name || "—"}</span>,
+    },
+    {
+      accessorKey: "payment_date",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.payment_date}</span>,
+    },
+    {
+      accessorKey: "amount",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="المبلغ" />,
+      cell: ({ row }) => <span className="font-mono font-semibold">{row.original.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>,
+    },
+    {
+      accessorKey: "payment_method",
+      header: "طريقة الدفع",
+      cell: ({ row }) => <Badge variant="outline">{methodLabels[row.original.payment_method] || row.original.payment_method}</Badge>,
+    },
+    {
+      accessorKey: "reference",
+      header: "المرجع",
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.reference || "—"}</span>,
+    },
+  ];
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -175,49 +200,14 @@ export default function SupplierPayments() {
         )}
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="بحث..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">#</TableHead>
-                  <TableHead className="text-right">المورد</TableHead>
-                  <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">المبلغ</TableHead>
-                  <TableHead className="text-right">طريقة الدفع</TableHead>
-                  <TableHead className="text-right">المرجع</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">لا توجد مدفوعات</TableCell></TableRow>
-                ) : filtered.map(p => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-mono">#{p.payment_number}</TableCell>
-                    <TableCell className="font-medium">{p.supplier_name || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{p.payment_date}</TableCell>
-                    <TableCell className="font-mono font-semibold">{p.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell><Badge variant="outline">{methodLabels[p.payment_method] || p.payment_method}</Badge></TableCell>
-                    <TableCell className="text-muted-foreground">{p.reference || "—"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={payments}
+        searchKey="global"
+        searchPlaceholder="بحث..."
+        isLoading={loading}
+        emptyMessage="لا توجد مدفوعات"
+      />
     </div>
   );
 }

@@ -2,27 +2,26 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "@/hooks/use-toast";
-import { Plus, Search, ShoppingCart, Eye } from "lucide-react";
+import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
+import { Plus, ShoppingCart, Eye } from "lucide-react";
 
 interface Invoice {
   id: string; invoice_number: number; supplier_id: string | null; supplier_name?: string;
   invoice_date: string; status: string; subtotal: number; discount: number; tax: number; total: number; paid_amount: number; notes: string | null;
 }
 
+const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل", cancelled: "ملغي" };
+const statusColors: Record<string, string> = { draft: "secondary", posted: "default", cancelled: "destructive" };
+
 export default function Purchases() {
   const { role } = useAuth();
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-
   const canEdit = role === "admin" || role === "accountant";
 
   useEffect(() => { fetchAll(); }, []);
@@ -35,14 +34,45 @@ export default function Purchases() {
     setLoading(false);
   }
 
-  const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل", cancelled: "ملغي" };
-  const statusColors: Record<string, string> = { draft: "secondary", posted: "default", cancelled: "destructive" };
+  const filtered = statusFilter === "all" ? invoices : invoices.filter(i => i.status === statusFilter);
 
-  const filtered = invoices.filter(inv => {
-    const matchSearch = !search || inv.supplier_name?.includes(search) || String(inv.invoice_number).includes(search);
-    const matchStatus = statusFilter === "all" || inv.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const columns: ColumnDef<Invoice, any>[] = [
+    {
+      accessorKey: "invoice_number",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="رقم الفاتورة" />,
+      cell: ({ row }) => <span className="font-mono">#{row.original.invoice_number}</span>,
+    },
+    {
+      accessorKey: "supplier_name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="المورد" />,
+      cell: ({ row }) => <span className="font-medium">{row.original.supplier_name || "—"}</span>,
+    },
+    {
+      accessorKey: "invoice_date",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.invoice_date}</span>,
+    },
+    {
+      accessorKey: "total",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الإجمالي" />,
+      cell: ({ row }) => <span className="font-mono">{row.original.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>,
+    },
+    {
+      accessorKey: "status",
+      header: "الحالة",
+      cell: ({ row }) => <Badge variant={statusColors[row.original.status] as any}>{statusLabels[row.original.status]}</Badge>,
+    },
+    {
+      id: "actions",
+      header: "عرض",
+      enableHiding: false,
+      cell: ({ row }) => (
+        <Button variant="ghost" size="icon" onClick={e => { e.stopPropagation(); navigate(`/purchases/${row.original.id}`); }}>
+          <Eye className="h-4 w-4" />
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -74,55 +104,15 @@ export default function Purchases() {
         ))}
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="بحث برقم الفاتورة أو اسم المورد..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">رقم الفاتورة</TableHead>
-                  <TableHead className="text-right">المورد</TableHead>
-                  <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">الإجمالي</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right w-[80px]">عرض</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">لا توجد فواتير</TableCell></TableRow>
-                ) : filtered.map(inv => (
-                  <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/purchases/${inv.id}`)}>
-                    <TableCell className="font-mono">#{inv.invoice_number}</TableCell>
-                    <TableCell className="font-medium">{inv.supplier_name || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{inv.invoice_date}</TableCell>
-                    <TableCell className="font-mono">{inv.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusColors[inv.status] as any}>{statusLabels[inv.status]}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={e => { e.stopPropagation(); navigate(`/purchases/${inv.id}`); }}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={filtered}
+        searchKey="global"
+        searchPlaceholder="بحث برقم الفاتورة أو اسم المورد..."
+        isLoading={loading}
+        emptyMessage="لا توجد فواتير"
+        onRowClick={(inv) => navigate(`/purchases/${inv.id}`)}
+      />
     </div>
   );
 }

@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, Truck, Phone, Mail } from "lucide-react";
+import { Plus, Pencil, Trash2, Truck } from "lucide-react";
 
 interface Supplier {
   id: string; code: string; name: string; phone: string | null; email: string | null;
@@ -22,11 +22,9 @@ export default function Suppliers() {
   const { role } = useAuth();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<Supplier | null>(null);
   const [saving, setSaving] = useState(false);
-
   const [form, setForm] = useState({ code: "", name: "", phone: "", email: "", address: "", tax_number: "", contact_person: "", notes: "" });
 
   const canEdit = role === "admin" || role === "accountant";
@@ -84,7 +82,6 @@ export default function Suppliers() {
   }
 
   async function handleDelete(s: Supplier) {
-    // Check if linked to invoices
     const { count } = await (supabase.from("purchase_invoices" as any) as any).select("id", { count: "exact", head: true }).eq("supplier_id", s.id);
     if (count && count > 0) {
       toast({ title: "لا يمكن الحذف", description: `المورد مرتبط بـ ${count} فاتورة شراء`, variant: "destructive" });
@@ -96,7 +93,48 @@ export default function Suppliers() {
     fetchSuppliers();
   }
 
-  const filtered = suppliers.filter(s => s.name.includes(search) || s.code.includes(search) || s.phone?.includes(search));
+  const columns: ColumnDef<Supplier, any>[] = [
+    {
+      accessorKey: "code",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الكود" />,
+      cell: ({ row }) => <span className="font-mono text-sm">{row.original.code}</span>,
+    },
+    {
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الاسم" />,
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
+    {
+      accessorKey: "phone",
+      header: "الهاتف",
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.phone || "—"}</span>,
+    },
+    {
+      accessorKey: "email",
+      header: "البريد",
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.email || "—"}</span>,
+    },
+    {
+      accessorKey: "balance",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الرصيد" />,
+      cell: ({ row }) => (
+        <Badge variant={row.original.balance > 0 ? "destructive" : "secondary"}>
+          {row.original.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+        </Badge>
+      ),
+    },
+    ...(canEdit ? [{
+      id: "actions" as const,
+      header: "إجراءات" as const,
+      enableHiding: false,
+      cell: ({ row }: any) => (
+        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" onClick={() => openEdit(row.original)}><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => handleDelete(row.original)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      ),
+    } as ColumnDef<Supplier, any>] : []),
+  ];
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -113,60 +151,14 @@ export default function Suppliers() {
         {canEdit && <Button onClick={openAdd} className="gap-2"><Plus className="h-4 w-4" />إضافة مورد</Button>}
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="بحث بالاسم أو الكود أو الهاتف..." value={search} onChange={e => setSearch(e.target.value)} className="pr-9" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">الكود</TableHead>
-                  <TableHead className="text-right">الاسم</TableHead>
-                  <TableHead className="text-right">الهاتف</TableHead>
-                  <TableHead className="text-right">البريد</TableHead>
-                  <TableHead className="text-right">الرصيد</TableHead>
-                  {canEdit && <TableHead className="text-right w-[100px]">إجراءات</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">لا يوجد موردين</TableCell></TableRow>
-                ) : filtered.map(s => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-mono text-sm">{s.code}</TableCell>
-                    <TableCell className="font-medium">{s.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{s.phone || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{s.email || "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant={s.balance > 0 ? "destructive" : "secondary"}>
-                        {s.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                      </Badge>
-                    </TableCell>
-                    {canEdit && (
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(s)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={suppliers}
+        searchKey="global"
+        searchPlaceholder="بحث بالاسم أو الكود أو الهاتف..."
+        isLoading={loading}
+        emptyMessage="لا يوجد موردين"
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent dir="rtl" className="max-w-lg">
