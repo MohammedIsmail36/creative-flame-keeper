@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, ArrowRight, Search } from "lucide-react";
 
 interface LookupConfig {
   table: string;
+  fkColumn: string; // foreign key column in products table
   title: string;
   singularTitle: string;
   extraFields?: { key: string; label: string; placeholder: string }[];
@@ -21,18 +22,21 @@ interface LookupConfig {
 const configs: Record<string, LookupConfig> = {
   categories: {
     table: "product_categories",
+    fkColumn: "category_id",
     title: "التصنيفات",
     singularTitle: "تصنيف",
     extraFields: [{ key: "description", label: "الوصف", placeholder: "وصف التصنيف (اختياري)" }],
   },
   units: {
     table: "product_units",
+    fkColumn: "unit_id",
     title: "وحدات القياس",
     singularTitle: "وحدة قياس",
     extraFields: [{ key: "symbol", label: "الرمز", placeholder: "مثل: كجم، م، قطعة" }],
   },
   brands: {
     table: "product_brands",
+    fkColumn: "brand_id",
     title: "الماركات / المصنعين",
     singularTitle: "ماركة",
     extraFields: [{ key: "country", label: "بلد المنشأ", placeholder: "مثل: مصر، الصين" }],
@@ -115,9 +119,16 @@ export default function LookupManagement() {
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
-      const { error } = await (supabase.from(config.table as any) as any).update({ is_active: false }).eq("id", deleteTarget.id);
+      // Check if linked to any product
+      const { count } = await (supabase.from("products") as any).select("id", { count: "exact", head: true }).eq(config.fkColumn, deleteTarget.id);
+      if (count && count > 0) {
+        toast({ title: "لا يمكن الحذف", description: `هذا ${config.singularTitle} مرتبط بـ ${count} منتج. قم بتعطيله بدلاً من حذفه.`, variant: "destructive" });
+        setDeleteDialogOpen(false);
+        return;
+      }
+      const { error } = await (supabase.from(config.table as any) as any).delete().eq("id", deleteTarget.id);
       if (error) throw error;
-      toast({ title: "تم الحذف", description: `تم إلغاء تفعيل ${config.singularTitle} بنجاح` });
+      toast({ title: "تم الحذف", description: `تم حذف ${config.singularTitle} نهائياً` });
       setDeleteDialogOpen(false);
       fetchItems();
     } catch (error: any) {
@@ -177,13 +188,10 @@ export default function LookupManagement() {
                         <TableCell key={f.key} className="text-muted-foreground">{item[f.key] || "—"}</TableCell>
                       ))}
                       <TableCell>
-                        <Badge
-                          variant={item.is_active ? "default" : "secondary"}
-                          className="cursor-pointer"
-                          onClick={() => toggleActive(item)}
-                        >
-                          {item.is_active ? "مفعّل" : "معطّل"}
-                        </Badge>
+                        <Switch
+                          checked={item.is_active}
+                          onCheckedChange={() => toggleActive(item)}
+                        />
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -234,11 +242,11 @@ export default function LookupManagement() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent dir="rtl" className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>تأكيد الحذف</DialogTitle>
-            <DialogDescription>سيتم إلغاء تفعيل "{deleteTarget?.name}" ولن يظهر في القوائم. هل تريد المتابعة؟</DialogDescription>
+            <DialogTitle>تأكيد الحذف النهائي</DialogTitle>
+            <DialogDescription>سيتم حذف "{deleteTarget?.name}" نهائياً ولا يمكن التراجع. هل تريد المتابعة؟</DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-row-reverse gap-2">
-            <Button variant="destructive" onClick={handleDelete}>إلغاء التفعيل</Button>
+            <Button variant="destructive" onClick={handleDelete}>حذف نهائي</Button>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>تراجع</Button>
           </DialogFooter>
         </DialogContent>
