@@ -151,6 +151,45 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_payment_allocations: {
+        Row: {
+          allocated_amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          payment_id: string
+        }
+        Insert: {
+          allocated_amount: number
+          created_at?: string
+          id?: string
+          invoice_id: string
+          payment_id: string
+        }
+        Update: {
+          allocated_amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          payment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_payment_allocations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "customer_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_payments: {
         Row: {
           amount: number
@@ -1130,6 +1169,45 @@ export type Database = {
             columns: ["sales_invoice_id"]
             isOneToOne: false
             referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_payment_allocations: {
+        Row: {
+          allocated_amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          payment_id: string
+        }
+        Insert: {
+          allocated_amount: number
+          created_at?: string
+          id?: string
+          invoice_id: string
+          payment_id: string
+        }
+        Update: {
+          allocated_amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          payment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payment_allocations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_payments"
             referencedColumns: ["id"]
           },
         ]
