@@ -164,6 +164,7 @@ export type Database = {
           payment_method: string
           payment_number: number
           reference: string | null
+          sales_invoice_id: string | null
           status: string
           updated_at: string
         }
@@ -179,6 +180,7 @@ export type Database = {
           payment_method?: string
           payment_number?: number
           reference?: string | null
+          sales_invoice_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -194,6 +196,7 @@ export type Database = {
           payment_method?: string
           payment_number?: number
           reference?: string | null
+          sales_invoice_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -210,6 +213,13 @@ export type Database = {
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_payments_sales_invoice_id_fkey"
+            columns: ["sales_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -1135,6 +1145,7 @@ export type Database = {
           payment_date: string
           payment_method: string
           payment_number: number
+          purchase_invoice_id: string | null
           reference: string | null
           status: string
           supplier_id: string
@@ -1150,6 +1161,7 @@ export type Database = {
           payment_date?: string
           payment_method?: string
           payment_number?: number
+          purchase_invoice_id?: string | null
           reference?: string | null
           status?: string
           supplier_id: string
@@ -1165,6 +1177,7 @@ export type Database = {
           payment_date?: string
           payment_method?: string
           payment_number?: number
+          purchase_invoice_id?: string | null
           reference?: string | null
           status?: string
           supplier_id?: string
@@ -1176,6 +1189,13 @@ export type Database = {
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_purchase_invoice_id_fkey"
+            columns: ["purchase_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_invoices"
             referencedColumns: ["id"]
           },
           {

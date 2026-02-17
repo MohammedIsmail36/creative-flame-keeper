@@ -16,6 +16,7 @@ import { createArabicPDF, getAutoTableArabicStyles, addPdfHeader, addPdfFooter }
 import autoTable from "jspdf-autotable";
 import { ArrowRight, Plus, X, Save, CheckCircle, Printer, Pencil, Trash2, Ban } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 
 interface Supplier { id: string; code: string; name: string; balance?: number; }
 interface Product { id: string; code: string; name: string; purchase_price: number; }
@@ -513,6 +514,19 @@ export default function PurchaseInvoiceForm() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Payment Section - only for posted invoices */}
+      {!isNew && status === "posted" && id && (
+        <InvoicePaymentSection
+          type="purchase"
+          invoiceId={id}
+          entityId={supplierId}
+          entityName={supplierName || suppliers.find(s => s.id === supplierId)?.name || ""}
+          invoiceTotal={grandTotal}
+          invoiceNumber={invoiceNumber}
+          onPaymentAdded={loadData}
+        />
       )}
     </div>
   );
