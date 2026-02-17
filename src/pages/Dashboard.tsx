@@ -1,4 +1,7 @@
+import { useEffect, useState, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   TrendingUp,
   TrendingDown,
@@ -8,6 +11,8 @@ import {
   Users,
   FileText,
   AlertTriangle,
+  BookOpen,
+  Calculator,
 } from "lucide-react";
 import {
   BarChart,
@@ -20,6 +25,21 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { useNavigate } from "react-router-dom";
+
+const formatNumber = (val: number) =>
+  val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const formatCurrency = (val: number) => `${formatNumber(val)} EGP`;
+
+interface AccountBalance {
+  id: string;
+  code: string;
+  name: string;
+  account_type: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
 
 const salesData = [
   { name: "يناير", مبيعات: 12000, مشتريات: 8000 },
@@ -92,6 +112,61 @@ const lowStockItems = [
 ];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
+  const [loadingBalances, setLoadingBalances] = useState(true);
+
+  useEffect(() => {
+    const fetchBalances = async () => {
+      setLoadingBalances(true);
+      const [accountsRes, linesRes] = await Promise.all([
+        supabase.from("accounts").select("id, code, name, account_type").eq("is_active", true).order("code"),
+        supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entry_id"),
+      ]);
+
+      if (!accountsRes.data || !linesRes.data) {
+        setLoadingBalances(false);
+        return;
+      }
+
+      // Get posted entries only
+      const entryIds = [...new Set(linesRes.data.map((l: any) => l.journal_entry_id))];
+      if (entryIds.length === 0) {
+        setLoadingBalances(false);
+        return;
+      }
+
+      const { data: entriesData } = await supabase
+        .from("journal_entries")
+        .select("id, status")
+        .in("id", entryIds)
+        .eq("status", "posted");
+
+      const postedIds = new Set((entriesData || []).map((e: any) => e.id));
+
+      const balMap = new Map<string, { debit: number; credit: number }>();
+      linesRes.data.forEach((l: any) => {
+        if (!postedIds.has(l.journal_entry_id)) return;
+        const cur = balMap.get(l.account_id) || { debit: 0, credit: 0 };
+        cur.debit += Number(l.debit);
+        cur.credit += Number(l.credit);
+        balMap.set(l.account_id, cur);
+      });
+
+      const results: AccountBalance[] = accountsRes.data
+        .filter((a: any) => balMap.has(a.id))
+        .map((a: any) => {
+          const b = balMap.get(a.id)!;
+          return { ...a, debit: b.debit, credit: b.credit, balance: b.debit - b.credit };
+        });
+
+      setAccountBalances(results);
+      setLoadingBalances(false);
+    };
+
+    fetchBalances();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -127,6 +202,56 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Account Balances Summary */}
+      {accountBalances.length > 0 && (
+        <Card>
+          <CardHeader className="border-b bg-muted/30 py-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Calculator className="h-4 w-4" />
+                ملخص أرصدة الحسابات
+              </CardTitle>
+              <button
+                onClick={() => navigate("/ledger")}
+                className="text-sm text-primary hover:underline"
+              >
+                عرض التفاصيل ←
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/20">
+                  <TableHead className="text-right">الرمز</TableHead>
+                  <TableHead className="text-right">اسم الحساب</TableHead>
+                  <TableHead className="text-right">إجمالي المدين</TableHead>
+                  <TableHead className="text-right">إجمالي الدائن</TableHead>
+                  <TableHead className="text-right">الرصيد</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {accountBalances.map((acc) => (
+                  <TableRow
+                    key={acc.id}
+                    className="cursor-pointer hover:bg-muted/30"
+                    onClick={() => navigate("/ledger")}
+                  >
+                    <TableCell className="font-mono text-sm">{acc.code}</TableCell>
+                    <TableCell className="font-medium">{acc.name}</TableCell>
+                    <TableCell>{formatCurrency(acc.debit)}</TableCell>
+                    <TableCell>{formatCurrency(acc.credit)}</TableCell>
+                    <TableCell className={`font-bold ${acc.balance >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {formatCurrency(Math.abs(acc.balance))} {acc.balance >= 0 ? "مدين" : "دائن"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

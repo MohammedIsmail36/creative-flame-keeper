@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,10 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Plus, Pencil, Trash2, Search, Download, Filter, Eye, CheckCircle, Clock, BookOpen, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { FileText, Plus, Pencil, Trash2, Search, Download, Filter, Eye, CheckCircle, Clock, BookOpen, X, CalendarIcon } from "lucide-react";
 
 interface Account {
   id: string;
@@ -48,6 +52,8 @@ export default function Journal() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "posted">("all");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -105,9 +111,11 @@ export default function Journal() {
     return entries.filter((e) => {
       const matchesSearch = !searchQuery || e.description.includes(searchQuery) || String(e.entry_number).includes(searchQuery);
       const matchesStatus = statusFilter === "all" || e.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesDateFrom = !dateFrom || e.entry_date >= format(dateFrom, "yyyy-MM-dd");
+      const matchesDateTo = !dateTo || e.entry_date <= format(dateTo, "yyyy-MM-dd");
+      return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
     });
-  }, [entries, searchQuery, statusFilter]);
+  }, [entries, searchQuery, statusFilter, dateFrom, dateTo]);
 
   const accountMap = useMemo(() => {
     const map = new Map<string, Account>();
@@ -407,47 +415,104 @@ export default function Journal() {
       {/* Search & Actions */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="البحث في القيود..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pr-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-                <SelectTrigger className="w-36 gap-2">
-                  <Filter className="h-4 w-4" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">الكل ({statusCounts.all})</SelectItem>
-                  <SelectItem value="draft">مسودة ({statusCounts.draft})</SelectItem>
-                  <SelectItem value="posted">معتمد ({statusCounts.posted})</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="relative">
-                <Button variant="outline" className="gap-2" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
-                  <Download className="h-4 w-4" />
-                  تصدير
-                </Button>
-                {exportMenuOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
-                    <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
-                      PDF تصدير
-                    </button>
-                    <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
-                      Excel تصدير
-                    </button>
-                    <button onClick={handleExportCSV} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
-                      CSV تصدير
-                    </button>
-                  </div>
-                )}
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="البحث في القيود..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pr-10"
+                />
               </div>
+              <div className="flex gap-2">
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                  <SelectTrigger className="w-36 gap-2">
+                    <Filter className="h-4 w-4" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">الكل ({statusCounts.all})</SelectItem>
+                    <SelectItem value="draft">مسودة ({statusCounts.draft})</SelectItem>
+                    <SelectItem value="posted">معتمد ({statusCounts.posted})</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="relative">
+                  <Button variant="outline" className="gap-2" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
+                    <Download className="h-4 w-4" />
+                    تصدير
+                  </Button>
+                  {exportMenuOpen && (
+                    <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
+                      <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
+                        PDF تصدير
+                      </button>
+                      <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
+                        Excel تصدير
+                      </button>
+                      <button onClick={handleExportCSV} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">
+                        CSV تصدير
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            {/* Date Range Filter */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-muted-foreground">الفترة:</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-[160px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {dateFrom ? format(dateFrom, "yyyy-MM-dd") : "من تاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={setDateFrom}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-sm text-muted-foreground">إلى</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-[160px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {dateTo ? format(dateTo, "yyyy-MM-dd") : "إلى تاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={setDateTo}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              {(dateFrom || dateTo) && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>

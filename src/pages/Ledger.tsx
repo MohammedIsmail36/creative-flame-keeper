@@ -303,51 +303,6 @@ export default function Ledger() {
         ))}
       </div>
 
-      {/* Account Balances Summary */}
-      {activeAccounts.length > 0 && selectedAccountId === "all" && !searchQuery && (
-        <Card>
-          <CardHeader className="border-b bg-muted/30 py-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              ملخص أرصدة الحسابات
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/20">
-                  <TableHead className="text-right">الرمز</TableHead>
-                  <TableHead className="text-right">اسم الحساب</TableHead>
-                  <TableHead className="text-right">إجمالي المدين</TableHead>
-                  <TableHead className="text-right">إجمالي الدائن</TableHead>
-                  <TableHead className="text-right">الرصيد</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {activeAccounts.map((acc) => {
-                  const bal = accountBalances.get(acc.id)!;
-                  return (
-                    <TableRow
-                      key={acc.id}
-                      className="cursor-pointer hover:bg-muted/30"
-                      onClick={() => setSelectedAccountId(acc.id)}
-                    >
-                      <TableCell className="font-mono text-sm">{acc.code}</TableCell>
-                      <TableCell className="font-medium">{acc.name}</TableCell>
-                      <TableCell>{formatCurrency(bal.debit)}</TableCell>
-                      <TableCell>{formatCurrency(bal.credit)}</TableCell>
-                      <TableCell className={`font-bold ${bal.balance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {formatCurrency(Math.abs(bal.balance))} {bal.balance >= 0 ? "مدين" : "دائن"}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Search & Filters */}
       <Card>
         <CardContent className="p-4">
