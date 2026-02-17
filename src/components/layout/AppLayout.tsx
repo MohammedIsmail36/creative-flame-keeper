@@ -3,6 +3,7 @@ import { AppSidebar } from "./AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -16,6 +17,7 @@ const roleLabels: Record<string, string> = {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { fullName, role, signOut } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <SidebarProvider>
@@ -26,7 +28,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <SidebarTrigger />
             <div className="flex-1" />
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-sm">
+              <button onClick={() => navigate("/profile")} className="flex items-center gap-2 text-sm hover:text-primary transition-colors cursor-pointer">
                 <User className="w-4 h-4 text-muted-foreground" />
                 <span className="font-medium">{fullName || "مستخدم"}</span>
                 {role && (
@@ -34,7 +36,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                     {roleLabels[role] || role}
                   </span>
                 )}
-              </div>
+              </button>
               <Button variant="ghost" size="icon" onClick={signOut} title="تسجيل الخروج">
                 <LogOut className="w-4 h-4" />
               </Button>
