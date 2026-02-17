@@ -6,8 +6,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, FileText } from "lucide-react";
 import { exportToExcel } from "@/lib/excel-export";
+import { exportReportPdf } from "@/lib/report-pdf";
+import { useSettings } from "@/contexts/SettingsContext";
 import { differenceInDays } from "date-fns";
 
 interface AgingBucket {
@@ -45,6 +47,7 @@ function calcAging(invoices: any[], getName: (inv: any) => string): AgingBucket[
 }
 
 export default function DebtAgingReport() {
+  const { settings } = useSettings();
   const { data: salesInvoices, isLoading: loadingSales } = useQuery({
     queryKey: ["debt-aging-sales"],
     queryFn: async () => {
@@ -83,6 +86,21 @@ export default function DebtAgingReport() {
       sheetName: "أعمار الديون",
       headers: ["الاسم", "جاري (0-30)", "31-60 يوم", "61-90 يوم", "أكثر من 90", "الإجمالي"],
       rows: data.map((d) => [d.name, d.current, d.days30, d.days60, d.days90, d.total]),
+    });
+  };
+
+  const exportAgingPdf = (data: AgingBucket[], filename: string, label: string) => {
+    const fmtN = (n: number) => n.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    exportReportPdf({
+      title: `تقرير أعمار الديون - ${label}`,
+      settings,
+      headers: ["الاسم", "جاري (0-30)", "31-60 يوم", "61-90 يوم", "أكثر من 90", "الإجمالي"],
+      rows: data.map((d) => [d.name, d.current > 0 ? fmtN(d.current) : "-", d.days30 > 0 ? fmtN(d.days30) : "-", d.days60 > 0 ? fmtN(d.days60) : "-", d.days90 > 0 ? fmtN(d.days90) : "-", fmtN(d.total)]),
+      summaryCards: [
+        { label: "إجمالي ديون العملاء", value: fmtN(totalCustomerDebt) },
+        { label: "إجمالي ديون الموردين", value: fmtN(totalSupplierDebt) },
+      ],
+      filename,
     });
   };
 
@@ -132,7 +150,8 @@ export default function DebtAgingReport() {
       <Tabs defaultValue="customers" dir="rtl">
         <div className="flex items-center justify-between">
           <TabsList><TabsTrigger value="customers">ديون العملاء</TabsTrigger><TabsTrigger value="suppliers">ديون الموردين</TabsTrigger></TabsList>
-          <Button variant="outline" size="sm" onClick={() => exportAging(customerAging, "أعمار-ديون-العملاء")}><FileSpreadsheet className="w-4 h-4 ml-2" />تصدير</Button>
+          <Button variant="outline" size="sm" onClick={() => exportAging(customerAging, "أعمار-ديون-العملاء")}><FileSpreadsheet className="w-4 h-4 ml-2" />Excel</Button>
+          <Button variant="outline" size="sm" onClick={() => exportAgingPdf(customerAging, "أعمار-ديون-العملاء", "العملاء")}><FileText className="w-4 h-4 ml-2" />PDF</Button>
         </div>
         <TabsContent value="customers"><AgingTable data={customerAging} loading={loadingSales} label="العميل" /></TabsContent>
         <TabsContent value="suppliers"><AgingTable data={supplierAging} loading={loadingPurchases} label="المورد" /></TabsContent>

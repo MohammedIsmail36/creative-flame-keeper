@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileSpreadsheet, AlertTriangle } from "lucide-react";
+import { FileSpreadsheet, FileText, AlertTriangle } from "lucide-react";
 import { exportToExcel } from "@/lib/excel-export";
+import { exportReportPdf } from "@/lib/report-pdf";
+import { useSettings } from "@/contexts/SettingsContext";
 
 const movementTypeLabels: Record<string, string> = {
   opening_balance: "رصيد افتتاحي",
@@ -21,6 +23,7 @@ const movementTypeLabels: Record<string, string> = {
 };
 
 export default function InventoryReport() {
+  const { settings } = useSettings();
   const [search, setSearch] = useState("");
 
   const { data: products, isLoading: loadingProducts } = useQuery({
@@ -55,13 +58,32 @@ export default function InventoryReport() {
     });
   };
 
+  const handlePdfExport = () => {
+    const fmtN = (n: number) => n.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    exportReportPdf({
+      title: "تقرير المخزون",
+      settings,
+      headers: ["الكود", "المنتج", "الكمية", "الحد الأدنى", "سعر الشراء", "سعر البيع", "قيمة المخزون", "الحالة"],
+      rows: filtered.map((p) => [p.code, p.name, Number(p.quantity_on_hand), Number(p.min_stock_level), fmtN(Number(p.purchase_price)), fmtN(Number(p.selling_price)), fmtN(Number(p.quantity_on_hand) * Number(p.purchase_price)), Number(p.quantity_on_hand) <= Number(p.min_stock_level) ? "منخفض" : "طبيعي"]),
+      summaryCards: [
+        { label: "عدد الأصناف", value: String(filtered.length) },
+        { label: "قيمة المخزون (شراء)", value: fmtN(totalValue) },
+        { label: "قيمة المخزون (بيع)", value: fmtN(totalSellingValue) },
+        { label: "أصناف منخفضة", value: String(lowStock.length) },
+      ],
+      filename: "تقرير-المخزون",
+      orientation: "landscape",
+    });
+  };
+
   return (
     <div className="space-y-4">
       <Card>
         <CardContent className="pt-4">
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-1 flex-1 min-w-[200px]"><Label>بحث</Label><Input placeholder="بحث بالاسم أو الكود..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-            <Button variant="outline" onClick={handleExport} disabled={loadingProducts}><FileSpreadsheet className="w-4 h-4 ml-2" />تصدير Excel</Button>
+            <Button variant="outline" onClick={handleExport} disabled={loadingProducts}><FileSpreadsheet className="w-4 h-4 ml-2" />Excel</Button>
+            <Button variant="outline" onClick={handlePdfExport} disabled={loadingProducts}><FileText className="w-4 h-4 ml-2" />PDF</Button>
           </div>
         </CardContent>
       </Card>

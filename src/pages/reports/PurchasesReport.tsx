@@ -10,10 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, startOfMonth, endOfMonth } from "date-fns";
-import { FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, FileText } from "lucide-react";
 import { exportToExcel } from "@/lib/excel-export";
+import { exportReportPdf } from "@/lib/report-pdf";
+import { useSettings } from "@/contexts/SettingsContext";
 
 export default function PurchasesReport() {
+  const { settings } = useSettings();
   const [dateFrom, setDateFrom] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [dateTo, setDateTo] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [groupBy, setGroupBy] = useState<"invoice" | "supplier" | "product">("invoice");
@@ -68,6 +71,23 @@ export default function PurchasesReport() {
     }
   };
 
+  const handlePdfExport = () => {
+    const fmtN = (n: number) => n.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const summaryCards = [
+      { label: "عدد الفواتير", value: String(summary.count) },
+      { label: "إجمالي المشتريات", value: fmtN(summary.total) },
+      { label: "المدفوع", value: fmtN(summary.paid) },
+      { label: "المتبقي", value: fmtN(summary.total - summary.paid) },
+    ];
+    if (groupBy === "invoice") {
+      exportReportPdf({ title: `تقرير المشتريات (${dateFrom} - ${dateTo})`, settings, headers: ["رقم", "التاريخ", "المورد", "الحالة", "الإجمالي", "المدفوع", "المتبقي"], rows: (invoices || []).map((inv) => [inv.invoice_number, inv.invoice_date, inv.supplier?.name || "-", inv.status === "approved" ? "معتمد" : "مسودة", fmtN(Number(inv.total)), fmtN(Number(inv.paid_amount)), fmtN(Number(inv.total) - Number(inv.paid_amount))]), summaryCards, filename: `تقرير-المشتريات-${dateFrom}`, orientation: "landscape" });
+    } else if (groupBy === "supplier") {
+      exportReportPdf({ title: `تقرير المشتريات بالمورد`, settings, headers: ["المورد", "عدد الفواتير", "الإجمالي", "المدفوع", "المتبقي"], rows: Object.values(supplierSummary || {}).map((s: any) => [s.name, s.count, fmtN(s.total), fmtN(s.paid), fmtN(s.total - s.paid)]), summaryCards, filename: `تقرير-مشتريات-بالمورد` });
+    } else {
+      exportReportPdf({ title: `تقرير المشتريات بالمنتج`, settings, headers: ["المنتج", "الكمية", "الإجمالي"], rows: Object.values(productSummary || {}).map((p: any) => [p.name, p.quantity, fmtN(p.total)]), summaryCards, filename: `تقرير-مشتريات-بالمنتج` });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -82,7 +102,8 @@ export default function PurchasesReport() {
                 <SelectContent><SelectItem value="invoice">الفاتورة</SelectItem><SelectItem value="supplier">المورد</SelectItem><SelectItem value="product">المنتج</SelectItem></SelectContent>
               </Select>
             </div>
-            <Button variant="outline" onClick={handleExport} disabled={isLoading}><FileSpreadsheet className="w-4 h-4 ml-2" />تصدير Excel</Button>
+            <Button variant="outline" onClick={handleExport} disabled={isLoading}><FileSpreadsheet className="w-4 h-4 ml-2" />Excel</Button>
+            <Button variant="outline" onClick={handlePdfExport} disabled={isLoading}><FileText className="w-4 h-4 ml-2" />PDF</Button>
           </div>
         </CardContent>
       </Card>
