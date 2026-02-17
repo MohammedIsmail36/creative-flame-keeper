@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AccountCombobox } from "@/components/AccountCombobox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -666,7 +667,26 @@ export default function Journal() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>التاريخ</Label>
-                <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn("w-full justify-start text-left font-normal", !formDate && "text-muted-foreground")}
+                    >
+                      <CalendarIcon className="ml-2 h-4 w-4" />
+                      {formDate || "اختر التاريخ"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formDate ? new Date(formDate + "T00:00:00") : undefined}
+                      onSelect={(date) => date && setFormDate(format(date, "yyyy-MM-dd"))}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label>وصف القيد</Label>
@@ -699,18 +719,11 @@ export default function Journal() {
                     {formLines.map((line, index) => (
                       <TableRow key={index}>
                         <TableCell className="p-2">
-                          <Select value={line.account_id} onValueChange={(v) => updateLine(index, "account_id", v)}>
-                            <SelectTrigger className="h-9">
-                              <SelectValue placeholder="اختر الحساب" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {accounts.map((acc) => (
-                                <SelectItem key={acc.id} value={acc.id}>
-                                  {acc.code} - {acc.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <AccountCombobox
+                            accounts={accounts}
+                            value={line.account_id}
+                            onValueChange={(v) => updateLine(index, "account_id", v)}
+                          />
                         </TableCell>
                         <TableCell className="p-2">
                           <Input className="h-9" value={line.description} onChange={(e) => updateLine(index, "description", e.target.value)} placeholder="بيان" />
