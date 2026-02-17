@@ -19,7 +19,7 @@ import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { FileText, Plus, Pencil, Trash2, Download, Eye, CheckCircle, Clock, BookOpen, X, CalendarIcon } from "lucide-react";
+import { FileText, Plus, Pencil, Trash2, Download, Eye, CheckCircle, Clock, BookOpen, X, CalendarIcon, Ban } from "lucide-react";
 
 interface Account {
   id: string;
@@ -97,12 +97,36 @@ export default function Journal() {
   useEffect(() => { fetchData(); }, []);
 
   const statusCounts = useMemo(() => {
-    const counts = { all: entries.length, draft: 0, posted: 0 };
+    const counts = { all: entries.length, draft: 0, posted: 0, cancelled: 0 };
     entries.forEach((e) => {
       if (e.status === "draft") counts.draft++;
+      else if (e.status === "cancelled") counts.cancelled++;
       else counts.posted++;
     });
     return counts;
+  }, [entries]);
+
+  // Track which entries are linked to operations (invoices/payments/returns)
+  const [linkedEntryIds, setLinkedEntryIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    async function fetchLinkedEntries() {
+      const queries = [
+        supabase.from("sales_invoices").select("journal_entry_id").not("journal_entry_id", "is", null),
+        supabase.from("purchase_invoices").select("journal_entry_id").not("journal_entry_id", "is", null),
+        (supabase.from("customer_payments") as any).select("journal_entry_id").not("journal_entry_id", "is", null),
+        (supabase.from("supplier_payments") as any).select("journal_entry_id").not("journal_entry_id", "is", null),
+        supabase.from("sales_returns").select("journal_entry_id").not("journal_entry_id", "is", null),
+        supabase.from("purchase_returns").select("journal_entry_id").not("journal_entry_id", "is", null),
+      ];
+      const results = await Promise.all(queries);
+      const ids = new Set<string>();
+      results.forEach(({ data }) => {
+        (data || []).forEach((r: any) => { if (r.journal_entry_id) ids.add(r.journal_entry_id); });
+      });
+      setLinkedEntryIds(ids);
+    }
+    if (entries.length > 0) fetchLinkedEntries();
   }, [entries]);
 
   const totalDebit = useMemo(() => entries.reduce((s, e) => s + Number(e.total_debit), 0), [entries]);
@@ -239,6 +263,16 @@ export default function Journal() {
     }
   };
 
+  const handleCancel = async (entry: JournalEntry) => {
+    const { error } = await (supabase.from("journal_entries") as any).update({ status: "cancelled" }).eq("id", entry.id);
+    if (error) {
+      toast({ title: "خطأ", description: "فشل في إلغاء القيد", variant: "destructive" });
+    } else {
+      toast({ title: "تم الإلغاء", description: `تم إلغاء القيد رقم ${entry.entry_number}` });
+      fetchData();
+    }
+  };
+
   const handlePost = async (entry: JournalEntry) => {
     const { error } = await supabase.from("journal_entries").update({ status: "posted" }).eq("id", entry.id);
     if (error) {
@@ -257,7 +291,7 @@ export default function Journal() {
     const { exportToExcel } = await import("@/lib/excel-export");
     const data = filteredEntries.map((e) => ({
       "Entry #": e.entry_number, "Date": e.entry_date, "Description": e.description,
-      "Status": e.status === "posted" ? "Posted" : "Draft",
+      "Status": e.status === "posted" ? "Posted" : e.status === "cancelled" ? "Cancelled" : "Draft",
       [`Debit (${currency})`]: Number(e.total_debit), [`Credit (${currency})`]: Number(e.total_credit),
     }));
     await exportToExcel(data, "Journal Entries", "Journal_Entries.xlsx");
@@ -270,7 +304,7 @@ export default function Journal() {
     const autoTable = (await import("jspdf-autotable")).default;
     const doc = await createArabicPDF("landscape");
     const startY = addPdfHeader(doc, settings, "القيود المحاسبية");
-    const tableData = filteredEntries.map((e) => [e.entry_number, formatDate(e.entry_date), e.description, e.status === "posted" ? "معتمد" : "مسودة", formatNum(Number(e.total_debit)), formatNum(Number(e.total_credit))]);
+    const tableData = filteredEntries.map((e) => [e.entry_number, formatDate(e.entry_date), e.description, e.status === "posted" ? "معتمد" : e.status === "cancelled" ? "ملغي" : "مسودة", formatNum(Number(e.total_debit)), formatNum(Number(e.total_credit))]);
     autoTable(doc, {
       head: [[`#`, "التاريخ", "الوصف", "الحالة", `مدين (${currency})`, `دائن (${currency})`]],
       body: tableData, startY,
@@ -287,7 +321,7 @@ export default function Journal() {
 
   const handleExportCSV = () => {
     const headers = ["Entry #", "Date", "Description", "Status", `Debit (${currency})`, `Credit (${currency})`];
-    const rows = filteredEntries.map((e) => [e.entry_number, e.entry_date, e.description, e.status === "posted" ? "Posted" : "Draft", e.total_debit, e.total_credit]);
+    const rows = filteredEntries.map((e) => [e.entry_number, e.entry_date, e.description, e.status === "posted" ? "Posted" : e.status === "cancelled" ? "Cancelled" : "Draft", e.total_debit, e.total_credit]);
     const csvContent = "\uFEFF" + [headers, ...rows].map((r) => r.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -320,12 +354,22 @@ export default function Journal() {
     {
       accessorKey: "status",
       header: "الحالة",
-      cell: ({ row }) => (
-        <Badge variant={row.original.status === "posted" ? "default" : "secondary"}
-          className={row.original.status === "posted" ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"}>
-          {row.original.status === "posted" ? "معتمد" : "مسودة"}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const s = row.original.status;
+        const isLinked = linkedEntryIds.has(row.original.id);
+        const statusConfig: Record<string, { label: string; className: string }> = {
+          posted: { label: "معتمد", className: "bg-green-500/10 text-green-600 border-green-500/20" },
+          draft: { label: "مسودة", className: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+          cancelled: { label: "ملغي", className: "bg-destructive/10 text-destructive border-destructive/20" },
+        };
+        const cfg = statusConfig[s] || statusConfig.draft;
+        return (
+          <div className="flex items-center gap-1">
+            <Badge variant="secondary" className={cfg.className}>{cfg.label}</Badge>
+            {isLinked && s !== "cancelled" && <Badge variant="outline" className="text-[10px] px-1">آلي</Badge>}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "total_debit",
@@ -357,6 +401,26 @@ export default function Journal() {
                   <CheckCircle className="h-4 w-4" />
                 </Button>
               </>
+            )}
+            {/* Cancel button: only for manual posted entries (not linked to operations) */}
+            {canEdit && entry.status === "posted" && !linkedEntryIds.has(entry.id) && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="إلغاء القيد">
+                    <Ban className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent dir="rtl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>إلغاء القيد #{entry.entry_number}</AlertDialogTitle>
+                    <AlertDialogDescription>سيتم تغيير حالة القيد إلى "ملغي". هل تريد المتابعة؟</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="flex-row-reverse gap-2">
+                    <AlertDialogAction onClick={() => handleCancel(entry)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">تأكيد الإلغاء</AlertDialogAction>
+                    <AlertDialogCancel>تراجع</AlertDialogCancel>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             {canDelete && entry.status === "draft" && (
               <AlertDialog>
@@ -405,11 +469,12 @@ export default function Journal() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           { label: "إجمالي القيود", value: entries.length, icon: BookOpen, color: "bg-foreground/5 text-foreground", filter: "all" },
           { label: "مسودات", value: statusCounts.draft, icon: Clock, color: "bg-amber-500/10 text-amber-600", filter: "draft" },
           { label: "معتمدة", value: statusCounts.posted, icon: CheckCircle, color: "bg-green-500/10 text-green-600", filter: "posted" },
+          { label: "ملغاة", value: statusCounts.cancelled, icon: Ban, color: "bg-destructive/10 text-destructive", filter: "cancelled" },
           { label: "إجمالي المبالغ", value: formatCurrency(totalDebit), icon: FileText, color: "bg-blue-500/10 text-blue-600", filter: "" },
         ].map(({ label, value, icon: Icon, color, filter }) => (
           <button key={label} onClick={() => filter && setStatusFilter(filter)}
@@ -442,6 +507,7 @@ export default function Journal() {
                 <SelectItem value="all">كل الحالات ({statusCounts.all})</SelectItem>
                 <SelectItem value="draft">مسودة ({statusCounts.draft})</SelectItem>
                 <SelectItem value="posted">معتمد ({statusCounts.posted})</SelectItem>
+                <SelectItem value="cancelled">ملغي ({statusCounts.cancelled})</SelectItem>
               </SelectContent>
             </Select>
             <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36 h-9 text-sm" placeholder="من تاريخ" />
@@ -480,8 +546,12 @@ export default function Journal() {
             <div className="space-y-4">
               <div className="flex gap-4 text-sm">
                 <span className="text-muted-foreground">التاريخ: <strong className="text-foreground">{viewingEntry.entry_date}</strong></span>
-                <Badge variant={viewingEntry.status === "posted" ? "default" : "secondary"}>
-                  {viewingEntry.status === "posted" ? "معتمد" : "مسودة"}
+                <Badge variant="secondary" className={
+                  viewingEntry.status === "posted" ? "bg-green-500/10 text-green-600 border-green-500/20" :
+                  viewingEntry.status === "cancelled" ? "bg-destructive/10 text-destructive border-destructive/20" :
+                  "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                }>
+                  {viewingEntry.status === "posted" ? "معتمد" : viewingEntry.status === "cancelled" ? "ملغي" : "مسودة"}
                 </Badge>
               </div>
               <Table>
