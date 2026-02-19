@@ -542,175 +542,270 @@ CREATE OR REPLACE TRIGGER update_supplier_payments_updated_at BEFORE UPDATE ON p
 
 -- === profiles ===
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING ((id = auth.uid()) OR has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (id = auth.uid());
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (id = auth.uid());
+DROP POLICY IF EXISTS "Admins can update profiles" ON public.profiles;
 CREATE POLICY "Admins can update profiles" ON public.profiles FOR UPDATE USING (has_role(auth.uid(), 'admin')) WITH CHECK (has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "Admins can delete profiles" ON public.profiles;
 CREATE POLICY "Admins can delete profiles" ON public.profiles FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === user_roles ===
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own role" ON public.user_roles;
 CREATE POLICY "Users can view own role" ON public.user_roles FOR SELECT USING ((user_id = auth.uid()) OR has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "Admins can insert roles" ON public.user_roles;
 CREATE POLICY "Admins can insert roles" ON public.user_roles FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "Admins can update roles" ON public.user_roles;
 CREATE POLICY "Admins can update roles" ON public.user_roles FOR UPDATE USING (has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "Admins can delete roles" ON public.user_roles;
 CREATE POLICY "Admins can delete roles" ON public.user_roles FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === accounts ===
 ALTER TABLE public.accounts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view accounts" ON public.accounts;
 CREATE POLICY "Authorized users can view accounts" ON public.accounts FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admins can insert accounts" ON public.accounts;
 CREATE POLICY "Admins can insert accounts" ON public.accounts FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admins can update accounts" ON public.accounts;
 CREATE POLICY "Admins can update accounts" ON public.accounts FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admins can delete accounts" ON public.accounts;
 CREATE POLICY "Admins can delete accounts" ON public.accounts FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === company_settings ===
 ALTER TABLE public.company_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated users can view settings" ON public.company_settings;
 CREATE POLICY "Authenticated users can view settings" ON public.company_settings FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admins can insert settings" ON public.company_settings;
 CREATE POLICY "Admins can insert settings" ON public.company_settings FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "Admins can update settings" ON public.company_settings;
 CREATE POLICY "Admins can update settings" ON public.company_settings FOR UPDATE USING (has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "Admins can delete settings" ON public.company_settings;
 CREATE POLICY "Admins can delete settings" ON public.company_settings FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === customers ===
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view customers" ON public.customers;
 CREATE POLICY "Authorized users can view customers" ON public.customers FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin/accountant/sales can insert customers" ON public.customers;
 CREATE POLICY "Admin/accountant/sales can insert customers" ON public.customers FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin/accountant/sales can update customers" ON public.customers;
 CREATE POLICY "Admin/accountant/sales can update customers" ON public.customers FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin can delete customers" ON public.customers;
 CREATE POLICY "Admin can delete customers" ON public.customers FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === suppliers ===
 ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view suppliers" ON public.suppliers;
 CREATE POLICY "Authorized users can view suppliers" ON public.suppliers FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin/accountant can insert suppliers" ON public.suppliers;
 CREATE POLICY "Admin/accountant can insert suppliers" ON public.suppliers FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can update suppliers" ON public.suppliers;
 CREATE POLICY "Admin/accountant can update suppliers" ON public.suppliers FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin can delete suppliers" ON public.suppliers;
 CREATE POLICY "Admin can delete suppliers" ON public.suppliers FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === product_categories ===
 ALTER TABLE public.product_categories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view categories" ON public.product_categories;
 CREATE POLICY "Authorized users can view categories" ON public.product_categories FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin/accountant can manage categories" ON public.product_categories;
 CREATE POLICY "Admin/accountant can manage categories" ON public.product_categories FOR ALL USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant')) WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
 
 -- === product_units ===
 ALTER TABLE public.product_units ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view units" ON public.product_units;
 CREATE POLICY "Authorized users can view units" ON public.product_units FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin/accountant can manage units" ON public.product_units;
 CREATE POLICY "Admin/accountant can manage units" ON public.product_units FOR ALL USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant')) WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
 
 -- === product_brands ===
 ALTER TABLE public.product_brands ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view brands" ON public.product_brands;
 CREATE POLICY "Authorized users can view brands" ON public.product_brands FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin/accountant can manage brands" ON public.product_brands;
 CREATE POLICY "Admin/accountant can manage brands" ON public.product_brands FOR ALL USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant')) WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
 
 -- === products ===
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view products" ON public.products;
 CREATE POLICY "Authorized users can view products" ON public.products FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin and accountant can insert products" ON public.products;
 CREATE POLICY "Admin and accountant can insert products" ON public.products FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin and accountant can update products" ON public.products;
 CREATE POLICY "Admin and accountant can update products" ON public.products FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin can delete products" ON public.products;
 CREATE POLICY "Admin can delete products" ON public.products FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === product_images ===
 ALTER TABLE public.product_images ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view product images" ON public.product_images;
 CREATE POLICY "Authorized users can view product images" ON public.product_images FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin/accountant can manage product images" ON public.product_images;
 CREATE POLICY "Admin/accountant can manage product images" ON public.product_images FOR ALL USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant')) WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
 
 -- === journal_entries ===
 ALTER TABLE public.journal_entries ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view journal entries" ON public.journal_entries;
 CREATE POLICY "Authorized users can view journal entries" ON public.journal_entries FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Authorized users can insert journal entries" ON public.journal_entries;
 CREATE POLICY "Authorized users can insert journal entries" ON public.journal_entries FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Authorized users can update journal entries" ON public.journal_entries;
 CREATE POLICY "Authorized users can update journal entries" ON public.journal_entries FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admins can delete journal entries" ON public.journal_entries;
 CREATE POLICY "Admins can delete journal entries" ON public.journal_entries FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === journal_entry_lines ===
 ALTER TABLE public.journal_entry_lines ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view journal entry lines" ON public.journal_entry_lines;
 CREATE POLICY "Authorized users can view journal entry lines" ON public.journal_entry_lines FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Authorized users can insert journal entry lines" ON public.journal_entry_lines;
 CREATE POLICY "Authorized users can insert journal entry lines" ON public.journal_entry_lines FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Authorized users can update journal entry lines" ON public.journal_entry_lines;
 CREATE POLICY "Authorized users can update journal entry lines" ON public.journal_entry_lines FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Authorized users can delete journal entry lines" ON public.journal_entry_lines;
 CREATE POLICY "Authorized users can delete journal entry lines" ON public.journal_entry_lines FOR DELETE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
 
 -- === sales_invoices ===
 ALTER TABLE public.sales_invoices ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view sales invoices" ON public.sales_invoices;
 CREATE POLICY "Authorized users can view sales invoices" ON public.sales_invoices FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can insert sales invoices" ON public.sales_invoices;
 CREATE POLICY "Authorized can insert sales invoices" ON public.sales_invoices FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can update sales invoices" ON public.sales_invoices;
 CREATE POLICY "Authorized can update sales invoices" ON public.sales_invoices FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin can delete sales invoices" ON public.sales_invoices;
 CREATE POLICY "Admin can delete sales invoices" ON public.sales_invoices FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === sales_invoice_items ===
 ALTER TABLE public.sales_invoice_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view sales invoice items" ON public.sales_invoice_items;
 CREATE POLICY "Authorized users can view sales invoice items" ON public.sales_invoice_items FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can insert sales invoice items" ON public.sales_invoice_items;
 CREATE POLICY "Authorized can insert sales invoice items" ON public.sales_invoice_items FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can update sales invoice items" ON public.sales_invoice_items;
 CREATE POLICY "Authorized can update sales invoice items" ON public.sales_invoice_items FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can delete sales invoice items" ON public.sales_invoice_items;
 CREATE POLICY "Authorized can delete sales invoice items" ON public.sales_invoice_items FOR DELETE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
 
 -- === purchase_invoices ===
 ALTER TABLE public.purchase_invoices ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view purchase invoices" ON public.purchase_invoices;
 CREATE POLICY "Authorized users can view purchase invoices" ON public.purchase_invoices FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can insert purchase invoices" ON public.purchase_invoices;
 CREATE POLICY "Admin/accountant can insert purchase invoices" ON public.purchase_invoices FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can update purchase invoices" ON public.purchase_invoices;
 CREATE POLICY "Admin/accountant can update purchase invoices" ON public.purchase_invoices FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin can delete purchase invoices" ON public.purchase_invoices;
 CREATE POLICY "Admin can delete purchase invoices" ON public.purchase_invoices FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === purchase_invoice_items ===
 ALTER TABLE public.purchase_invoice_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view purchase invoice items" ON public.purchase_invoice_items;
 CREATE POLICY "Authorized users can view purchase invoice items" ON public.purchase_invoice_items FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can insert purchase invoice items" ON public.purchase_invoice_items;
 CREATE POLICY "Admin/accountant can insert purchase invoice items" ON public.purchase_invoice_items FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can update purchase invoice items" ON public.purchase_invoice_items;
 CREATE POLICY "Admin/accountant can update purchase invoice items" ON public.purchase_invoice_items FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can delete purchase invoice items" ON public.purchase_invoice_items;
 CREATE POLICY "Admin/accountant can delete purchase invoice items" ON public.purchase_invoice_items FOR DELETE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
 
 -- === sales_returns ===
 ALTER TABLE public.sales_returns ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view sales returns" ON public.sales_returns;
 CREATE POLICY "Authorized users can view sales returns" ON public.sales_returns FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can insert sales returns" ON public.sales_returns;
 CREATE POLICY "Authorized can insert sales returns" ON public.sales_returns FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can update sales returns" ON public.sales_returns;
 CREATE POLICY "Authorized can update sales returns" ON public.sales_returns FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin can delete sales returns" ON public.sales_returns;
 CREATE POLICY "Admin can delete sales returns" ON public.sales_returns FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === sales_return_items ===
 ALTER TABLE public.sales_return_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view sales return items" ON public.sales_return_items;
 CREATE POLICY "Authorized users can view sales return items" ON public.sales_return_items FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can insert sales return items" ON public.sales_return_items;
 CREATE POLICY "Authorized can insert sales return items" ON public.sales_return_items FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can update sales return items" ON public.sales_return_items;
 CREATE POLICY "Authorized can update sales return items" ON public.sales_return_items FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can delete sales return items" ON public.sales_return_items;
 CREATE POLICY "Authorized can delete sales return items" ON public.sales_return_items FOR DELETE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
 
 -- === purchase_returns ===
 ALTER TABLE public.purchase_returns ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view purchase returns" ON public.purchase_returns;
 CREATE POLICY "Authorized users can view purchase returns" ON public.purchase_returns FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can insert purchase returns" ON public.purchase_returns;
 CREATE POLICY "Admin/accountant can insert purchase returns" ON public.purchase_returns FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can update purchase returns" ON public.purchase_returns;
 CREATE POLICY "Admin/accountant can update purchase returns" ON public.purchase_returns FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin can delete purchase returns" ON public.purchase_returns;
 CREATE POLICY "Admin can delete purchase returns" ON public.purchase_returns FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === purchase_return_items ===
 ALTER TABLE public.purchase_return_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view purchase return items" ON public.purchase_return_items;
 CREATE POLICY "Authorized users can view purchase return items" ON public.purchase_return_items FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can insert purchase return items" ON public.purchase_return_items;
 CREATE POLICY "Admin/accountant can insert purchase return items" ON public.purchase_return_items FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can update purchase return items" ON public.purchase_return_items;
 CREATE POLICY "Admin/accountant can update purchase return items" ON public.purchase_return_items FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can delete purchase return items" ON public.purchase_return_items;
 CREATE POLICY "Admin/accountant can delete purchase return items" ON public.purchase_return_items FOR DELETE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
 
 -- === customer_payments ===
 ALTER TABLE public.customer_payments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view customer payments" ON public.customer_payments;
 CREATE POLICY "Authorized users can view customer payments" ON public.customer_payments FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can insert customer payments" ON public.customer_payments;
 CREATE POLICY "Authorized can insert customer payments" ON public.customer_payments FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can update customer payments" ON public.customer_payments;
 CREATE POLICY "Authorized can update customer payments" ON public.customer_payments FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin can delete customer payments" ON public.customer_payments;
 CREATE POLICY "Admin can delete customer payments" ON public.customer_payments FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === customer_payment_allocations ===
 ALTER TABLE public.customer_payment_allocations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view customer payment allocations" ON public.customer_payment_allocations;
 CREATE POLICY "Authorized users can view customer payment allocations" ON public.customer_payment_allocations FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can insert customer payment allocations" ON public.customer_payment_allocations;
 CREATE POLICY "Authorized can insert customer payment allocations" ON public.customer_payment_allocations FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Authorized can delete customer payment allocations" ON public.customer_payment_allocations;
 CREATE POLICY "Authorized can delete customer payment allocations" ON public.customer_payment_allocations FOR DELETE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
 
 -- === supplier_payments ===
 ALTER TABLE public.supplier_payments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view supplier payments" ON public.supplier_payments;
 CREATE POLICY "Authorized users can view supplier payments" ON public.supplier_payments FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can insert supplier payments" ON public.supplier_payments;
 CREATE POLICY "Admin/accountant can insert supplier payments" ON public.supplier_payments FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can update supplier payments" ON public.supplier_payments;
 CREATE POLICY "Admin/accountant can update supplier payments" ON public.supplier_payments FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin can delete supplier payments" ON public.supplier_payments;
 CREATE POLICY "Admin can delete supplier payments" ON public.supplier_payments FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- === supplier_payment_allocations ===
 ALTER TABLE public.supplier_payment_allocations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view supplier payment allocations" ON public.supplier_payment_allocations;
 CREATE POLICY "Authorized users can view supplier payment allocations" ON public.supplier_payment_allocations FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Authorized can insert supplier payment allocations" ON public.supplier_payment_allocations;
 CREATE POLICY "Authorized can insert supplier payment allocations" ON public.supplier_payment_allocations FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Authorized can delete supplier payment allocations" ON public.supplier_payment_allocations;
 CREATE POLICY "Authorized can delete supplier payment allocations" ON public.supplier_payment_allocations FOR DELETE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
 
 -- === inventory_movements ===
 ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authorized users can view inventory movements" ON public.inventory_movements;
 CREATE POLICY "Authorized users can view inventory movements" ON public.inventory_movements FOR SELECT USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant') OR has_role(auth.uid(), 'sales'));
+DROP POLICY IF EXISTS "Admin/accountant can insert inventory movements" ON public.inventory_movements;
 CREATE POLICY "Admin/accountant can insert inventory movements" ON public.inventory_movements FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin/accountant can update inventory movements" ON public.inventory_movements;
 CREATE POLICY "Admin/accountant can update inventory movements" ON public.inventory_movements FOR UPDATE USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'accountant'));
+DROP POLICY IF EXISTS "Admin can delete inventory movements" ON public.inventory_movements;
 CREATE POLICY "Admin can delete inventory movements" ON public.inventory_movements FOR DELETE USING (has_role(auth.uid(), 'admin'));
 
 -- ==========================================
@@ -719,9 +814,13 @@ CREATE POLICY "Admin can delete inventory movements" ON public.inventory_movemen
 INSERT INTO storage.buckets (id, name, public) VALUES ('product-images', 'product-images', true)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "Public read product images" ON storage.objects;
 CREATE POLICY "Public read product images" ON storage.objects FOR SELECT USING (bucket_id = 'product-images');
+DROP POLICY IF EXISTS "Auth users upload product images" ON storage.objects;
 CREATE POLICY "Auth users upload product images" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'product-images' AND auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Auth users update product images" ON storage.objects;
 CREATE POLICY "Auth users update product images" ON storage.objects FOR UPDATE USING (bucket_id = 'product-images' AND auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Auth users delete product images" ON storage.objects;
 CREATE POLICY "Auth users delete product images" ON storage.objects FOR DELETE USING (bucket_id = 'product-images' AND auth.role() = 'authenticated');
 
 -- ==========================================
