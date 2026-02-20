@@ -15,8 +15,10 @@ import { toast } from "@/hooks/use-toast";
 import { ArrowRight, Plus, X, Save, CheckCircle, Trash2, Ban } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
+import { ProductWithBrand, productsToLookupItems, formatProductName, PRODUCT_SELECT_FIELDS_BASIC } from "@/lib/product-utils";
+
 interface Supplier { id: string; code: string; name: string; balance?: number; }
-interface Product { id: string; code: string; name: string; purchase_price: number; }
+type Product = ProductWithBrand & { purchase_price: number; };
 interface ReturnItem { id?: string; product_id: string; product_name: string; quantity: number; unit_price: number; discount: number; total: number; }
 
 const ACCOUNT_CODES = { INVENTORY: "1104", SUPPLIERS: "2101" };
@@ -53,7 +55,7 @@ export default function PurchaseReturnForm() {
   async function loadData() {
     const [supRes, prodRes] = await Promise.all([
       (supabase.from("suppliers" as any) as any).select("id, code, name, balance").eq("is_active", true).order("name"),
-      supabase.from("products").select("id, code, name, purchase_price").eq("is_active", true).order("name"),
+      supabase.from("products").select(PRODUCT_SELECT_FIELDS_BASIC).eq("is_active", true).order("name"),
     ]);
     setSuppliers(supRes.data || []);
     setProducts(prodRes.data || []);
@@ -95,7 +97,7 @@ export default function PurchaseReturnForm() {
       const item = { ...updated[index], [field]: value };
       if (field === "product_id") {
         const prod = products.find(p => p.id === value);
-        if (prod) { item.product_name = prod.name; item.unit_price = prod.purchase_price; }
+        if (prod) { item.product_name = formatProductName(prod); item.unit_price = prod.purchase_price; }
       }
       item.total = (item.quantity * item.unit_price) - item.discount;
       updated[index] = item;
@@ -311,7 +313,7 @@ export default function PurchaseReturnForm() {
                 <TableRow key={i}>
                   <TableCell>
                     {isEditable ? (
-                      <LookupCombobox items={products.map(p => ({ id: p.id, name: `${p.code} - ${p.name}` }))} value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)} placeholder="اختر المنتج" />
+                      <LookupCombobox items={productsToLookupItems(products)} value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)} placeholder="اختر المنتج" />
                     ) : <span className="font-medium">{item.product_name}</span>}
                   </TableCell>
                   <TableCell>{isEditable ? <Input type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", +e.target.value)} className="font-mono" /> : <span className="font-mono">{item.quantity}</span>}</TableCell>
