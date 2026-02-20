@@ -17,8 +17,10 @@ import { ArrowRight, Plus, X, Save, CheckCircle, Printer, Pencil, Trash2, Ban } 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 
+import { ProductWithBrand, productsToLookupItems, formatProductName, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
+
 interface Customer { id: string; code: string; name: string; balance?: number; }
-interface Product { id: string; code: string; name: string; selling_price: number; purchase_price: number; quantity_on_hand: number; }
+type Product = ProductWithBrand & { selling_price: number; purchase_price: number; quantity_on_hand: number; };
 interface InvoiceItem { id?: string; product_id: string; product_name: string; quantity: number; unit_price: number; cost_price: number; discount: number; total: number; }
 
 const ACCOUNT_CODES = {
@@ -60,7 +62,7 @@ export default function SalesInvoiceForm() {
   async function loadData() {
     const [custRes, prodRes] = await Promise.all([
       (supabase.from("customers" as any) as any).select("id, code, name, balance").eq("is_active", true).order("name"),
-      supabase.from("products").select("id, code, name, selling_price, purchase_price, quantity_on_hand").eq("is_active", true).order("name"),
+      supabase.from("products").select(PRODUCT_SELECT_FIELDS).eq("is_active", true).order("name"),
     ]);
     setCustomers(custRes.data || []);
     setProducts(prodRes.data || []);
@@ -103,7 +105,7 @@ export default function SalesInvoiceForm() {
       const item = { ...updated[index], [field]: value };
       if (field === "product_id") {
         const prod = products.find(p => p.id === value);
-        if (prod) { item.product_name = prod.name; item.unit_price = prod.selling_price; item.cost_price = prod.purchase_price; }
+        if (prod) { item.product_name = formatProductName(prod); item.unit_price = prod.selling_price; item.cost_price = prod.purchase_price; }
       }
       item.total = (item.quantity * item.unit_price) - item.discount;
       updated[index] = item;
@@ -451,7 +453,7 @@ export default function SalesInvoiceForm() {
                   <TableCell>
                     {isEditable ? (
                       <LookupCombobox
-                        items={products.map(p => ({ id: p.id, name: `${p.code} - ${p.name} (${p.quantity_on_hand})` }))}
+                        items={productsToLookupItems(products, true)}
                         value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)} placeholder="اختر المنتج"
                       />
                     ) : (

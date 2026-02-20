@@ -11,16 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
+import { ProductWithBrand, productsToLookupItems, formatProductName, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
 import { toast } from "@/hooks/use-toast";
 import { ArrowRight, Plus, X, Save, CheckCircle, Pencil } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-interface Product {
-  id: string;
-  code: string;
-  name: string;
-  quantity_on_hand: number;
-}
+type Product = ProductWithBrand & { quantity_on_hand: number; };
 
 interface AdjustmentItem {
   id?: string;
@@ -64,7 +60,7 @@ export default function InventoryAdjustmentForm() {
   async function loadData() {
     const { data: prodData } = await supabase
       .from("products")
-      .select("id, code, name, quantity_on_hand")
+      .select(PRODUCT_SELECT_FIELDS)
       .eq("is_active", true)
       .order("name");
     setProducts(prodData || []);
@@ -119,7 +115,7 @@ export default function InventoryAdjustmentForm() {
     updated[idx] = {
       ...updated[idx],
       product_id: productId,
-      product_name: product.name,
+      product_name: formatProductName(product),
       system_quantity: product.quantity_on_hand,
       actual_quantity: product.quantity_on_hand,
       difference: 0,
@@ -369,7 +365,7 @@ export default function InventoryAdjustmentForm() {
                         <LookupCombobox
                           value={item.product_id}
                           onValueChange={(val) => handleProductSelect(idx, val)}
-                          items={products.map(p => ({ id: p.id, name: `${p.code} - ${p.name}` }))}
+                          items={productsToLookupItems(products)}
                           placeholder="اختر المنتج"
                         />
                       ) : (

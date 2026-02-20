@@ -15,8 +15,10 @@ import { toast } from "@/hooks/use-toast";
 import { ArrowRight, Plus, X, Save, CheckCircle, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
+import { ProductWithBrand, productsToLookupItems, formatProductName, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
+
 interface Customer { id: string; code: string; name: string; balance?: number; }
-interface Product { id: string; code: string; name: string; selling_price: number; purchase_price: number; quantity_on_hand: number; }
+type Product = ProductWithBrand & { selling_price: number; purchase_price: number; quantity_on_hand: number; };
 interface ReturnItem { id?: string; product_id: string; product_name: string; quantity: number; unit_price: number; cost_price: number; discount: number; total: number; }
 
 const ACCOUNT_CODES = { CUSTOMERS: "1103", REVENUE: "4101", COGS: "5101", INVENTORY: "1104" };
@@ -53,7 +55,7 @@ export default function SalesReturnForm() {
   async function loadData() {
     const [custRes, prodRes] = await Promise.all([
       (supabase.from("customers" as any) as any).select("id, code, name, balance").eq("is_active", true).order("name"),
-      supabase.from("products").select("id, code, name, selling_price, purchase_price, quantity_on_hand").eq("is_active", true).order("name"),
+      supabase.from("products").select(PRODUCT_SELECT_FIELDS).eq("is_active", true).order("name"),
     ]);
     setCustomers(custRes.data || []);
     setProducts(prodRes.data || []);
@@ -96,7 +98,7 @@ export default function SalesReturnForm() {
       const item = { ...updated[index], [field]: value };
       if (field === "product_id") {
         const prod = products.find(p => p.id === value);
-        if (prod) { item.product_name = prod.name; item.unit_price = prod.selling_price; item.cost_price = prod.purchase_price; }
+        if (prod) { item.product_name = formatProductName(prod); item.unit_price = prod.selling_price; item.cost_price = prod.purchase_price; }
       }
       item.total = (item.quantity * item.unit_price) - item.discount;
       updated[index] = item;
@@ -329,7 +331,7 @@ export default function SalesReturnForm() {
                 <TableRow key={i}>
                   <TableCell>
                     {isEditable ? (
-                      <LookupCombobox items={products.map(p => ({ id: p.id, name: `${p.code} - ${p.name}` }))} value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)} placeholder="اختر المنتج" />
+                      <LookupCombobox items={productsToLookupItems(products)} value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)} placeholder="اختر المنتج" />
                     ) : <span className="font-medium">{item.product_name}</span>}
                   </TableCell>
                   <TableCell>{isEditable ? <Input type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", +e.target.value)} className="font-mono" /> : <span className="font-mono">{item.quantity}</span>}</TableCell>

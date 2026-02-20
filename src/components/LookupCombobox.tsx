@@ -16,12 +16,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-interface LookupItem {
+export interface LookupItem {
   id: string;
   name: string;
+  /** Extra keywords for search (won't show in display) */
+  searchKeywords?: string;
 }
 
-interface LookupComboboxProps {
+export interface LookupComboboxProps {
   items: LookupItem[];
   value: string;
   onValueChange: (value: string) => void;
@@ -52,7 +54,7 @@ export function LookupCombobox({
           <ChevronsUpDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[280px] p-0 pointer-events-auto" align="start">
+      <PopoverContent className="w-[320px] p-0 pointer-events-auto" align="start">
         <Command dir="rtl">
           <CommandInput placeholder="ابحث..." className="h-9" />
           <CommandList>
@@ -61,7 +63,7 @@ export function LookupCombobox({
               {items.map((item) => (
                 <CommandItem
                   key={item.id}
-                  value={item.name}
+                  value={item.searchKeywords ? `${item.name} ${item.searchKeywords}` : item.name}
                   onSelect={() => {
                     onValueChange(item.id);
                     setOpen(false);
