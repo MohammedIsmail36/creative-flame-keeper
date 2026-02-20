@@ -12,6 +12,7 @@ import {
   Settings,
   UserCog,
   RotateCcw,
+  ClipboardCheck,
   CreditCard,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -65,6 +66,7 @@ const purchaseItems: MenuItem[] = [
 
 const inventoryItems: MenuItem[] = [
   { title: "المنتجات", url: "/products", icon: Package, roles: ["admin", "accountant", "sales"] },
+  { title: "تسوية المخزون", url: "/inventory-adjustments", icon: ClipboardCheck, roles: ["admin", "accountant"] },
   { title: "التصنيفات", url: "/inventory/categories", icon: Package, roles: ["admin", "accountant"] },
   { title: "وحدات القياس", url: "/inventory/units", icon: Package, roles: ["admin", "accountant"] },
   { title: "الماركات", url: "/inventory/brands", icon: Package, roles: ["admin", "accountant"] },

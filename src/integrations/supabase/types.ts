@@ -311,6 +311,104 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_adjustment_items: {
+        Row: {
+          actual_quantity: number
+          adjustment_id: string
+          created_at: string
+          difference: number
+          id: string
+          notes: string | null
+          product_id: string
+          system_quantity: number
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          actual_quantity?: number
+          adjustment_id: string
+          created_at?: string
+          difference?: number
+          id?: string
+          notes?: string | null
+          product_id: string
+          system_quantity?: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Update: {
+          actual_quantity?: number
+          adjustment_id?: string
+          created_at?: string
+          difference?: number
+          id?: string
+          notes?: string | null
+          product_id?: string
+          system_quantity?: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_adjustment_items_adjustment_id_fkey"
+            columns: ["adjustment_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_adjustments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_adjustment_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_adjustments: {
+        Row: {
+          adjustment_date: string
+          adjustment_number: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          journal_entry_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          adjustment_date?: string
+          adjustment_number?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          adjustment_date?: string
+          adjustment_number?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_adjustments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_movements: {
         Row: {
           created_at: string
