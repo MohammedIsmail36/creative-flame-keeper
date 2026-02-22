@@ -164,11 +164,15 @@ export default function SalesReturnForm() {
         return;
       }
 
+      // Use average purchase price for accurate cost reversal
       let totalCost = 0;
+      const itemAvgCosts: Record<string, number> = {};
       for (const item of items) {
         if (!item.product_id) continue;
-        const { data: prod } = await supabase.from("products").select("purchase_price").eq("id", item.product_id).single();
-        if (prod) totalCost += prod.purchase_price * item.quantity;
+        const { data: avgPrice } = await supabase.rpc("get_avg_purchase_price", { _product_id: item.product_id });
+        const avgCost = Number(avgPrice) || 0;
+        itemAvgCosts[item.product_id] = avgCost;
+        totalCost += avgCost * item.quantity;
       }
 
       const totalDebit = grandTotal + totalCost;
@@ -194,20 +198,22 @@ export default function SalesReturnForm() {
 
       for (const item of items) {
         if (!item.product_id) continue;
+        const avgCost = itemAvgCosts[item.product_id] || 0;
         const { data: prod } = await supabase.from("products").select("quantity_on_hand").eq("id", item.product_id).single();
         if (prod) {
           await supabase.from("products").update({ quantity_on_hand: prod.quantity_on_hand + item.quantity } as any).eq("id", item.product_id);
         }
         await (supabase.from("inventory_movements" as any) as any).insert({
           product_id: item.product_id, movement_type: "sale_return",
-          quantity: item.quantity, unit_cost: item.unit_price, total_cost: item.total,
+          quantity: item.quantity, unit_cost: avgCost, total_cost: avgCost * item.quantity,
           reference_id: id, reference_type: "sales_return", movement_date: returnDate,
         });
       }
 
-      const cust = customers.find(c => c.id === customerId);
-      if (cust) {
-        await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) - grandTotal }).eq("id", customerId);
+      // Fetch fresh customer balance from DB
+      const { data: freshCust } = await (supabase.from("customers" as any) as any).select("balance").eq("id", customerId).single();
+      if (freshCust) {
+        await (supabase.from("customers" as any) as any).update({ balance: (freshCust.balance || 0) - grandTotal }).eq("id", customerId);
       }
 
       toast({ title: "تم الترحيل", description: "تم ترحيل مرتجع البيع" });

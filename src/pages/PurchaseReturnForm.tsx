@@ -187,9 +187,10 @@ export default function PurchaseReturnForm() {
         });
       }
 
-      const sup = suppliers.find(s => s.id === supplierId);
-      if (sup) {
-        await (supabase.from("suppliers" as any) as any).update({ balance: (sup.balance || 0) - grandTotal }).eq("id", supplierId);
+      // Fetch fresh supplier balance from DB
+      const { data: freshSup } = await (supabase.from("suppliers" as any) as any).select("balance").eq("id", supplierId).single();
+      if (freshSup) {
+        await (supabase.from("suppliers" as any) as any).update({ balance: (freshSup.balance || 0) - grandTotal }).eq("id", supplierId);
       }
 
       toast({ title: "تم الترحيل", description: "تم ترحيل مرتجع الشراء" });
