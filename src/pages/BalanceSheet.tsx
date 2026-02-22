@@ -36,7 +36,7 @@ export default function BalanceSheet() {
     setLoading(true);
     const [accountsRes, linesRes] = await Promise.all([
       supabase.from("accounts").select("id, code, name, account_type").eq("is_active", true).eq("is_parent", false).order("code"),
-      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entries!inner(entry_date, status)").eq("journal_entries.status", "posted"),
+      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entries!inner(entry_date, status)").in("journal_entries.status", ["posted", "approved"]),
     ]);
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
     if (linesRes.data) setLines(linesRes.data);

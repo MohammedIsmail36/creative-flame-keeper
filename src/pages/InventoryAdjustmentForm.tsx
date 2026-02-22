@@ -249,7 +249,7 @@ export default function InventoryAdjustmentForm() {
           .insert({
             entry_date: adjustmentDate,
             description: `تسوية مخزون - جرد رقم ADJ-${adjustmentNumber}`,
-            status: "approved",
+            status: "posted",
             total_debit: totalDebit,
             total_credit: totalCredit,
             created_by: user?.id,

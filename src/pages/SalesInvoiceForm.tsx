@@ -176,18 +176,23 @@ export default function SalesInvoiceForm() {
         return;
       }
 
-      // Check stock & calculate COGS
+      // Check stock & calculate COGS using average purchase price
       let totalCost = 0;
+      const itemAvgCosts: Record<string, number> = {};
       for (const item of items) {
         if (!item.product_id) continue;
-        const { data: prod } = await supabase.from("products").select("purchase_price, quantity_on_hand").eq("id", item.product_id).single();
+        const { data: prod } = await supabase.from("products").select("quantity_on_hand").eq("id", item.product_id).single();
         if (prod) {
           if (prod.quantity_on_hand < item.quantity) {
             toast({ title: "تنبيه", description: `الكمية المطلوبة من ${item.product_name} أكبر من المتاح (${prod.quantity_on_hand})`, variant: "destructive" });
             return;
           }
-          totalCost += prod.purchase_price * item.quantity;
         }
+        // Use average purchase price for accurate COGS
+        const { data: avgPrice } = await supabase.rpc("get_avg_purchase_price", { _product_id: item.product_id });
+        const avgCost = Number(avgPrice) || 0;
+        itemAvgCosts[item.product_id] = avgCost;
+        totalCost += avgCost * item.quantity;
       }
 
       const totalDebit = grandTotal + totalCost;
@@ -211,24 +216,25 @@ export default function SalesInvoiceForm() {
 
       await (supabase.from("sales_invoices" as any) as any).update({ status: "posted", journal_entry_id: je.id }).eq("id", id);
 
-      // Update stock & record inventory movements
+      // Update stock & record inventory movements with correct cost
       for (const item of items) {
         if (!item.product_id) continue;
-        const { data: prod } = await supabase.from("products").select("quantity_on_hand, purchase_price").eq("id", item.product_id).single();
+        const avgCost = itemAvgCosts[item.product_id] || 0;
+        const { data: prod } = await supabase.from("products").select("quantity_on_hand").eq("id", item.product_id).single();
         if (prod) {
           await supabase.from("products").update({ quantity_on_hand: prod.quantity_on_hand - item.quantity } as any).eq("id", item.product_id);
           await (supabase.from("inventory_movements" as any) as any).insert({
             product_id: item.product_id, movement_type: "sale",
-            quantity: item.quantity, unit_cost: item.unit_price, total_cost: item.total,
+            quantity: item.quantity, unit_cost: avgCost, total_cost: avgCost * item.quantity,
             reference_id: id, reference_type: "sales_invoice", movement_date: invoiceDate,
           });
         }
       }
 
-      // Update customer balance
-      const cust = customers.find(c => c.id === customerId);
-      if (cust) {
-        await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) + grandTotal }).eq("id", customerId);
+      // Update customer balance - fetch fresh from DB to avoid stale data
+      const { data: freshCust } = await (supabase.from("customers" as any) as any).select("balance").eq("id", customerId).single();
+      if (freshCust) {
+        await (supabase.from("customers" as any) as any).update({ balance: (freshCust.balance || 0) + grandTotal }).eq("id", customerId);
       }
 
       toast({ title: "تم الترحيل", description: "تم ترحيل فاتورة البيع وتوليد القيد المحاسبي وتحديث المخزون" });
@@ -264,9 +270,10 @@ export default function SalesInvoiceForm() {
         await (supabase.from("inventory_movements" as any) as any).delete().eq("reference_id", id).eq("product_id", item.product_id);
       }
 
-      const cust = customers.find(c => c.id === customerId);
-      if (cust) {
-        await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) - grandTotal }).eq("id", customerId);
+      // Fetch fresh customer balance from DB to avoid stale data
+      const { data: freshCust } = await (supabase.from("customers" as any) as any).select("balance").eq("id", customerId).single();
+      if (freshCust) {
+        await (supabase.from("customers" as any) as any).update({ balance: (freshCust.balance || 0) - grandTotal }).eq("id", customerId);
       }
 
       if (inv?.journal_entry_id) {
