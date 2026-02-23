@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Users, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, X, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -24,6 +25,7 @@ interface Customer {
 export default function Customers() {
   const { role } = useAuth();
   const { settings } = useSettings();
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -144,6 +146,7 @@ export default function Customers() {
       enableHiding: false,
       cell: ({ row }: any) => (
         <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" title="كشف حساب" onClick={() => navigate(`/customer-statement/${row.original.id}`)}><FileText className="h-4 w-4 text-primary" /></Button>
           <Button variant="ghost" size="icon" onClick={() => openEdit(row.original)}><Pencil className="h-4 w-4" /></Button>
           <Button variant="ghost" size="icon" onClick={() => handleDelete(row.original)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
         </div>
