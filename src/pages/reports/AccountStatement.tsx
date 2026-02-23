@@ -30,20 +30,26 @@ interface StatementLine {
   runningBalance: number;
 }
 
-export default function AccountStatement() {
+interface AccountStatementProps {
+  defaultEntityType?: EntityType;
+  defaultEntityId?: string;
+}
+
+export default function AccountStatement({ defaultEntityType, defaultEntityId }: AccountStatementProps = {}) {
   const { formatCurrency, settings } = useSettings();
-  const [entityType, setEntityType] = useState<EntityType>("customer");
+  const [entityType, setEntityType] = useState<EntityType>(defaultEntityType || "customer");
   const [entities, setEntities] = useState<Entity[]>([]);
-  const [selectedEntity, setSelectedEntity] = useState("");
+  const [selectedEntity, setSelectedEntity] = useState(defaultEntityId || "");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [lines, setLines] = useState<StatementLine[]>([]);
   const [loading, setLoading] = useState(false);
   const [entityName, setEntityName] = useState("");
+  const [autoLoaded, setAutoLoaded] = useState(false);
 
   // Load entities list
   useEffect(() => {
-    const fetch = async () => {
+    const fetchEntities = async () => {
       const table = entityType === "customer" ? "customers" : "suppliers";
       const { data } = await supabase
         .from(table)
@@ -51,11 +57,21 @@ export default function AccountStatement() {
         .eq("is_active", true)
         .order("code");
       setEntities((data || []) as Entity[]);
-      setSelectedEntity("");
-      setLines([]);
+      if (!defaultEntityId) {
+        setSelectedEntity("");
+        setLines([]);
+      }
     };
-    fetch();
+    fetchEntities();
   }, [entityType]);
+
+  // Auto-load statement when entity is pre-selected
+  useEffect(() => {
+    if (defaultEntityId && entities.length > 0 && !autoLoaded) {
+      setSelectedEntity(defaultEntityId);
+      setAutoLoaded(true);
+    }
+  }, [defaultEntityId, entities, autoLoaded]);
 
   const fetchStatement = async () => {
     if (!selectedEntity) return;

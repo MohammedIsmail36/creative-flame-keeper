@@ -39,6 +39,8 @@ import SettingsPage from "./pages/SettingsPage";
 import UserManagement from "./pages/UserManagement";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
+import CustomerStatement from "./pages/CustomerStatement";
+import SupplierStatement from "./pages/SupplierStatement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +67,7 @@ const App = () => (
             <Route path="/sales-returns/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesReturnForm /></AppLayout></ProtectedRoute>} />
             <Route path="/customer-payments" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><CustomerPayments /></AppLayout></ProtectedRoute>} />
             <Route path="/customers" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Customers /></AppLayout></ProtectedRoute>} />
+            <Route path="/customer-statement/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><CustomerStatement /></AppLayout></ProtectedRoute>} />
             <Route path="/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Purchases /></AppLayout></ProtectedRoute>} />
             <Route path="/purchases/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseInvoiceForm /></AppLayout></ProtectedRoute>} />
             <Route path="/purchases/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseInvoiceForm /></AppLayout></ProtectedRoute>} />
@@ -73,6 +76,7 @@ const App = () => (
             <Route path="/purchase-returns/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseReturnForm /></AppLayout></ProtectedRoute>} />
             <Route path="/supplier-payments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><SupplierPayments /></AppLayout></ProtectedRoute>} />
             <Route path="/suppliers" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Suppliers /></AppLayout></ProtectedRoute>} />
+            <Route path="/supplier-statement/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><SupplierStatement /></AppLayout></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Products /></AppLayout></ProtectedRoute>} />
             <Route path="/products/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ProductForm /></AppLayout></ProtectedRoute>} />
             <Route path="/products/import" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ProductImport /></AppLayout></ProtectedRoute>} />
