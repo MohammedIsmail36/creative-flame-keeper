@@ -344,46 +344,204 @@ describe("Integration: Complete Sales Cycle", () => {
   });
 });
 
-describe("Integration: Inventory Adjustment Cycle", () => {
-  it("Deficit adjustment creates correct journal, movements & balances", () => {
-    const movements: InventoryMovement[] = [
-      { productCode: "P001", type: "purchase", quantity: 100, unitCost: 50, totalCost: 5000 },
-    ];
-    const avgCost = getAvgPurchasePrice(movements); // 50
-    
-    const systemQty = 100;
-    const actualQty = 95;
-    const deficit = systemQty - actualQty; // 5
-    const deficitCost = deficit * avgCost; // 250
+describe("Integration: Inventory Adjustment Full Cycle (Deficit + Surplus → Trial Balance → Income Statement)", () => {
+  const accounts: Account[] = [
+    { code: "1104", name: "المخزون", type: "asset" },
+    { code: "4101", name: "إيرادات المبيعات", type: "revenue" },
+    { code: "4201", name: "فائض مخزون", type: "revenue" },
+    { code: "5101", name: "تكلفة البضاعة المباعة", type: "expense" },
+    { code: "5201", name: "عجز مخزون", type: "expense" },
+    { code: "1103", name: "العملاء", type: "asset" },
+    { code: "2101", name: "الموردون", type: "liability" },
+  ];
 
-    // Journal: Dr Inventory Loss 250, Cr Inventory 250
+  const entries: JournalEntry[] = [];
+  const movements: InventoryMovement[] = [];
+  let entryId = 200;
+  let productQty = 0;
+
+  // ── Step 1: Initial purchase 100 units @ 60 ──
+  it("Step 1: Purchase creates initial inventory", () => {
+    const qty = 100, unitPrice = 60, total = qty * unitPrice;
+    const lines: JournalLine[] = [
+      { accountCode: "1104", debit: total, credit: 0, description: "المخزون" },
+      { accountCode: "2101", debit: 0, credit: total, description: "الموردون" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+    entries.push({ id: ++entryId, description: "فاتورة شراء", status: "posted", lines });
+    movements.push({ productCode: "P003", type: "purchase", quantity: qty, unitCost: unitPrice, totalCost: total });
+    productQty = qty;
+    expect(productQty).toBe(100);
+  });
+
+  // ── Step 2: Sell 20 units @ 120 ──
+  it("Step 2: Sales invoice reduces inventory", () => {
+    const qty = 20, sellingPrice = 120;
+    const revenue = qty * sellingPrice; // 2400
+    const avgCost = getAvgPurchasePrice(movements); // 60
+    const cogs = avgCost * qty; // 1200
+
+    const lines: JournalLine[] = [
+      { accountCode: "1103", debit: revenue, credit: 0, description: "العملاء" },
+      { accountCode: "4101", debit: 0, credit: revenue, description: "إيرادات" },
+      { accountCode: "5101", debit: cogs, credit: 0, description: "تكلفة بضاعة" },
+      { accountCode: "1104", debit: 0, credit: cogs, description: "المخزون" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+    entries.push({ id: ++entryId, description: "فاتورة بيع", status: "posted", lines });
+    movements.push({ productCode: "P003", type: "sale", quantity: qty, unitCost: avgCost, totalCost: cogs });
+    productQty -= qty;
+    expect(productQty).toBe(80);
+  });
+
+  // ── Step 3: Inventory adjustment - deficit 5 units ──
+  it("Step 3: Deficit adjustment (system 80, actual 75) creates expense entry", () => {
+    const systemQty = 80;
+    const actualQty = 75;
+    const deficit = systemQty - actualQty; // 5
+    const avgCost = getAvgPurchasePrice(movements); // 60
+    const deficitCost = deficit * avgCost; // 300
+
     const lines: JournalLine[] = [
       { accountCode: "5201", debit: deficitCost, credit: 0, description: "عجز مخزون" },
       { accountCode: "1104", debit: 0, credit: deficitCost, description: "المخزون" },
     ];
     expect(validateJournalEntry(lines)).toBe(true);
+    entries.push({ id: ++entryId, description: "تسوية مخزون - عجز", status: "posted", lines });
+    movements.push({ productCode: "P003", type: "adjustment", quantity: -deficit, unitCost: avgCost, totalCost: deficitCost });
+    productQty -= deficit;
 
-    // Inventory balance after: 5000 - 250 = 4750
-    const inventoryValue = 5000 - deficitCost;
-    expect(inventoryValue).toBe(4750);
-
-    // Quantity after: 100 - 5 = 95
-    expect(actualQty).toBe(95);
+    expect(productQty).toBe(75);
+    expect(deficitCost).toBe(300);
   });
 
-  it("Surplus adjustment creates correct journal & movements", () => {
-    const avgCost = 50;
-    const systemQty = 100;
-    const actualQty = 103;
-    const surplus = actualQty - systemQty; // 3
-    const surplusCost = surplus * avgCost; // 150
+  // ── Step 4: Inventory adjustment - surplus 8 units (different product scenario) ──
+  it("Step 4: Surplus adjustment (system 75, actual 83) creates revenue entry", () => {
+    const systemQty = 75;
+    const actualQty = 83;
+    const surplus = actualQty - systemQty; // 8
+    const avgCost = getAvgPurchasePrice(movements); // 60
+    const surplusCost = surplus * avgCost; // 480
 
     const lines: JournalLine[] = [
       { accountCode: "1104", debit: surplusCost, credit: 0, description: "المخزون" },
       { accountCode: "4201", debit: 0, credit: surplusCost, description: "فائض مخزون" },
     ];
     expect(validateJournalEntry(lines)).toBe(true);
-    expect(surplusCost).toBe(150);
+    entries.push({ id: ++entryId, description: "تسوية مخزون - فائض", status: "posted", lines });
+    movements.push({ productCode: "P003", type: "adjustment", quantity: surplus, unitCost: avgCost, totalCost: surplusCost });
+    productQty += surplus;
+
+    expect(productQty).toBe(83);
+    expect(surplusCost).toBe(480);
+  });
+
+  // ── Step 5: All entries balanced ──
+  it("Step 5: Every journal entry is balanced", () => {
+    for (const entry of entries) {
+      const totalDebit = entry.lines.reduce((s, l) => s + l.debit, 0);
+      const totalCredit = entry.lines.reduce((s, l) => s + l.credit, 0);
+      expect(Math.abs(totalDebit - totalCredit)).toBeLessThan(0.01);
+    }
+  });
+
+  // ── Step 6: Trial balance ──
+  it("Step 6: Trial balance debits = credits (adjustments included)", () => {
+    const tb = getTrialBalance(entries, accounts);
+    const totalDebit = tb.reduce((s, a) => s + a.debit, 0);
+    const totalCredit = tb.reduce((s, a) => s + a.credit, 0);
+    expect(Math.abs(totalDebit - totalCredit)).toBeLessThan(0.01);
+  });
+
+  // ── Step 7: Deficit appears in trial balance ──
+  it("Step 7: Deficit account (5201) appears in trial balance with correct amount", () => {
+    const deficitBal = getAccountBalance(entries, "5201");
+    expect(deficitBal.debit).toBe(300);
+    expect(deficitBal.credit).toBe(0);
+    expect(deficitBal.net).toBe(300);
+  });
+
+  // ── Step 8: Surplus appears in trial balance ──
+  it("Step 8: Surplus account (4201) appears in trial balance with correct amount", () => {
+    const surplusBal = getAccountBalance(entries, "4201");
+    expect(surplusBal.credit).toBe(480);
+    expect(surplusBal.debit).toBe(0);
+    expect(surplusBal.net).toBe(-480); // credit nature
+  });
+
+  // ── Step 9: Income statement includes adjustments ──
+  it("Step 9: Income statement includes deficit as expense & surplus as revenue", () => {
+    // Revenue accounts (credit nature)
+    const salesRevenue = getAccountBalance(entries, "4101");
+    const netSalesRevenue = salesRevenue.credit - salesRevenue.debit; // 2400
+
+    const surplusRevenue = getAccountBalance(entries, "4201");
+    const netSurplusRevenue = surplusRevenue.credit - surplusRevenue.debit; // 480
+
+    const totalRevenue = netSalesRevenue + netSurplusRevenue; // 2880
+
+    // Expense accounts (debit nature)
+    const cogs = getAccountBalance(entries, "5101");
+    const netCOGS = cogs.debit - cogs.credit; // 1200
+
+    const deficit = getAccountBalance(entries, "5201");
+    const netDeficit = deficit.debit - deficit.credit; // 300
+
+    const totalExpenses = netCOGS + netDeficit; // 1500
+
+    // Net profit = 2880 - 1500 = 1380
+    const netProfit = totalRevenue - totalExpenses;
+
+    expect(netSalesRevenue).toBe(2400);
+    expect(netSurplusRevenue).toBe(480);
+    expect(totalRevenue).toBe(2880);
+    expect(netCOGS).toBe(1200);
+    expect(netDeficit).toBe(300);
+    expect(totalExpenses).toBe(1500);
+    expect(netProfit).toBe(1380);
+  });
+
+  // ── Step 10: Balance sheet equation ──
+  it("Step 10: Balance sheet: Assets = Liabilities + Profit (with adjustments)", () => {
+    // Assets
+    const inventory = getAccountBalance(entries, "1104").net;
+    // 6000 (purchase) - 1200 (COGS) - 300 (deficit) + 480 (surplus) = 4980
+    const customers = getAccountBalance(entries, "1103").net; // 2400
+
+    const totalAssets = inventory + customers;
+
+    // Liabilities
+    const suppliers = -(getAccountBalance(entries, "2101").net); // 6000
+
+    // Profit (from income statement)
+    const revenue = (getAccountBalance(entries, "4101").credit - getAccountBalance(entries, "4101").debit)
+                   + (getAccountBalance(entries, "4201").credit - getAccountBalance(entries, "4201").debit);
+    const expenses = (getAccountBalance(entries, "5101").debit - getAccountBalance(entries, "5101").credit)
+                   + (getAccountBalance(entries, "5201").debit - getAccountBalance(entries, "5201").credit);
+    const netProfit = revenue - expenses;
+
+    // Assets = Liabilities + Profit
+    expect(totalAssets).toBeCloseTo(suppliers + netProfit, 2);
+    expect(inventory).toBe(4980);
+    expect(totalAssets).toBe(7380);
+    expect(suppliers).toBe(6000);
+    expect(netProfit).toBe(1380);
+  });
+
+  // ── Step 11: Inventory quantity reconciliation ──
+  it("Step 11: Inventory quantity matches sum of all movements", () => {
+    let calculatedQty = 0;
+    for (const m of movements) {
+      if (m.type === "purchase" || m.type === "opening_balance") {
+        calculatedQty += m.quantity;
+      } else if (m.type === "sale") {
+        calculatedQty -= m.quantity;
+      } else if (m.type === "adjustment") {
+        calculatedQty += m.quantity; // positive for surplus, negative for deficit
+      }
+    }
+    expect(calculatedQty).toBe(productQty);
+    expect(calculatedQty).toBe(83);
   });
 });
 
