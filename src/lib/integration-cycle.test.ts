@@ -407,32 +407,165 @@ describe("Integration: Multi-Customer Payment Allocation", () => {
   });
 });
 
-describe("Integration: Purchase Return Cycle", () => {
-  it("Purchase return reverses inventory and supplier balance correctly", () => {
-    // Initial: purchased 50 @ 80 = 4000
-    let productQty = 50;
-    let supplierBalance = 4000;
-    let inventoryValue = 4000;
+describe("Integration: Complete Purchase Cycle (Invoice → Return → Payment → Statement)", () => {
+  const entries: JournalEntry[] = [];
+  const movements: InventoryMovement[] = [];
+  let entryId = 100;
+  let productQty = 0;
+  let supplierBalance = 0;
 
-    // Return 10 units @ 80
+  // ── Step 1: Purchase 50 units @ 80 = 4,000 ──
+  it("Step 1: Purchase invoice creates inventory & supplier liability", () => {
+    const qty = 50, unitPrice = 80, total = qty * unitPrice;
+    const lines: JournalLine[] = [
+      { accountCode: "1104", debit: total, credit: 0, description: "المخزون" },
+      { accountCode: "2101", debit: 0, credit: total, description: "الموردون" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+    entries.push({ id: ++entryId, description: "فاتورة شراء #10", status: "posted", lines });
+    movements.push({ productCode: "P002", type: "purchase", quantity: qty, unitCost: unitPrice, totalCost: total });
+    productQty += qty;
+    supplierBalance += total;
+    expect(productQty).toBe(50);
+    expect(supplierBalance).toBe(4000);
+  });
+
+  // ── Step 2: Second purchase 30 units @ 100 = 3,000 ──
+  it("Step 2: Second purchase updates avg cost", () => {
+    const qty = 30, unitPrice = 100, total = qty * unitPrice;
+    const lines: JournalLine[] = [
+      { accountCode: "1104", debit: total, credit: 0, description: "المخزون" },
+      { accountCode: "2101", debit: 0, credit: total, description: "الموردون" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+    entries.push({ id: ++entryId, description: "فاتورة شراء #11", status: "posted", lines });
+    movements.push({ productCode: "P002", type: "purchase", quantity: qty, unitCost: unitPrice, totalCost: total });
+    productQty += qty;
+    supplierBalance += total;
+
+    // Avg = (4000 + 3000) / (50 + 30) = 7000 / 80 = 87.5
+    const avgCost = getAvgPurchasePrice(movements);
+    expect(avgCost).toBe(87.5);
+    expect(productQty).toBe(80);
+    expect(supplierBalance).toBe(7000);
+  });
+
+  // ── Step 3: Purchase return 10 units at avg cost ──
+  it("Step 3: Purchase return reduces inventory & supplier balance at avg cost", () => {
     const returnQty = 10;
-    const returnUnitCost = 80;
-    const returnTotal = returnQty * returnUnitCost; // 800
+    const avgCost = getAvgPurchasePrice(movements); // 87.5
+    const returnTotal = returnQty * avgCost; // 875
 
-    // Journal: Dr Supplier 800, Cr Inventory 800
     const lines: JournalLine[] = [
       { accountCode: "2101", debit: returnTotal, credit: 0, description: "مرتجع مشتريات" },
       { accountCode: "1104", debit: 0, credit: returnTotal, description: "المخزون" },
     ];
     expect(validateJournalEntry(lines)).toBe(true);
-
+    entries.push({ id: ++entryId, description: "مرتجع شراء #1", status: "posted", lines });
+    movements.push({ productCode: "P002", type: "purchase" as any, quantity: -returnQty, unitCost: avgCost, totalCost: -returnTotal });
     productQty -= returnQty;
     supplierBalance -= returnTotal;
-    inventoryValue -= returnTotal;
 
-    expect(productQty).toBe(40);
-    expect(supplierBalance).toBe(3200);
-    expect(inventoryValue).toBe(3200);
+    expect(productQty).toBe(70);
+    expect(supplierBalance).toBe(6125);
+  });
+
+  // ── Step 4: Supplier payment 3,000 ──
+  it("Step 4: Supplier payment reduces supplier balance", () => {
+    const paymentAmount = 3000;
+    const lines: JournalLine[] = [
+      { accountCode: "2101", debit: paymentAmount, credit: 0, description: "سند صرف" },
+      { accountCode: "1101", debit: 0, credit: paymentAmount, description: "الصندوق" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+    entries.push({ id: ++entryId, description: "سند صرف مورد #1", status: "posted", lines });
+    supplierBalance -= paymentAmount;
+    expect(supplierBalance).toBe(3125);
+  });
+
+  // ── Step 5: Second supplier payment 1,500 ──
+  it("Step 5: Second supplier payment", () => {
+    const paymentAmount = 1500;
+    const lines: JournalLine[] = [
+      { accountCode: "2101", debit: paymentAmount, credit: 0, description: "سند صرف" },
+      { accountCode: "1101", debit: 0, credit: paymentAmount, description: "الصندوق" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+    entries.push({ id: ++entryId, description: "سند صرف مورد #2", status: "posted", lines });
+    supplierBalance -= paymentAmount;
+    expect(supplierBalance).toBe(1625);
+  });
+
+  // ── Step 6: Supplier account statement ──
+  it("Step 6: Supplier account statement shows correct running balance", () => {
+    // Build statement for supplier account (2101) - credit nature
+    const statement = buildCustomerStatement(entries, "2101");
+
+    // Entries: purchase -4000, purchase -3000, return +875, payment +3000, payment +1500
+    expect(statement.length).toBe(5);
+
+    // Purchase 1: credit 4000, balance = -4000
+    expect(statement[0].credit).toBe(4000);
+    expect(statement[0].runningBalance).toBe(-4000);
+
+    // Purchase 2: credit 3000, balance = -7000
+    expect(statement[1].credit).toBe(3000);
+    expect(statement[1].runningBalance).toBe(-7000);
+
+    // Return: debit 875, balance = -6125
+    expect(statement[2].debit).toBe(875);
+    expect(statement[2].runningBalance).toBe(-6125);
+
+    // Payment 1: debit 3000, balance = -3125
+    expect(statement[3].debit).toBe(3000);
+    expect(statement[3].runningBalance).toBe(-3125);
+
+    // Payment 2: debit 1500, balance = -1625
+    expect(statement[4].debit).toBe(1500);
+    expect(statement[4].runningBalance).toBe(-1625);
+
+    // Final balance matches tracked balance (supplier balance is credit nature, so negate)
+    expect(Math.abs(statement[statement.length - 1].runningBalance)).toBe(supplierBalance);
+  });
+
+  // ── Step 7: All entries balanced ──
+  it("Step 7: Every journal entry in the purchase cycle is balanced", () => {
+    for (const entry of entries) {
+      const totalDebit = entry.lines.reduce((s, l) => s + l.debit, 0);
+      const totalCredit = entry.lines.reduce((s, l) => s + l.credit, 0);
+      expect(Math.abs(totalDebit - totalCredit)).toBeLessThan(0.01);
+    }
+  });
+
+  // ── Step 8: Trial balance for purchase cycle ──
+  it("Step 8: Trial balance debits = credits for purchase cycle", () => {
+    const accounts: Account[] = [
+      { code: "1101", name: "الصندوق", type: "asset" },
+      { code: "1104", name: "المخزون", type: "asset" },
+      { code: "2101", name: "الموردون", type: "liability" },
+    ];
+    const tb = getTrialBalance(entries, accounts);
+    const totalDebit = tb.reduce((s, a) => s + a.debit, 0);
+    const totalCredit = tb.reduce((s, a) => s + a.credit, 0);
+    expect(Math.abs(totalDebit - totalCredit)).toBeLessThan(0.01);
+  });
+
+  // ── Step 9: Inventory reconciliation ──
+  it("Step 9: Inventory quantity reconciles with movements", () => {
+    let calculatedQty = 0;
+    for (const m of movements) {
+      calculatedQty += m.quantity; // purchases positive, return negative
+    }
+    expect(calculatedQty).toBe(productQty);
+    expect(calculatedQty).toBe(70);
+  });
+
+  // ── Step 10: Inventory value reconciliation ──
+  it("Step 10: Inventory value matches journal entries", () => {
+    const inventoryBal = getAccountBalance(entries, "1104");
+    const inventoryValue = inventoryBal.net; // debit - credit
+    // Purchases: 4000 + 3000 = 7000, Return: -875, Net: 6125
+    expect(inventoryValue).toBe(6125);
   });
 });
 
