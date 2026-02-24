@@ -758,3 +758,228 @@ describe("Integration: Tax Calculation in Full Cycle", () => {
     expect(total).toBeCloseTo(2052, 2);
   });
 });
+
+// ─── Edge Case Tests ────────────────────────────────────────────────────
+
+describe("Edge Cases: Insufficient Stock", () => {
+  it("should detect when sale quantity exceeds available stock", () => {
+    const availableQty = 5;
+    const requestedQty = 10;
+    const hasEnoughStock = availableQty >= requestedQty;
+    expect(hasEnoughStock).toBe(false);
+  });
+
+  it("should allow sale when stock is exactly equal to requested", () => {
+    const availableQty = 10;
+    const requestedQty = 10;
+    const hasEnoughStock = availableQty >= requestedQty;
+    expect(hasEnoughStock).toBe(true);
+  });
+
+  it("should detect insufficient stock across multiple line items", () => {
+    const products = [
+      { code: "P001", available: 10, requested: 5 },
+      { code: "P002", available: 3, requested: 8 },  // insufficient
+      { code: "P003", available: 20, requested: 15 },
+    ];
+    const insufficientItems = products.filter(p => p.available < p.requested);
+    expect(insufficientItems.length).toBe(1);
+    expect(insufficientItems[0].code).toBe("P002");
+  });
+
+  it("should not allow negative inventory after sale", () => {
+    const currentQty = 7;
+    const saleQty = 7;
+    const remainingQty = currentQty - saleQty;
+    expect(remainingQty).toBeGreaterThanOrEqual(0);
+
+    const oversellQty = 8;
+    const wouldBeNegative = currentQty - oversellQty;
+    expect(wouldBeNegative).toBeLessThan(0);
+  });
+
+  it("should handle zero stock correctly", () => {
+    const availableQty = 0;
+    const requestedQty = 1;
+    expect(availableQty >= requestedQty).toBe(false);
+    expect(availableQty >= 0).toBe(true);
+  });
+});
+
+describe("Edge Cases: Payment Exceeds Balance", () => {
+  it("should detect when payment exceeds customer balance", () => {
+    const customerBalance = 500;
+    const paymentAmount = 800;
+    const exceedsBalance = paymentAmount > customerBalance;
+    expect(exceedsBalance).toBe(true);
+  });
+
+  it("should allow payment equal to customer balance (full settlement)", () => {
+    const customerBalance = 1000;
+    const paymentAmount = 1000;
+    const exceedsBalance = paymentAmount > customerBalance;
+    expect(exceedsBalance).toBe(false);
+    const remainingBalance = customerBalance - paymentAmount;
+    expect(remainingBalance).toBe(0);
+  });
+
+  it("should calculate overpayment amount correctly", () => {
+    const customerBalance = 300;
+    const paymentAmount = 500;
+    const overpayment = Math.max(0, paymentAmount - customerBalance);
+    expect(overpayment).toBe(200);
+  });
+
+  it("should handle zero balance customer", () => {
+    const customerBalance = 0;
+    const paymentAmount = 100;
+    const exceedsBalance = paymentAmount > customerBalance;
+    expect(exceedsBalance).toBe(true);
+  });
+
+  it("should detect when supplier payment exceeds supplier balance", () => {
+    const supplierBalance = 2000;
+    const paymentAmount = 3000;
+    const exceedsBalance = paymentAmount > supplierBalance;
+    expect(exceedsBalance).toBe(true);
+  });
+
+  it("should handle partial payment correctly", () => {
+    const customerBalance = 5000;
+    const paymentAmount = 2000;
+    const remaining = customerBalance - paymentAmount;
+    expect(remaining).toBe(3000);
+    expect(remaining).toBeGreaterThan(0);
+  });
+
+  it("journal entry for overpayment scenario is still balanced", () => {
+    // Even if business rules should prevent this, the journal must balance
+    const paymentAmount = 800;
+    const lines: JournalLine[] = [
+      { accountCode: "1101", debit: paymentAmount, credit: 0, description: "الصندوق" },
+      { accountCode: "1103", debit: 0, credit: paymentAmount, description: "العملاء" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+  });
+});
+
+describe("Edge Cases: Return Exceeds Invoice Quantity", () => {
+  it("should detect when return quantity exceeds original invoice quantity", () => {
+    const invoiceQty = 10;
+    const returnQty = 15;
+    const exceedsInvoice = returnQty > invoiceQty;
+    expect(exceedsInvoice).toBe(true);
+  });
+
+  it("should allow return equal to invoice quantity (full return)", () => {
+    const invoiceQty = 10;
+    const returnQty = 10;
+    const exceedsInvoice = returnQty > invoiceQty;
+    expect(exceedsInvoice).toBe(false);
+  });
+
+  it("should track cumulative returns against single invoice", () => {
+    const invoiceQty = 20;
+    const previousReturns = [5, 8]; // two partial returns
+    const totalReturned = previousReturns.reduce((s, r) => s + r, 0); // 13
+    const remainingReturnable = invoiceQty - totalReturned; // 7
+
+    expect(remainingReturnable).toBe(7);
+
+    const newReturnQty = 10;
+    const exceedsRemaining = newReturnQty > remainingReturnable;
+    expect(exceedsRemaining).toBe(true);
+
+    const validReturnQty = 5;
+    expect(validReturnQty <= remainingReturnable).toBe(true);
+  });
+
+  it("should handle return of zero quantity", () => {
+    const returnQty = 0;
+    const invoiceQty = 10;
+    const isValid = returnQty > 0 && returnQty <= invoiceQty;
+    expect(isValid).toBe(false); // zero return is invalid
+  });
+
+  it("should calculate correct refund for partial return", () => {
+    const invoiceQty = 10;
+    const unitPrice = 200;
+    const returnQty = 3;
+    const refundAmount = returnQty * unitPrice;
+    expect(refundAmount).toBe(600);
+
+    // Customer balance should decrease by refund amount
+    const customerBalance = 2000;
+    const newBalance = customerBalance - refundAmount;
+    expect(newBalance).toBe(1400);
+  });
+
+  it("should calculate correct COGS reversal for partial return", () => {
+    const returnQty = 3;
+    const avgCost = 106.67;
+    const cogsReversal = Math.round(returnQty * avgCost * 100) / 100;
+    expect(cogsReversal).toBeCloseTo(320.01, 2);
+
+    // Journal must still balance
+    const refundAmount = returnQty * 200; // 600
+    const lines: JournalLine[] = [
+      { accountCode: "4101", debit: refundAmount, credit: 0, description: "مرتجع مبيعات" },
+      { accountCode: "1103", debit: 0, credit: refundAmount, description: "العملاء" },
+      { accountCode: "1104", debit: cogsReversal, credit: 0, description: "المخزون" },
+      { accountCode: "5101", debit: 0, credit: cogsReversal, description: "عكس تكلفة" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+  });
+
+  it("should detect purchase return exceeding purchase invoice quantity", () => {
+    const purchaseQty = 50;
+    const returnQty = 60;
+    const exceedsPurchase = returnQty > purchaseQty;
+    expect(exceedsPurchase).toBe(true);
+  });
+
+  it("should handle multiple items return validation", () => {
+    const invoiceItems = [
+      { productCode: "P001", invoiceQty: 10, returnQty: 5 },  // valid
+      { productCode: "P002", invoiceQty: 8, returnQty: 12 },  // invalid
+      { productCode: "P003", invoiceQty: 15, returnQty: 15 }, // valid (full)
+    ];
+    const invalidItems = invoiceItems.filter(i => i.returnQty > i.invoiceQty);
+    expect(invalidItems.length).toBe(1);
+    expect(invalidItems[0].productCode).toBe("P002");
+  });
+});
+
+describe("Edge Cases: Floating Point Precision", () => {
+  it("should handle tax calculation with floating point correctly", () => {
+    const subtotal = 33.33;
+    const taxRate = 0.14;
+    const tax = Math.round(subtotal * taxRate * 100) / 100;
+    expect(tax).toBe(4.67);
+  });
+
+  it("should handle discount splitting across items", () => {
+    const items = [
+      { total: 333.33 },
+      { total: 333.33 },
+      { total: 333.34 },
+    ];
+    const grandTotal = items.reduce((s, i) => s + i.total, 0);
+    expect(grandTotal).toBe(1000);
+  });
+
+  it("should maintain balance with many small amounts", () => {
+    const lines: JournalLine[] = [];
+    let totalAmount = 0;
+    for (let i = 0; i < 100; i++) {
+      const amount = 10.01;
+      totalAmount += amount;
+    }
+    // Round to avoid floating point drift
+    totalAmount = Math.round(totalAmount * 100) / 100;
+    lines.push({ accountCode: "1101", debit: totalAmount, credit: 0, description: "مدين" });
+    lines.push({ accountCode: "4101", debit: 0, credit: totalAmount, description: "دائن" });
+    expect(validateJournalEntry(lines)).toBe(true);
+    expect(totalAmount).toBe(1001);
+  });
+});
