@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, FilterFn } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Package, Plus, Pencil, Trash2, AlertTriangle, Archive, DollarSign, Eye, Upload } from "lucide-react";
+import { Package, Plus, Pencil, Trash2, AlertTriangle, Archive, DollarSign, Eye, Upload, ChevronLeft } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -26,6 +26,81 @@ interface ProductRow {
   product_brands?: { name: string } | null;
 }
 
+interface CategoryNode {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  is_active: boolean;
+  children: CategoryNode[];
+}
+
+/** Build a tree from flat categories */
+function buildCategoryTree(flat: { id: string; name: string; parent_id: string | null; is_active: boolean }[]): CategoryNode[] {
+  const map = new Map<string, CategoryNode>();
+  flat.forEach(c => map.set(c.id, { ...c, children: [] }));
+  const roots: CategoryNode[] = [];
+  map.forEach(node => {
+    if (node.parent_id && map.has(node.parent_id)) {
+      map.get(node.parent_id)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  return roots;
+}
+
+/** Get all descendant IDs of a category (inclusive) */
+function getDescendantIds(tree: CategoryNode[], targetId: string): string[] {
+  const ids: string[] = [];
+  function collect(nodes: CategoryNode[]) {
+    for (const n of nodes) {
+      if (n.id === targetId) {
+        collectAll(n);
+        return true;
+      }
+      if (collect(n.children)) return true;
+    }
+    return false;
+  }
+  function collectAll(node: CategoryNode) {
+    ids.push(node.id);
+    node.children.forEach(collectAll);
+  }
+  collect(tree);
+  return ids;
+}
+
+/** Render tree options for select with indentation */
+function renderCategoryOptions(nodes: CategoryNode[], depth = 0): React.ReactNode[] {
+  const result: React.ReactNode[] = [];
+  for (const node of nodes) {
+    const prefix = depth > 0 ? "─ ".repeat(depth) : "";
+    result.push(
+      <SelectItem key={node.id} value={node.id}>
+        <span className="flex items-center gap-1">
+          {depth > 0 && <ChevronLeft className="h-3 w-3 text-muted-foreground inline" />}
+          {prefix}{node.name}
+        </span>
+      </SelectItem>
+    );
+    result.push(...renderCategoryOptions(node.children, depth + 1));
+  }
+  return result;
+}
+
+// Custom global filter that searches across name, code, barcode, brand, category, model_number
+const productGlobalFilter: FilterFn<ProductRow> = (row, _columnId, filterValue) => {
+  const search = (filterValue as string).toLowerCase();
+  const p = row.original;
+  const categoryName = (p as any).product_categories?.name || p.category || "";
+  const brandName = (p as any).product_brands?.name || "";
+  const fields = [
+    p.name, p.code, p.barcode, p.model_number,
+    categoryName, brandName,
+  ];
+  return fields.some(f => f && f.toLowerCase().includes(search));
+};
+
 export default function Products() {
   const { role } = useAuth();
   const navigate = useNavigate();
@@ -33,7 +108,7 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; parent_id: string | null; is_active: boolean }[]>([]);
   const { settings } = useSettings();
 
   const canEdit = role === "admin" || role === "accountant";
@@ -55,11 +130,13 @@ export default function Products() {
   };
 
   const fetchCategories = async () => {
-    const { data } = await (supabase.from("product_categories" as any) as any).select("id, name").eq("is_active", true).order("name");
+    const { data } = await (supabase.from("product_categories" as any) as any).select("id, name, parent_id, is_active").eq("is_active", true).order("name");
     setCategories(data || []);
   };
 
   useEffect(() => { fetchProducts(); fetchCategories(); }, []);
+
+  const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
 
   const stats = useMemo(() => {
     const total = products.length;
@@ -69,15 +146,21 @@ export default function Products() {
     return { total, lowStock, outOfStock, totalValue };
   }, [products]);
 
+  // Get descendant category IDs for hierarchical filtering
+  const matchingCategoryIds = useMemo(() => {
+    if (categoryFilter === "all") return null;
+    return getDescendantIds(categoryTree, categoryFilter);
+  }, [categoryFilter, categoryTree]);
+
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      const matchesCategory = categoryFilter === "all" || p.category_id === categoryFilter;
+      const matchesCategory = !matchingCategoryIds || (p.category_id && matchingCategoryIds.includes(p.category_id));
       const matchesStock = stockFilter === "all"
         || (stockFilter === "low" && p.quantity_on_hand > 0 && p.quantity_on_hand <= p.min_stock_level)
         || (stockFilter === "out" && p.quantity_on_hand <= 0);
       return matchesCategory && matchesStock;
     });
-  }, [products, categoryFilter, stockFilter]);
+  }, [products, matchingCategoryIds, stockFilter]);
 
   const handleDelete = async (product: ProductRow) => {
     const { error } = await supabase.from("products").update({ is_active: false }).eq("id", product.id);
@@ -259,17 +342,18 @@ export default function Products() {
       <DataTable
         columns={columns}
         data={filteredProducts}
-        searchPlaceholder="البحث بالاسم أو الكود أو الباركود..."
+        searchPlaceholder="البحث بالاسم، الكود، الباركود، الماركة، التصنيف، رقم الموديل..."
         isLoading={loading}
         emptyMessage="لا توجد منتجات"
         onRowClick={(p) => navigate(`/products/${p.id}`)}
+        globalFilterFn={productGlobalFilter}
         toolbarContent={
           <div className="flex gap-2 flex-wrap">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="التصنيف" /></SelectTrigger>
+              <SelectTrigger className="w-48"><SelectValue placeholder="التصنيف" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">كل التصنيفات</SelectItem>
-                {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                {renderCategoryOptions(categoryTree)}
               </SelectContent>
             </Select>
             <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as any)}>

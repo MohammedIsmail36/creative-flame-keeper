@@ -63,6 +63,8 @@ interface DataTableProps<TData, TValue> {
   /** Global search filter value (controlled externally) */
   globalFilter?: string;
   onGlobalFilterChange?: (value: string) => void;
+  /** Custom global filter function */
+  globalFilterFn?: import("@tanstack/react-table").FilterFn<TData>;
   /** Column-level filters (controlled externally) */
   columnFilters?: ColumnFiltersState;
   onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
@@ -122,6 +124,7 @@ export function DataTable<TData, TValue>({
   onRowClick,
   toolbarContent,
   toolbarStart,
+  globalFilterFn: customGlobalFilterFn,
 }: DataTableProps<TData, TValue>) {
   // Internal state (used when not controlled externally)
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -184,7 +187,7 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: handleColumnFiltersChange,
     onRowSelectionChange: handleRowSelectionChange,
     onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: "includesString",
+    globalFilterFn: customGlobalFilterFn ?? "includesString",
     getRowId,
     state: {
       sorting,
