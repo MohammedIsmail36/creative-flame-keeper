@@ -983,3 +983,312 @@ describe("Edge Cases: Floating Point Precision", () => {
     expect(totalAmount).toBe(1001);
   });
 });
+
+// ─── Integration: Payment Allocation to Multiple Invoices ───────────────
+
+describe("Integration: Customer Payment Allocation to Multiple Invoices", () => {
+  /**
+   * Tests the full payment reconciliation cycle:
+   * 1. Create 3 sales invoices for the same customer
+   * 2. Customer makes partial payment → allocate across invoices
+   * 3. Customer makes second payment → allocate remaining
+   * 4. Verify running balances, allocations, and trial balance
+   */
+
+  interface Allocation {
+    paymentId: number;
+    invoiceId: number;
+    allocatedAmount: number;
+  }
+
+  interface Invoice {
+    id: number;
+    total: number;
+    paidAmount: number;
+  }
+
+  const accounts: Account[] = [
+    { code: "1101", name: "الصندوق", type: "asset" },
+    { code: "1103", name: "العملاء", type: "asset" },
+    { code: "1104", name: "المخزون", type: "asset" },
+    { code: "2101", name: "الموردون", type: "liability" },
+    { code: "4101", name: "إيرادات المبيعات", type: "revenue" },
+    { code: "5101", name: "تكلفة البضاعة المباعة", type: "expense" },
+  ];
+
+  const entries: JournalEntry[] = [];
+  const allocations: Allocation[] = [];
+  const invoices: Invoice[] = [];
+  let entryId = 500;
+  let customerBalance = 0;
+  let paymentId = 0;
+
+  // Helper: calculate paid amount for an invoice from allocations
+  function getInvoicePaidAmount(invoiceId: number): number {
+    return allocations
+      .filter(a => a.invoiceId === invoiceId)
+      .reduce((s, a) => s + a.allocatedAmount, 0);
+  }
+
+  // Helper: calculate unallocated amount for a payment
+  function getPaymentUnallocated(pmtId: number, totalAmount: number): number {
+    const allocated = allocations
+      .filter(a => a.paymentId === pmtId)
+      .reduce((s, a) => s + a.allocatedAmount, 0);
+    return totalAmount - allocated;
+  }
+
+  // ── Step 1: Create Invoice #1 → 3,000 ──
+  it("Step 1: Sales invoice #1 (3,000) increases customer balance", () => {
+    const total = 3000;
+    const avgCost = 50; // simplified
+    const cogs = 8 * avgCost; // 8 units
+    const lines: JournalLine[] = [
+      { accountCode: "1103", debit: total, credit: 0, description: "العملاء" },
+      { accountCode: "4101", debit: 0, credit: total, description: "إيرادات" },
+      { accountCode: "5101", debit: cogs, credit: 0, description: "تكلفة بضاعة" },
+      { accountCode: "1104", debit: 0, credit: cogs, description: "المخزون" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+    entries.push({ id: ++entryId, description: "فاتورة بيع #1", status: "posted", lines });
+    invoices.push({ id: 1, total, paidAmount: 0 });
+    customerBalance += total;
+    expect(customerBalance).toBe(3000);
+  });
+
+  // ── Step 2: Create Invoice #2 → 2,000 ──
+  it("Step 2: Sales invoice #2 (2,000) increases customer balance", () => {
+    const total = 2000;
+    const cogs = 5 * 50;
+    const lines: JournalLine[] = [
+      { accountCode: "1103", debit: total, credit: 0, description: "العملاء" },
+      { accountCode: "4101", debit: 0, credit: total, description: "إيرادات" },
+      { accountCode: "5101", debit: cogs, credit: 0, description: "تكلفة بضاعة" },
+      { accountCode: "1104", debit: 0, credit: cogs, description: "المخزون" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+    entries.push({ id: ++entryId, description: "فاتورة بيع #2", status: "posted", lines });
+    invoices.push({ id: 2, total, paidAmount: 0 });
+    customerBalance += total;
+    expect(customerBalance).toBe(5000);
+  });
+
+  // ── Step 3: Create Invoice #3 → 1,500 ──
+  it("Step 3: Sales invoice #3 (1,500) increases customer balance", () => {
+    const total = 1500;
+    const cogs = 3 * 50;
+    const lines: JournalLine[] = [
+      { accountCode: "1103", debit: total, credit: 0, description: "العملاء" },
+      { accountCode: "4101", debit: 0, credit: total, description: "إيرادات" },
+      { accountCode: "5101", debit: cogs, credit: 0, description: "تكلفة بضاعة" },
+      { accountCode: "1104", debit: 0, credit: cogs, description: "المخزون" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+    entries.push({ id: ++entryId, description: "فاتورة بيع #3", status: "posted", lines });
+    invoices.push({ id: 3, total, paidAmount: 0 });
+    customerBalance += total;
+    expect(customerBalance).toBe(6500);
+  });
+
+  // ── Step 4: Payment #1 → 4,000 allocated across invoices 1 & 2 ──
+  it("Step 4: Payment 4,000 allocated: 3,000 to inv#1 (full) + 1,000 to inv#2 (partial)", () => {
+    const pmtAmount = 4000;
+    const currentPmtId = ++paymentId;
+
+    // Journal entry for payment
+    const lines: JournalLine[] = [
+      { accountCode: "1101", debit: pmtAmount, credit: 0, description: "سند قبض" },
+      { accountCode: "1103", debit: 0, credit: pmtAmount, description: "العملاء" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+    entries.push({ id: ++entryId, description: "سند قبض #1", status: "posted", lines });
+    customerBalance -= pmtAmount;
+
+    // Allocate: 3,000 to invoice #1 (fully paid)
+    allocations.push({ paymentId: currentPmtId, invoiceId: 1, allocatedAmount: 3000 });
+    // Allocate: 1,000 to invoice #2 (partial)
+    allocations.push({ paymentId: currentPmtId, invoiceId: 2, allocatedAmount: 1000 });
+
+    // Verify allocation totals
+    const totalAllocated = allocations
+      .filter(a => a.paymentId === currentPmtId)
+      .reduce((s, a) => s + a.allocatedAmount, 0);
+    expect(totalAllocated).toBe(pmtAmount);
+
+    // Verify invoice paid amounts
+    expect(getInvoicePaidAmount(1)).toBe(3000); // fully paid
+    expect(getInvoicePaidAmount(2)).toBe(1000); // partial
+    expect(getInvoicePaidAmount(3)).toBe(0);    // unpaid
+
+    // Verify no unallocated remainder
+    expect(getPaymentUnallocated(currentPmtId, pmtAmount)).toBe(0);
+    expect(customerBalance).toBe(2500);
+  });
+
+  // ── Step 5: Payment #2 → 2,500 allocated to remaining invoices ──
+  it("Step 5: Payment 2,500 allocated: 1,000 to inv#2 (complete) + 1,500 to inv#3 (full)", () => {
+    const pmtAmount = 2500;
+    const currentPmtId = ++paymentId;
+
+    const lines: JournalLine[] = [
+      { accountCode: "1101", debit: pmtAmount, credit: 0, description: "سند قبض" },
+      { accountCode: "1103", debit: 0, credit: pmtAmount, description: "العملاء" },
+    ];
+    expect(validateJournalEntry(lines)).toBe(true);
+    entries.push({ id: ++entryId, description: "سند قبض #2", status: "posted", lines });
+    customerBalance -= pmtAmount;
+
+    // Allocate: 1,000 to invoice #2 (remaining balance)
+    allocations.push({ paymentId: currentPmtId, invoiceId: 2, allocatedAmount: 1000 });
+    // Allocate: 1,500 to invoice #3 (fully paid)
+    allocations.push({ paymentId: currentPmtId, invoiceId: 3, allocatedAmount: 1500 });
+
+    const totalAllocated = allocations
+      .filter(a => a.paymentId === currentPmtId)
+      .reduce((s, a) => s + a.allocatedAmount, 0);
+    expect(totalAllocated).toBe(pmtAmount);
+
+    expect(getInvoicePaidAmount(1)).toBe(3000);
+    expect(getInvoicePaidAmount(2)).toBe(2000); // 1000 + 1000
+    expect(getInvoicePaidAmount(3)).toBe(1500);
+
+    expect(getPaymentUnallocated(currentPmtId, pmtAmount)).toBe(0);
+    expect(customerBalance).toBe(0);
+  });
+
+  // ── Step 6: All invoices fully paid ──
+  it("Step 6: All invoices are fully paid", () => {
+    for (const inv of invoices) {
+      const paid = getInvoicePaidAmount(inv.id);
+      expect(paid).toBe(inv.total);
+    }
+  });
+
+  // ── Step 7: Customer statement shows zero balance ──
+  it("Step 7: Customer statement ends with zero balance", () => {
+    const statement = buildCustomerStatement(entries, "1103");
+    const finalBalance = statement[statement.length - 1].runningBalance;
+    expect(finalBalance).toBe(0);
+    expect(finalBalance).toBe(customerBalance);
+
+    // Verify statement has 5 lines: 3 invoices + 2 payments
+    expect(statement.length).toBe(5);
+  });
+
+  // ── Step 8: Trial balance is balanced ──
+  it("Step 8: Trial balance debits = credits", () => {
+    const tb = getTrialBalance(entries, accounts);
+    const totalDebit = tb.reduce((s, a) => s + a.debit, 0);
+    const totalCredit = tb.reduce((s, a) => s + a.credit, 0);
+    expect(Math.abs(totalDebit - totalCredit)).toBeLessThan(0.01);
+  });
+
+  // ── Step 9: All journal entries balanced ──
+  it("Step 9: Every journal entry is balanced", () => {
+    for (const entry of entries) {
+      const d = entry.lines.reduce((s, l) => s + l.debit, 0);
+      const c = entry.lines.reduce((s, l) => s + l.credit, 0);
+      expect(Math.abs(d - c)).toBeLessThan(0.01);
+    }
+  });
+
+  // ── Step 10: Partial payment with unallocated remainder ──
+  it("Step 10: Payment with partial allocation leaves unallocated amount", () => {
+    const pmtAmount = 1000;
+    const currentPmtId = ++paymentId;
+
+    // New invoice
+    const invTotal = 1500;
+    const lines1: JournalLine[] = [
+      { accountCode: "1103", debit: invTotal, credit: 0, description: "العملاء" },
+      { accountCode: "4101", debit: 0, credit: invTotal, description: "إيرادات" },
+    ];
+    expect(validateJournalEntry(lines1)).toBe(true);
+    entries.push({ id: ++entryId, description: "فاتورة بيع #4", status: "posted", lines: lines1 });
+    invoices.push({ id: 4, total: invTotal, paidAmount: 0 });
+
+    // Payment
+    const lines2: JournalLine[] = [
+      { accountCode: "1101", debit: pmtAmount, credit: 0, description: "سند قبض" },
+      { accountCode: "1103", debit: 0, credit: pmtAmount, description: "العملاء" },
+    ];
+    expect(validateJournalEntry(lines2)).toBe(true);
+    entries.push({ id: ++entryId, description: "سند قبض #3", status: "posted", lines: lines2 });
+
+    // Only allocate 600 out of 1000
+    allocations.push({ paymentId: currentPmtId, invoiceId: 4, allocatedAmount: 600 });
+
+    expect(getInvoicePaidAmount(4)).toBe(600);
+    expect(getPaymentUnallocated(currentPmtId, pmtAmount)).toBe(400);
+  });
+
+  // ── Step 11: Multi-payment on single invoice ──
+  it("Step 11: Multiple payments cover one invoice via separate allocations", () => {
+    const inv5Total = 5000;
+    const lines1: JournalLine[] = [
+      { accountCode: "1103", debit: inv5Total, credit: 0, description: "العملاء" },
+      { accountCode: "4101", debit: 0, credit: inv5Total, description: "إيرادات" },
+    ];
+    expect(validateJournalEntry(lines1)).toBe(true);
+    entries.push({ id: ++entryId, description: "فاتورة بيع #5", status: "posted", lines: lines1 });
+    invoices.push({ id: 5, total: inv5Total, paidAmount: 0 });
+
+    // 3 separate payments
+    const paymentAmounts = [2000, 1500, 1500];
+    for (const amt of paymentAmounts) {
+      const pmtId = ++paymentId;
+      const lines: JournalLine[] = [
+        { accountCode: "1101", debit: amt, credit: 0, description: "سند قبض" },
+        { accountCode: "1103", debit: 0, credit: amt, description: "العملاء" },
+      ];
+      expect(validateJournalEntry(lines)).toBe(true);
+      entries.push({ id: ++entryId, description: `سند قبض`, status: "posted", lines });
+      allocations.push({ paymentId: pmtId, invoiceId: 5, allocatedAmount: amt });
+    }
+
+    expect(getInvoicePaidAmount(5)).toBe(5000);
+  });
+
+  // ── Step 12: Allocation cannot exceed invoice remaining ──
+  it("Step 12: Validates allocation does not exceed invoice remaining", () => {
+    function validateAllocation(invoiceTotal: number, invoiceId: number, newAmount: number): boolean {
+      const alreadyPaid = getInvoicePaidAmount(invoiceId);
+      const remaining = invoiceTotal - alreadyPaid;
+      return newAmount <= remaining + 0.001;
+    }
+
+    // Invoice #5 is fully paid (5000/5000)
+    expect(validateAllocation(5000, 5, 1)).toBe(false);
+    expect(validateAllocation(5000, 5, 0)).toBe(true);
+
+    // Invoice #4 has 600 paid out of 1500
+    expect(validateAllocation(1500, 4, 900)).toBe(true);
+    expect(validateAllocation(1500, 4, 901)).toBe(false);
+  });
+
+  // ── Step 13: Unlink allocation restores invoice unpaid ──
+  it("Step 13: Unlinking allocation restores invoice unpaid amount", () => {
+    // Remove one allocation from invoice #4 (600)
+    const beforePaid = getInvoicePaidAmount(4);
+    expect(beforePaid).toBe(600);
+
+    const idx = allocations.findIndex(a => a.invoiceId === 4);
+    const removed = allocations.splice(idx, 1)[0];
+    expect(removed.allocatedAmount).toBe(600);
+
+    const afterPaid = getInvoicePaidAmount(4);
+    expect(afterPaid).toBe(0);
+
+    // Invoice remaining is now full amount
+    const remaining = 1500 - afterPaid;
+    expect(remaining).toBe(1500);
+  });
+
+  // ── Step 14: Final trial balance still balanced ──
+  it("Step 14: Final trial balance remains balanced after all operations", () => {
+    const tb = getTrialBalance(entries, accounts);
+    const totalDebit = tb.reduce((s, a) => s + a.debit, 0);
+    const totalCredit = tb.reduce((s, a) => s + a.credit, 0);
+    expect(Math.abs(totalDebit - totalCredit)).toBeLessThan(0.01);
+  });
+});
