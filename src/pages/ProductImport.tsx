@@ -30,7 +30,8 @@ export default function ProductImport() {
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
   const [imported, setImported] = useState(false);
-  const [categories, setCategories] = useState<Map<string, string>>(new Map());
+  const [categories, setCategories] = useState<{ id: string; name: string; parent_id: string | null }[]>([]);
+  const [categoryNameMap, setCategoryNameMap] = useState<Map<string, string>>(new Map());
   const [units, setUnits] = useState<Map<string, string>>(new Map());
   const [brands, setBrands] = useState<Map<string, string>>(new Map());
 
@@ -38,15 +39,71 @@ export default function ProductImport() {
     fetchLookups();
   }, []);
 
+  // Build full path map for categories (e.g. "ملابس / قمصان" -> id)
+  const buildCategoryPathMap = (cats: { id: string; name: string; parent_id: string | null }[]): Map<string, string> => {
+    const map = new Map<string, { id: string; name: string; parent_id: string | null }>();
+    cats.forEach(c => map.set(c.id, c));
+    const getPath = (id: string): string => {
+      const parts: string[] = [];
+      let current = map.get(id);
+      while (current) {
+        parts.unshift(current.name);
+        current = current.parent_id ? map.get(current.parent_id) : undefined;
+      }
+      return parts.join(" / ");
+    };
+    const pathMap = new Map<string, string>();
+    cats.forEach(c => {
+      pathMap.set(getPath(c.id), c.id); // full path match
+      // Also allow matching by leaf name only if unique
+      if (![...pathMap.values()].includes(c.id) || !pathMap.has(c.name)) {
+        pathMap.set(c.name, c.id);
+      }
+    });
+    return pathMap;
+  };
+
   const fetchLookups = async () => {
     const [catRes, unitRes, brandRes] = await Promise.all([
-      (supabase.from("product_categories" as any) as any).select("id, name").eq("is_active", true),
+      (supabase.from("product_categories" as any) as any).select("id, name, parent_id").eq("is_active", true),
       (supabase.from("product_units" as any) as any).select("id, name").eq("is_active", true),
       (supabase.from("product_brands" as any) as any).select("id, name").eq("is_active", true),
     ]);
-    setCategories(new Map((catRes.data || []).map(c => [c.name, c.id])));
+    const cats = catRes.data || [];
+    setCategories(cats);
+    setCategoryNameMap(buildCategoryPathMap(cats));
     setUnits(new Map((unitRes.data || []).map(u => [u.name, u.id])));
     setBrands(new Map((brandRes.data || []).map(b => [b.name, b.id])));
+  };
+
+  // Resolve or create hierarchical category path like "ملابس / قمصان"
+  const resolveOrCreateCategory = async (categoryPath: string): Promise<string | null> => {
+    if (!categoryPath.trim()) return null;
+    // Try direct match first (full path or leaf name)
+    if (categoryNameMap.has(categoryPath)) return categoryNameMap.get(categoryPath)!;
+
+    // Split path and create each level
+    const parts = categoryPath.split("/").map(p => p.trim()).filter(Boolean);
+    let parentId: string | null = null;
+
+    for (const part of parts) {
+      // Check if this part exists under the current parent
+      const existing = categories.find(c => c.name === part && c.parent_id === parentId);
+      if (existing) {
+        parentId = existing.id;
+      } else {
+        const payload: any = { name: part, parent_id: parentId };
+        const { data } = await (supabase.from("product_categories" as any) as any).insert(payload).select("id, name, parent_id").single();
+        if (data) {
+          categories.push(data);
+          categoryNameMap.set(part, data.id);
+          parentId = data.id;
+        } else {
+          return null;
+        }
+      }
+    }
+    return parentId;
   };
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,9 +152,9 @@ export default function ProductImport() {
 
     // Auto-create missing lookups
     for (const row of validRows) {
-      if (row.category && !categories.has(row.category)) {
-        const { data } = await (supabase.from("product_categories" as any) as any).insert({ name: row.category }).select("id, name").single();
-        if (data) categories.set(data.name, data.id);
+      if (row.category && !categoryNameMap.has(row.category)) {
+        const catId = await resolveOrCreateCategory(row.category);
+        if (catId) categoryNameMap.set(row.category, catId);
       }
       if (row.unit && !units.has(row.unit)) {
         const { data } = await (supabase.from("product_units" as any) as any).insert({ name: row.unit }).select("id, name").single();
@@ -113,7 +170,7 @@ export default function ProductImport() {
       code: r.code,
       name: r.name,
       description: r.description || null,
-      category_id: (r.category && categories.get(r.category)) || null,
+      category_id: (r.category && categoryNameMap.get(r.category)) || null,
       unit_id: (r.unit && units.get(r.unit)) || null,
       brand_id: (r.brand && brands.get(r.brand)) || null,
       model_number: r.model_number || null,
@@ -136,7 +193,7 @@ export default function ProductImport() {
 
   const downloadTemplate = async () => {
     const { exportToExcel } = await import("@/lib/excel-export");
-    const template = [{ "الكود": "P001", "الاسم": "منتج تجريبي", "الوصف": "", "التصنيف": "عام", "الوحدة": "قطعة", "الماركة": "", "رقم الموديل": "", "الباركود": "", "سعر الشراء": 100, "سعر البيع": 150, "الكمية": 50, "الحد الأدنى": 10 }];
+    const template = [{ "الكود": "P001", "الاسم": "منتج تجريبي", "الوصف": "", "التصنيف": "ملابس / قمصان", "الوحدة": "قطعة", "الماركة": "", "رقم الموديل": "", "الباركود": "", "سعر الشراء": 100, "سعر البيع": 150, "الكمية": 50, "الحد الأدنى": 10 }];
     await exportToExcel(template, "Products", "products-template.xlsx");
   };
 
@@ -159,6 +216,7 @@ export default function ProductImport() {
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             قم برفع ملف Excel يحتوي على بيانات المنتجات. يجب أن يحتوي على أعمدة: الكود، الاسم (إلزامي)، بالإضافة إلى الأعمدة الاختيارية.
+            يمكنك كتابة مسار التصنيف الهرمي بالفاصل "/" مثل: <strong>ملابس / قمصان</strong>
           </p>
           <div className="flex gap-3">
             <label className="flex-1">

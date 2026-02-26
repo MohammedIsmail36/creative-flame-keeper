@@ -33,6 +33,7 @@ export default function ProductForm() {
   const [addUnitOpen, setAddUnitOpen] = useState(false);
   const [addBrandOpen, setAddBrandOpen] = useState(false);
   const [newItemName, setNewItemName] = useState("");
+  const [newCategoryParentId, setNewCategoryParentId] = useState("");
 
   // Form fields
   const [code, setCode] = useState("");
@@ -200,9 +201,24 @@ export default function ProductForm() {
     setter(prev => [...prev, item].sort((a, b) => a.name.localeCompare(b.name)));
     setSelected(item.id);
     setNewItemName("");
-    setAddCategoryOpen(false);
     setAddUnitOpen(false);
     setAddBrandOpen(false);
+  };
+
+  const handleQuickAddCategory = async () => {
+    if (!newItemName.trim()) return;
+    const payload: any = { name: newItemName.trim(), parent_id: newCategoryParentId || null };
+    const { data, error } = await (supabase.from("product_categories" as any) as any).insert(payload).select("id, name, parent_id").single();
+    if (error) {
+      toast({ title: "خطأ", description: error.message.includes("duplicate") ? "الاسم موجود مسبقاً" : error.message, variant: "destructive" });
+      return;
+    }
+    const item = data as CategoryItem;
+    setCategories(prev => [...prev, item]);
+    setCategoryId(item.id);
+    setNewItemName("");
+    setNewCategoryParentId("");
+    setAddCategoryOpen(false);
   };
 
   if (loading) return <div className="p-12 text-center text-muted-foreground" dir="rtl">جاري التحميل...</div>;
@@ -365,9 +381,32 @@ export default function ProductForm() {
         </Button>
       </div>
 
-      {/* Quick-add dialogs */}
+      {/* Quick-add category dialog with parent selection */}
+      <Dialog open={addCategoryOpen} onOpenChange={setAddCategoryOpen}>
+        <DialogContent dir="rtl" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>إضافة تصنيف جديد</DialogTitle>
+            <DialogDescription>أدخل الاسم واختر التصنيف الأب (اختياري)</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm">اسم التصنيف *</Label>
+              <Input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="اسم التصنيف" onKeyDown={e => e.key === "Enter" && handleQuickAddCategory()} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">التصنيف الأب (اختياري)</Label>
+              <CategoryTreeSelect categories={categories} value={newCategoryParentId} onValueChange={setNewCategoryParentId} placeholder="بدون - تصنيف رئيسي" className="w-full" />
+            </div>
+          </div>
+          <DialogFooter className="flex-row-reverse gap-2">
+            <Button onClick={handleQuickAddCategory}>إضافة</Button>
+            <Button variant="outline" onClick={() => setAddCategoryOpen(false)}>إلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick-add unit & brand dialogs */}
       {[
-        { open: addCategoryOpen, setOpen: setAddCategoryOpen, title: "إضافة تصنيف جديد", table: "product_categories", setter: setCategories, setSelected: setCategoryId },
         { open: addUnitOpen, setOpen: setAddUnitOpen, title: "إضافة وحدة قياس جديدة", table: "product_units", setter: setUnits, setSelected: setUnitId },
         { open: addBrandOpen, setOpen: setAddBrandOpen, title: "إضافة ماركة جديدة", table: "product_brands", setter: setBrands, setSelected: setBrandId },
       ].map(({ open, setOpen, title, table, setter, setSelected }) => (
