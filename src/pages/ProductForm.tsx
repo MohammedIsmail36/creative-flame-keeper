@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LookupCombobox } from "@/components/LookupCombobox";
+import { CategoryTreeSelect } from "@/components/CategoryTreeSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { ArrowRight, Save, Plus, ImagePlus, X, Trash2 } from "lucide-react";
 
 interface LookupItem { id: string; name: string; }
+interface CategoryItem { id: string; name: string; parent_id?: string | null; }
 
 export default function ProductForm() {
   const { role } = useAuth();
@@ -20,7 +22,7 @@ export default function ProductForm() {
   const { id } = useParams();
   const isEdit = !!id;
 
-  const [categories, setCategories] = useState<LookupItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [units, setUnits] = useState<LookupItem[]>([]);
   const [brands, setBrands] = useState<LookupItem[]>([]);
   const [saving, setSaving] = useState(false);
@@ -57,7 +59,7 @@ export default function ProductForm() {
 
   const fetchLookups = async () => {
     const [catRes, unitRes, brandRes] = await Promise.all([
-      (supabase.from("product_categories" as any) as any).select("id, name").eq("is_active", true).order("name"),
+      (supabase.from("product_categories" as any) as any).select("id, name, parent_id").eq("is_active", true).order("name"),
       (supabase.from("product_units" as any) as any).select("id, name").eq("is_active", true).order("name"),
       (supabase.from("product_brands" as any) as any).select("id, name").eq("is_active", true).order("name"),
     ]);
@@ -254,7 +256,7 @@ export default function ProductForm() {
             <div className="space-y-2">
               <Label>التصنيف</Label>
               <div className="flex gap-2">
-                <LookupCombobox items={categories} value={categoryId} onValueChange={setCategoryId} placeholder="اختر التصنيف" className="flex-1" />
+                <CategoryTreeSelect categories={categories} value={categoryId} onValueChange={setCategoryId} placeholder="اختر التصنيف" className="flex-1" />
                 <Button variant="outline" size="icon" onClick={() => { setNewItemName(""); setAddCategoryOpen(true); }}><Plus className="h-4 w-4" /></Button>
               </div>
             </div>
