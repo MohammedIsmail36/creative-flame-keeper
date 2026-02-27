@@ -82,6 +82,7 @@ const reportItems: MenuItem[] = [
 const settingsItems: MenuItem[] = [
   { title: "إدارة المستخدمين", url: "/users", icon: UserCog, roles: ["admin"] },
   { title: "الإعدادات", url: "/settings", icon: Settings, roles: ["admin"] },
+  { title: "إعداد النظام", url: "/system-setup", icon: Settings, roles: ["admin"] },
 ];
 
 function SidebarMenuItems({ items }: { items: MenuItem[] }) {
