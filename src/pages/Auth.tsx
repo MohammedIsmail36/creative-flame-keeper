@@ -11,10 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -37,25 +35,9 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        navigate("/");
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: fullName },
-            emailRedirectTo: window.location.origin,
-          },
-        });
-        if (error) throw error;
-        toast({
-          title: "تم إنشاء الحساب",
-          description: "تم إرسال رابط التأكيد إلى بريدك الإلكتروني. يرجى تأكيد حسابك قبل تسجيل الدخول.",
-        });
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      navigate("/");
     } catch (error: any) {
       toast({
         title: "خطأ",
@@ -75,24 +57,10 @@ export default function Auth() {
             <Calculator className="w-8 h-8 text-primary-foreground" />
           </div>
           <CardTitle className="text-2xl">النظام المحاسبي</CardTitle>
-          <CardDescription>
-            {isLogin ? "سجّل دخولك للمتابعة" : "أنشئ حساباً جديداً"}
-          </CardDescription>
+          <CardDescription>سجّل دخولك للمتابعة</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">الاسم الكامل</Label>
-                <Input
-                  id="fullName"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="أدخل اسمك الكامل"
-                  required={!isLogin}
-                />
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="email">البريد الإلكتروني</Label>
               <Input
@@ -119,18 +87,9 @@ export default function Auth() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "جارٍ التحميل..." : isLogin ? "تسجيل الدخول" : "إنشاء حساب"}
+              {loading ? "جارٍ التحميل..." : "تسجيل الدخول"}
             </Button>
           </form>
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-primary hover:underline"
-            >
-              {isLogin ? "ليس لديك حساب؟ أنشئ حساباً جديداً" : "لديك حساب بالفعل؟ سجّل دخولك"}
-            </button>
-          </div>
         </CardContent>
       </Card>
     </div>
