@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ArrowRight, X } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowRight, X, Upload } from "lucide-react";
+import { LookupImportDialog } from "@/components/LookupImportDialog";
 
 interface LookupConfig {
   table: string;
@@ -60,6 +61,7 @@ export default function LookupManagement() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     if (config) fetchItems();
@@ -197,7 +199,14 @@ export default function LookupManagement() {
           <h1 className="text-2xl font-bold text-foreground">{config.title}</h1>
           <Badge variant="secondary">{items.length} عنصر</Badge>
         </div>
-        <Button onClick={openAdd} className="gap-2"><Plus className="h-4 w-4" />إضافة {config.singularTitle}</Button>
+        <div className="flex gap-2">
+          {(type === "categories" || type === "brands") && (
+            <Button variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4" />استيراد Excel
+            </Button>
+          )}
+          <Button onClick={openAdd} className="gap-2"><Plus className="h-4 w-4" />إضافة {config.singularTitle}</Button>
+        </div>
       </div>
 
       <DataTable
@@ -267,6 +276,16 @@ export default function LookupManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Import Dialog */}
+      {(type === "categories" || type === "brands") && (
+        <LookupImportDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          type={type as "categories" | "brands"}
+          onImportComplete={fetchItems}
+        />
+      )}
     </div>
   );
 }
