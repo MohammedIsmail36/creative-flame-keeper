@@ -368,6 +368,36 @@ export default function Products() {
           </div>
         }
       />
+
+      {/* Summary Footer */}
+      {filteredProducts.length > 0 && (
+        <Card className="border-t-2 border-primary/20">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+              <div className="text-center">
+                <p className="text-muted-foreground">عدد المنتجات</p>
+                <p className="text-lg font-bold">{filteredProducts.length}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-muted-foreground">إجمالي الكميات</p>
+                <p className="text-lg font-bold font-mono">{filteredProducts.reduce((s, p) => s + p.quantity_on_hand, 0).toLocaleString()}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-muted-foreground">قيمة المخزون (شراء)</p>
+                <p className="text-lg font-bold font-mono">{formatCurrency(filteredProducts.reduce((s, p) => s + p.quantity_on_hand * p.purchase_price, 0))}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-muted-foreground">قيمة المخزون (بيع)</p>
+                <p className="text-lg font-bold font-mono">{formatCurrency(filteredProducts.reduce((s, p) => s + p.quantity_on_hand * p.selling_price, 0))}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-muted-foreground">الربح المتوقع</p>
+                <p className="text-lg font-bold font-mono text-green-600">{formatCurrency(filteredProducts.reduce((s, p) => s + p.quantity_on_hand * (p.selling_price - p.purchase_price), 0))}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
