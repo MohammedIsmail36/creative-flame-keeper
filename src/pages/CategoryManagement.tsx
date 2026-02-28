@@ -8,8 +8,11 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ArrowRight, ChevronDown, ChevronRight, FolderTree, Folder, FolderOpen } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowRight, ChevronDown, ChevronRight, FolderTree, Folder, FolderOpen, Upload, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LookupImportDialog } from "@/components/LookupImportDialog";
+import { ExportMenu } from "@/components/ExportMenu";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface Category {
   id: string;
@@ -172,6 +175,8 @@ export default function CategoryManagement() {
   const [saving, setSaving] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const { settings } = useSettings();
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -261,10 +266,27 @@ export default function CategoryManagement() {
             <p className="text-xs text-muted-foreground">{items.length} تصنيف</p>
           </div>
         </div>
-        <Button onClick={() => openAdd(null)} size="sm" className="gap-1.5">
-          <Plus className="h-4 w-4" />
-          تصنيف جديد
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4" />
+            استيراد Excel
+          </Button>
+          <ExportMenu
+            config={{
+              filenamePrefix: "التصنيفات",
+              sheetName: "التصنيفات",
+              pdfTitle: "قائمة التصنيفات",
+              headers: ["الاسم", "الوصف", "التصنيف الأب", "الحالة"],
+              rows: items.map(i => [i.name, i.description || "", i.parent_id ? getFullPath(items, i.parent_id) : "رئيسي", i.is_active ? "نشط" : "معطل"]),
+              settings,
+            }}
+            disabled={loading}
+          />
+          <Button onClick={() => openAdd(null)} size="sm" className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            تصنيف جديد
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border bg-card">
@@ -349,6 +371,13 @@ export default function CategoryManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <LookupImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        type="categories"
+        onImportComplete={fetchItems}
+      />
     </div>
   );
 }
