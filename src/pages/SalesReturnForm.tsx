@@ -171,8 +171,9 @@ export default function SalesReturnForm() {
         if (!item.product_id) continue;
         const { data: avgPrice } = await supabase.rpc("get_avg_purchase_price", { _product_id: item.product_id });
         const avgCost = Number(avgPrice) || 0;
-        itemAvgCosts[item.product_id] = avgCost;
-        totalCost += avgCost * item.quantity;
+        const finalCost = avgCost > 0 ? avgCost : item.cost_price;
+        itemAvgCosts[item.product_id] = finalCost;
+        totalCost += finalCost * item.quantity;
       }
 
       const totalDebit = grandTotal + totalCost;

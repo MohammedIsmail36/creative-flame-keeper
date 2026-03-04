@@ -163,6 +163,46 @@ export default function ProductForm() {
         const { data, error } = await supabase.from("products").insert(payload as any).select("id").single();
         if (error) throw error;
         productId = data.id;
+
+        // إنشاء قيد افتتاحي وحركة مخزون عند إضافة كمية أولية
+        if (quantity > 0 && purchasePrice > 0 && productId) {
+          const totalCost = quantity * purchasePrice;
+
+          // جلب حسابات المخزون ورأس المال
+          const { data: accounts } = await supabase.from("accounts").select("id, code")
+            .in("code", ["1104", "3101"]); // 1104=مخزون، 3101=رأس المال
+          const inventoryAcc = accounts?.find(a => a.code === "1104");
+          const capitalAcc = accounts?.find(a => a.code === "3101");
+
+          if (inventoryAcc && capitalAcc) {
+            // إنشاء قيد يومية
+            const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
+              description: `رصيد افتتاحي - منتج ${name.trim()}`,
+              entry_date: new Date().toISOString().split("T")[0],
+              total_debit: totalCost,
+              total_credit: totalCost,
+              status: "posted",
+            } as any).select("id").single();
+
+            if (!jeError && je) {
+              await supabase.from("journal_entry_lines").insert([
+                { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: totalCost, credit: 0, description: `رصيد افتتاحي مخزون - ${name.trim()}` },
+                { journal_entry_id: je.id, account_id: capitalAcc.id, debit: 0, credit: totalCost, description: `رصيد افتتاحي مخزون - ${name.trim()}` },
+              ] as any);
+            }
+          }
+
+          // تسجيل حركة مخزون افتتاحية
+          await (supabase.from("inventory_movements" as any) as any).insert({
+            product_id: productId,
+            movement_type: "opening_balance",
+            quantity: quantity,
+            unit_cost: purchasePrice,
+            total_cost: totalCost,
+            reference_type: "opening_balance",
+            movement_date: new Date().toISOString().split("T")[0],
+          });
+        }
       }
 
       // Save gallery images

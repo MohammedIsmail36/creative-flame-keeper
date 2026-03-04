@@ -107,9 +107,10 @@ export default function InventoryAdjustmentForm() {
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
-    // جلب متوسط سعر الشراء
+    // جلب متوسط سعر الشراء مع الرجوع لسعر الشراء على المنتج إذا لم يوجد متوسط
     const { data: avgPrice } = await supabase.rpc("get_avg_purchase_price", { _product_id: productId });
-    const cost = Number(avgPrice) || 0;
+    const avgCost = Number(avgPrice) || 0;
+    const cost = avgCost > 0 ? avgCost : (product as any).purchase_price || 0;
 
     const updated = [...items];
     updated[idx] = {
