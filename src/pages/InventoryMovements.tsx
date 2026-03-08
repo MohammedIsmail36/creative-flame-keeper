@@ -66,7 +66,7 @@ export default function InventoryMovements() {
     queryKey: ["inventory-movements", selectedProduct, selectedType, dateFrom, dateTo],
     queryFn: async () => {
       let query = (supabase.from("inventory_movements" as any) as any)
-        .select("*, products(code, name)")
+        .select("*, products(code, name, model_number, product_brands(name))")
         .order("movement_date", { ascending: true })
         .order("created_at", { ascending: true });
 
@@ -105,12 +105,16 @@ export default function InventoryMovements() {
       id: "product",
       header: ({ column }) => <DataTableColumnHeader column={column} title="المنتج" />,
       accessorFn: (row) => row.products?.name || "",
-      cell: ({ row }) => (
-        <div>
-          <div className="font-medium">{row.original.products?.name}</div>
-          <div className="text-xs text-muted-foreground">{row.original.products?.code}</div>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const p = row.original.products;
+        const displayName = p ? formatProductDisplay(p.name, p.product_brands?.name, p.model_number) : "";
+        return (
+          <div>
+            <div className="font-medium">{displayName}</div>
+            <div className="text-xs text-muted-foreground">{p?.code}</div>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "movement_type",
@@ -171,7 +175,7 @@ export default function InventoryMovements() {
           sheetName: "حركات المخزون",
           pdfTitle: "حركات المخزون",
           headers: ["التاريخ", "المنتج", "الكود", "نوع الحركة", "الكمية", "سعر الوحدة", "الإجمالي", "الرصيد التراكمي"],
-          rows: movementsWithBalance.map(m => [m.movement_date, m.products?.name || "", m.products?.code || "", movementTypeLabels[m.movement_type] || m.movement_type, m.quantity, m.unit_cost, m.total_cost, m.cumulativeBalance]),
+          rows: movementsWithBalance.map(m => [m.movement_date, m.products ? formatProductDisplay(m.products.name, m.products.product_brands?.name, m.products.model_number) : "", m.products?.code || "", movementTypeLabels[m.movement_type] || m.movement_type, m.quantity, m.unit_cost, m.total_cost, m.cumulativeBalance]),
           settings,
           pdfOrientation: "landscape",
         }} disabled={movementsWithBalance.length === 0} />

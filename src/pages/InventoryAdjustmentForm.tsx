@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
-import { ProductWithBrand, productsToLookupItems, formatProductName, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
+import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
 import { toast } from "@/hooks/use-toast";
 import { ArrowRight, Plus, X, Save, CheckCircle, Pencil } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -76,13 +76,13 @@ export default function InventoryAdjustmentForm() {
         setEditMode(adj.status === "draft");
 
         const { data: adjItems } = await (supabase.from("inventory_adjustment_items" as any) as any)
-          .select("*, products(code, name)")
+          .select("*, products(code, name, model_number, product_brands(name))")
           .eq("adjustment_id", id);
         if (adjItems) {
           setItems(adjItems.map((it: any) => ({
             id: it.id,
             product_id: it.product_id,
-            product_name: it.products?.name || "",
+            product_name: it.products ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number) : "",
             system_quantity: Number(it.system_quantity),
             actual_quantity: Number(it.actual_quantity),
             difference: Number(it.difference),
