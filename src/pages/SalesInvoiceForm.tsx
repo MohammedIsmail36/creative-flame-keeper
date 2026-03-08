@@ -17,7 +17,7 @@ import { ArrowRight, Plus, X, Save, CheckCircle, Printer, Pencil, Trash2, Ban } 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 
-import { ProductWithBrand, productsToLookupItems, formatProductName, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
+import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
 
 interface Customer { id: string; code: string; name: string; balance?: number; }
 type Product = ProductWithBrand & { selling_price: number; purchase_price: number; quantity_on_hand: number; };
@@ -81,9 +81,9 @@ export default function SalesInvoiceForm() {
         setEditMode(inv.status === "draft");
 
         const { data: itemsData } = await (supabase.from("sales_invoice_items" as any) as any)
-          .select("*, products:product_id(name, code, purchase_price)").eq("invoice_id", id);
+          .select("*, products:product_id(name, code, purchase_price, model_number, product_brands(name))").eq("invoice_id", id);
         setItems((itemsData || []).map((it: any) => ({
-          id: it.id, product_id: it.product_id || "", product_name: it.products?.name || it.description || "",
+          id: it.id, product_id: it.product_id || "", product_name: it.products ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number) : (it.description || ""),
           quantity: it.quantity, unit_price: it.unit_price, cost_price: it.products?.purchase_price || 0,
           discount: it.discount, total: it.total,
         })));

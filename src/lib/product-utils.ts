@@ -12,13 +12,20 @@ export interface ProductWithBrand {
 }
 
 /**
- * Format product display name: اسم المنتج - الماركة - رقم الموديل
+ * Format product display name: اسم المنتج (الماركة - الموديل)
  */
 export function formatProductName(p: ProductWithBrand): string {
-  const parts = [p.name];
-  if (p.product_brands?.name) parts.push(p.product_brands.name);
-  if (p.model_number) parts.push(p.model_number);
-  return parts.join(" - ");
+  return formatProductDisplay(p.name, p.product_brands?.name, p.model_number);
+}
+
+/**
+ * Simple formatter: اسم المنتج (الماركة - الموديل)
+ * Works with any inline product data without needing the full ProductWithBrand type.
+ */
+export function formatProductDisplay(name: string, brandName?: string | null, modelNumber?: string | null): string {
+  const extra = [brandName, modelNumber].filter(Boolean);
+  if (extra.length > 0) return `${name} (${extra.join(" - ")})`;
+  return name;
 }
 
 /**

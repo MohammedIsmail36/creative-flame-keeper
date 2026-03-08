@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatProductDisplay } from "@/lib/product-utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,9 +30,8 @@ export default function InventoryReport() {
   const { data: products, isLoading: loadingProducts } = useQuery({
     queryKey: ["inventory-report-products"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, code, name, quantity_on_hand, min_stock_level, purchase_price, selling_price, is_active")
+      const { data, error } = await (supabase.from("products") as any)
+        .select("id, code, name, quantity_on_hand, min_stock_level, purchase_price, selling_price, is_active, model_number, product_brands(name)")
         .order("name");
       if (error) throw error;
       return data;
@@ -50,8 +50,8 @@ export default function InventoryReport() {
       filename: "تقرير-المخزون",
       sheetName: "المخزون",
       headers: ["الكود", "المنتج", "الكمية", "الحد الأدنى", "سعر الشراء", "سعر البيع", "قيمة المخزون", "الحالة"],
-      rows: filtered.map((p) => [
-        p.code, p.name, Number(p.quantity_on_hand), Number(p.min_stock_level), Number(p.purchase_price), Number(p.selling_price),
+      rows: filtered.map((p: any) => [
+        p.code, formatProductDisplay(p.name, p.product_brands?.name, p.model_number), Number(p.quantity_on_hand), Number(p.min_stock_level), Number(p.purchase_price), Number(p.selling_price),
         Number(p.quantity_on_hand) * Number(p.purchase_price),
         Number(p.quantity_on_hand) <= Number(p.min_stock_level) ? "منخفض" : "طبيعي",
       ]),
@@ -64,7 +64,7 @@ export default function InventoryReport() {
       title: "تقرير المخزون",
       settings,
       headers: ["الكود", "المنتج", "الكمية", "الحد الأدنى", "سعر الشراء", "سعر البيع", "قيمة المخزون", "الحالة"],
-      rows: filtered.map((p) => [p.code, p.name, Number(p.quantity_on_hand), Number(p.min_stock_level), fmtN(Number(p.purchase_price)), fmtN(Number(p.selling_price)), fmtN(Number(p.quantity_on_hand) * Number(p.purchase_price)), Number(p.quantity_on_hand) <= Number(p.min_stock_level) ? "منخفض" : "طبيعي"]),
+      rows: filtered.map((p: any) => [p.code, formatProductDisplay(p.name, p.product_brands?.name, p.model_number), Number(p.quantity_on_hand), Number(p.min_stock_level), fmtN(Number(p.purchase_price)), fmtN(Number(p.selling_price)), fmtN(Number(p.quantity_on_hand) * Number(p.purchase_price)), Number(p.quantity_on_hand) <= Number(p.min_stock_level) ? "منخفض" : "طبيعي"]),
       summaryCards: [
         { label: "عدد الأصناف", value: String(filtered.length) },
         { label: "قيمة المخزون (شراء)", value: fmtN(totalValue) },
@@ -106,7 +106,7 @@ export default function InventoryReport() {
                     const isLow = Number(p.quantity_on_hand) <= Number(p.min_stock_level);
                     return (
                       <TableRow key={p.id} className={isLow ? "bg-destructive/5" : ""}>
-                        <TableCell>{p.code}</TableCell><TableCell>{p.name}</TableCell><TableCell>{Number(p.quantity_on_hand)}</TableCell><TableCell>{Number(p.min_stock_level)}</TableCell><TableCell>{fmt(Number(p.purchase_price))}</TableCell><TableCell>{fmt(Number(p.selling_price))}</TableCell><TableCell>{fmt(Number(p.quantity_on_hand) * Number(p.purchase_price))}</TableCell>
+                        <TableCell>{p.code}</TableCell><TableCell>{formatProductDisplay(p.name, (p as any).product_brands?.name, (p as any).model_number)}</TableCell><TableCell>{Number(p.quantity_on_hand)}</TableCell><TableCell>{Number(p.min_stock_level)}</TableCell><TableCell>{fmt(Number(p.purchase_price))}</TableCell><TableCell>{fmt(Number(p.selling_price))}</TableCell><TableCell>{fmt(Number(p.quantity_on_hand) * Number(p.purchase_price))}</TableCell>
                         <TableCell>{isLow ? <Badge variant="destructive">منخفض</Badge> : <Badge variant="secondary">طبيعي</Badge>}</TableCell>
                       </TableRow>
                     );

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatProductDisplay } from "@/lib/product-utils";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -53,6 +54,8 @@ interface RecentInvoice {
 
 interface LowStockItem {
   name: string;
+  brandName: string | null;
+  modelNumber: string | null;
   quantity_on_hand: number;
   min_stock_level: number;
 }
@@ -136,18 +139,19 @@ export default function Dashboard() {
   };
 
   const fetchLowStock = async () => {
-    const { data } = await supabase
-      .from("products")
-      .select("name, quantity_on_hand, min_stock_level")
+    const { data } = await (supabase.from("products") as any)
+      .select("name, quantity_on_hand, min_stock_level, model_number, product_brands(name)")
       .eq("is_active", true)
       .order("quantity_on_hand", { ascending: true })
       .limit(10);
 
     setLowStockItems(
       (data || [])
-        .filter(p => Number(p.quantity_on_hand) <= Number(p.min_stock_level))
-        .map(p => ({
+        .filter((p: any) => Number(p.quantity_on_hand) <= Number(p.min_stock_level))
+        .map((p: any) => ({
           name: p.name,
+          brandName: p.product_brands?.name || null,
+          modelNumber: p.model_number || null,
           quantity_on_hand: Number(p.quantity_on_hand),
           min_stock_level: Number(p.min_stock_level),
         }))
@@ -430,7 +434,7 @@ export default function Dashboard() {
                 {lowStockItems.map((item) => (
                   <div key={item.name} className="flex items-center justify-between py-2 border-b last:border-0">
                     <div>
-                      <p className="text-sm font-medium">{item.name}</p>
+                      <p className="text-sm font-medium">{formatProductDisplay(item.name, item.brandName, item.modelNumber)}</p>
                       <p className="text-xs text-muted-foreground">الحد الأدنى: {item.min_stock_level}</p>
                     </div>
                     <span className="text-sm font-bold text-destructive">{item.quantity_on_hand}</span>

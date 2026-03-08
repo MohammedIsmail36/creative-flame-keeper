@@ -15,7 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { ArrowRight, Plus, X, Save, CheckCircle, Trash2, Ban } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-import { ProductWithBrand, productsToLookupItems, formatProductName, PRODUCT_SELECT_FIELDS_BASIC } from "@/lib/product-utils";
+import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS_BASIC } from "@/lib/product-utils";
 
 interface Supplier { id: string; code: string; name: string; balance?: number; }
 type Product = ProductWithBrand & { purchase_price: number; };
@@ -74,9 +74,9 @@ export default function PurchaseReturnForm() {
         setEditMode(ret.status === "draft");
 
         const { data: itemsData } = await (supabase.from("purchase_return_items" as any) as any)
-          .select("*, products:product_id(name, code)").eq("return_id", id);
+          .select("*, products:product_id(name, code, model_number, product_brands(name))").eq("return_id", id);
         setItems((itemsData || []).map((it: any) => ({
-          id: it.id, product_id: it.product_id || "", product_name: it.products?.name || it.description || "",
+          id: it.id, product_id: it.product_id || "", product_name: it.products ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number) : (it.description || ""),
           quantity: it.quantity, unit_price: it.unit_price, discount: it.discount, total: it.total,
         })));
       }
