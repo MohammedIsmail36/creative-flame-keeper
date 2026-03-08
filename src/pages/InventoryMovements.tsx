@@ -107,7 +107,7 @@ export default function InventoryMovements() {
       header: ({ column }) => <DataTableColumnHeader column={column} title="المنتج" />,
       accessorFn: (row) => row.products?.name || "",
       cell: ({ row }) => {
-        const p = row.original.products;
+        const p = row.original.products as any;
         const displayName = p ? formatProductDisplay(p.name, p.product_brands?.name, p.model_number) : "";
         return (
           <div>
@@ -176,7 +176,7 @@ export default function InventoryMovements() {
           sheetName: "حركات المخزون",
           pdfTitle: "حركات المخزون",
           headers: ["التاريخ", "المنتج", "الكود", "نوع الحركة", "الكمية", "سعر الوحدة", "الإجمالي", "الرصيد التراكمي"],
-          rows: movementsWithBalance.map(m => [m.movement_date, m.products ? formatProductDisplay(m.products.name, m.products.product_brands?.name, m.products.model_number) : "", m.products?.code || "", movementTypeLabels[m.movement_type] || m.movement_type, m.quantity, m.unit_cost, m.total_cost, m.cumulativeBalance]),
+          rows: movementsWithBalance.map(m => { const p = m.products as any; return [m.movement_date, p ? formatProductDisplay(p.name, p.product_brands?.name, p.model_number) : "", p?.code || "", movementTypeLabels[m.movement_type] || m.movement_type, m.quantity, m.unit_cost, m.total_cost, m.cumulativeBalance]; }),
           settings,
           pdfOrientation: "landscape",
         }} disabled={movementsWithBalance.length === 0} />
