@@ -50,8 +50,8 @@ export default function InventoryReport() {
       filename: "تقرير-المخزون",
       sheetName: "المخزون",
       headers: ["الكود", "المنتج", "الكمية", "الحد الأدنى", "سعر الشراء", "سعر البيع", "قيمة المخزون", "الحالة"],
-      rows: filtered.map((p) => [
-        p.code, p.name, Number(p.quantity_on_hand), Number(p.min_stock_level), Number(p.purchase_price), Number(p.selling_price),
+      rows: filtered.map((p: any) => [
+        p.code, formatProductDisplay(p.name, p.product_brands?.name, p.model_number), Number(p.quantity_on_hand), Number(p.min_stock_level), Number(p.purchase_price), Number(p.selling_price),
         Number(p.quantity_on_hand) * Number(p.purchase_price),
         Number(p.quantity_on_hand) <= Number(p.min_stock_level) ? "منخفض" : "طبيعي",
       ]),
@@ -64,7 +64,7 @@ export default function InventoryReport() {
       title: "تقرير المخزون",
       settings,
       headers: ["الكود", "المنتج", "الكمية", "الحد الأدنى", "سعر الشراء", "سعر البيع", "قيمة المخزون", "الحالة"],
-      rows: filtered.map((p) => [p.code, p.name, Number(p.quantity_on_hand), Number(p.min_stock_level), fmtN(Number(p.purchase_price)), fmtN(Number(p.selling_price)), fmtN(Number(p.quantity_on_hand) * Number(p.purchase_price)), Number(p.quantity_on_hand) <= Number(p.min_stock_level) ? "منخفض" : "طبيعي"]),
+      rows: filtered.map((p: any) => [p.code, formatProductDisplay(p.name, p.product_brands?.name, p.model_number), Number(p.quantity_on_hand), Number(p.min_stock_level), fmtN(Number(p.purchase_price)), fmtN(Number(p.selling_price)), fmtN(Number(p.quantity_on_hand) * Number(p.purchase_price)), Number(p.quantity_on_hand) <= Number(p.min_stock_level) ? "منخفض" : "طبيعي"]),
       summaryCards: [
         { label: "عدد الأصناف", value: String(filtered.length) },
         { label: "قيمة المخزون (شراء)", value: fmtN(totalValue) },
