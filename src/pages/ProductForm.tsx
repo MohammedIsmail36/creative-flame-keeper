@@ -224,7 +224,12 @@ export default function ProductForm() {
       toast({ title: isEdit ? "تم التحديث" : "تمت الإضافة", description: isEdit ? "تم تعديل المنتج بنجاح" : "تم إضافة المنتج بنجاح" });
       navigate("/products");
     } catch (error: any) {
-      const msg = error.message?.includes("duplicate") ? (error.message.includes("barcode") ? "الباركود موجود مسبقاً" : "كود المنتج موجود مسبقاً") : error.message;
+      let msg = error.message;
+      if (error.message?.includes("يوجد صنف بنفس الماركة ونفس رقم الموديل")) {
+        msg = error.message;
+      } else if (error.message?.includes("duplicate")) {
+        msg = error.message.includes("barcode") ? "الباركود موجود مسبقاً" : "كود المنتج موجود مسبقاً";
+      }
       toast({ title: "خطأ", description: msg, variant: "destructive" });
     }
     setSaving(false);
