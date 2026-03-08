@@ -228,6 +228,11 @@ export default function Products() {
       cell: ({ row }) => <span className="text-muted-foreground">{getBrandName(row.original)}</span>,
     },
     {
+      accessorKey: "model_number",
+      header: "رقم الموديل",
+      cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.original.model_number || "-"}</span>,
+    },
+    {
       id: "category",
       header: "التصنيف",
       cell: ({ row }) => <Badge variant="outline" className="text-xs">{getCategoryName(row.original)}</Badge>,
