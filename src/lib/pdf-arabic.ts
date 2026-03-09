@@ -1,24 +1,136 @@
-import pdfMake from "pdfmake/build/pdfmake";
+import pdfMake from "pdfmake-rtl/build/pdfmake";
+import "pdfmake-rtl/build/vfs_fonts";
 import type { CompanySettings } from "@/contexts/SettingsContext";
 
 type Content = any;
 type TableCell = any;
 type TDocumentDefinitions = any;
 
-let fontsConfigured = false;
+// ─── Color Palette ───
+const COLORS = {
+  primary: "#1e3a5f",
+  primaryLight: "#2d5a8e",
+  accent: "#e8a838",
+  dark: "#1a1a2e",
+  text: "#2c3e50",
+  textLight: "#7f8c8d",
+  border: "#dce1e8",
+  headerBg: "#1e3a5f",
+  headerText: "#ffffff",
+  rowAlt: "#f7f9fc",
+  white: "#ffffff",
+  success: "#27ae60",
+  cardBg: "#f0f4f8",
+  separator: "#1e3a5f",
+};
 
-function configureFonts() {
-  if (fontsConfigured) return;
-  pdfMake.fonts = {
-    Amiri: {
-      normal: window.location.origin + "/fonts/Amiri-Regular.ttf",
-      bold: window.location.origin + "/fonts/Amiri-Bold.ttf",
-      italics: window.location.origin + "/fonts/Amiri-Regular.ttf",
-      bolditalics: window.location.origin + "/fonts/Amiri-Bold.ttf",
-    },
-  };
-  fontsConfigured = true;
+// ─── Shared Styles ───
+const BASE_STYLES = {
+  companyName: { fontSize: 20, bold: true, color: COLORS.primary },
+  companyNameEn: { fontSize: 11, color: COLORS.textLight },
+  subInfo: { fontSize: 9, color: COLORS.textLight, lineHeight: 1.4 },
+  reportTitle: { fontSize: 16, bold: true, color: COLORS.dark },
+  info: { fontSize: 9, color: COLORS.textLight },
+  cardValue: { fontSize: 14, bold: true, color: COLORS.primary },
+  cardLabel: { fontSize: 9, color: COLORS.textLight },
+  tableHeader: { fontSize: 9, bold: true, color: COLORS.headerText },
+  tableCell: { fontSize: 9, color: COLORS.text },
+  detailText: { fontSize: 10, color: COLORS.text, lineHeight: 1.5 },
+  detailLabel: { fontSize: 10, bold: true, color: COLORS.primary },
+  totalLabel: { fontSize: 10, color: COLORS.text },
+  totalValue: { fontSize: 10, bold: true, color: COLORS.text },
+  grandTotalLabel: { fontSize: 12, bold: true },
+  grandTotalValue: { fontSize: 12, bold: true },
+  invoiceTitle: { fontSize: 18, bold: true, color: COLORS.primary },
+  invoiceNumber: { fontSize: 13, color: COLORS.textLight, bold: true },
+  statusBadge: { fontSize: 10, color: COLORS.success, bold: true },
+  sectionTitle: { fontSize: 11, bold: true, color: COLORS.primary },
+  noteText: { fontSize: 9, color: COLORS.text, italics: true },
+};
+
+const TABLE_LAYOUT_CLEAN = {
+  hLineWidth: (i: number, node: any) => (i === 0 || i === 1 || i === node.table.body.length ? 1.2 : 0.4),
+  vLineWidth: () => 0.4,
+  hLineColor: (i: number) => (i <= 1 ? COLORS.primary : COLORS.border),
+  vLineColor: () => COLORS.border,
+  paddingLeft: () => 8,
+  paddingRight: () => 8,
+  paddingTop: () => 6,
+  paddingBottom: () => 6,
+};
+
+const formatNum = (val: number) =>
+  val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// ─── Company Header Builder ───
+function buildCompanyHeader(settings: CompanySettings | null): Content[] {
+  const parts: Content[] = [];
+
+  // Company logo + name row
+  const nameStack: Content[] = [
+    { text: settings?.company_name || "النظام المحاسبي", style: "companyName", alignment: "center" },
+  ];
+  if (settings?.company_name_en) {
+    nameStack.push({ text: settings.company_name_en, style: "companyNameEn", alignment: "center", margin: [0, 2, 0, 0] });
+  }
+  if (settings?.business_activity) {
+    nameStack.push({ text: settings.business_activity, style: "subInfo", alignment: "center", margin: [0, 2, 0, 0] });
+  }
+
+  parts.push({ stack: nameStack, margin: [0, 0, 0, 4] });
+
+  // Contact info line
+  const infoParts: string[] = [];
+  if (settings?.address) infoParts.push(settings.address);
+  if (settings?.phone) infoParts.push(`هاتف: ${settings.phone}`);
+  if (settings?.email) infoParts.push(settings.email);
+  if (infoParts.length > 0) {
+    parts.push({ text: infoParts.join("  ·  "), style: "info", alignment: "center", margin: [0, 0, 0, 2] });
+  }
+
+  // Tax/CR info
+  const legalParts: string[] = [];
+  if (settings?.tax_number) legalParts.push(`الرقم الضريبي: ${settings.tax_number}`);
+  if (settings?.commercial_register) legalParts.push(`السجل التجاري: ${settings.commercial_register}`);
+  if (legalParts.length > 0) {
+    parts.push({ text: legalParts.join("  ·  "), style: "info", alignment: "center", margin: [0, 0, 0, 4] });
+  }
+
+  // Separator - double line
+  const lineWidth = 515;
+  parts.push({
+    canvas: [
+      { type: "line", x1: 0, y1: 0, x2: lineWidth, y2: 0, lineWidth: 2, lineColor: COLORS.primary },
+      { type: "line", x1: 0, y1: 4, x2: lineWidth, y2: 4, lineWidth: 0.5, lineColor: COLORS.accent },
+    ],
+    margin: [0, 2, 0, 10],
+  });
+
+  return parts;
 }
+
+// ─── Footer Builder ───
+function buildFooter(settings: CompanySettings | null) {
+  return (currentPage: number, pageCount: number) => ({
+    stack: [
+      {
+        canvas: [{ type: "line", x1: 30, y1: 0, x2: 565, y2: 0, lineWidth: 0.5, lineColor: COLORS.border }],
+        margin: [0, 0, 0, 5] as [number, number, number, number],
+      },
+      {
+        columns: [
+          { text: settings?.invoice_footer || "", alignment: "center" as const, fontSize: 7, color: COLORS.textLight },
+          { text: `صفحة ${currentPage} من ${pageCount}`, alignment: "center" as const, fontSize: 7, color: COLORS.textLight },
+        ],
+      },
+    ],
+    margin: [30, 5, 30, 0] as [number, number, number, number],
+  });
+}
+
+// ═══════════════════════════════════════════
+//  REPORT PDF EXPORT
+// ═══════════════════════════════════════════
 
 interface ReportPdfOptions {
   title: string;
@@ -31,88 +143,45 @@ interface ReportPdfOptions {
 }
 
 export async function exportReportPdf({
-  title,
-  settings,
-  headers,
-  rows,
-  summaryCards,
-  orientation = "portrait",
-  filename,
+  title, settings, headers, rows, summaryCards,
+  orientation = "portrait", filename,
 }: ReportPdfOptions) {
-  configureFonts();
-
   const content: Content[] = [];
+  const pageWidth = orientation === "landscape" ? 770 : 515;
 
-  // === Company Header ===
+  // Company header
+  content.push(...buildCompanyHeader(settings));
+
+  // Report title with date badge
   content.push({
-    text: settings?.company_name || "النظام المحاسبي",
-    style: "companyName",
-    alignment: "center",
-    margin: [0, 0, 0, 4],
-  });
-
-  if (settings?.business_activity) {
-    content.push({
-      text: settings.business_activity,
-      style: "subHeader",
-      alignment: "center",
-      margin: [0, 0, 0, 3],
-    });
-  }
-
-  const infoParts: string[] = [];
-  if (settings?.phone) infoParts.push(`هاتف: ${settings.phone}`);
-  if (settings?.tax_number) infoParts.push(`الرقم الضريبي: ${settings.tax_number}`);
-  if (infoParts.length > 0) {
-    content.push({
-      text: infoParts.join("  |  "),
-      style: "info",
-      alignment: "center",
-      margin: [0, 0, 0, 6],
-    });
-  }
-
-  // Separator
-  content.push({
-    canvas: [
+    columns: [
+      { text: "", width: "*" },
       {
-        type: "line",
-        x1: 0,
-        y1: 0,
-        x2: orientation === "landscape" ? 770 : 515,
-        y2: 0,
-        lineWidth: 1,
-        lineColor: "#1e40af",
+        stack: [
+          { text: title, style: "reportTitle", alignment: "center" },
+          {
+            text: `${new Date().toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}  ·  العملة: ${settings?.default_currency || "EGP"}`,
+            style: "info",
+            alignment: "center",
+            margin: [0, 3, 0, 0],
+          },
+        ],
+        width: "auto",
       },
+      { text: "", width: "*" },
     ],
-    margin: [0, 2, 0, 8],
+    margin: [0, 0, 0, 12],
   });
 
-  // Report title
-  content.push({
-    text: title,
-    style: "reportTitle",
-    alignment: "center",
-    margin: [0, 0, 0, 3],
-  });
-
-  // Date & currency
-  content.push({
-    text: `التاريخ: ${new Date().toLocaleDateString("ar-EG")}  |  العملة: ${settings?.default_currency || "EGP"}`,
-    style: "info",
-    alignment: "center",
-    margin: [0, 0, 0, 10],
-  });
-
-  // === Summary Cards ===
+  // Summary cards
   if (summaryCards && summaryCards.length > 0) {
     const cardCells: TableCell[] = summaryCards.map((card) => ({
       stack: [
         { text: card.value, style: "cardValue", alignment: "center" as const },
-        { text: card.label, style: "cardLabel", alignment: "center" as const },
+        { text: card.label, style: "cardLabel", alignment: "center" as const, margin: [0, 3, 0, 0] as [number, number, number, number] },
       ],
-      fillColor: "#f0f4ff",
-      margin: [4, 6, 4, 6] as [number, number, number, number],
+      fillColor: COLORS.cardBg,
+      margin: [4, 8, 4, 8] as [number, number, number, number],
     }));
 
     content.push({
@@ -121,107 +190,70 @@ export async function exportReportPdf({
         body: [cardCells],
       },
       layout: {
-        hLineWidth: () => 0.5,
-        vLineWidth: () => 0.5,
-        hLineColor: () => "#cbd5e1",
-        vLineColor: () => "#cbd5e1",
+        hLineWidth: () => 0.8,
+        vLineWidth: () => 0.8,
+        hLineColor: () => COLORS.border,
+        vLineColor: () => COLORS.border,
         paddingLeft: () => 6,
         paddingRight: () => 6,
         paddingTop: () => 4,
         paddingBottom: () => 4,
       },
-      margin: [0, 0, 0, 12] as [number, number, number, number],
+      margin: [0, 0, 0, 14] as [number, number, number, number],
     });
   }
 
-  // === Data Table ===
-  const colCount = headers.length;
-  const widths = headers.map(() => "*");
-
-  // Header row
+  // Data table
   const headerRow: TableCell[] = headers.map((h) => ({
     text: h,
     style: "tableHeader",
     alignment: "center" as const,
-    fillColor: "#1e3a8a",
-    color: "#ffffff",
+    fillColor: COLORS.headerBg,
+    color: COLORS.headerText,
   }));
 
-  // Data rows
   const bodyRows: TableCell[][] = rows.map((row, rowIdx) =>
     row.map((cell) => ({
       text: String(cell),
       style: "tableCell",
       alignment: "center" as const,
-      fillColor: rowIdx % 2 === 0 ? "#ffffff" : "#f8fafc",
+      fillColor: rowIdx % 2 === 0 ? COLORS.white : COLORS.rowAlt,
     }))
   );
 
   content.push({
     table: {
       headerRows: 1,
-      widths,
+      widths: headers.map(() => "*"),
       body: [headerRow, ...bodyRows],
     },
-    layout: {
-      hLineWidth: (i: number, node: any) => (i === 0 || i === 1 || i === node.table.body.length ? 1 : 0.5),
-      vLineWidth: () => 0.5,
-      hLineColor: (i: number) => (i <= 1 ? "#1e3a8a" : "#e2e8f0"),
-      vLineColor: () => "#e2e8f0",
-      paddingLeft: () => 6,
-      paddingRight: () => 6,
-      paddingTop: () => 5,
-      paddingBottom: () => 5,
-    },
+    layout: TABLE_LAYOUT_CLEAN,
   });
 
-  // === Document Definition ===
+  // Row count
+  content.push({
+    text: `إجمالي السجلات: ${rows.length}`,
+    style: "info",
+    alignment: "left",
+    margin: [0, 6, 0, 0],
+  });
+
   const docDefinition: TDocumentDefinitions = {
     pageOrientation: orientation,
-    pageMargins: [30, 20, 30, 40],
-    defaultStyle: {
-      font: "Amiri",
-      fontSize: 10,
-      alignment: "right",
-    },
-    styles: {
-      companyName: { fontSize: 18, bold: true, color: "#1e3a8a" },
-      subHeader: { fontSize: 11, color: "#475569" },
-      info: { fontSize: 9, color: "#64748b" },
-      reportTitle: { fontSize: 15, bold: true, color: "#0f172a" },
-      cardValue: { fontSize: 13, bold: true, color: "#1e3a8a" },
-      cardLabel: { fontSize: 9, color: "#64748b" },
-      tableHeader: { fontSize: 10, bold: true, color: "#ffffff" },
-      tableCell: { fontSize: 9, color: "#1e293b" },
-    },
+    pageMargins: [30, 20, 30, 45],
+    defaultStyle: { fontSize: 10, alignment: "right" },
+    styles: BASE_STYLES,
     content,
-    footer: (currentPage: number, pageCount: number) => ({
-      columns: [
-        {
-          text: settings?.invoice_footer || "",
-          alignment: "center",
-          fontSize: 8,
-          color: "#94a3b8",
-          margin: [30, 0, 0, 0],
-        },
-        {
-          text: `صفحة ${currentPage} من ${pageCount}`,
-          alignment: "center",
-          fontSize: 8,
-          color: "#94a3b8",
-          margin: [0, 0, 30, 0],
-        },
-      ],
-      margin: [30, 10, 30, 0] as [number, number, number, number],
-    }),
+    footer: buildFooter(settings),
   };
 
   pdfMake.createPdf(docDefinition).download(`${filename}.pdf`);
 }
 
-/**
- * Generate a professional invoice/return PDF
- */
+// ═══════════════════════════════════════════
+//  INVOICE PDF EXPORT (Professional - Odoo-style)
+// ═══════════════════════════════════════════
+
 interface InvoicePdfOptions {
   type: "sales_invoice" | "purchase_invoice" | "sales_return" | "purchase_return";
   number: number | string;
@@ -232,6 +264,7 @@ interface InvoicePdfOptions {
   notes?: string;
   items: { name: string; quantity: number; unitPrice: number; discount: number; total: number }[];
   subtotal: number;
+  discountTotal?: number;
   taxAmount?: number;
   taxRate?: number;
   grandTotal: number;
@@ -239,6 +272,8 @@ interface InvoicePdfOptions {
   showDiscount?: boolean;
   settings: CompanySettings | null;
   status?: string;
+  dueDate?: string;
+  paidAmount?: number;
 }
 
 const typeLabels: Record<string, string> = {
@@ -248,67 +283,134 @@ const typeLabels: Record<string, string> = {
   purchase_return: "مرتجع مشتريات",
 };
 
+const typeColors: Record<string, string> = {
+  sales_invoice: COLORS.primary,
+  purchase_invoice: "#7b2d8e",
+  sales_return: "#c0392b",
+  purchase_return: "#d35400",
+};
+
 export function exportInvoicePdf(options: InvoicePdfOptions) {
-  configureFonts();
   const {
     type, number: num, date, partyName, partyLabel, reference, notes,
-    items, subtotal, taxAmount = 0, taxRate = 0, grandTotal,
-    showTax, showDiscount = true, settings, status,
+    items, subtotal, discountTotal, taxAmount = 0, taxRate = 0, grandTotal,
+    showTax, showDiscount = true, settings, status, dueDate, paidAmount,
   } = options;
 
   const typeLabel = typeLabels[type] || type;
+  const typeColor = typeColors[type] || COLORS.primary;
+  const currency = settings?.default_currency || "EGP";
   const content: Content[] = [];
 
-  // Header section with company info
+  // ─── Top Section: Company + Invoice Badge ───
   content.push({
     columns: [
       {
         width: "*",
         stack: [
           { text: settings?.company_name || "النظام المحاسبي", style: "companyName", alignment: "right" },
-          ...(settings?.business_activity ? [{ text: settings.business_activity, style: "subInfo", alignment: "right" as const }] : []),
+          ...(settings?.company_name_en ? [{ text: settings.company_name_en, style: "companyNameEn", alignment: "right" as const, margin: [0, 2, 0, 0] as [number, number, number, number] }] : []),
+          ...(settings?.business_activity ? [{ text: settings.business_activity, style: "subInfo", alignment: "right" as const, margin: [0, 2, 0, 0] as [number, number, number, number] }] : []),
           ...(settings?.address ? [{ text: settings.address, style: "subInfo", alignment: "right" as const }] : []),
+          ...(settings?.phone ? [{ text: `هاتف: ${settings.phone}`, style: "subInfo", alignment: "right" as const }] : []),
         ],
       },
       {
         width: "auto",
         stack: [
-          { text: typeLabel, style: "invoiceTitle", alignment: "left" },
-          { text: `# ${num}`, style: "invoiceNumber", alignment: "left" },
-          ...(status ? [{ text: status === "posted" ? "مُرحّل" : status === "draft" ? "مسودة" : status, style: "statusBadge", alignment: "left" as const }] : []),
+          {
+            table: {
+              body: [[{
+                stack: [
+                  { text: typeLabel, fontSize: 16, bold: true, color: COLORS.white, alignment: "center" as const },
+                  { text: `# ${num}`, fontSize: 12, color: COLORS.white, alignment: "center" as const, margin: [0, 3, 0, 0] as [number, number, number, number] },
+                ],
+                fillColor: typeColor,
+                margin: [15, 10, 15, 10] as [number, number, number, number],
+              }]],
+            },
+            layout: { hLineWidth: () => 0, vLineWidth: () => 0 },
+          },
+          ...(status ? [{
+            text: status === "posted" ? "✓ مُعتمد" : status === "draft" ? "مسودة" : status,
+            fontSize: 9,
+            bold: true,
+            color: status === "posted" ? COLORS.success : COLORS.textLight,
+            alignment: "center" as const,
+            margin: [0, 4, 0, 0] as [number, number, number, number],
+          }] : []),
         ],
       },
     ],
-    margin: [0, 0, 0, 8],
+    margin: [0, 0, 0, 6],
   });
 
-  // Blue separator
+  // Separator
   content.push({
-    canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: "#1e40af" }],
-    margin: [0, 0, 0, 12],
-  });
-
-  // Invoice details
-  const detailsLeft: Content[] = [];
-  const detailsRight: Content[] = [
-    { text: [{ text: `${partyLabel}: `, bold: true }, partyName], style: "detailText" },
-    { text: [{ text: "التاريخ: ", bold: true }, date], style: "detailText" },
-  ];
-  if (reference) detailsRight.push({ text: [{ text: "المرجع: ", bold: true }, reference], style: "detailText" });
-
-  if (settings?.phone) detailsLeft.push({ text: [{ text: "هاتف: ", bold: true }, settings.phone], style: "detailText" });
-  if (settings?.tax_number) detailsLeft.push({ text: [{ text: "الرقم الضريبي: ", bold: true }, settings.tax_number], style: "detailText" });
-
-  content.push({
-    columns: [
-      { width: "*", stack: detailsLeft },
-      { width: "*", stack: detailsRight },
+    canvas: [
+      { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2.5, lineColor: typeColor },
+      { type: "line", x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 0.5, lineColor: COLORS.accent },
     ],
     margin: [0, 0, 0, 14],
   });
 
-  // Items table
-  const tableHeaders: string[] = ["#", "الصنف", "الكمية", "السعر"];
+  // ─── Invoice Details - Two Column Layout ───
+  const rightDetails: Content[] = [
+    { text: partyLabel, style: "sectionTitle", margin: [0, 0, 0, 4] as [number, number, number, number] },
+    { text: partyName, fontSize: 13, bold: true, color: COLORS.dark, margin: [0, 0, 0, 8] as [number, number, number, number] },
+  ];
+
+  const leftDetails: Content[] = [
+    { text: "بيانات الفاتورة", style: "sectionTitle", margin: [0, 0, 0, 4] as [number, number, number, number] },
+  ];
+
+  // Details table for clean alignment
+  const detailRows: TableCell[][] = [
+    [
+      { text: "التاريخ", style: "detailLabel", alignment: "right" as const, border: [false, false, false, false] },
+      { text: date, style: "detailText", alignment: "right" as const, border: [false, false, false, false] },
+    ],
+  ];
+  if (dueDate) {
+    detailRows.push([
+      { text: "تاريخ الاستحقاق", style: "detailLabel", alignment: "right" as const, border: [false, false, false, false] },
+      { text: dueDate, style: "detailText", alignment: "right" as const, border: [false, false, false, false] },
+    ]);
+  }
+  if (reference) {
+    detailRows.push([
+      { text: "المرجع", style: "detailLabel", alignment: "right" as const, border: [false, false, false, false] },
+      { text: reference, style: "detailText", alignment: "right" as const, border: [false, false, false, false] },
+    ]);
+  }
+
+  leftDetails.push({
+    table: { widths: [70, "*"], body: detailRows },
+    layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 2, paddingRight: () => 2, paddingTop: () => 2, paddingBottom: () => 2 },
+  });
+
+  // Tax info on right side
+  if (settings?.tax_number) {
+    rightDetails.push({ text: `الرقم الضريبي: ${settings.tax_number}`, style: "subInfo" });
+  }
+
+  content.push({
+    columns: [
+      {
+        width: "*",
+        stack: leftDetails,
+        margin: [0, 0, 10, 0] as [number, number, number, number],
+      },
+      {
+        width: "*",
+        stack: rightDetails,
+      },
+    ],
+    margin: [0, 0, 0, 16],
+  });
+
+  // ─── Items Table ───
+  const tableHeaders: string[] = ["#", "الصنف", "الكمية", "سعر الوحدة"];
   if (showDiscount) tableHeaders.push("الخصم");
   tableHeaders.push("الإجمالي");
 
@@ -316,30 +418,32 @@ export function exportInvoicePdf(options: InvoicePdfOptions) {
     text: h,
     style: "tableHeader",
     alignment: "center" as const,
-    fillColor: "#1e3a8a",
-    color: "#ffffff",
+    fillColor: typeColor,
+    color: COLORS.headerText,
+    margin: [0, 2, 0, 2] as [number, number, number, number],
   }));
 
   const itemRows: TableCell[][] = items.map((item, idx) => {
     const row: TableCell[] = [
-      { text: String(idx + 1), alignment: "center" as const, style: "tableCell" },
-      { text: item.name, alignment: "right" as const, style: "tableCell" },
-      { text: String(item.quantity), alignment: "center" as const, style: "tableCell" },
-      { text: item.unitPrice.toLocaleString("en-US", { minimumFractionDigits: 2 }), alignment: "center" as const, style: "tableCell" },
+      { text: String(idx + 1), alignment: "center" as const, style: "tableCell", fillColor: idx % 2 === 0 ? COLORS.white : COLORS.rowAlt },
+      { text: item.name, alignment: "right" as const, style: "tableCell", fillColor: idx % 2 === 0 ? COLORS.white : COLORS.rowAlt },
+      { text: String(item.quantity), alignment: "center" as const, style: "tableCell", fillColor: idx % 2 === 0 ? COLORS.white : COLORS.rowAlt },
+      { text: formatNum(item.unitPrice), alignment: "center" as const, style: "tableCell", fillColor: idx % 2 === 0 ? COLORS.white : COLORS.rowAlt },
     ];
     if (showDiscount) {
-      row.push({ text: item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 }), alignment: "center" as const, style: "tableCell" });
+      row.push({ text: formatNum(item.discount), alignment: "center" as const, style: "tableCell", fillColor: idx % 2 === 0 ? COLORS.white : COLORS.rowAlt });
     }
     row.push({
-      text: item.total.toLocaleString("en-US", { minimumFractionDigits: 2 }),
+      text: formatNum(item.total),
       alignment: "center" as const,
       style: "tableCell",
       bold: true,
+      fillColor: idx % 2 === 0 ? COLORS.white : COLORS.rowAlt,
     });
     return row;
   });
 
-  const tWidths = showDiscount ? [25, "*", 50, 70, 60, 80] : [25, "*", 50, 70, 80];
+  const tWidths = showDiscount ? [25, "*", 50, 75, 60, 85] : [25, "*", 55, 80, 90];
 
   content.push({
     table: {
@@ -348,103 +452,120 @@ export function exportInvoicePdf(options: InvoicePdfOptions) {
       body: [headerCells, ...itemRows],
     },
     layout: {
-      hLineWidth: (i: number, node: any) => (i === 0 || i === 1 || i === node.table.body.length ? 1 : 0.5),
-      vLineWidth: () => 0.5,
-      hLineColor: (i: number) => (i <= 1 ? "#1e3a8a" : "#e2e8f0"),
-      vLineColor: () => "#e2e8f0",
-      paddingLeft: () => 6,
-      paddingRight: () => 6,
-      paddingTop: () => 5,
-      paddingBottom: () => 5,
+      ...TABLE_LAYOUT_CLEAN,
+      hLineColor: (i: number) => (i <= 1 ? typeColor : COLORS.border),
     },
-    margin: [0, 0, 0, 12],
+    margin: [0, 0, 0, 14],
   });
 
-  // Totals section
-  const currency = settings?.default_currency || "EGP";
-  const totalsBody: TableCell[][] = [
-    [
-      { text: "الإجمالي الفرعي", alignment: "right" as const, style: "totalLabel" },
-      { text: `${subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })} ${currency}`, alignment: "left" as const, style: "totalValue" },
-    ],
-  ];
+  // ─── Totals Section (Right-aligned box) ───
+  const totalsBody: TableCell[][] = [];
 
-  if (showTax && taxRate > 0) {
+  totalsBody.push([
+    { text: "الإجمالي الفرعي", style: "totalLabel", alignment: "right" as const, border: [false, false, false, true], borderColor: [COLORS.border, COLORS.border, COLORS.border, COLORS.border] },
+    { text: `${formatNum(subtotal)} ${currency}`, style: "totalValue", alignment: "left" as const, border: [false, false, false, true], borderColor: [COLORS.border, COLORS.border, COLORS.border, COLORS.border] },
+  ]);
+
+  if (showDiscount && discountTotal && discountTotal > 0) {
     totalsBody.push([
-      { text: `الضريبة (${taxRate}%)`, alignment: "right" as const, style: "totalLabel" },
-      { text: `${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })} ${currency}`, alignment: "left" as const, style: "totalValue" },
+      { text: "الخصم", style: "totalLabel", alignment: "right" as const, color: "#c0392b", border: [false, false, false, true], borderColor: [COLORS.border, COLORS.border, COLORS.border, COLORS.border] },
+      { text: `- ${formatNum(discountTotal)} ${currency}`, style: "totalValue", alignment: "left" as const, color: "#c0392b", border: [false, false, false, true], borderColor: [COLORS.border, COLORS.border, COLORS.border, COLORS.border] },
     ]);
   }
 
+  if (showTax && taxRate > 0) {
+    totalsBody.push([
+      { text: `ضريبة القيمة المضافة (${taxRate}%)`, style: "totalLabel", alignment: "right" as const, border: [false, false, false, true], borderColor: [COLORS.border, COLORS.border, COLORS.border, COLORS.border] },
+      { text: `${formatNum(taxAmount)} ${currency}`, style: "totalValue", alignment: "left" as const, border: [false, false, false, true], borderColor: [COLORS.border, COLORS.border, COLORS.border, COLORS.border] },
+    ]);
+  }
+
+  // Grand total row
   totalsBody.push([
-    { text: "الإجمالي الكلي", alignment: "right" as const, style: "grandTotalLabel", fillColor: "#1e3a8a", color: "#ffffff" },
-    { text: `${grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })} ${currency}`, alignment: "left" as const, style: "grandTotalValue", fillColor: "#1e3a8a", color: "#ffffff" },
+    { text: "الإجمالي المستحق", style: "grandTotalLabel", alignment: "right" as const, fillColor: typeColor, color: COLORS.white, margin: [0, 4, 0, 4] as [number, number, number, number], border: [false, false, false, false] },
+    { text: `${formatNum(grandTotal)} ${currency}`, style: "grandTotalValue", alignment: "left" as const, fillColor: typeColor, color: COLORS.white, margin: [0, 4, 0, 4] as [number, number, number, number], border: [false, false, false, false] },
   ]);
+
+  // Paid amount & balance
+  if (paidAmount !== undefined && paidAmount > 0) {
+    totalsBody.push([
+      { text: "المبلغ المدفوع", style: "totalLabel", alignment: "right" as const, color: COLORS.success, border: [false, false, false, true], borderColor: [COLORS.border, COLORS.border, COLORS.border, COLORS.border] },
+      { text: `${formatNum(paidAmount)} ${currency}`, style: "totalValue", alignment: "left" as const, color: COLORS.success, border: [false, false, false, true], borderColor: [COLORS.border, COLORS.border, COLORS.border, COLORS.border] },
+    ]);
+    const balance = grandTotal - paidAmount;
+    if (balance > 0) {
+      totalsBody.push([
+        { text: "المتبقي", style: "totalLabel", alignment: "right" as const, color: "#c0392b", bold: true, border: [false, false, false, false] },
+        { text: `${formatNum(balance)} ${currency}`, style: "totalValue", alignment: "left" as const, color: "#c0392b", bold: true, border: [false, false, false, false] },
+      ]);
+    }
+  }
 
   content.push({
     columns: [
       { width: "*", text: "" },
       {
-        width: 250,
+        width: 260,
         table: {
           widths: ["*", "auto"],
           body: totalsBody,
         },
         layout: {
-          hLineWidth: () => 0.5,
+          hLineWidth: (i: number) => (i === 0 ? 0 : 0.5),
           vLineWidth: () => 0,
-          hLineColor: () => "#e2e8f0",
-          paddingLeft: () => 8,
-          paddingRight: () => 8,
+          hLineColor: () => COLORS.border,
+          paddingLeft: () => 10,
+          paddingRight: () => 10,
           paddingTop: () => 5,
           paddingBottom: () => 5,
         },
       },
     ],
-    margin: [0, 0, 0, 12],
+    margin: [0, 0, 0, 16],
   });
 
-  // Notes
+  // ─── Notes Section ───
   if (notes) {
     content.push({
-      stack: [
-        { text: "ملاحظات:", bold: true, style: "detailText", margin: [0, 0, 0, 3] as [number, number, number, number] },
-        { text: notes, style: "info", fillColor: "#f8fafc" },
-      ],
+      table: {
+        widths: ["*"],
+        body: [[
+          {
+            stack: [
+              { text: "ملاحظات", style: "sectionTitle", margin: [0, 0, 0, 4] as [number, number, number, number] },
+              { text: notes, style: "noteText" },
+            ],
+            fillColor: COLORS.cardBg,
+            margin: [8, 8, 8, 8] as [number, number, number, number],
+          },
+        ]],
+      },
+      layout: {
+        hLineWidth: () => 0.5,
+        vLineWidth: () => 0.5,
+        hLineColor: () => COLORS.border,
+        vLineColor: () => COLORS.border,
+      },
       margin: [0, 0, 0, 10],
     });
   }
 
+  // ─── Invoice Footer / Terms ───
+  if (settings?.invoice_notes) {
+    content.push({
+      text: settings.invoice_notes,
+      style: "info",
+      alignment: "center",
+      margin: [0, 10, 0, 0],
+    });
+  }
+
   const docDefinition: TDocumentDefinitions = {
-    pageMargins: [30, 20, 30, 40],
-    defaultStyle: {
-      font: "Amiri",
-      fontSize: 10,
-      alignment: "right",
-    },
-    styles: {
-      companyName: { fontSize: 16, bold: true, color: "#1e3a8a" },
-      invoiceTitle: { fontSize: 16, bold: true, color: "#1e3a8a" },
-      invoiceNumber: { fontSize: 14, color: "#475569" },
-      statusBadge: { fontSize: 10, color: "#059669", bold: true },
-      subInfo: { fontSize: 9, color: "#64748b" },
-      detailText: { fontSize: 10, color: "#334155", lineHeight: 1.6 },
-      info: { fontSize: 9, color: "#64748b" },
-      tableHeader: { fontSize: 10, bold: true },
-      tableCell: { fontSize: 9, color: "#1e293b" },
-      totalLabel: { fontSize: 10, color: "#475569" },
-      totalValue: { fontSize: 10, bold: true, color: "#1e293b" },
-      grandTotalLabel: { fontSize: 12, bold: true },
-      grandTotalValue: { fontSize: 12, bold: true },
-    },
+    pageMargins: [30, 20, 30, 45],
+    defaultStyle: { fontSize: 10, alignment: "right" },
+    styles: BASE_STYLES,
     content,
-    footer: (currentPage: number, pageCount: number) => ({
-      columns: [
-        { text: settings?.invoice_footer || "", alignment: "center", fontSize: 8, color: "#94a3b8" },
-        { text: `صفحة ${currentPage} من ${pageCount}`, alignment: "center", fontSize: 8, color: "#94a3b8" },
-      ],
-      margin: [30, 10, 30, 0] as [number, number, number, number],
-    }),
+    footer: buildFooter(settings),
   };
 
   pdfMake.createPdf(docDefinition).download(`${typeLabel}-${num}.pdf`);
