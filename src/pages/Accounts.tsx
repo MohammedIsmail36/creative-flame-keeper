@@ -197,7 +197,27 @@ export default function Accounts() {
   const handleDelete = async (account: Account) => {
     const children = accountTree.get(account.id);
     if (children && children.length > 0) {
+      // Check if any child has journal entries
+      const childIds = children.map(c => c.id);
+      const { count: childEntriesCount } = await supabase
+        .from("journal_entry_lines")
+        .select("id", { count: "exact", head: true })
+        .in("account_id", childIds);
+      if (childEntriesCount && childEntriesCount > 0) {
+        toast({ title: "تنبيه", description: "لا يمكن حذف حساب رئيسي مرتبط بحسابات فرعية لها قيود محاسبية", variant: "destructive" });
+        return;
+      }
       toast({ title: "تنبيه", description: "لا يمكن حذف حساب يحتوي على حسابات فرعية", variant: "destructive" });
+      return;
+    }
+
+    // Check if this account has journal entries
+    const { count: entriesCount } = await supabase
+      .from("journal_entry_lines")
+      .select("id", { count: "exact", head: true })
+      .eq("account_id", account.id);
+    if (entriesCount && entriesCount > 0) {
+      toast({ title: "تنبيه", description: `لا يمكن حذف الحساب "${account.name}" لأنه مرتبط بقيود محاسبية (${entriesCount} قيد). يمكنك تعطيله بدلاً من ذلك.`, variant: "destructive" });
       return;
     }
 

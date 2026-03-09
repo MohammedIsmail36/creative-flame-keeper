@@ -188,8 +188,8 @@ export default function Products() {
     filenamePrefix: "المنتجات",
     sheetName: "المنتجات",
     pdfTitle: "قائمة المنتجات",
-    headers: ["الكود", "الاسم", "الباركود", "التصنيف", "سعر الشراء", "سعر البيع", "الكمية", "الحد الأدنى"],
-    rows: filteredProducts.map(p => [p.code, p.name, p.barcode || "", getCategoryName(p), formatNum(p.purchase_price), formatNum(p.selling_price), Number(p.quantity_on_hand), Number(p.min_stock_level)]),
+    headers: ["الكود", "الاسم", "الماركة", "رقم الموديل", "الباركود", "التصنيف", "سعر الشراء", "سعر البيع", "الكمية", "الحد الأدنى"],
+    rows: filteredProducts.map(p => [p.code, p.name, getBrandName(p), p.model_number || "", p.barcode || "", getCategoryName(p), formatNum(p.purchase_price), formatNum(p.selling_price), Number(p.quantity_on_hand), Number(p.min_stock_level)]),
     settings,
     pdfOrientation: "landscape" as const,
   }), [filteredProducts, settings]);
