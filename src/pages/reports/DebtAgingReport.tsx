@@ -75,7 +75,7 @@ export default function DebtAgingReport() {
   const customerAging = calcAging(salesInvoices || [], (inv) => inv.customer?.name || "بدون عميل");
   const supplierAging = calcAging(purchaseInvoices || [], (inv) => inv.supplier?.name || "بدون مورد");
 
-  const fmt = (n: number) => n.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const totalCustomerDebt = customerAging.reduce((s, c) => s + c.total, 0);
   const totalSupplierDebt = supplierAging.reduce((s, c) => s + c.total, 0);
