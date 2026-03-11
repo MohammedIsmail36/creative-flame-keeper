@@ -301,7 +301,7 @@ export default function SalesInvoiceForm() {
   }
 
   async function handlePrint() {
-    exportInvoicePdf({
+    await exportInvoicePdf({
       type: "sales_invoice",
       number: invoiceNumber || "جديدة",
       date: invoiceDate,
