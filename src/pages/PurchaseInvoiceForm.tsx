@@ -264,7 +264,7 @@ export default function PurchaseInvoiceForm() {
   }
 
   async function handlePrint() {
-    exportInvoicePdf({
+    await exportInvoicePdf({
       type: "purchase_invoice",
       number: invoiceNumber || "جديدة",
       date: invoiceDate,
