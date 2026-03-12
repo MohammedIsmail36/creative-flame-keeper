@@ -30,65 +30,10 @@ const C = {
   orangeBg:  "#fff7ed",
 };
 
-// ─── Font Loading ───
-let fontsLoaded = false;
-
+// ─── Font: use built-in Amiri from pdfmake-rtl ───
+const fontsLoaded = false;
 async function loadTajawalFonts() {
-  if (fontsLoaded) return;
-  try {
-    const toBase64 = (buf: ArrayBuffer) => {
-      const bytes = new Uint8Array(buf);
-      let binary = "";
-      const chunkSize = 8192;
-      for (let i = 0; i < bytes.byteLength; i += chunkSize) {
-        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.byteLength));
-        binary += String.fromCharCode.apply(null, Array.from(chunk));
-      }
-      return btoa(binary);
-    };
-
-    const responses = await Promise.all([
-      fetch("/fonts/Tajawal-Regular.ttf"),
-      fetch("/fonts/Tajawal-Bold.ttf"),
-      fetch("/fonts/Tajawal-Medium.ttf"),
-    ]);
-
-    // Check all responses are OK
-    if (responses.some(r => !r.ok)) {
-      throw new Error("Font fetch failed");
-    }
-
-    const [regular, bold, medium] = await Promise.all(
-      responses.map(r => r.arrayBuffer())
-    );
-
-    // Validate font data is not empty
-    if (regular.byteLength < 100 || bold.byteLength < 100 || medium.byteLength < 100) {
-      throw new Error("Font files are empty or corrupt");
-    }
-
-    const vfs = (pdfMake as any).vfs || {};
-    vfs["Tajawal-Regular.ttf"] = toBase64(regular);
-    vfs["Tajawal-Bold.ttf"] = toBase64(bold);
-    vfs["Tajawal-Medium.ttf"] = toBase64(medium);
-    (pdfMake as any).vfs = vfs;
-
-    (pdfMake as any).fonts = {
-      ...((pdfMake as any).fonts || {}),
-      Tajawal: {
-        normal: "Tajawal-Regular.ttf",
-        bold: "Tajawal-Bold.ttf",
-        italics: "Tajawal-Medium.ttf",
-        bolditalics: "Tajawal-Bold.ttf",
-      },
-    };
-
-    fontsLoaded = true;
-    console.log("Tajawal fonts loaded successfully");
-  } catch (e) {
-    console.warn("Failed to load Tajawal fonts, using built-in Amiri:", e);
-    fontsLoaded = false;
-  }
+  // pdfmake-rtl ships with Amiri Arabic font via vfs_fonts import — no custom loading needed
 }
 
 // ─── Logo Loading ───
