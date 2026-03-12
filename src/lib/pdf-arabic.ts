@@ -6,14 +6,14 @@ type Content = any;
 type TableCell = any;
 type TDocumentDefinitions = any;
 
-// ─── Clean Blue Palette (invoice03.html inspired) ───
+// ─── Palette ───
 const C = {
   blue: "#1d4ed8",
   blueMid: "#2563eb",
   blueSoft: "#3b82f6",
   bluePale: "#eff6ff",
   blueLine: "#dbeafe",
-  blueLight: "#93c5fd", // ← used for grand-total value text (on dark bg)
+  blueLight: "#93c5fd",
   ink: "#0f172a",
   ink2: "#334155",
   ink3: "#64748b",
@@ -25,99 +25,86 @@ const C = {
   greenBg: "#f0fdf4",
   greenBorder: "#bbf7d0",
   red: "#dc2626",
-  redBg: "#fef2f2",
   orange: "#ea580c",
   orangeBg: "#fff7ed",
 };
 
-// ─── Font: use built-in Amiri from pdfmake-rtl ───
-const fontsLoaded = false;
-async function loadTajawalFonts() {
-  // pdfmake-rtl ships with Amiri Arabic font via vfs_fonts import — no custom loading needed
-}
-
-// ─── Logo Loading ───
+// ─── Logo ───
 async function loadLogoBase64(url: string): Promise<string | null> {
   try {
-    const response = await fetch(url);
-    const blob = await response.blob();
+    const res = await fetch(url);
+    const blob = await res.blob();
     return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
+      const r = new FileReader();
+      r.onloadend = () => resolve(r.result as string);
+      r.onerror = () => resolve(null);
+      r.readAsDataURL(blob);
     });
   } catch {
     return null;
   }
 }
 
-// ─── Formatting Helpers (All numbers/dates in English) ───
+// ─── Formatters ───
 const fmtNum = (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const fmtDate = (d: string) => {
   if (!d) return "";
-  const date = new Date(d);
-  return date.toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
+  return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
 };
 
 const fmtDateFull = (d: Date) => d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
-// ─── Table Layout — DARK header (matching invoice03.html) ───
-// Header row:  background = C.ink (black),  text = white
-// Data rows:   alternating white / bluePale
-const DARK_HEADER_TABLE_LAYOUT = {
+// ─────────────────────────────────────────────
+//  TABLE LAYOUT  — dark ink header (invoice03)
+//  Header row  → background: C.ink, text: white
+//  Even rows   → white
+//  Odd rows    → C.bluePale
+// ─────────────────────────────────────────────
+const TABLE_LAYOUT = {
   hLineWidth: (i: number, node: any) => {
-    if (i === 0) return 1;
-    if (i === 1) return 0; // no line between dark header and first row
-    if (i === node.table.body.length) return 1;
+    if (i === 0 || i === node.table.body.length) return 1;
+    if (i === 1) return 0; // no line under dark header
     return 0.5;
   },
   vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length ? 1 : 0),
-  hLineColor: (i: number) => (i === 0 || i === 1 ? C.border : C.blueLine),
+  hLineColor: () => C.border,
   vLineColor: () => C.border,
   paddingLeft: () => 10,
   paddingRight: () => 10,
   paddingTop: () => 8,
   paddingBottom: () => 8,
-  fillColor: (i: number) => {
-    if (i === 0) return C.ink; // ← DARK header
-    return i % 2 === 0 ? C.white : C.bluePale; // alternating pale-blue / white
+  fillColor: (rowIdx: number) => {
+    if (rowIdx === 0) return C.ink; // dark header
+    return rowIdx % 2 === 1 ? C.white : C.bluePale;
   },
 };
 
-// ═══════════════════════════════════════════
-//  FOOTER  (centered · separated · with labels)
-// ═══════════════════════════════════════════
-
+// ─────────────────────────────────────────────
+//  FOOTER
+// ─────────────────────────────────────────────
 function buildFooter(settings: CompanySettings | null) {
   return (currentPage: number, pageCount: number) => {
-    // Build centred info tags separated by  ·
-    const parts: { icon: string; text: string }[] = [];
-    if (settings?.address) parts.push({ icon: "📍", text: settings.address });
-    if (settings?.email) parts.push({ icon: "✉", text: settings.email });
-    if (settings?.phone) parts.push({ icon: "📞", text: settings.phone });
-    if (settings?.tax_number) parts.push({ icon: "", text: `VAT: ${settings.tax_number}` });
-    if (settings?.commercial_register) parts.push({ icon: "", text: `C.R: ${settings.commercial_register}` });
-
-    const centreText = parts.map((p) => (p.icon ? `${p.icon} ${p.text}` : p.text)).join("   ·   ");
+    const parts: string[] = [];
+    if (settings?.address) parts.push(`📍 ${settings.address}`);
+    if (settings?.email) parts.push(`✉ ${settings.email}`);
+    if (settings?.phone) parts.push(`📞 ${settings.phone}`);
+    if (settings?.tax_number) parts.push(`VAT: ${settings.tax_number}`);
+    if (settings?.commercial_register) parts.push(`C.R: ${settings.commercial_register}`);
 
     return {
       stack: [
-        // horizontal rule
         {
           canvas: [{ type: "line", x1: 30, y1: 0, x2: 565, y2: 0, lineWidth: 1, lineColor: C.border }],
-          margin: [0, 0, 0, 6] as [number, number, number, number],
+          margin: [0, 0, 0, 5] as [number, number, number, number],
         },
-        // three-column footer row
         {
           columns: [
             { text: `Page ${currentPage} / ${pageCount}`, fontSize: 7, color: C.ink4, alignment: "left" as const },
-            { text: centreText, fontSize: 7, color: C.ink3, alignment: "center" as const },
+            { text: parts.join("   ·   "), fontSize: 7, color: C.ink3, alignment: "center" as const },
             { text: fmtDateFull(new Date()), fontSize: 7, color: C.ink4, alignment: "right" as const },
           ],
         },
-        // optional custom footer note
         ...(settings?.invoice_footer
           ? [
               {
@@ -136,9 +123,79 @@ function buildFooter(settings: CompanySettings | null) {
 }
 
 // ═══════════════════════════════════════════
+//  SHARED: header block (company + badge)
+//  ⚠ pdfMake columns are always LEFT→RIGHT.
+//  In the HTML (RTL): badge is on the LEFT,  company is on the RIGHT.
+//  In pdfMake array:  columns[0] = LEFT side, columns[last] = RIGHT side.
+//  So:  columns[0] = badge,  columns[last] = company+logo.
+// ═══════════════════════════════════════════
+function buildDocHeader(
+  s: CompanySettings | null,
+  logoData: string | null,
+  badgeContent: Content,
+  pageWidth: number,
+): Content[] {
+  const companyStack: Content[] = [
+    {
+      text: s?.company_name || "النظام المحاسبي",
+      fontSize: 18,
+      bold: true,
+      color: C.ink,
+      alignment: "right" as const,
+    },
+  ];
+  if (s?.company_name_en) {
+    companyStack.push({
+      text: s.company_name_en,
+      fontSize: 9,
+      color: C.ink3,
+      alignment: "right" as const,
+      margin: [0, 2, 0, 0] as any,
+    });
+  }
+  if (s?.business_activity) {
+    companyStack.push({
+      text: s.business_activity,
+      fontSize: 8,
+      color: C.ink4,
+      alignment: "right" as const,
+      margin: [0, 1, 0, 0] as any,
+    });
+  }
+
+  // Right column: logo beside company text
+  const rightCol: Content = logoData
+    ? {
+        columns: [
+          // ⚠ logo on LEFT of this sub-column (visually rightmost in page due to RTL)
+          { image: logoData, width: 52, height: 52, margin: [0, 0, 10, 0] as any },
+          { stack: companyStack, width: "*" },
+        ],
+        width: "58%",
+      }
+    : { stack: companyStack, width: "58%" };
+
+  return [
+    // columns: [0]=LEFT=badge(left in HTML), [2]=RIGHT=company(right in HTML)
+    {
+      columns: [
+        { ...badgeContent, width: "40%" }, // LEFT  → badge (invoice number / report title)
+        { text: "", width: "2%" },
+        { ...rightCol }, // RIGHT → company name + logo
+      ],
+      margin: [0, 0, 0, 0],
+    },
+    // ink separator under header
+    {
+      canvas: [{ type: "line", x1: 0, y1: 0, x2: pageWidth, y2: 0, lineWidth: 1.5, lineColor: C.ink }],
+      margin: [0, 10, 0, 0],
+    },
+  ];
+}
+
+// ═══════════════════════════════════════════
 //  REPORT PDF
 // ═══════════════════════════════════════════
-
 interface ReportPdfOptions {
   title: string;
   settings: CompanySettings | null;
@@ -158,60 +215,21 @@ export async function exportReportPdf({
   orientation = "portrait",
   filename,
 }: ReportPdfOptions) {
-  await loadTajawalFonts();
-
   const content: Content[] = [];
   const pageWidth = orientation === "landscape" ? 770 : 515;
   const currency = settings?.default_currency || "EGP";
   const s = settings;
 
-  // Load logo
   let logoData: string | null = null;
   if (s?.logo_url) logoData = await loadLogoBase64(s.logo_url);
 
-  // ═══ TOP STRIPE ═══
+  // TOP STRIPE
   content.push({
     canvas: [{ type: "rect", x: 0, y: 0, w: pageWidth, h: 4, color: C.blueMid }],
     margin: [0, 0, 0, 14],
   });
 
-  // ═══ HEADER — Logo + Company (right) | Report badge (left) ═══
-  const companyInfoStack: Content[] = [];
-  companyInfoStack.push({
-    text: s?.company_name || "النظام المحاسبي",
-    fontSize: 18,
-    bold: true,
-    color: C.ink,
-    alignment: "right" as const,
-  });
-  if (s?.company_name_en) {
-    companyInfoStack.push({
-      text: s.company_name_en,
-      fontSize: 9,
-      color: C.ink3,
-      alignment: "right" as const,
-      margin: [0, 2, 0, 0] as any,
-    });
-  }
-  if (s?.business_activity) {
-    companyInfoStack.push({
-      text: s.business_activity,
-      fontSize: 8,
-      color: C.ink4,
-      alignment: "right" as const,
-      margin: [0, 1, 0, 0] as any,
-    });
-  }
-
-  const headerRight: Content = logoData
-    ? {
-        columns: [
-          { stack: companyInfoStack, width: "*" },
-          { image: logoData, width: 50, height: 50, margin: [0, 0, 10, 0] as any },
-        ],
-      }
-    : { stack: companyInfoStack };
-
+  // HEADER
   const reportBadge: Content = {
     stack: [
       { text: "تقرير", fontSize: 8, bold: true, color: C.blueMid, alignment: "left" as const, characterSpacing: 2 },
@@ -219,38 +237,24 @@ export async function exportReportPdf({
       { text: `${fmtDateFull(new Date())}  ·  ${currency}`, fontSize: 8.5, color: C.ink3, alignment: "left" as const },
     ],
   };
+  content.push(...buildDocHeader(s, logoData, reportBadge, pageWidth));
 
-  content.push({
-    columns: [
-      { width: "58%", ...headerRight },
-      { width: "2%", text: "" },
-      { width: "40%", stack: [reportBadge] },
-    ],
-    margin: [0, 0, 0, 0],
-  });
+  // LEGAL BAR
+  const legal: string[] = [];
+  if (s?.address) legal.push(s.address);
+  if (s?.phone) legal.push(s.phone);
+  if (s?.email) legal.push(s.email);
+  if (s?.tax_number) legal.push(`VAT: ${s.tax_number}`);
+  if (s?.commercial_register) legal.push(`C.R: ${s.commercial_register}`);
 
-  // Ink separator
-  content.push({
-    canvas: [{ type: "line", x1: 0, y1: 0, x2: pageWidth, y2: 0, lineWidth: 1.5, lineColor: C.ink }],
-    margin: [0, 10, 0, 0],
-  });
-
-  // ═══ LEGAL INFO BAR ═══
-  const legalParts: string[] = [];
-  if (s?.address) legalParts.push(s.address);
-  if (s?.phone) legalParts.push(s.phone);
-  if (s?.email) legalParts.push(s.email);
-  if (s?.tax_number) legalParts.push(`VAT: ${s.tax_number}`);
-  if (s?.commercial_register) legalParts.push(`C.R: ${s.commercial_register}`);
-
-  if (legalParts.length) {
+  if (legal.length) {
     content.push({
       table: {
         widths: ["*"],
         body: [
           [
             {
-              text: legalParts.join("   ·   "),
+              text: legal.join("   ·   "),
               fontSize: 7.5,
               color: C.ink3,
               alignment: "center" as const,
@@ -269,26 +273,25 @@ export async function exportReportPdf({
     });
   }
 
-  // ═══ SUMMARY CARDS (KPI bar) ═══
+  // KPI CARDS
   if (summaryCards?.length) {
-    const kpiCells: TableCell[] = [];
+    const cells: TableCell[] = [];
     summaryCards.forEach((card, idx) => {
-      if (idx > 0) {
-        kpiCells.push({
+      if (idx > 0)
+        cells.push({
           text: "",
           fillColor: C.blueLine,
           border: [false, false, false, false],
           margin: [0, 4, 0, 4] as any,
         });
-      }
-      kpiCells.push({
+      cells.push({
         stack: [
           { text: card.label, fontSize: 7.5, color: C.ink3, alignment: "center" as const },
           {
             text: card.value,
             fontSize: 12,
-            bold: true,
             color: C.blueMid,
+            bold: true,
             alignment: "center" as const,
             margin: [0, 3, 0, 0] as any,
           },
@@ -297,14 +300,10 @@ export async function exportReportPdf({
         margin: [6, 6, 6, 6] as any,
       });
     });
-
     content.push({
       table: {
-        body: [kpiCells],
-        widths: kpiCells.map((_: any, i: number) => {
-          if (summaryCards!.length > 1 && i % 2 === 1 && i > 0) return 1;
-          return "*";
-        }),
+        body: [cells],
+        widths: cells.map((_: any, i: number) => (summaryCards!.length > 1 && i % 2 === 1 ? 1 : "*")),
       },
       layout: {
         hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length ? 1 : 0),
@@ -317,7 +316,7 @@ export async function exportReportPdf({
     });
   }
 
-  // ═══ SECTION LABEL ═══
+  // SECTION LABEL
   content.push({
     text: "تفاصيل البيانات",
     fontSize: 8,
@@ -327,37 +326,28 @@ export async function exportReportPdf({
     margin: [0, 0, 0, 6],
   });
 
-  // ═══ DATA TABLE — DARK header ═══
-  // Header cells: white text on ink background
+  // DATA TABLE — dark header, white text
   const headerRow: TableCell[] = headers.map((h) => ({
     text: h,
     fontSize: 8.5,
     bold: true,
-    color: "rgba(255,255,255,0.75)", // ← white text (was C.blueMid)
+    color: "rgba(255,255,255,0.70)",
     alignment: "center" as const,
-    characterSpacing: 0.5,
   }));
-
   const bodyRows: TableCell[][] = rows.map((row) =>
-    row.map((cell, colIdx) => ({
+    row.map((cell, ci) => ({
       text: String(cell),
       fontSize: 9,
-      color: colIdx === 0 ? C.ink4 : C.ink2,
-      bold: colIdx === row.length - 1,
+      color: ci === 0 ? C.ink4 : C.ink2,
+      bold: ci === row.length - 1,
       alignment: "center" as const,
     })),
   );
-
   content.push({
-    table: {
-      headerRows: 1,
-      widths: headers.map(() => "*"),
-      body: [headerRow, ...bodyRows],
-    },
-    layout: DARK_HEADER_TABLE_LAYOUT, // ← dark layout
+    table: { headerRows: 1, widths: headers.map(() => "*"), body: [headerRow, ...bodyRows] },
+    layout: TABLE_LAYOUT,
   });
 
-  // Record count
   content.push({
     text: `إجمالي السجلات: ${rows.length}`,
     fontSize: 7.5,
@@ -366,7 +356,7 @@ export async function exportReportPdf({
     margin: [0, 6, 0, 0],
   });
 
-  // ═══ BOTTOM STRIPE ═══
+  // BOTTOM STRIPE
   content.push({
     canvas: [{ type: "rect", x: 0, y: 0, w: pageWidth, h: 4, color: C.blueMid }],
     margin: [0, 16, 0, 0],
@@ -375,11 +365,7 @@ export async function exportReportPdf({
   const docDef: TDocumentDefinitions = {
     pageOrientation: orientation,
     pageMargins: [30, 20, 30, 50],
-    defaultStyle: {
-      font: fontsLoaded ? "Tajawal" : undefined,
-      fontSize: 9,
-      alignment: "right",
-    },
+    defaultStyle: { fontSize: 9, alignment: "right" },
     content,
     footer: buildFooter(settings),
   };
@@ -388,9 +374,8 @@ export async function exportReportPdf({
 }
 
 // ═══════════════════════════════════════════
-//  INVOICE PDF — invoice03.html Design
+//  INVOICE PDF
 // ═══════════════════════════════════════════
-
 interface InvoicePdfOptions {
   type: "sales_invoice" | "purchase_invoice" | "sales_return" | "purchase_return";
   number: number | string;
@@ -421,8 +406,6 @@ const TYPE_META: Record<string, { label: string; typeLabel: string; color: strin
 };
 
 export async function exportInvoicePdf(options: InvoicePdfOptions) {
-  await loadTajawalFonts();
-
   const {
     type,
     number: num,
@@ -449,69 +432,40 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
   const currency = settings?.default_currency || "EGP";
   const content: Content[] = [];
   const s = settings;
+  const PW = 515; // portrait page width (inside margins)
 
-  // Load logo
   let logoData: string | null = null;
   if (s?.logo_url) logoData = await loadLogoBase64(s.logo_url);
 
-  // ═══ 1. TOP STRIPE ═══
+  // ── 1. TOP STRIPE ──
   content.push({
-    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: meta.color }],
+    canvas: [{ type: "rect", x: 0, y: 0, w: PW, h: 4, color: meta.color }],
     margin: [0, 0, 0, 14],
   });
 
-  // ═══ 2. HEADER — Logo + Company (right) | Invoice badge (left) ═══
-  const companyInfoStack: Content[] = [
-    { text: s?.company_name || "النظام المحاسبي", fontSize: 18, bold: true, color: C.ink, alignment: "right" as const },
-  ];
-  if (s?.company_name_en) {
-    companyInfoStack.push({
-      text: s.company_name_en,
-      fontSize: 9,
-      color: C.ink3,
-      alignment: "right" as const,
-      margin: [0, 2, 0, 0] as any,
-    });
-  }
-  if (s?.business_activity) {
-    companyInfoStack.push({
-      text: s.business_activity,
-      fontSize: 8,
-      color: C.ink4,
-      alignment: "right" as const,
-      margin: [0, 1, 0, 0] as any,
-    });
-  }
+  // ── 2. HEADER ──
+  // badge: LEFT side (alignment: left, as in HTML)
+  const badgeStack: Content = {
+    stack: [
+      {
+        text: meta.typeLabel,
+        fontSize: 8,
+        bold: true,
+        color: meta.color,
+        alignment: "left" as const,
+        characterSpacing: 2,
+      },
+      {
+        text: `#${num}`,
+        fontSize: 20,
+        bold: true,
+        color: C.ink,
+        alignment: "left" as const,
+        margin: [0, 4, 0, 4] as any,
+      },
+    ],
+  };
 
-  const headerRightContent: Content = logoData
-    ? {
-        columns: [
-          { stack: companyInfoStack, width: "*" },
-          { image: logoData, width: 52, height: 52, margin: [0, 0, 8, 0] as any },
-        ],
-      }
-    : { stack: companyInfoStack };
-
-  const badgeStack: Content[] = [
-    {
-      text: meta.typeLabel,
-      fontSize: 8,
-      bold: true,
-      color: meta.color,
-      alignment: "left" as const,
-      characterSpacing: 2,
-    },
-    {
-      text: `#${num}`,
-      fontSize: 20,
-      bold: true,
-      color: C.ink,
-      alignment: "left" as const,
-      margin: [0, 4, 0, 4] as any,
-    },
-  ];
-
-  // ── Status pill — rounded border (invoice03 style) ──
   if (status) {
     const isApproved = status === "posted" || status === "approved";
     const isDraft = status === "draft";
@@ -519,7 +473,7 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
     const pillBg = isApproved ? C.greenBg : isDraft ? C.orangeBg : C.bgSoft;
     const pillBorder = isApproved ? C.greenBorder : isDraft ? "#fed7aa" : C.border;
 
-    badgeStack.push({
+    (badgeStack.stack as Content[]).push({
       table: {
         widths: ["auto"],
         body: [
@@ -530,7 +484,7 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
               bold: true,
               color: pillColor,
               alignment: "center" as const,
-              margin: [16, 3, 16, 3] as any, // wider horizontal padding → pill feel
+              margin: [16, 3, 16, 3] as any,
             },
           ],
         ],
@@ -545,28 +499,29 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
     });
   }
 
-  content.push({
-    columns: [
-      { width: "58%", ...headerRightContent },
-      { width: "2%", text: "" },
-      { width: "40%", stack: badgeStack },
+  content.push(...buildDocHeader(s, logoData, badgeStack, PW));
+
+  // ── 3. SUBHEADER — client (RIGHT) | meta cells (LEFT) ──
+  // In HTML: client block is on the RIGHT, meta cells are on the LEFT.
+  // In pdfMake columns[0]=LEFT → meta cells, columns[last]=RIGHT → client.
+  const metaDefs: { label: string; value: string }[] = [{ label: "تاريخ الإصدار", value: fmtDate(date) }];
+  if (dueDate) metaDefs.push({ label: "تاريخ الاستحقاق", value: fmtDate(dueDate) });
+  if (reference) metaDefs.push({ label: "المرجع", value: reference });
+  metaDefs.push({ label: "العملة", value: currency });
+
+  // meta cells — LEFT side
+  const metaTableCells: TableCell[] = metaDefs.map((m, i) => ({
+    stack: [
+      { text: m.label, fontSize: 7, bold: true, color: C.ink4, characterSpacing: 1 },
+      { text: m.value, fontSize: 10, bold: true, color: C.ink, margin: [0, 3, 0, 0] as any },
     ],
-    margin: [0, 0, 0, 0],
-  });
+    border: [i > 0, false, false, false] as any,
+    borderColor: [C.border, C.border, C.border, C.border],
+    margin: [8, 8, 8, 8] as any,
+  }));
 
-  // ═══ INK SEPARATOR ═══
-  content.push({
-    canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: C.ink }],
-    margin: [0, 10, 0, 0],
-  });
-
-  // ═══ 3. SUBHEADER — Client (right) | Meta cells (left) ═══
-  const metaCells: { label: string; value: string }[] = [{ label: "تاريخ الإصدار", value: fmtDate(date) }];
-  if (dueDate) metaCells.push({ label: "تاريخ الاستحقاق", value: fmtDate(dueDate) });
-  if (reference) metaCells.push({ label: "المرجع", value: reference });
-  metaCells.push({ label: "العملة", value: currency });
-
-  const clientBlock: Content = {
+  // client block — RIGHT side
+  const clientCell = {
     stack: [
       {
         text: partyLabel,
@@ -582,30 +537,22 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
       },
       { text: partyName, fontSize: 13, bold: true, color: C.ink },
     ],
+    border: [false, false, false, false] as any,
     margin: [10, 10, 10, 10] as any,
   };
 
-  const metaBody: TableCell[] = metaCells.map((m, i) => ({
-    stack: [
-      { text: m.label, fontSize: 7, bold: true, color: C.ink4, characterSpacing: 1 },
-      { text: m.value, fontSize: 10, bold: true, color: C.ink, margin: [0, 3, 0, 0] as any },
-    ],
-    border: [i > 0, false, false, false] as any,
-    borderColor: [C.border, C.border, C.border, C.border],
-    margin: [8, 8, 8, 8] as any,
-  }));
-
   content.push({
     table: {
-      widths: ["38%", ...metaCells.map(() => "*")],
+      // columns[0..n-2] = meta cells (LEFT), columns[last] = client (RIGHT)
+      widths: [...metaDefs.map(() => "*"), "38%"],
       body: [
         [
+          ...metaTableCells,
           {
-            stack: [clientBlock],
-            border: [false, false, true, false],
+            ...clientCell,
+            border: [true, false, false, false] as any,
             borderColor: [C.border, C.border, C.border, C.border],
           },
-          ...metaBody,
         ],
       ],
     },
@@ -623,7 +570,7 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
     margin: [0, 0, 0, 16],
   });
 
-  // ═══ 4. ITEMS TABLE — DARK header ═══
+  // ── 4. ITEMS TABLE ──
   content.push({
     text: "تفاصيل البنود",
     fontSize: 8,
@@ -637,14 +584,12 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
   if (showDiscount) colHeaders.push("الخصم");
   colHeaders.push(`الإجمالي (${currency})`);
 
-  // Dark header cells: white semi-transparent text
   const hCells: TableCell[] = colHeaders.map((h) => ({
     text: h,
     fontSize: 8.5,
     bold: true,
-    color: "rgba(255,255,255,0.70)", // ← white on dark bg (was C.blueMid)
+    color: "rgba(255,255,255,0.70)",
     alignment: "center" as const,
-    characterSpacing: 0.5,
   }));
 
   const iRows: TableCell[][] = items.map((item, idx) => {
@@ -662,26 +607,24 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
         alignment: "center" as const,
       });
     }
-    row.push({ text: fmtNum(item.total), fontSize: 10, bold: true, color: C.ink, alignment: "center" as const });
+    row.push({ text: fmtNum(item.total), fontSize: 10, bold: true, color: C.ink, alignment: "left" as const });
     return row;
   });
 
   const colWidths = showDiscount ? [24, "*", 45, 70, 50, 80] : [24, "*", 50, 75, 85];
 
   content.push({
-    table: {
-      headerRows: 1,
-      widths: colWidths,
-      body: [hCells, ...iRows],
-    },
-    layout: DARK_HEADER_TABLE_LAYOUT, // ← dark layout
+    table: { headerRows: 1, widths: colWidths, body: [hCells, ...iRows] },
+    layout: TABLE_LAYOUT,
     margin: [0, 0, 0, 14],
   });
 
-  // ═══ 5. BOTTOM GRID — Summary+Notes (right) | Totals (left) ═══
-  const totalQty = items.reduce((acc, i) => acc + i.quantity, 0);
+  // ── 5. BOTTOM GRID ──
+  // HTML layout: LEFT col = notes/summary, RIGHT col = totals box
+  // pdfMake:     columns[0]=LEFT=notes, columns[2]=RIGHT=totals — this is CORRECT (same direction)
 
-  // Summary bar
+  const totalQty = items.reduce((a, i) => a + i.quantity, 0);
+
   const summaryBar: Content = {
     table: {
       widths: ["auto", 1, "auto"],
@@ -716,7 +659,7 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
     },
   };
 
-  const notesBox: Content = notes
+  const notesBox: Content | null = notes
     ? {
         table: {
           widths: ["*"],
@@ -755,59 +698,54 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
     leftColStack.push(notesBox);
   }
 
-  // ═══ TOTALS BOX ═══
-  // Rows: subtotal / tax / discount (normal white bg)
-  // Grand-total row: DARK background (C.ink) + light-blue value text (C.blueLight)
-  // Paid / balance rows: coloured text on white bg
+  // Totals rows
   const totalsRows: TableCell[][] = [];
 
   totalsRows.push([
-    { text: "المجموع الفرعي", fontSize: 10, color: C.ink3, alignment: "right" as const },
-    { text: fmtNum(subtotal), fontSize: 10, color: C.ink, alignment: "left" as const },
+    { text: "المجموع الفرعي", fontSize: 11, color: C.ink3, alignment: "right" as const },
+    { text: fmtNum(subtotal), fontSize: 11, color: C.ink, alignment: "left" as const },
   ]);
-
   if (showTax && taxRate > 0) {
     totalsRows.push([
-      { text: `ضريبة القيمة المضافة ${taxRate}%`, fontSize: 10, color: C.ink3, alignment: "right" as const },
-      { text: fmtNum(taxAmount), fontSize: 10, color: C.ink, alignment: "left" as const },
+      { text: `ضريبة القيمة المضافة ${taxRate}%`, fontSize: 11, color: C.ink3, alignment: "right" as const },
+      { text: fmtNum(taxAmount), fontSize: 11, color: C.ink, alignment: "left" as const },
     ]);
   }
-
   if (showDiscount && discountTotal && discountTotal > 0) {
     totalsRows.push([
-      { text: "الخصم", fontSize: 10, color: C.ink3, alignment: "right" as const },
-      { text: `− ${fmtNum(discountTotal)}`, fontSize: 10, color: C.red, alignment: "left" as const },
+      { text: "الخصم", fontSize: 11, color: C.ink3, alignment: "right" as const },
+      { text: `− ${fmtNum(discountTotal)}`, fontSize: 11, color: C.red, alignment: "left" as const },
     ]);
   }
 
-  // ── Grand total row: DARK ink background (matching invoice03.html .t-row.grand) ──
+  // Grand total — dark ink background, light-blue value
   totalsRows.push([
     {
       text: "الإجمالي المستحق",
       fontSize: 12,
       bold: true,
-      color: "rgba(255,255,255,0.65)", // ← muted white label (was C.blueMid)
+      color: "rgba(255,255,255,0.65)",
       alignment: "right" as const,
-      fillColor: C.ink, // ← dark background (was C.bluePale)
+      fillColor: C.ink,
       margin: [0, 6, 0, 6] as any,
     },
     {
       text: `${fmtNum(grandTotal)} ${currency}`,
       fontSize: 17,
       bold: true,
-      color: C.blueLight, // ← light blue #93c5fd (was C.blue)
+      color: C.blueLight,
       alignment: "left" as const,
-      fillColor: C.ink, // ← dark background
+      fillColor: C.ink,
       margin: [0, 6, 0, 6] as any,
     },
   ]);
 
   if (paidAmount !== undefined && paidAmount > 0) {
     totalsRows.push([
-      { text: "المدفوع", fontSize: 10, bold: true, color: C.green, alignment: "right" as const },
+      { text: "المدفوع", fontSize: 11, bold: true, color: C.green, alignment: "right" as const },
       {
         text: `${fmtNum(paidAmount)} ${currency}`,
-        fontSize: 10,
+        fontSize: 11,
         bold: true,
         color: C.green,
         alignment: "left" as const,
@@ -816,21 +754,17 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
     const balance = grandTotal - paidAmount;
     if (balance > 0.01) {
       totalsRows.push([
-        { text: "المتبقي", fontSize: 10, bold: true, color: C.red, alignment: "right" as const },
-        { text: `${fmtNum(balance)} ${currency}`, fontSize: 10, bold: true, color: C.red, alignment: "left" as const },
+        { text: "المتبقي", fontSize: 11, bold: true, color: C.red, alignment: "right" as const },
+        { text: `${fmtNum(balance)} ${currency}`, fontSize: 11, bold: true, color: C.red, alignment: "left" as const },
       ]);
     }
   }
 
   const totalsBox: Content = {
-    table: {
-      widths: ["*", 110],
-      body: totalsRows,
-    },
+    table: { widths: ["*", 115], body: totalsRows },
     layout: {
       hLineWidth: (i: number, node: any) => {
-        if (i === 0) return 1;
-        if (i === node.table.body.length) return 1;
+        if (i === 0 || i === node.table.body.length) return 1;
         return 0.5;
       },
       vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length ? 1 : 0),
@@ -845,14 +779,13 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
 
   content.push({
     columns: [
-      { width: "55%", stack: leftColStack },
+      { width: "55%", stack: leftColStack }, // LEFT  = notes/summary
       { width: "3%", text: "" },
-      { width: "42%", stack: [totalsBox] },
+      { width: "42%", stack: [totalsBox] }, // RIGHT = totals
     ],
     margin: [0, 0, 0, 14],
   });
 
-  // ═══ INVOICE NOTES (from settings) ═══
   if (settings?.invoice_notes) {
     content.push({
       text: settings.invoice_notes,
@@ -863,19 +796,15 @@ export async function exportInvoicePdf(options: InvoicePdfOptions) {
     });
   }
 
-  // ═══ BOTTOM STRIPE ═══
+  // BOTTOM STRIPE
   content.push({
-    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: meta.color }],
+    canvas: [{ type: "rect", x: 0, y: 0, w: PW, h: 4, color: meta.color }],
     margin: [0, 14, 0, 0],
   });
 
   const docDef: TDocumentDefinitions = {
     pageMargins: [30, 20, 30, 50],
-    defaultStyle: {
-      font: fontsLoaded ? "Tajawal" : undefined,
-      fontSize: 9,
-      alignment: "right",
-    },
+    defaultStyle: { fontSize: 9, alignment: "right" },
     content,
     footer: buildFooter(settings),
   };
