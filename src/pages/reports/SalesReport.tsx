@@ -101,8 +101,8 @@ export default function SalesReport() {
     }
   };
 
-  const handlePdfExport = () => {
-    const fmtN = (n: number) => n.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const handlePdfExport = async () => {
+    const fmtN = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const summaryCards = [
       { label: "عدد الفواتير", value: String(summary.count) },
       { label: "إجمالي المبيعات", value: fmtN(summary.total) },
