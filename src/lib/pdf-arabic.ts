@@ -1,48 +1,11 @@
-/**
- * pdfExport.tsx
- * ─────────────────────────────────────────────────────────────────────────────
- * Migration: pdfmake-rtl  →  @react-pdf/renderer
- *
- * ✅ نفس signatures تماماً — drop-in replacement
- *    exportReportPdf(options)
- *    exportInvoicePdf(options)
- *
- * الإعداد المطلوب:
- *   npm install @react-pdf/renderer
- *
- *   ضع الخطوط في /public/fonts/
- *     Tajwal-Regular.ttf | Tajwal-Medium.ttf | Tajwal-Bold.ttf
- *     IBMPlexMono-Regular.ttf | IBMPlexMono-SemiBold.ttf
- * ─────────────────────────────────────────────────────────────────────────────
- */
-
-import React from "react";
-import { Document, Page, View, Text, Image, StyleSheet, Font, pdf } from "@react-pdf/renderer";
+import pdfMake from "pdfmake-rtl/build/pdfmake";
+import "pdfmake-rtl/build/vfs_fonts";
 import type { CompanySettings } from "@/contexts/SettingsContext";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 1. تسجيل الخطوط
-// ─────────────────────────────────────────────────────────────────────────────
-Font.register({
-  family: "Tajwal",
-  fonts: [
-    { src: "/fonts/Tajwal-Regular.ttf", fontWeight: 400 },
-    { src: "/fonts/Tajwal-Medium.ttf", fontWeight: 500 },
-    { src: "/fonts/Tajwal-Bold.ttf", fontWeight: 700 },
-  ],
-});
-Font.register({
-  family: "Mono",
-  fonts: [
-    { src: "/fonts/IBMPlexMono-Regular.ttf", fontWeight: 400 },
-    { src: "/fonts/IBMPlexMono-SemiBold.ttf", fontWeight: 600 },
-  ],
-});
-Font.registerHyphenationCallback((w) => [w]);
+type Content = any;
+type TableCell = any;
+type TDocumentDefinitions = any;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 2. الألوان
-// ─────────────────────────────────────────────────────────────────────────────
 const C = {
   ink: "#0f172a",
   ink2: "#1e293b",
@@ -59,28 +22,14 @@ const C = {
   bgSoft: "#f8fafc",
   white: "#ffffff",
   green: "#15803d",
+  greenBg: "#f0fdf4",
+  greenBdr: "#bbf7d0",
   red: "#dc2626",
   orange: "#ea580c",
+  orangeBg: "#fff7ed",
   amber: "#b45309",
   amberDark: "#92400e",
-  cyan: "#0e7490",
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 3. Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-const fmtNum = (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const fmtDate = (d: string) => {
-  if (!d) return "";
-  return new Date(d).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-};
-
-const fmtDateFull = (d: Date) => d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
 async function loadLogoBase64(url: string): Promise<string | null> {
   try {
@@ -97,394 +46,147 @@ async function loadLogoBase64(url: string): Promise<string | null> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 4. الأنماط المشتركة
-// ─────────────────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
-  page: {
-    fontFamily: "Tajwal",
-    fontSize: 9,
-    color: C.ink,
-    backgroundColor: C.white,
-  },
+const fmtNum = (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtDate = (d: string) => {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
+};
+const fmtDateFull = (d: Date) => d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
-  // ── شريط ذهبي ──
-  goldStripe: { height: 4, backgroundColor: C.gold },
+const TABLE_LAYOUT = {
+  hLineWidth: (i: number, node: any) => {
+    if (i === 0) return 1;
+    if (i === 1) return 1.5;
+    if (i === node.table.body.length) return 1.5;
+    return 0.5;
+  },
+  vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length ? 1 : 0),
+  hLineColor: (i: number) => {
+    if (i === 1) return C.gold;
+    return i === 0 ? C.border : "#f1f5f9";
+  },
+  vLineColor: () => C.border,
+  paddingLeft: () => 10,
+  paddingRight: () => 10,
+  paddingTop: () => 8,
+  paddingBottom: () => 8,
+  fillColor: (rowIdx: number) => {
+    if (rowIdx === 0) return C.ink;
+    return rowIdx % 2 === 1 ? C.white : "#fafafa";
+  },
+};
 
-  // ── هيدر ──
-  header: {
-    backgroundColor: C.ink,
-    paddingHorizontal: 30,
-    paddingVertical: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  coBlock: { flexDirection: "row", alignItems: "center", gap: 12 },
-  coIconBox: {
-    width: 44,
-    height: 44,
-    backgroundColor: C.gold,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  coIconTxt: { fontSize: 20, fontWeight: 800, color: C.white, fontFamily: "Tajwal" },
-  coName: { fontSize: 15, fontWeight: 800, color: C.white, textAlign: "right" },
-  coEn: { fontSize: 8, color: C.ink4, textAlign: "right", marginTop: 2 },
-  coAct: { fontSize: 7.5, color: C.ink3, textAlign: "right", marginTop: 1 },
+const goldStripe = (w: number): Content => ({ canvas: [{ type: "rect", x: 0, y: 0, w, h: 4, color: C.gold }] });
 
-  // badge جانب يسار (في الهيدر)
-  badgeBlock: { alignItems: "flex-start" },
-  badgeType: { fontSize: 7, fontWeight: 700, color: C.gold, letterSpacing: 1, textAlign: "left" },
-  badgeNum: {
-    fontFamily: "Mono",
-    fontSize: 20,
-    fontWeight: 600,
-    color: C.white,
-    marginTop: 4,
-    marginBottom: 2,
-    textAlign: "left",
-  },
-  badgePill: {
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 3,
-    fontSize: 8,
-    fontWeight: 700,
-    marginTop: 2,
-  },
-
-  // ── ساب هيدر ──
-  sub: {
-    backgroundColor: C.bgSoft,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-    flexDirection: "row",
-    paddingHorizontal: 30,
-  },
-  clientCell: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingRight: 16,
-    borderRightWidth: 2,
-    borderRightColor: C.gold,
-    justifyContent: "center",
-  },
-  clientLabel: {
-    fontSize: 7,
-    fontWeight: 700,
-    color: C.gold,
-    letterSpacing: 1.5,
-    textAlign: "right",
-    marginBottom: 4,
-  },
-  clientName: { fontSize: 12, fontWeight: 700, color: C.ink, textAlign: "right" },
-  metaGroup: { flexDirection: "row" },
-  metaCell: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderLeftWidth: 1,
-    borderLeftColor: C.border,
-    minWidth: 80,
-  },
-  metaLbl: { fontSize: 7, fontWeight: 700, color: C.ink6, letterSpacing: 1, textAlign: "left" },
-  metaVal: {
-    fontFamily: "Mono",
-    fontSize: 10,
-    fontWeight: 600,
-    color: C.ink,
-    marginTop: 3,
-    textAlign: "left",
-  },
-
-  // ── قانوني بار ──
-  legalBar: {
-    backgroundColor: C.bgSoft,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-    paddingHorizontal: 30,
-    paddingVertical: 7,
-    fontSize: 7.5,
-    color: C.ink6,
-    textAlign: "center",
-  },
-
-  // ── تسمية قسم ──
-  secLabel: {
-    fontSize: 7.5,
-    fontWeight: 700,
-    color: C.gold,
-    letterSpacing: 2.5,
-    marginBottom: 6,
-    textAlign: "right",
-  },
-
-  // ── جدول — رأس ──
-  tableHead: {
-    backgroundColor: C.ink,
-    flexDirection: "row",
-    borderBottomWidth: 1.5,
-    borderBottomColor: C.gold,
-  },
-  th: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 8,
-    fontWeight: 700,
-    color: "rgba(255,255,255,0.55)",
-    textAlign: "center",
-  },
-
-  // ── جدول — صف ──
-  tableRow: {
-    flexDirection: "row",
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#f1f5f9",
-  },
-  tableRowEven: { backgroundColor: "#fafafa" },
-  tableRowLast: { borderBottomWidth: 1.5, borderBottomColor: C.border },
-  td: {
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    fontSize: 9,
-    color: C.ink4,
-    textAlign: "center",
-  },
-
-  // ── KPI بار ──
-  kpiBar: {
-    flexDirection: "row",
-    backgroundColor: C.goldPale,
-    borderWidth: 1,
-    borderColor: "rgba(212,168,83,0.3)",
-    borderRadius: 4,
-    marginBottom: 14,
-    overflow: "hidden",
-  },
-  kpiCell: {
-    flex: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderLeftWidth: 1,
-    borderLeftColor: "rgba(212,168,83,0.25)",
-  },
-  kpiLbl: { fontSize: 7.5, color: C.amberDark, fontWeight: 600, textAlign: "center" },
-  kpiVal: {
-    fontFamily: "Mono",
-    fontSize: 13,
-    fontWeight: 600,
-    color: C.amber,
-    marginTop: 4,
-    textAlign: "center",
-  },
-  kpiUnit: { fontSize: 8, color: C.amber, marginTop: 2, textAlign: "center" },
-
-  // ── شريط ملخص ──
-  sumBar: {
-    backgroundColor: C.goldPale,
-    borderWidth: 1,
-    borderColor: "rgba(212,168,83,0.3)",
-    borderRadius: 4,
-    flexDirection: "row",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    alignItems: "center",
-    gap: 12,
-  },
-  sumTxt: { fontSize: 9, color: C.amberDark },
-  sumVal: { fontFamily: "Mono", fontSize: 10, fontWeight: 600, color: C.amber },
-  sumSep: { width: 1, height: 14, backgroundColor: "rgba(212,168,83,0.3)" },
-
-  // ── صندوق ملاحظات ──
-  notesBox: {
-    backgroundColor: C.bgSoft,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRightWidth: 3,
-    borderRightColor: C.gold,
-    borderRadius: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 8,
-  },
-  notesLbl: {
-    fontSize: 7,
-    fontWeight: 700,
-    color: C.gold,
-    letterSpacing: 1.5,
-    marginBottom: 5,
-    textAlign: "right",
-  },
-  notesTxt: { fontSize: 9, color: C.ink5, lineHeight: 1.8, textAlign: "right" },
-
-  // ── صندوق الإجماليات ──
-  totalsBox: {
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 6,
-    overflow: "hidden",
-  },
-  tRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#f1f5f9",
-  },
-  tRowGrand: {
-    backgroundColor: C.ink,
-    paddingVertical: 10,
-    borderBottomWidth: 0,
-  },
-  tLbl: { fontSize: 10, color: C.ink5, textAlign: "right" },
-  tVal: { fontFamily: "Mono", fontSize: 10, color: C.ink, textAlign: "left" },
-  tLblGrand: { fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.55)", textAlign: "right" },
-  tValGrand: { fontFamily: "Mono", fontSize: 15, fontWeight: 700, color: C.goldMid, textAlign: "left" },
-
-  // ── فوتر ──
-  footerWrap: {
-    paddingHorizontal: 30,
-    paddingTop: 6,
-  },
-  footerLine: {
-    height: 0.5,
-    backgroundColor: C.border,
-    marginBottom: 5,
-  },
-  footerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  footerTags: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flexWrap: "wrap",
-    flex: 1,
-    justifyContent: "center",
-  },
-  footerTag: { fontSize: 7.5, color: C.ink5 },
-  footerTagB: { fontSize: 7.5, color: C.ink3, fontWeight: 600 },
-  footerDiv: { width: 1, height: 11, backgroundColor: C.border },
-  footerPage: { fontSize: 7, color: C.ink6 },
-
-  wrap: { paddingHorizontal: 30, paddingTop: 16, paddingBottom: 14 },
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 5. مكونات مشتركة
-// ─────────────────────────────────────────────────────────────────────────────
-
-const GoldStripe = () => <View style={S.goldStripe} />;
-
-// ── هيدر الوثيقة ──
-interface HeaderProps {
-  settings: CompanySettings | null;
-  logoData: string | null;
-  badgeType: string;
-  badgeTypeColor?: string;
-  badgeMain: React.ReactNode; // رقم الفاتورة أو عنوان التقرير
-  badgeSub?: React.ReactNode;
+function buildFooter(settings: CompanySettings | null) {
+  return (currentPage: number, pageCount: number) => {
+    const tags: string[] = [];
+    if (settings?.address) tags.push(settings.address);
+    if (settings?.email) tags.push(settings.email);
+    if (settings?.phone) tags.push(settings.phone);
+    if (settings?.tax_number) tags.push(`VAT: ${settings.tax_number}`);
+    if (settings?.commercial_register) tags.push(`C.R: ${settings.commercial_register}`);
+    return {
+      stack: [
+        {
+          canvas: [{ type: "line", x1: 30, y1: 0, x2: 565, y2: 0, lineWidth: 0.5, lineColor: C.border }],
+          margin: [0, 0, 0, 5] as [number, number, number, number],
+        },
+        {
+          columns: [
+            { text: `Page ${currentPage} / ${pageCount}`, fontSize: 7, color: C.ink6, alignment: "left" as const },
+            { text: tags.join("  ·  "), fontSize: 7, color: C.ink5, alignment: "center" as const },
+            { text: fmtDateFull(new Date()), fontSize: 7, color: C.ink6, alignment: "right" as const },
+          ],
+        },
+        ...(settings?.invoice_footer
+          ? [
+              {
+                text: settings.invoice_footer,
+                fontSize: 6.5,
+                color: C.ink6,
+                alignment: "center" as const,
+                margin: [0, 3, 0, 0] as [number, number, number, number],
+              },
+            ]
+          : []),
+      ],
+      margin: [30, 6, 30, 0] as [number, number, number, number],
+    };
+  };
 }
-const DocHeader: React.FC<HeaderProps> = ({
-  settings,
-  logoData,
-  badgeType,
-  badgeTypeColor = C.gold,
-  badgeMain,
-  badgeSub,
-}) => {
-  const s = settings;
-  return (
-    <View style={S.header}>
-      {/* ── يسار: badge ── */}
-      <View style={S.badgeBlock}>
-        <Text style={[S.badgeType, { color: badgeTypeColor }]}>{badgeType}</Text>
-        {badgeMain}
-        {badgeSub}
-      </View>
 
-      {/* ── يمين: شركة + شعار ── */}
-      <View style={S.coBlock}>
-        <View>
-          <Text style={S.coName}>{s?.company_name || "النظام المحاسبي"}</Text>
-          {s?.company_name_en && <Text style={S.coEn}>{s.company_name_en}</Text>}
-          {s?.business_activity && <Text style={S.coAct}>{s.business_activity}</Text>}
-        </View>
-        {logoData ? (
-          <Image src={logoData} style={{ width: 44, height: 44, borderRadius: 8 }} />
-        ) : (
-          <View style={S.coIconBox}>
-            <Text style={S.coIconTxt}>{(s?.company_name || "N").charAt(0).toUpperCase()}</Text>
-          </View>
-        )}
-      </View>
-    </View>
-  );
-};
+// ⚠️ pdfMake-RTL: columns[0] = RIGHT side of page, columns[last] = LEFT side
+// Company (RIGHT) → columns[0], Badge (LEFT) → columns[2]
+function buildHeader(s: CompanySettings | null, logoData: string | null, badgeContent: Content): Content {
+  const coStack: Content[] = [
+    {
+      text: s?.company_name || "النظام المحاسبي",
+      fontSize: 15,
+      bold: true,
+      color: C.white,
+      alignment: "right" as const,
+    },
+  ];
+  if (s?.company_name_en)
+    coStack.push({
+      text: s.company_name_en,
+      fontSize: 8,
+      color: C.ink4,
+      alignment: "right" as const,
+      margin: [0, 2, 0, 0] as any,
+    });
+  if (s?.business_activity)
+    coStack.push({
+      text: s.business_activity,
+      fontSize: 7.5,
+      color: C.ink3,
+      alignment: "right" as const,
+      margin: [0, 1, 0, 0] as any,
+    });
 
-// ── فوتر الصفحة ──
-interface FooterInfo {
-  label: string;
-  icon?: string;
+  // sub-columns for logo + company: [0]=logo(RIGHT), [1]=text(LEFT)
+  const companyCol: Content = logoData
+    ? {
+        columns: [
+          { image: logoData, width: 44, height: 44, margin: [10, 0, 0, 0] as any },
+          { stack: coStack, width: "*" },
+        ],
+        width: "55%",
+      }
+    : { stack: coStack, width: "55%" };
+
+  return {
+    table: {
+      widths: ["*"],
+      body: [
+        [
+          {
+            columns: [
+              companyCol, // columns[0] = RIGHT = company
+              { text: "", width: "3%" },
+              { ...badgeContent, width: "42%" }, // columns[2] = LEFT = badge
+            ],
+            border: [false, false, false, false] as any,
+          },
+        ],
+      ],
+    },
+    layout: {
+      hLineWidth: () => 0,
+      vLineWidth: () => 0,
+      fillColor: () => C.ink,
+      paddingLeft: () => 30,
+      paddingRight: () => 30,
+      paddingTop: () => 20,
+      paddingBottom: () => 18,
+    },
+  };
 }
-const buildFooterRenderer = (settings: CompanySettings | null) => {
-  const tags: string[] = [];
-  if (settings?.address) tags.push(settings.address);
-  if (settings?.email) tags.push(settings.email);
-  if (settings?.phone) tags.push(settings.phone);
-  if (settings?.tax_number) tags.push(`VAT: ${settings.tax_number}`);
-  if (settings?.commercial_register) tags.push(`C.R: ${settings.commercial_register}`);
-  const dateStr = fmtDateFull(new Date());
 
-  // @react-pdf/renderer: footer كـ fixed component
-  return ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) => (
-    <View style={S.footerWrap} fixed>
-      <View style={S.footerLine} />
-      <View style={S.footerRow}>
-        <Text style={S.footerPage}>
-          Page {pageNumber} / {totalPages}
-        </Text>
-        <View style={S.footerTags}>
-          {tags.map((tag, i) => (
-            <React.Fragment key={i}>
-              {i > 0 && <View style={S.footerDiv} />}
-              <Text style={S.footerTagB}>{tag}</Text>
-            </React.Fragment>
-          ))}
-        </View>
-        <Text style={S.footerPage}>{dateStr}</Text>
-      </View>
-      {settings?.invoice_footer && (
-        <Text style={{ fontSize: 6.5, color: C.ink6, textAlign: "center", marginTop: 3 }}>
-          {settings.invoice_footer}
-        </Text>
-      )}
-    </View>
-  );
-};
-
-// ── تسمية القسم ──
-const SecLabel = ({ text }: { text: string }) => <Text style={S.secLabel}>{text}</Text>;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 6. نوع الفاتورة — ألوان ومعلومات
-// ─────────────────────────────────────────────────────────────────────────────
-const TYPE_META: Record<string, { label: string; typeLabel: string; accentColor: string }> = {
-  sales_invoice: { label: "فاتورة مبيعات", typeLabel: "INVOICE · فاتورة ضريبية رسمية", accentColor: C.gold },
-  purchase_invoice: { label: "فاتورة مشتريات", typeLabel: "INVOICE · فاتورة مشتريات", accentColor: C.cyan },
-  sales_return: { label: "مرتجع مبيعات", typeLabel: "RETURN · مرتجع مبيعات", accentColor: C.red },
-  purchase_return: { label: "مرتجع مشتريات", typeLabel: "RETURN · مرتجع مشتريات", accentColor: C.orange },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 7. Interfaces (نفس الكود الأصلي تماماً)
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────
+// REPORT PDF
+// ───────────────────────────────────────────────
 interface ReportPdfOptions {
   title: string;
   settings: CompanySettings | null;
@@ -495,6 +197,173 @@ interface ReportPdfOptions {
   filename: string;
 }
 
+export async function exportReportPdf({
+  title,
+  settings,
+  headers,
+  rows,
+  summaryCards,
+  orientation = "portrait",
+  filename,
+}: ReportPdfOptions) {
+  const content: Content[] = [];
+  const PW = orientation === "landscape" ? 770 : 515;
+  const currency = settings?.default_currency || "EGP";
+  const s = settings;
+  let logoData: string | null = null;
+  if (s?.logo_url) logoData = await loadLogoBase64(s.logo_url);
+
+  content.push({ ...goldStripe(PW), margin: [0, 0, 0, 0] });
+
+  const reportBadge: Content = {
+    stack: [
+      {
+        text: "REPORT · تقرير",
+        fontSize: 7,
+        bold: true,
+        color: C.gold,
+        alignment: "left" as const,
+        characterSpacing: 1.5,
+      },
+      {
+        text: title,
+        fontSize: 13,
+        bold: true,
+        color: C.white,
+        alignment: "left" as const,
+        margin: [0, 4, 0, 4] as any,
+      },
+      { text: `${fmtDateFull(new Date())}  ·  ${currency}`, fontSize: 8, color: C.ink4, alignment: "left" as const },
+    ],
+  };
+  content.push(buildHeader(s, logoData, reportBadge));
+
+  const legal: string[] = [];
+  if (s?.address) legal.push(s.address);
+  if (s?.phone) legal.push(s.phone);
+  if (s?.email) legal.push(s.email);
+  if (s?.tax_number) legal.push(`VAT: ${s.tax_number}`);
+  if (s?.commercial_register) legal.push(`C.R: ${s.commercial_register}`);
+  if (legal.length) {
+    content.push({
+      table: {
+        widths: ["*"],
+        body: [
+          [
+            {
+              text: legal.join("   ·   "),
+              fontSize: 7.5,
+              color: C.ink6,
+              alignment: "center" as const,
+              margin: [0, 6, 0, 6] as any,
+            },
+          ],
+        ],
+      },
+      layout: {
+        hLineWidth: (_i: number, node: any) => (_i === node.table.body.length ? 0.5 : 0),
+        vLineWidth: () => 0,
+        hLineColor: () => C.border,
+        fillColor: () => C.bgSoft,
+      },
+      margin: [0, 0, 0, 12],
+    });
+  }
+
+  if (summaryCards?.length) {
+    const cells: TableCell[] = [];
+    summaryCards.forEach((card, idx) => {
+      if (idx > 0)
+        cells.push({
+          text: "",
+          border: [false, false, false, false],
+          fillColor: C.goldLine,
+          margin: [0, 6, 0, 6] as any,
+        });
+      cells.push({
+        stack: [
+          { text: card.label, fontSize: 7, color: C.amberDark, alignment: "center" as const },
+          {
+            text: card.value,
+            fontSize: 12,
+            bold: true,
+            color: C.amber,
+            alignment: "center" as const,
+            margin: [0, 3, 0, 0] as any,
+          },
+        ],
+        border: [false, false, false, false],
+        margin: [6, 8, 6, 8] as any,
+      });
+    });
+    content.push({
+      table: {
+        body: [cells],
+        widths: cells.map((_: any, i: number) => (summaryCards!.length > 1 && i % 2 === 1 ? 1 : "*")),
+      },
+      layout: {
+        hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length ? 1 : 0),
+        vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length ? 1 : 0),
+        hLineColor: () => C.goldLine,
+        vLineColor: () => C.goldLine,
+        fillColor: () => C.goldPale,
+      },
+      margin: [0, 0, 0, 12] as any,
+    });
+  }
+
+  content.push({
+    text: "تفاصيل البيانات",
+    fontSize: 7.5,
+    bold: true,
+    color: C.gold,
+    characterSpacing: 2,
+    margin: [0, 0, 0, 6],
+  });
+
+  const headerRow: TableCell[] = headers.map((h) => ({
+    text: h,
+    fontSize: 8,
+    bold: true,
+    color: "rgba(255,255,255,0.55)",
+    alignment: "center" as const,
+  }));
+  const bodyRows: TableCell[][] = rows.map((row) =>
+    row.map((cell, ci) => ({
+      text: String(cell),
+      fontSize: 9,
+      color: ci === 0 ? C.ink6 : ci === row.length - 1 ? C.ink : C.ink4,
+      bold: ci === row.length - 1,
+      alignment: "center" as const,
+    })),
+  );
+  content.push({
+    table: { headerRows: 1, widths: headers.map(() => "*"), body: [headerRow, ...bodyRows] },
+    layout: TABLE_LAYOUT,
+  });
+  content.push({
+    text: `إجمالي السجلات: ${rows.length}`,
+    fontSize: 7,
+    color: C.ink6,
+    alignment: "left",
+    margin: [0, 6, 0, 0],
+  });
+  content.push({ ...goldStripe(PW), margin: [0, 16, 0, 0] });
+
+  pdfMake
+    .createPdf({
+      pageOrientation: orientation,
+      pageMargins: [30, 20, 30, 48],
+      defaultStyle: { fontSize: 9, alignment: "right" },
+      content,
+      footer: buildFooter(settings),
+    } as TDocumentDefinitions)
+    .download(`${filename}.pdf`);
+}
+
+// ───────────────────────────────────────────────
+// INVOICE PDF
+// ───────────────────────────────────────────────
 interface InvoicePdfOptions {
   type: "sales_invoice" | "purchase_invoice" | "sales_return" | "purchase_return";
   number: number | string;
@@ -517,14 +386,14 @@ interface InvoicePdfOptions {
   paidAmount?: number;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 8. مكون الفاتورة
-// ─────────────────────────────────────────────────────────────────────────────
-interface InvoiceDocProps extends InvoicePdfOptions {
-  logoData: string | null;
-}
+const TYPE_META: Record<string, { label: string; typeLabel: string; stripe: string }> = {
+  sales_invoice: { label: "فاتورة مبيعات", typeLabel: "INVOICE · فاتورة ضريبية رسمية", stripe: C.gold },
+  purchase_invoice: { label: "فاتورة مشتريات", typeLabel: "INVOICE · فاتورة مشتريات", stripe: "#0e7490" },
+  sales_return: { label: "مرتجع مبيعات", typeLabel: "RETURN · مرتجع مبيعات", stripe: C.red },
+  purchase_return: { label: "مرتجع مشتريات", typeLabel: "RETURN · مرتجع مشتريات", stripe: C.orange },
+};
 
-const InvoiceDocument: React.FC<InvoiceDocProps> = (props) => {
+export async function exportInvoicePdf(options: InvoicePdfOptions) {
   const {
     type,
     number: num,
@@ -545,421 +414,339 @@ const InvoiceDocument: React.FC<InvoiceDocProps> = (props) => {
     status,
     dueDate,
     paidAmount,
-    logoData,
-  } = props;
-
+  } = options;
   const meta = TYPE_META[type] || TYPE_META.sales_invoice;
-  const accent = meta.accentColor;
   const currency = settings?.default_currency || "EGP";
-  const FooterComp = buildFooterRenderer(settings);
+  const content: Content[] = [];
+  const s = settings;
+  const PW = 515;
+  let logoData: string | null = null;
+  if (s?.logo_url) logoData = await loadLogoBase64(s.logo_url);
 
-  // pill للحالة
+  // TOP STRIPE
+  content.push({ ...goldStripe(PW), margin: [0, 0, 0, 0] });
+
+  // HEADER — pill as plain text (no nested table)
   const pillText =
-    status === "posted" || status === "approved" ? "✓ مُعتمد" : status === "draft" ? "◷ مسودة" : status || "";
+    status === "posted" || status === "approved" ? "✓ مُعتمد" : status === "draft" ? "مسودة" : status || "";
   const pillColor = status === "posted" || status === "approved" ? C.green : status === "draft" ? C.orange : C.ink5;
 
-  // meta cells للساب هيدر
+  const badgeStack: Content = {
+    stack: [
+      {
+        text: meta.typeLabel,
+        fontSize: 7,
+        bold: true,
+        color: meta.stripe === C.gold ? C.gold : meta.stripe,
+        alignment: "left" as const,
+        characterSpacing: 1,
+      },
+      {
+        text: `#${num}`,
+        fontSize: 20,
+        bold: true,
+        color: C.white,
+        alignment: "left" as const,
+        margin: [0, 4, 0, 0] as any,
+      },
+      ...(pillText
+        ? [
+            {
+              text: pillText,
+              fontSize: 8,
+              bold: true,
+              color: pillColor,
+              alignment: "left" as const,
+              margin: [0, 4, 0, 0] as any,
+            },
+          ]
+        : []),
+    ],
+  };
+  content.push(buildHeader(s, logoData, badgeStack));
+
+  // SUBHEADER
+  // ⚠️ pdfMake-RTL: columns[0]=RIGHT=client, columns[1..n]=LEFT=meta cells
   const metaDefs: { label: string; value: string }[] = [{ label: "تاريخ الإصدار", value: fmtDate(date) }];
   if (dueDate) metaDefs.push({ label: "الاستحقاق", value: fmtDate(dueDate) });
   if (reference) metaDefs.push({ label: "المرجع", value: reference });
   metaDefs.push({ label: "العملة", value: currency });
 
-  // أعمدة الجدول
-  const showDiscCol = showDiscount;
-  const colCount = showDiscCol ? 6 : 5;
-  // عرض الأعمدة: #, وصف, كمية, سعر, خصم?, إجمالي
-  const colW = showDiscCol ? ["4%", "40%", "10%", "16%", "12%", "18%"] : ["4%", "44%", "12%", "18%", "22%"];
+  const clientCell = {
+    stack: [
+      { text: partyLabel, fontSize: 7, bold: true, color: C.gold, characterSpacing: 1.5, margin: [0, 0, 0, 4] as any },
+      {
+        canvas: [{ type: "line", x1: 0, y1: 0, x2: 20, y2: 0, lineWidth: 1.5, lineColor: C.gold }],
+        margin: [0, 0, 0, 4] as any,
+      },
+      { text: partyName, fontSize: 12, bold: true, color: C.ink },
+    ],
+    border: [false, false, false, false] as any,
+    margin: [0, 10, 16, 10] as any,
+  };
 
-  // صفوف الإجماليات
+  const metaCells: TableCell[] = metaDefs.map((m, i) => ({
+    stack: [
+      { text: m.label, fontSize: 7, bold: true, color: C.ink6, characterSpacing: 1 },
+      { text: m.value, fontSize: 10, bold: true, color: C.ink, margin: [0, 3, 0, 0] as any },
+    ],
+    border: [false, false, i < metaDefs.length - 1, false] as any,
+    borderColor: [C.border, C.border, C.border, C.border],
+    margin: [10, 10, 10, 10] as any,
+  }));
+
+  content.push({
+    table: { widths: ["36%", ...metaDefs.map(() => "*")], body: [[clientCell, ...metaCells]] },
+    layout: {
+      hLineWidth: (_i: number, node: any) => (_i === node.table.body.length ? 0.5 : 0),
+      vLineWidth: (i: number) => (i === 1 ? 1 : i > 1 ? 0.5 : 0),
+      hLineColor: () => C.border,
+      vLineColor: (i: number) => (i === 1 ? C.gold : C.border),
+      fillColor: () => C.bgSoft,
+      paddingLeft: () => 0,
+      paddingRight: () => 0,
+      paddingTop: () => 0,
+      paddingBottom: () => 0,
+    },
+    margin: [0, 0, 0, 16],
+  });
+
+  // ITEMS TABLE
+  content.push({
+    text: "تفاصيل البنود",
+    fontSize: 7.5,
+    bold: true,
+    color: C.gold,
+    characterSpacing: 2.5,
+    margin: [0, 0, 0, 6],
+  });
+
+  const colHeaders: string[] = ["#", "الوصف", "الكمية", "سعر الوحدة"];
+  if (showDiscount) colHeaders.push("الخصم");
+  colHeaders.push(`الإجمالي (${currency})`);
+
+  const hCells: TableCell[] = colHeaders.map((h, i) => ({
+    text: h,
+    fontSize: 8,
+    bold: true,
+    color: "rgba(255,255,255,0.55)",
+    alignment:
+      i === 0
+        ? ("center" as const)
+        : i === colHeaders.length - 1
+          ? ("left" as const)
+          : i === 1
+            ? ("right" as const)
+            : ("center" as const),
+  }));
+
+  const iRows: TableCell[][] = items.map((item, idx) => {
+    const row: TableCell[] = [
+      { text: String(idx + 1).padStart(2, "0"), fontSize: 8.5, color: C.ink6, alignment: "center" as const },
+      { text: item.name, fontSize: 10, bold: true, color: C.ink, alignment: "right" as const },
+      { text: fmtNum(item.quantity), fontSize: 9, color: C.ink4, alignment: "center" as const },
+      { text: fmtNum(item.unitPrice), fontSize: 9, color: C.ink4, alignment: "center" as const },
+    ];
+    if (showDiscount)
+      row.push({
+        text: item.discount > 0 ? fmtNum(item.discount) : "—",
+        fontSize: 9,
+        color: item.discount > 0 ? C.red : C.ink6,
+        alignment: "center" as const,
+      });
+    row.push({ text: fmtNum(item.total), fontSize: 10, bold: true, color: C.ink, alignment: "left" as const });
+    return row;
+  });
+
+  const colWidths = showDiscount ? [22, "*", 44, 68, 50, 78] : [22, "*", 48, 72, 84];
+  content.push({
+    table: { headerRows: 1, widths: colWidths, body: [hCells, ...iRows] },
+    layout: TABLE_LAYOUT,
+    margin: [0, 0, 0, 14],
+  });
+
+  // BOTTOM GRID
   const totalQty = items.reduce((a, i) => a + i.quantity, 0);
 
-  const hasTax = !!(showTax && taxRate > 0);
-  const hasDiscount = !!(showDiscCol && discountTotal && discountTotal > 0);
-  const hasPaid = paidAmount !== undefined && paidAmount > 0;
-  const balance = hasPaid ? grandTotal - (paidAmount ?? 0) : 0;
+  const summaryBar: Content = {
+    table: {
+      widths: ["auto", 2, "auto"],
+      body: [
+        [
+          {
+            text: [
+              { text: "منتجات: ", fontSize: 9, color: C.amberDark },
+              { text: String(items.length), fontSize: 10, bold: true, color: C.amber },
+            ],
+            border: [false, false, false, false],
+            margin: [10, 6, 10, 6] as any,
+          },
+          { text: "", fillColor: C.goldLine, border: [false, false, false, false], margin: [0, 2, 0, 2] as any },
+          {
+            text: [
+              { text: "وحدات: ", fontSize: 9, color: C.amberDark },
+              { text: fmtNum(totalQty), fontSize: 10, bold: true, color: C.amber },
+            ],
+            border: [false, false, false, false],
+            margin: [10, 6, 10, 6] as any,
+          },
+        ],
+      ],
+    },
+    layout: {
+      hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length ? 1 : 0),
+      vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length ? 1 : 0),
+      hLineColor: () => C.goldLine,
+      vLineColor: () => C.goldLine,
+      fillColor: () => C.goldPale,
+    },
+  };
 
-  return (
-    <Document>
-      <Page size="A4" style={S.page} orientation="portrait">
-        {/* شريط ذهبي علوي */}
-        <View style={[S.goldStripe, { backgroundColor: accent }]} />
-
-        {/* هيدر */}
-        <DocHeader
-          settings={settings}
-          logoData={logoData}
-          badgeType={meta.typeLabel}
-          badgeTypeColor={accent}
-          badgeMain={<Text style={S.badgeNum}>{`#${num}`}</Text>}
-          badgeSub={
-            pillText ? (
-              <Text
-                style={[
-                  S.badgePill,
+  const notesBox: Content | null = notes
+    ? {
+        table: {
+          widths: ["*"],
+          body: [
+            [
+              {
+                stack: [
                   {
-                    color: pillColor,
-                    backgroundColor: `${pillColor}1a`,
-                    borderWidth: 1,
-                    borderColor: `${pillColor}55`,
+                    text: "ملاحظات وشروط الدفع",
+                    fontSize: 7,
+                    bold: true,
+                    color: C.gold,
+                    characterSpacing: 1.5,
+                    margin: [0, 0, 0, 4] as any,
                   },
-                ]}
-              >
-                {pillText}
-              </Text>
-            ) : undefined
-          }
-        />
+                  { text: notes, fontSize: 9, color: C.ink5, lineHeight: 1.8 },
+                ],
+                margin: [12, 8, 10, 8] as any,
+              },
+            ],
+          ],
+        },
+        layout: {
+          hLineWidth: () => 1,
+          vLineWidth: (i: number) => (i === 0 ? 2 : i === 1 ? 1 : 0),
+          hLineColor: () => C.border,
+          vLineColor: (i: number) => (i === 0 ? C.gold : C.border),
+          fillColor: () => C.bgSoft,
+        },
+      }
+    : null;
 
-        {/* ساب هيدر */}
-        <View style={S.sub}>
-          {/* يمين: العميل */}
-          <View style={S.clientCell}>
-            <Text style={[S.clientLabel, { color: accent }]}>{partyLabel}</Text>
-            <Text style={S.clientName}>{partyName}</Text>
-          </View>
-          {/* يسار: خلايا الـ meta */}
-          <View style={S.metaGroup}>
-            {metaDefs.map((m, i) => (
-              <View key={i} style={S.metaCell}>
-                <Text style={S.metaLbl}>{m.label}</Text>
-                <Text style={S.metaVal}>{m.value}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
+  const leftColStack: Content[] = [summaryBar];
+  if (notesBox) {
+    leftColStack.push({ text: "", margin: [0, 8, 0, 0] as any });
+    leftColStack.push(notesBox);
+  }
 
-        {/* المحتوى الرئيسي */}
-        <View style={S.wrap}>
-          <SecLabel text="تفاصيل البنود" />
+  let grandIdx = 1;
+  if (showTax && taxRate > 0) grandIdx++;
+  if (showDiscount && discountTotal && discountTotal > 0) grandIdx++;
 
-          {/* رأس الجدول */}
-          <View style={S.tableHead}>
-            <Text style={[S.th, { width: colW[0] }]}>#</Text>
-            <Text style={[S.th, { width: colW[1], textAlign: "right" }]}>الوصف</Text>
-            <Text style={[S.th, { width: colW[2] }]}>الكمية</Text>
-            <Text style={[S.th, { width: colW[3] }]}>سعر الوحدة</Text>
-            {showDiscCol && <Text style={[S.th, { width: colW[4] }]}>الخصم</Text>}
-            <Text style={[S.th, { width: colW[colCount - 1], textAlign: "left" }]}>{`الإجمالي (${currency})`}</Text>
-          </View>
+  const totalsRows: TableCell[][] = [];
+  totalsRows.push([
+    { text: "المجموع الفرعي", fontSize: 10, color: C.ink5, alignment: "right" as const },
+    { text: fmtNum(subtotal), fontSize: 10, color: C.ink, alignment: "left" as const },
+  ]);
+  if (showTax && taxRate > 0)
+    totalsRows.push([
+      { text: `ضريبة القيمة المضافة ${taxRate}%`, fontSize: 10, color: C.ink5, alignment: "right" as const },
+      { text: fmtNum(taxAmount), fontSize: 10, color: C.ink, alignment: "left" as const },
+    ]);
+  if (showDiscount && discountTotal && discountTotal > 0)
+    totalsRows.push([
+      { text: "الخصم", fontSize: 10, color: C.ink5, alignment: "right" as const },
+      { text: `− ${fmtNum(discountTotal)}`, fontSize: 10, color: C.red, alignment: "left" as const },
+    ]);
 
-          {/* صفوف البنود */}
-          {items.map((item, idx) => (
-            <View
-              key={idx}
-              style={[S.tableRow, idx % 2 !== 0 && S.tableRowEven, idx === items.length - 1 && S.tableRowLast]}
-            >
-              <Text style={[S.td, { width: colW[0], fontFamily: "Mono", fontSize: 8, color: C.ink6 }]}>
-                {String(idx + 1).padStart(2, "0")}
-              </Text>
-              <Text style={[S.td, { width: colW[1], textAlign: "right", fontWeight: 700, color: C.ink }]}>
-                {item.name}
-              </Text>
-              <Text style={[S.td, { width: colW[2], fontFamily: "Mono", color: C.ink4 }]}>{fmtNum(item.quantity)}</Text>
-              <Text style={[S.td, { width: colW[3], fontFamily: "Mono", color: C.ink4 }]}>
-                {fmtNum(item.unitPrice)}
-              </Text>
-              {showDiscCol && (
-                <Text
-                  style={[
-                    S.td,
-                    {
-                      width: colW[4],
-                      fontFamily: "Mono",
-                      color: item.discount > 0 ? C.red : C.ink6,
-                    },
-                  ]}
-                >
-                  {item.discount > 0 ? fmtNum(item.discount) : "—"}
-                </Text>
-              )}
-              <Text
-                style={[
-                  S.td,
-                  {
-                    width: colW[colCount - 1],
-                    fontFamily: "Mono",
-                    fontWeight: 700,
-                    color: C.ink,
-                    textAlign: "left",
-                  },
-                ]}
-              >
-                {fmtNum(item.total)}
-              </Text>
-            </View>
-          ))}
-        </View>
+  totalsRows.push([
+    {
+      text: "الإجمالي المستحق",
+      fontSize: 10,
+      bold: true,
+      color: "rgba(255,255,255,0.55)",
+      alignment: "right" as const,
+      fillColor: C.ink,
+      margin: [0, 6, 0, 6] as any,
+    },
+    {
+      text: `${fmtNum(grandTotal)} ${currency}`,
+      fontSize: 16,
+      bold: true,
+      color: C.goldMid,
+      alignment: "left" as const,
+      fillColor: C.ink,
+      margin: [0, 6, 0, 6] as any,
+    },
+  ]);
 
-        {/* البوتوم: ملاحظات + إجماليات */}
-        <View style={[S.wrap, { flexDirection: "row", gap: 16, paddingTop: 0 }]}>
-          {/* يمين: ملخص + ملاحظات */}
-          <View style={{ flex: 1 }}>
-            <View style={S.sumBar}>
-              <Text style={S.sumTxt}>منتجات: </Text>
-              <Text style={S.sumVal}>{items.length}</Text>
-              <View style={S.sumSep} />
-              <Text style={S.sumTxt}>وحدات: </Text>
-              <Text style={S.sumVal}>{fmtNum(totalQty)}</Text>
-            </View>
-            {notes && (
-              <View style={S.notesBox}>
-                <Text style={S.notesLbl}>ملاحظات وشروط الدفع</Text>
-                <Text style={S.notesTxt}>{notes}</Text>
-              </View>
-            )}
-          </View>
+  if (paidAmount !== undefined && paidAmount > 0) {
+    totalsRows.push([
+      { text: "المدفوع", fontSize: 10, bold: true, color: C.green, alignment: "right" as const },
+      {
+        text: `${fmtNum(paidAmount)} ${currency}`,
+        fontSize: 10,
+        bold: true,
+        color: C.green,
+        alignment: "left" as const,
+      },
+    ]);
+    const balance = grandTotal - paidAmount;
+    if (balance > 0.01)
+      totalsRows.push([
+        { text: "المتبقي", fontSize: 10, bold: true, color: C.red, alignment: "right" as const },
+        { text: `${fmtNum(balance)} ${currency}`, fontSize: 10, bold: true, color: C.red, alignment: "left" as const },
+      ]);
+  }
 
-          {/* يسار: صندوق الإجماليات */}
-          <View style={[S.totalsBox, { width: 240 }]}>
-            {/* المجموع الفرعي */}
-            <View style={S.tRow}>
-              <Text style={S.tVal}>{fmtNum(subtotal)}</Text>
-              <Text style={S.tLbl}>المجموع الفرعي</Text>
-            </View>
-            {/* الضريبة */}
-            {hasTax && (
-              <View style={S.tRow}>
-                <Text style={S.tVal}>{fmtNum(taxAmount)}</Text>
-                <Text style={S.tLbl}>{`ضريبة القيمة المضافة ${taxRate}%`}</Text>
-              </View>
-            )}
-            {/* الخصم */}
-            {hasDiscount && (
-              <View style={S.tRow}>
-                <Text style={[S.tVal, { color: C.red }]}>− {fmtNum(discountTotal!)}</Text>
-                <Text style={S.tLbl}>الخصم</Text>
-              </View>
-            )}
-            {/* الإجمالي */}
-            <View style={[S.tRow, S.tRowGrand]}>
-              <Text style={S.tValGrand}>
-                {fmtNum(grandTotal)} {currency}
-              </Text>
-              <Text style={S.tLblGrand}>الإجمالي المستحق</Text>
-            </View>
-            {/* المدفوع */}
-            {hasPaid && (
-              <View style={S.tRow}>
-                <Text style={[S.tVal, { color: C.green, fontWeight: 700 }]}>
-                  {fmtNum(paidAmount!)} {currency}
-                </Text>
-                <Text style={[S.tLbl, { color: C.green }]}>المدفوع</Text>
-              </View>
-            )}
-            {/* المتبقي */}
-            {hasPaid && balance > 0.01 && (
-              <View style={[S.tRow, { borderBottomWidth: 0 }]}>
-                <Text style={[S.tVal, { color: C.red, fontWeight: 700 }]}>
-                  {fmtNum(balance)} {currency}
-                </Text>
-                <Text style={[S.tLbl, { color: C.red }]}>المتبقي</Text>
-              </View>
-            )}
-          </View>
-        </View>
+  const totalsBox: Content = {
+    table: { widths: ["*", 112], body: totalsRows },
+    layout: {
+      hLineWidth: (i: number, node: any) => {
+        if (i === 0 || i === node.table.body.length) return 1;
+        if (i === grandIdx) return 1.5;
+        return 0.5;
+      },
+      vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length ? 1 : 0),
+      hLineColor: (i: number) => (i === grandIdx ? C.gold : C.border),
+      vLineColor: () => C.border,
+      paddingLeft: () => 12,
+      paddingRight: () => 12,
+      paddingTop: () => 6,
+      paddingBottom: () => 6,
+    },
+  };
 
-        {/* ملاحظات إضافية من الإعدادات */}
-        {settings?.invoice_notes && (
-          <Text style={[S.wrap, { fontSize: 7, color: C.ink6, textAlign: "center", paddingTop: 4 }]}>
-            {settings.invoice_notes}
-          </Text>
-        )}
+  // ⚠️ pdfMake-RTL bottom grid:
+  // columns[0]=RIGHT=notes/summary, columns[2]=LEFT=totals
+  content.push({
+    columns: [
+      { width: "54%", stack: leftColStack },
+      { width: "3%", text: "" },
+      { width: "43%", stack: [totalsBox] },
+    ],
+    margin: [0, 0, 0, 14],
+  });
 
-        {/* شريط ذهبي سفلي */}
-        <View style={[S.goldStripe, { backgroundColor: accent, marginTop: 14 }]} />
+  if (settings?.invoice_notes)
+    content.push({
+      text: settings.invoice_notes,
+      fontSize: 7,
+      color: C.ink6,
+      alignment: "center",
+      margin: [0, 4, 0, 0],
+    });
 
-        {/* فوتر */}
-        <FooterComp pageNumber={1} totalPages={1} />
-      </Page>
-    </Document>
-  );
-};
+  content.push({ ...goldStripe(PW), margin: [0, 14, 0, 0] });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 9. مكون التقرير
-// ─────────────────────────────────────────────────────────────────────────────
-interface ReportDocProps extends ReportPdfOptions {
-  logoData: string | null;
-}
-
-const ReportDocument: React.FC<ReportDocProps> = ({
-  title,
-  settings,
-  headers,
-  rows,
-  summaryCards,
-  orientation = "portrait",
-  logoData,
-}) => {
-  const currency = settings?.default_currency || "EGP";
-  const FooterComp = buildFooterRenderer(settings);
-
-  // معلومات الـ legal bar
-  const legal: string[] = [];
-  if (settings?.address) legal.push(settings.address);
-  if (settings?.phone) legal.push(settings.phone);
-  if (settings?.email) legal.push(settings.email);
-  if (settings?.tax_number) legal.push(`VAT: ${settings.tax_number}`);
-  if (settings?.commercial_register) legal.push(`C.R: ${settings.commercial_register}`);
-
-  const colW = headers.map(() => `${Math.floor(100 / headers.length)}%`);
-
-  return (
-    <Document>
-      <Page size="A4" style={S.page} orientation={orientation}>
-        {/* شريط ذهبي */}
-        <GoldStripe />
-
-        {/* هيدر */}
-        <DocHeader
-          settings={settings}
-          logoData={logoData}
-          badgeType="REPORT · تقرير"
-          badgeMain={
-            <Text
-              style={{
-                fontSize: 13,
-                fontWeight: 800,
-                color: C.white,
-                textAlign: "left",
-                marginTop: 4,
-                marginBottom: 4,
-                fontFamily: "Tajwal",
-              }}
-            >
-              {title}
-            </Text>
-          }
-          badgeSub={
-            <Text style={{ fontSize: 8, color: C.ink4, textAlign: "left" }}>
-              {`${fmtDateFull(new Date())}  ·  ${currency}`}
-            </Text>
-          }
-        />
-
-        {/* بار المعلومات القانونية */}
-        {legal.length > 0 && <Text style={S.legalBar}>{legal.join("   ·   ")}</Text>}
-
-        <View style={S.wrap}>
-          {/* KPI cards */}
-          {summaryCards && summaryCards.length > 0 && (
-            <View style={S.kpiBar}>
-              {summaryCards.map((card, i) => (
-                <View key={i} style={[S.kpiCell, i === 0 && { borderLeftWidth: 0 }]}>
-                  <Text style={S.kpiLbl}>{card.label}</Text>
-                  <Text style={S.kpiVal}>{card.value}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          <SecLabel text="تفاصيل البيانات" />
-
-          {/* رأس الجدول */}
-          <View style={S.tableHead}>
-            {headers.map((h, i) => (
-              <Text key={i} style={[S.th, { width: colW[i] }]}>
-                {h}
-              </Text>
-            ))}
-          </View>
-
-          {/* صفوف البيانات */}
-          {rows.map((row, ri) => (
-            <View
-              key={ri}
-              style={[S.tableRow, ri % 2 !== 0 && S.tableRowEven, ri === rows.length - 1 && S.tableRowLast]}
-            >
-              {row.map((cell, ci) => (
-                <Text
-                  key={ci}
-                  style={[
-                    S.td,
-                    { width: colW[ci] },
-                    ci === 0 && { color: C.ink6, fontFamily: "Mono" },
-                    ci === row.length - 1 && { color: C.ink, fontWeight: 700, fontFamily: "Mono", textAlign: "left" },
-                  ]}
-                >
-                  {String(cell)}
-                </Text>
-              ))}
-            </View>
-          ))}
-
-          {/* عدد السجلات */}
-          <Text style={{ fontSize: 7, color: C.ink6, textAlign: "left", marginTop: 6 }}>
-            {`إجمالي السجلات: ${rows.length}`}
-          </Text>
-        </View>
-
-        {/* شريط ذهبي سفلي */}
-        <GoldStripe />
-
-        {/* فوتر */}
-        <FooterComp pageNumber={1} totalPages={1} />
-      </Page>
-    </Document>
-  );
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 10. الدوال المُصدَّرة — نفس الـ signature بالضبط
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * تصدير تقرير PDF
- * @example
- *   await exportReportPdf({ title, settings, headers, rows, summaryCards, filename })
- */
-export async function exportReportPdf({
-  title,
-  settings,
-  headers,
-  rows,
-  summaryCards,
-  orientation = "portrait",
-  filename,
-}: ReportPdfOptions): Promise<void> {
-  const logoData = settings?.logo_url ? await loadLogoBase64(settings.logo_url) : null;
-
-  const blob = await pdf(
-    <ReportDocument
-      title={title}
-      settings={settings}
-      headers={headers}
-      rows={rows}
-      summaryCards={summaryCards}
-      orientation={orientation}
-      filename={filename}
-      logoData={logoData}
-    />,
-  ).toBlob();
-
-  // تحميل الملف
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${filename}.pdf`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-/**
- * تصدير فاتورة PDF
- * @example
- *   await exportInvoicePdf({ type: "sales_invoice", number, date, ... })
- */
-export async function exportInvoicePdf(options: InvoicePdfOptions): Promise<void> {
-  const { settings, type, number: num } = options;
-  const meta = TYPE_META[type] || TYPE_META.sales_invoice;
-  const logoData = settings?.logo_url ? await loadLogoBase64(settings.logo_url) : null;
-
-  const blob = await pdf(<InvoiceDocument {...options} logoData={logoData} />).toBlob();
-
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${meta.label}-${num}.pdf`;
-  link.click();
-  URL.revokeObjectURL(url);
+  pdfMake
+    .createPdf({
+      pageMargins: [30, 20, 30, 48],
+      defaultStyle: { fontSize: 9, alignment: "right" },
+      content,
+      footer: buildFooter(settings),
+    } as TDocumentDefinitions)
+    .download(`${meta.label}-${num}.pdf`);
 }
