@@ -145,16 +145,16 @@ export default function ProductAnalytics() {
     }
   };
 
-  const handlePdfExport = () => {
+  const handlePdfExport = async () => {
     const titles: Record<string, string> = { "top-sellers": "أكثر المنتجات مبيعاً", "most-profitable": "المنتجات الأكثر ربحية", "by-category": "المبيعات حسب التصنيف", turnover: "معدل دوران المخزون" };
     if (view === "top-sellers") {
-      exportReportPdf({ title: titles[view], settings, headers: ["الكود", "المنتج", "التصنيف", "الكمية", "الإيرادات", "التكلفة", "الربح"], rows: topSellers.map((p) => [p.code, p.name, p.category, fmtN(p.quantitySold), fmt(p.revenue), fmt(p.cost), fmt(p.profit)]), filename: "أكثر-المنتجات-مبيعاً", orientation: "landscape" });
+      await exportReportPdf({ title: titles[view], settings, headers: ["الكود", "المنتج", "التصنيف", "الكمية", "الإيرادات", "التكلفة", "الربح"], rows: topSellers.map((p) => [p.code, p.name, p.category, fmtN(p.quantitySold), fmt(p.revenue), fmt(p.cost), fmt(p.profit)]), filename: "أكثر-المنتجات-مبيعاً", orientation: "landscape" });
     } else if (view === "most-profitable") {
-      exportReportPdf({ title: titles[view], settings, headers: ["الكود", "المنتج", "التصنيف", "الإيرادات", "التكلفة", "الربح", "هامش %"], rows: mostProfitable.map((p) => [p.code, p.name, p.category, fmt(p.revenue), fmt(p.cost), fmt(p.profit), p.revenue > 0 ? ((p.profit / p.revenue) * 100).toFixed(1) + "%" : "0%"]), filename: "الأكثر-ربحية", orientation: "landscape" });
+      await exportReportPdf({ title: titles[view], settings, headers: ["الكود", "المنتج", "التصنيف", "الإيرادات", "التكلفة", "الربح", "هامش %"], rows: mostProfitable.map((p) => [p.code, p.name, p.category, fmt(p.revenue), fmt(p.cost), fmt(p.profit), p.revenue > 0 ? ((p.profit / p.revenue) * 100).toFixed(1) + "%" : "0%"]), filename: "الأكثر-ربحية", orientation: "landscape" });
     } else if (view === "by-category") {
-      exportReportPdf({ title: titles[view], settings, headers: ["التصنيف", "عدد المنتجات", "الكمية", "الإيرادات", "التكلفة", "الربح"], rows: categoryList.map((c) => [c.name, c.productCount, fmtN(c.quantitySold), fmt(c.revenue), fmt(c.cost), fmt(c.profit)]), filename: "مبيعات-بالتصنيف" });
+      await exportReportPdf({ title: titles[view], settings, headers: ["التصنيف", "عدد المنتجات", "الكمية", "الإيرادات", "التكلفة", "الربح"], rows: categoryList.map((c) => [c.name, c.productCount, fmtN(c.quantitySold), fmt(c.revenue), fmt(c.cost), fmt(c.profit)]), filename: "مبيعات-بالتصنيف" });
     } else {
-      exportReportPdf({ title: titles[view], settings, headers: ["الكود", "المنتج", "التصنيف", "ت.المبيعات", "م.المخزون", "الدوران", "المخزون"], rows: turnoverData.map((p) => [p.code, p.name, p.category, fmt(p.cogs), fmt(p.avgInventory), String(p.turnover), fmtN(p.currentStock)]), filename: "دوران-المخزون", orientation: "landscape" });
+      await exportReportPdf({ title: titles[view], settings, headers: ["الكود", "المنتج", "التصنيف", "ت.المبيعات", "م.المخزون", "الدوران", "المخزون"], rows: turnoverData.map((p) => [p.code, p.name, p.category, fmt(p.cogs), fmt(p.avgInventory), String(p.turnover), fmtN(p.currentStock)]), filename: "دوران-المخزون", orientation: "landscape" });
     }
   };
 

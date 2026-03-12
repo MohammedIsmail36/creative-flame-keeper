@@ -89,9 +89,9 @@ export default function DebtAgingReport() {
     });
   };
 
-  const exportAgingPdf = (data: AgingBucket[], filename: string, label: string) => {
+  const exportAgingPdf = async (data: AgingBucket[], filename: string, label: string) => {
     const fmtN = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    exportReportPdf({
+    await exportReportPdf({
       title: `تقرير أعمار الديون - ${label}`,
       settings,
       headers: ["الاسم", "جاري (0-30)", "31-60 يوم", "61-90 يوم", "أكثر من 90", "الإجمالي"],

@@ -58,9 +58,9 @@ export default function InventoryReport() {
     });
   };
 
-  const handlePdfExport = () => {
-    const fmtN = (n: number) => n.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    exportReportPdf({
+  const handlePdfExport = async () => {
+    const fmtN = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    await exportReportPdf({
       title: "تقرير المخزون",
       settings,
       headers: ["الكود", "المنتج", "الكمية", "الحد الأدنى", "سعر الشراء", "سعر البيع", "قيمة المخزون", "الحالة"],

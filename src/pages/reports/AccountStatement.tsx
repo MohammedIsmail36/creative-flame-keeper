@@ -252,8 +252,8 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
     });
   };
 
-  const handleExportPdf = () => {
-    exportReportPdf({
+  const handleExportPdf = async () => {
+    await exportReportPdf({
       title: `كشف حساب: ${entityName}`,
       settings,
       headers: ["التاريخ", "النوع", "المرجع", "البيان", "مدين", "دائن", "الرصيد"],

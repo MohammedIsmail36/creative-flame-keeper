@@ -71,8 +71,8 @@ export default function PurchasesReport() {
     }
   };
 
-  const handlePdfExport = () => {
-    const fmtN = (n: number) => n.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const handlePdfExport = async () => {
+    const fmtN = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const summaryCards = [
       { label: "عدد الفواتير", value: String(summary.count) },
       { label: "إجمالي المشتريات", value: fmtN(summary.total) },
@@ -80,11 +80,11 @@ export default function PurchasesReport() {
       { label: "المتبقي", value: fmtN(summary.total - summary.paid) },
     ];
     if (groupBy === "invoice") {
-      exportReportPdf({ title: `تقرير المشتريات (${dateFrom} - ${dateTo})`, settings, headers: ["رقم", "التاريخ", "المورد", "الحالة", "الإجمالي", "المدفوع", "المتبقي"], rows: (invoices || []).map((inv) => [inv.invoice_number, inv.invoice_date, inv.supplier?.name || "-", inv.status === "approved" ? "معتمد" : "مسودة", fmtN(Number(inv.total)), fmtN(Number(inv.paid_amount)), fmtN(Number(inv.total) - Number(inv.paid_amount))]), summaryCards, filename: `تقرير-المشتريات-${dateFrom}`, orientation: "landscape" });
+      await exportReportPdf({ title: `تقرير المشتريات (${dateFrom} - ${dateTo})`, settings, headers: ["رقم", "التاريخ", "المورد", "الحالة", "الإجمالي", "المدفوع", "المتبقي"], rows: (invoices || []).map((inv) => [inv.invoice_number, inv.invoice_date, inv.supplier?.name || "-", inv.status === "approved" ? "معتمد" : "مسودة", fmtN(Number(inv.total)), fmtN(Number(inv.paid_amount)), fmtN(Number(inv.total) - Number(inv.paid_amount))]), summaryCards, filename: `تقرير-المشتريات-${dateFrom}`, orientation: "landscape" });
     } else if (groupBy === "supplier") {
-      exportReportPdf({ title: `تقرير المشتريات بالمورد`, settings, headers: ["المورد", "عدد الفواتير", "الإجمالي", "المدفوع", "المتبقي"], rows: Object.values(supplierSummary || {}).map((s: any) => [s.name, s.count, fmtN(s.total), fmtN(s.paid), fmtN(s.total - s.paid)]), summaryCards, filename: `تقرير-مشتريات-بالمورد` });
+      await exportReportPdf({ title: `تقرير المشتريات بالمورد`, settings, headers: ["المورد", "عدد الفواتير", "الإجمالي", "المدفوع", "المتبقي"], rows: Object.values(supplierSummary || {}).map((s: any) => [s.name, s.count, fmtN(s.total), fmtN(s.paid), fmtN(s.total - s.paid)]), summaryCards, filename: `تقرير-مشتريات-بالمورد` });
     } else {
-      exportReportPdf({ title: `تقرير المشتريات بالمنتج`, settings, headers: ["المنتج", "الكمية", "الإجمالي"], rows: Object.values(productSummary || {}).map((p: any) => [p.name, p.quantity, fmtN(p.total)]), summaryCards, filename: `تقرير-مشتريات-بالمنتج` });
+      await exportReportPdf({ title: `تقرير المشتريات بالمنتج`, settings, headers: ["المنتج", "الكمية", "الإجمالي"], rows: Object.values(productSummary || {}).map((p: any) => [p.name, p.quantity, fmtN(p.total)]), summaryCards, filename: `تقرير-مشتريات-بالمنتج` });
     }
   };
 
