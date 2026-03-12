@@ -36,30 +36,45 @@ let fontsLoaded = false;
 async function loadTajawalFonts() {
   if (fontsLoaded) return;
   try {
-    const [regular, bold, medium] = await Promise.all([
-      fetch("/fonts/Tajawal-Regular.ttf").then(r => r.arrayBuffer()),
-      fetch("/fonts/Tajawal-Bold.ttf").then(r => r.arrayBuffer()),
-      fetch("/fonts/Tajawal-Medium.ttf").then(r => r.arrayBuffer()),
-    ]);
-
     const toBase64 = (buf: ArrayBuffer) => {
       const bytes = new Uint8Array(buf);
       let binary = "";
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.byteLength; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.byteLength));
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
       }
       return btoa(binary);
     };
 
-    (pdfMake as any).vfs = {
-      ...(pdfMake as any).vfs,
-      "Tajawal-Regular.ttf": toBase64(regular),
-      "Tajawal-Bold.ttf": toBase64(bold),
-      "Tajawal-Medium.ttf": toBase64(medium),
-    };
+    const responses = await Promise.all([
+      fetch("/fonts/Tajawal-Regular.ttf"),
+      fetch("/fonts/Tajawal-Bold.ttf"),
+      fetch("/fonts/Tajawal-Medium.ttf"),
+    ]);
+
+    // Check all responses are OK
+    if (responses.some(r => !r.ok)) {
+      throw new Error("Font fetch failed");
+    }
+
+    const [regular, bold, medium] = await Promise.all(
+      responses.map(r => r.arrayBuffer())
+    );
+
+    // Validate font data is not empty
+    if (regular.byteLength < 100 || bold.byteLength < 100 || medium.byteLength < 100) {
+      throw new Error("Font files are empty or corrupt");
+    }
+
+    const vfs = (pdfMake as any).vfs || {};
+    vfs["Tajawal-Regular.ttf"] = toBase64(regular);
+    vfs["Tajawal-Bold.ttf"] = toBase64(bold);
+    vfs["Tajawal-Medium.ttf"] = toBase64(medium);
+    (pdfMake as any).vfs = vfs;
 
     (pdfMake as any).fonts = {
-      ...(pdfMake as any).fonts,
+      ...((pdfMake as any).fonts || {}),
       Tajawal: {
         normal: "Tajawal-Regular.ttf",
         bold: "Tajawal-Bold.ttf",
@@ -69,8 +84,10 @@ async function loadTajawalFonts() {
     };
 
     fontsLoaded = true;
+    console.log("Tajawal fonts loaded successfully");
   } catch (e) {
-    console.warn("Failed to load Tajawal fonts, using default:", e);
+    console.warn("Failed to load Tajawal fonts, using built-in Amiri:", e);
+    fontsLoaded = false;
   }
 }
 
