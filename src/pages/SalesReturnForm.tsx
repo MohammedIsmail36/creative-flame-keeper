@@ -260,7 +260,8 @@ export default function SalesReturnForm() {
       }
       await supabase.from("journal_entry_lines").insert(lines as any);
 
-      await (supabase.from("sales_returns" as any) as any).update({ status: "posted", journal_entry_id: je.id }).eq("id", id);
+      const nextPostedNum = await getNextPostedNumber("sales_returns");
+      await (supabase.from("sales_returns" as any) as any).update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum }).eq("id", id);
 
       for (const item of items) {
         if (!item.product_id) continue;
