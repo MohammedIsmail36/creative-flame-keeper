@@ -267,7 +267,7 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
       summaryCards: [
         { label: "إجمالي المدين", value: formatCurrency(totalDebit) },
         { label: "إجمالي الدائن", value: formatCurrency(totalCredit) },
-        { label: "الرصيد النهائي", value: formatCurrency(Math.abs(finalBalance)) + (finalBalance >= 0 ? " مدين" : " دائن") },
+        { label: "الرصيد النهائي", value: finalBalance >= 0 ? formatCurrency(finalBalance) : `(${formatCurrency(Math.abs(finalBalance))})` },
       ],
       orientation: "landscape",
       filename: `كشف_حساب_${entityName}`,
