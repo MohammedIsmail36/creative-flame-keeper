@@ -391,7 +391,7 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
                     <TableCell className="text-sm">{formatCurrency(totalDebit)}</TableCell>
                     <TableCell className="text-sm">{formatCurrency(totalCredit)}</TableCell>
                     <TableCell className={`text-sm ${finalBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {formatCurrency(Math.abs(finalBalance))} {finalBalance >= 0 ? "مدين" : "دائن"}
+                      {finalBalance >= 0 ? formatCurrency(finalBalance) : `(${formatCurrency(Math.abs(finalBalance))})`}
                     </TableCell>
                   </TableRow>
                 </TableBody>
