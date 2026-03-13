@@ -363,7 +363,7 @@ export default function SupplierPayments() {
                 </div>
                 <div className="space-y-2">
                   <Label>التاريخ</Label>
-                  <Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} />
+                  <DatePickerInput value={paymentDate} onChange={setPaymentDate} placeholder="اختر التاريخ" />
                 </div>
                 <div className="space-y-2">
                   <Label>طريقة الدفع</Label>
