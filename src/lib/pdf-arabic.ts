@@ -29,13 +29,7 @@ Font.register({
   ],
 });
 
-Font.register({
-  family: "Mono",
-  fonts: [
-    { src: "/fonts/IBMPlexMono-Regular.ttf", fontWeight: 400 },
-    { src: "/fonts/IBMPlexMono-SemiBold.ttf", fontWeight: 600 },
-  ],
-});
+// Mono font removed — files not available, using Tajawal for all text
 
 Font.registerHyphenationCallback((word) => [word]);
 
@@ -278,7 +272,7 @@ const tbl = StyleSheet.create({
     textAlign: "left",
     paddingVertical: 7,
     paddingHorizontal: 6,
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
   },
   cellName: {
     fontSize: 9,
@@ -289,7 +283,7 @@ const tbl = StyleSheet.create({
     paddingHorizontal: 6,
   },
   cellNum: {
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
     fontSize: 8.5,
     color: C.ink4,
     textAlign: "center",
@@ -343,7 +337,7 @@ const inv = StyleSheet.create({
     textAlign: "right",
   },
   metaValue: {
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
     fontSize: 10,
     fontWeight: 600,
     color: C.ink,
@@ -431,7 +425,7 @@ const inv = StyleSheet.create({
     fontSize: 10,
     color: C.ink,
     textAlign: "left",
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
   },
   grandRow: {
     width: "100%",
@@ -454,7 +448,7 @@ const inv = StyleSheet.create({
     fontWeight: 700,
     color: C.goldMid,
     textAlign: "left",
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
   },
 });
 
