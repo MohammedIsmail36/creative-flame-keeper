@@ -183,7 +183,7 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     }
     setSaving(true);
     try {
-      const entityAccCode = isSales ? ACCOUNT_CODES.CUSTOMERS : ACCOUNT_CODES.SUPPLIERS;
+      const entityAccCode = isCustomerSide ? ACCOUNT_CODES.CUSTOMERS : ACCOUNT_CODES.SUPPLIERS;
       const cashBankCode = paymentMethod === "cash" ? ACCOUNT_CODES.CASH : ACCOUNT_CODES.BANK;
       const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [entityAccCode, cashBankCode]);
       const entityAcc = accounts?.find(a => a.code === entityAccCode);
