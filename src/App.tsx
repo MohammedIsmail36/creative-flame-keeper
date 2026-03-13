@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Accounts from "./pages/Accounts";
 import Journal from "./pages/Journal";
+import JournalEntryForm from "./pages/JournalEntryForm";
 import Ledger from "./pages/Ledger";
 import Sales from "./pages/Sales";
 import SalesInvoiceForm from "./pages/SalesInvoiceForm";
