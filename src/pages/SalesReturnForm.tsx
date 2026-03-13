@@ -236,6 +236,27 @@ export default function SalesReturnForm() {
     }
   }
 
+  async function handlePrint() {
+    await exportInvoicePdf({
+      type: "sales_return",
+      number: returnNumber || "جديد",
+      date: returnDate,
+      partyName: customerName || customers.find(c => c.id === customerId)?.name || "—",
+      partyLabel: "العميل",
+      reference: reference || undefined,
+      notes: notes || undefined,
+      items: items.map(i => ({ name: i.product_name, quantity: i.quantity, unitPrice: i.unit_price, discount: i.discount, total: i.total })),
+      subtotal,
+      taxAmount,
+      taxRate,
+      grandTotal,
+      showTax,
+      showDiscount,
+      settings,
+      status,
+    });
+  }
+
   const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل" };
   const statusColors: Record<string, string> = { draft: "secondary", posted: "default" };
 
