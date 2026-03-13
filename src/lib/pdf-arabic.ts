@@ -522,28 +522,23 @@ function PdfHeader({
         ),
       );
 
-  // الهيدر الجديد: عمودي (أعلى: معلومات الشركة، أسفل: Badge في المنتصف)
-  return React.createElement(
+   return React.createElement(
     View,
     null,
     React.createElement(View, { style: { ...base.goldStripe, backgroundColor: accentColor } }),
     React.createElement(
       View,
       { style: base.header },
-      // الصف العلوي: شركة يمين، شعار يسار
+      // يمين: الشركة
       React.createElement(
         View,
-        { style: base.headerTopRow },
-        React.createElement(
-          View,
-          { style: base.companyBlock },
-          React.createElement(Text, { style: base.companyName }, s?.company_name ?? "النظام المحاسبي"),
-          s?.company_name_en ? React.createElement(Text, { style: base.companyNameEn }, s.company_name_en) : null,
-          s?.business_activity ? React.createElement(Text, { style: base.companyActivity }, s.business_activity) : null,
-        ),
-        logoEl,
+        { style: base.companyBlock },
+        React.createElement(Text, { style: base.companyName }, s?.company_name ?? "النظام المحاسبي"),
+        s?.company_name_en ? React.createElement(Text, { style: base.companyNameEn }, s.company_name_en) : null,
+        s?.business_activity ? React.createElement(Text, { style: base.companyActivity }, s.business_activity) : null,
       ),
-      // الـ Badge (سيُمرر كعنصر فرعي في الفاتورة، هنا لا نعرض شيء افتراضي)
+      // يسار: الشعار
+      logoEl,
     ),
   );
 }
