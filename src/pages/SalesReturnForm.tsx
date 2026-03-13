@@ -381,7 +381,7 @@ export default function SalesReturnForm() {
         <div className="flex items-center gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              {isNew ? "مرتجع بيع جديد" : `مرتجع بيع #${returnNumber}`}
+              {isNew ? "مرتجع بيع جديد" : `مرتجع بيع ${formatDisplayNumber(settings?.sales_return_prefix || "SRN-", postedNumber, returnNumber || 0, status)}`}
             </h1>
             {!isNew && <Badge variant={statusColors[status] as any} className="mt-1">{statusLabels[status]}</Badge>}
           </div>
