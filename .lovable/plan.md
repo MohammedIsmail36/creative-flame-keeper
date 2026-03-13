@@ -1,52 +1,72 @@
 
+# خطة تطوير النظام المحاسبي
 
-## Plan: Migrate PDF Engine from pdfmake-rtl to @react-pdf/renderer
+## الحالة العامة: ~75% مكتمل
 
-### Why
-`@react-pdf/renderer` uses familiar React/CSS-like syntax (JSX + StyleSheet), making layout adjustments intuitive and debuggable. It has proper RTL and custom font support via `Font.register()`.
+---
 
-### Scope
-- **1 new dependency**: `@react-pdf/renderer`
-- **1 file rewrite**: `src/lib/pdf-arabic.ts` — rebuild using React PDF components
-- **0 caller changes**: Keep the same `exportInvoicePdf()` and `exportReportPdf()` function signatures
+## ✅ المراحل المكتملة
 
-### Architecture
+### المرحلة 1: قاعدة البيانات ✅
+- جداول: accounts, journal_entries, journal_entry_lines, customers, suppliers, products, sales/purchase invoices, returns, payments, inventory_movements
+- جداول البحث: product_categories, product_brands, product_units
+- جداول المصادقة: profiles, user_roles مع enum app_role
+- دوال: has_role, get_user_role, get_avg_purchase_price, get_avg_selling_price
+- Triggers: إنشاء ملف شخصي تلقائي عند التسجيل
 
-The exported functions will internally render React components to PDF blobs, then trigger download:
+### المرحلة 2: نظام المصادقة والصلاحيات ✅
+- صفحة تسجيل الدخول/إنشاء حساب (Auth.tsx)
+- AuthContext مع إدارة الجلسات والأدوار
+- ProtectedRoute لحماية المسارات
+- RoleGuard لإخفاء عناصر حسب الدور
+- 3 أدوار: admin, accountant, sales
 
-```text
-exportInvoicePdf(options)
-  → pdf(<InvoiceDocument {...options} />).toBlob()
-  → saveAs(blob, filename)
+### المرحلة 3: الصفحات والجداول ✅
+- DataTable موحد مع بحث + ترتيب + صفحات + إخفاء أعمدة
+- فلاتر متقدمة مخصصة لكل صفحة (حالة، تاريخ، نوع الدفع، رصيد، دور)
+- جميع صفحات CRUD: مبيعات، مشتريات، مرتجعات، مدفوعات، عملاء، موردين، منتجات
+- شجرة الحسابات، القيود المحاسبية، دفتر الأستاذ
+- التصنيفات، وحدات القياس، الماركات
+- ميزان المراجعة، قائمة الدخل، الميزانية العمومية
+- إدارة المستخدمين
 
-exportReportPdf(options)  
-  → pdf(<ReportDocument {...options} />).toBlob()
-  → saveAs(blob, filename)
-```
+---
 
-### Key Implementation Details
+## ❌ المهام المتبقية
 
-1. **Font Registration** — Register Tajawal (Regular/Bold/Medium) from `/public/fonts/` via `Font.register({ family: 'Tajawal', src: '/fonts/Tajawal-Regular.ttf' })`
+### المرحلة 4: لوحة التحكم بالبيانات الحقيقية (أولوية عالية)
+- [ ] استبدال البيانات الثابتة (mock) ببيانات حقيقية من قاعدة البيانات
+- [ ] بطاقات الملخص: إجمالي المبيعات/المشتريات/الأرباح من الفواتير الفعلية
+- [ ] رسوم بيانية بالبيانات الحقيقية (مبيعات/مشتريات شهرية)
+- [ ] آخر الفواتير من جدول sales_invoices
+- [ ] تنبيهات المخزون من جدول products (quantity_on_hand < min_stock_level)
 
-2. **Invoice Template** (`<InvoiceDocument />`)
-   - Gold top stripe + dark header with company info (right) and document badge (left)
-   - Gray subheader bar with client details and metadata
-   - Items table with zebra rows and light-colored header
-   - Totals section with grand total highlight
-   - Footer with company legal info and page numbers
+### المرحلة 5: صفحة الإعدادات (أولوية عالية)
+- [ ] إنشاء جدول company_settings في قاعدة البيانات
+- [ ] إعدادات الشركة: الاسم، الشعار، العنوان، الهاتف، الرقم الضريبي
+- [ ] إعدادات مالية: العملة الافتراضية، السنة المالية
+- [ ] إعدادات الفواتير: بادئة الترقيم، شروط الدفع الافتراضية
+- [ ] إعدادات النظام: اللغة، المنطقة الزمنية
 
-3. **Report Template** (`<ReportDocument />`)
-   - Same header style as invoices
-   - Summary KPI cards row
-   - Data table with zebra striping
-   - Record count footer
+### المرحلة 6: صفحة التقارير (أولوية متوسطة)
+- [ ] تقرير المبيعات التفصيلي (بالفترة، العميل، المنتج)
+- [ ] تقرير المشتريات التفصيلي
+- [ ] تقرير حركة المخزون
+- [ ] تقرير أعمار الديون (العملاء والموردين)
+- [ ] تقرير الأرباح والخسائر
+- [ ] تصدير التقارير PDF/Excel
 
-4. **Styling** — Use `StyleSheet.create()` with the existing color palette (C object). All numbers/dates remain `en-US` format, all labels in Arabic.
+### المرحلة 7: تصدير البيانات (أولوية متوسطة)
+- [ ] تصدير CSV/Excel/PDF موحد لجميع الجداول
+- [ ] قالب PDF احترافي بالعربية مع شعار الشركة
 
-5. **RTL** — Apply `direction: 'rtl'` and `textAlign: 'right'` at the page level.
+### المرحلة 8: تحسينات أمنية (أولوية عالية)
+- [ ] مراجعة شاملة لسياسات RLS
+- [ ] التأكد من أن جميع الجداول محمية بشكل صحيح
+- [ ] تسجيل الأحداث (audit log) للعمليات الحساسة
 
-### Tasks
-1. Install `@react-pdf/renderer`, remove `pdfmake-rtl`
-2. Rewrite `src/lib/pdf-arabic.ts` with React PDF components (same exports)
-3. Test invoice and report PDF generation
-
+### المرحلة 9: تحسينات إضافية (أولوية منخفضة)
+- [ ] إشعارات داخل التطبيق (تنبيهات المخزون، الفواتير المستحقة)
+- [ ] الوضع المظلم (Dark Mode)
+- [ ] تحسين الأداء وتحميل البيانات
+- [ ] طباعة الفواتير بتصميم احترافي
