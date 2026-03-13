@@ -221,7 +221,7 @@ export default function Accounts() {
       return;
     }
 
-    const { error } = await supabase.from("accounts").update({ is_active: false }).eq("id", account.id);
+    const { error } = await supabase.from("accounts").delete().eq("id", account.id);
     if (error) {
       toast({ title: "خطأ", description: "فشل في حذف الحساب", variant: "destructive" });
     } else {
