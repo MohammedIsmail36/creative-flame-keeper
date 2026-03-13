@@ -15,7 +15,7 @@ import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { ExportMenu } from "@/components/ExportMenu";
 
 interface Invoice {
-  id: string; invoice_number: number; customer_id: string | null; customer_name?: string;
+  id: string; invoice_number: number; posted_number: number | null; customer_id: string | null; customer_name?: string;
   invoice_date: string; status: string; subtotal: number; discount: number; tax: number; total: number; paid_amount: number; notes: string | null;
 }
 
