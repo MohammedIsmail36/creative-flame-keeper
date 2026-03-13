@@ -283,7 +283,7 @@ const tbl = StyleSheet.create({
     paddingHorizontal: 6,
   },
   cellNum: {
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
     fontSize: 8.5,
     color: C.ink4,
     textAlign: "center",
