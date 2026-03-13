@@ -12,9 +12,10 @@ import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus, ShoppingCart, Eye, X } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
+import { formatDisplayNumber } from "@/lib/posted-number-utils";
 
 interface Invoice {
-  id: string; invoice_number: number; supplier_id: string | null; supplier_name?: string;
+  id: string; invoice_number: number; posted_number: number | null; supplier_id: string | null; supplier_name?: string;
   invoice_date: string; status: string; subtotal: number; discount: number; tax: number; total: number; paid_amount: number; notes: string | null;
 }
 
