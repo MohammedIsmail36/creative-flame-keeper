@@ -38,7 +38,7 @@ export default function SalesReturnForm() {
   const showTax = settings?.show_tax_on_invoice ?? false;
   const showDiscount = settings?.show_discount_on_invoice ?? true;
   const taxRate = settings?.tax_rate ?? 0;
-  const returnDaysLimit = (settings as any)?.return_days_limit ?? 30;
+  const returnDaysLimit = settings?.return_days_limit ?? 30;
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
