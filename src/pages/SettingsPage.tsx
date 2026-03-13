@@ -390,6 +390,18 @@ export default function SettingsPage() {
                     placeholder="0"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>مدة الاسترجاع (أيام)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={(settings as any).return_days_limit || 30}
+                    onChange={(e) => updateField("return_days_limit" as any, Number(e.target.value))}
+                    placeholder="30"
+                  />
+                  <p className="text-xs text-muted-foreground">الحد الأقصى لعدد الأيام المسموح بها لإرجاع المبيعات</p>
+                </div>
               </div>
             </CardContent>
           </Card>
