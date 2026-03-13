@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus, FileText, Eye, X } from "lucide-react";
+import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { ExportMenu } from "@/components/ExportMenu";
 
 interface Invoice {
