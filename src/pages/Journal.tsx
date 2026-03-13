@@ -366,6 +366,12 @@ export default function Journal() {
               </>
             )}
             {/* Cancel button: only for manual posted entries (not linked to operations) */}
+            {/* Cancel button: disabled for linked entries, active for manual posted entries */}
+            {canEdit && entry.status === "posted" && linkedEntryIds.has(entry.id) && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/40 cursor-not-allowed" disabled title="قيد آلي - لا يمكن إلغاؤه يدوياً">
+                <Ban className="h-4 w-4" />
+              </Button>
+            )}
             {canEdit && entry.status === "posted" && !linkedEntryIds.has(entry.id) && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
