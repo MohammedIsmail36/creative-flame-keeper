@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronDown, ChevronLeft, Folder, FolderOpen, Check } from "lucide-react";
+import { ChevronsUpDown, ChevronLeft, Folder, FolderOpen, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CategoryItem {
@@ -68,7 +68,8 @@ function TreeNodeItem({
       <button
         type="button"
         className={cn(
-          "flex items-center gap-1.5 w-full text-right px-2 py-1.5 text-sm rounded-md transition-colors hover:bg-accent",
+          "flex items-center gap-2 w-full text-right px-2 py-2 text-sm rounded-sm transition-colors",
+          "hover:bg-accent hover:text-accent-foreground",
           isSelected && "bg-primary/10 text-primary font-medium"
         )}
         style={{ paddingRight: `${level * 16 + 8}px` }}
@@ -76,21 +77,21 @@ function TreeNodeItem({
       >
         {hasChildren ? (
           <span
-            className="shrink-0 cursor-pointer"
+            className="shrink-0 cursor-pointer rounded p-0.5 hover:bg-muted"
             onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
           >
-            <ChevronLeft className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", expanded && "-rotate-90")} />
+            <ChevronLeft className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-150", expanded && "-rotate-90")} />
           </span>
         ) : (
           <span className="w-3.5 shrink-0" />
         )}
         {hasChildren ? (
-          expanded ? <FolderOpen className="h-3.5 w-3.5 text-primary/70 shrink-0" /> : <Folder className="h-3.5 w-3.5 text-primary/70 shrink-0" />
+          expanded ? <FolderOpen className="h-3.5 w-3.5 text-primary/60 shrink-0" /> : <Folder className="h-3.5 w-3.5 text-primary/60 shrink-0" />
         ) : (
           <span className="w-3.5 shrink-0" />
         )}
         <span className="flex-1 truncate">{node.name}</span>
-        {isSelected && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+        {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
       </button>
       {hasChildren && expanded && (
         <div>
@@ -116,14 +117,24 @@ export function CategoryTreeSelect({ categories, value, onValueChange, placehold
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" className={cn("justify-between font-normal", !value && "text-muted-foreground", className)}>
-          <span className="truncate">{displayText}</span>
-          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+        <Button
+          variant="outline"
+          role="combobox"
+          className={cn(
+            "justify-between font-normal text-sm shadow-xs transition-colors",
+            "hover:bg-accent/50",
+            !value && "text-muted-foreground",
+            open && "ring-2 ring-ring/20 border-ring",
+            className
+          )}
+        >
+          <span className="truncate flex-1 text-right">{displayText}</span>
+          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-1 max-h-64 overflow-y-auto" align="start" dir="rtl">
+      <PopoverContent className="w-72 p-1 max-h-64 overflow-y-auto shadow-lg border-border/80" align="start" dir="rtl" sideOffset={5}>
         {tree.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">لا توجد تصنيفات</p>
+          <p className="text-sm text-muted-foreground/70 text-center py-6">لا توجد تصنيفات</p>
         ) : (
           tree.map(node => (
             <TreeNodeItem key={node.id} node={node} level={0} selectedId={value} onSelect={handleSelect} />

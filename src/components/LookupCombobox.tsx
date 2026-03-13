@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,25 +56,33 @@ export function LookupCombobox({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "w-full justify-between h-9 font-normal",
+            "w-full justify-between h-9 font-normal text-sm shadow-xs transition-colors",
+            "hover:bg-accent/50",
             !value && "text-muted-foreground",
+            open && "ring-2 ring-ring/20 border-ring",
             className
           )}
         >
-          <span className="truncate">
+          <span className="truncate flex-1 text-right">
             {selected ? selected.name : placeholder}
           </span>
-          <ChevronsUpDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0"
+        className="w-[--radix-popover-trigger-width] p-0 shadow-lg border-border/80"
         align="start"
+        sideOffset={5}
       >
-        <Command dir="rtl">
-          <CommandInput placeholder={searchPlaceholder} className="h-9" />
+        <Command dir="rtl" className="rounded-md">
+          <CommandInput placeholder={searchPlaceholder} className="h-10 text-sm" />
           <CommandList>
-            <CommandEmpty>{emptyMessage}</CommandEmpty>
+            <CommandEmpty>
+              <div className="flex flex-col items-center gap-1.5">
+                <Search className="h-5 w-5 text-muted-foreground/40" />
+                <span>{emptyMessage}</span>
+              </div>
+            </CommandEmpty>
             <CommandGroup>
               {items.map((item) => (
                 <CommandItem
@@ -89,10 +97,10 @@ export function LookupCombobox({
                     setOpen(false);
                   }}
                 >
-                  {item.name}
+                  <span className="flex-1 truncate">{item.name}</span>
                   <Check
                     className={cn(
-                      "mr-auto h-4 w-4",
+                      "mr-auto h-4 w-4 shrink-0 text-primary transition-opacity",
                       value === item.id ? "opacity-100" : "opacity-0"
                     )}
                   />
