@@ -204,8 +204,7 @@ export default function Ledger() {
         const bal = row.original.runningBalance ?? 0;
         return (
           <span className={`font-mono text-sm font-bold ${bal >= 0 ? "text-green-600" : "text-red-600"}`}>
-            {formatNumber(Math.abs(bal))}
-            <span className="text-xs text-muted-foreground mr-1">{bal >= 0 ? "مدين" : "دائن"}</span>
+            {bal >= 0 ? formatNumber(bal) : `(${formatNumber(Math.abs(bal))})`}
           </span>
         );
       },
