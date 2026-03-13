@@ -50,6 +50,7 @@ export default function SalesInvoiceForm() {
   const [saving, setSaving] = useState(false);
 
   const [invoiceNumber, setInvoiceNumber] = useState<number | null>(null);
+  const [postedNumber, setPostedNumber] = useState<number | null>(null);
   const [customerId, setCustomerId] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
