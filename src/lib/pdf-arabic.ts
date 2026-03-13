@@ -801,7 +801,7 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
       { size: "A4", orientation, style: base.page },
       React.createElement(PdfHeader, { settings, logoData, accentColor: accent, badge }),
 
-      React.createElement(LegalBar, { settings }),
+      // React.createElement(LegalBar, { settings }),
       React.createElement(
         View,
         { style: { ...base.body, marginTop: 12 } },
