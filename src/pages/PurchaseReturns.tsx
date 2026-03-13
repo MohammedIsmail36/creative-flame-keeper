@@ -14,7 +14,7 @@ import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 
 interface Return {
-  id: string; return_number: number; supplier_id: string | null; supplier_name?: string;
+  id: string; return_number: number; posted_number: number | null; supplier_id: string | null; supplier_name?: string;
   return_date: string; status: string; total: number;
 }
 
