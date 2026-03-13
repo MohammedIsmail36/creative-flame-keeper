@@ -159,10 +159,12 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     setPaidAmount(totalPaid);
     setAvailablePayments(available);
 
-    // Sync invoice paid_amount if it differs
-    await (supabase.from(invoiceTable as any) as any)
-      .update({ paid_amount: totalPaid })
-      .eq("id", invoiceId);
+    // Sync paid_amount if applicable (invoices have paid_amount, returns don't)
+    if (!isReturn) {
+      await (supabase.from(invoiceTable as any) as any)
+        .update({ paid_amount: totalPaid })
+        .eq("id", invoiceId);
+    }
 
     setLoading(false);
   }
