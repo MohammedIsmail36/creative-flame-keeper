@@ -63,11 +63,13 @@ export default function SalesReturns() {
   const hasFilters = statusFilter !== "all" || dateFrom || dateTo;
   const clearFilters = () => { setStatusFilter("all"); setDateFrom(""); setDateTo(""); };
 
+  const prefix = settings?.sales_return_prefix || "SRN-";
+
   const columns: ColumnDef<Return, any>[] = [
     {
       accessorKey: "return_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="رقم المرتجع" />,
-      cell: ({ row }) => <span className="font-mono">#{row.original.return_number}</span>,
+      cell: ({ row }) => <span className="font-mono">{formatDisplayNumber(prefix, row.original.posted_number, row.original.return_number, row.original.status)}</span>,
     },
     {
       accessorKey: "customer_name",
