@@ -46,6 +46,7 @@ export default function SalesReturnForm() {
   const [saving, setSaving] = useState(false);
 
   const [returnNumber, setReturnNumber] = useState<number | null>(null);
+  const [postedNumber, setPostedNumber] = useState<number | null>(null);
   const [customerId, setCustomerId] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [returnDate, setReturnDate] = useState(new Date().toISOString().split("T")[0]);
