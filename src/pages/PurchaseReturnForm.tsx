@@ -192,7 +192,8 @@ export default function PurchaseReturnForm() {
         { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: 0, credit: grandTotal, description: `خصم مخزون مرتجع - ${returnNumber}` },
       ] as any);
 
-      await (supabase.from("purchase_returns" as any) as any).update({ status: "posted", journal_entry_id: je.id }).eq("id", id);
+      const nextPostedNum = await getNextPostedNumber("purchase_returns");
+      await (supabase.from("purchase_returns" as any) as any).update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum }).eq("id", id);
 
       for (const item of items) {
         if (!item.product_id) continue;
