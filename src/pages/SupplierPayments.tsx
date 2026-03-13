@@ -267,11 +267,13 @@ export default function SupplierPayments() {
     setPaymentMethod("cash"); setReference(""); setNotes("");
   }
 
+  const prefix = settings?.supplier_payment_prefix || "SPY-";
+
   const columns: ColumnDef<Payment, any>[] = [
     {
       accessorKey: "payment_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="#" />,
-      cell: ({ row }) => <span className="font-mono">#{row.original.payment_number}</span>,
+      cell: ({ row }) => <span className="font-mono">{formatDisplayNumber(prefix, row.original.posted_number, row.original.payment_number, row.original.status)}</span>,
     },
     {
       accessorKey: "supplier_name",
