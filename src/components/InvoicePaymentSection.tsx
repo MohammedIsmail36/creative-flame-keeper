@@ -91,7 +91,7 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     // 1. Fetch allocations for this invoice (with payment details)
     const { data: allocData } = await (supabase.from(allocationTable as any) as any)
       .select("id, payment_id, allocated_amount")
-      .eq("invoice_id", invoiceId);
+      .eq(allocIdCol, invoiceId);
 
     let enrichedAllocations: Allocation[] = [];
     if (allocData && allocData.length > 0) {
