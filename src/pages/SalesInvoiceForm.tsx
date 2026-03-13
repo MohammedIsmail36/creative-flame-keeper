@@ -342,7 +342,7 @@ export default function SalesInvoiceForm() {
         <div className="flex items-center gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              {isNew ? "فاتورة بيع جديدة" : `فاتورة بيع #${invoiceNumber}`}
+              {isNew ? "فاتورة بيع جديدة" : `فاتورة بيع ${formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", postedNumber, invoiceNumber || 0, status)}`}
             </h1>
             {!isNew && <Badge variant={statusColors[status] as any} className="mt-1">{statusLabels[status]}</Badge>}
           </div>
