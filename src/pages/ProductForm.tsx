@@ -11,7 +11,7 @@ import { LookupCombobox } from "@/components/LookupCombobox";
 import { CategoryTreeSelect } from "@/components/CategoryTreeSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { ArrowRight, Save, Plus, ImagePlus, X, Trash2 } from "lucide-react";
+import { Save, Plus, ImagePlus, X, Trash2 } from "lucide-react";
 
 interface LookupItem { id: string; name: string; }
 interface CategoryItem { id: string; name: string; parent_id?: string | null; }
