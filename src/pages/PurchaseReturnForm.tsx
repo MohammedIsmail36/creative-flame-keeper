@@ -311,7 +311,7 @@ export default function PurchaseReturnForm() {
         <div className="flex items-center gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              {isNew ? "مرتجع شراء جديد" : `مرتجع شراء #${returnNumber}`}
+              {isNew ? "مرتجع شراء جديد" : `مرتجع شراء ${formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", postedNumber, returnNumber || 0, status)}`}
             </h1>
             {!isNew && <Badge variant={statusColors[status] as any} className="mt-1">{statusLabels[status]}</Badge>}
           </div>
