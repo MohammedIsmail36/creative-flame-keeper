@@ -299,9 +299,6 @@ export default function PurchaseInvoiceForm() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/purchases")}>
-            <ArrowRight className="h-5 w-5" />
-          </Button>
           <div>
             <h1 className="text-2xl font-bold text-foreground">
               {isNew ? "فاتورة شراء جديدة" : `فاتورة شراء #${invoiceNumber}`}
