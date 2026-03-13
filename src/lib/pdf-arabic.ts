@@ -490,17 +490,19 @@ function PdfHeader({
   settings,
   logoData,
   accentColor,
+  badge,
 }: {
   settings: CompanySettings | null;
   logoData: string | null;
   accentColor: string;
+  badge?: React.ReactNode;
 }) {
   const s = settings;
 
   const logoEl = logoData
     ? React.createElement(Image, {
         src: logoData,
-        style: { width: 44, height: 44, borderRadius: 8, marginLeft: 10 },
+        style: { width: 44, height: 44, borderRadius: 8 },
       })
     : React.createElement(
         View,
@@ -508,11 +510,10 @@ function PdfHeader({
           style: {
             width: 44,
             height: 44,
-            backgroundColor: accentColor, // لون ديناميكي
+            backgroundColor: accentColor,
             borderRadius: 8,
             alignItems: "center" as const,
             justifyContent: "center" as const,
-            marginLeft: 10,
           },
         },
         React.createElement(
@@ -537,6 +538,8 @@ function PdfHeader({
         s?.company_name_en ? React.createElement(Text, { style: base.companyNameEn }, s.company_name_en) : null,
         s?.business_activity ? React.createElement(Text, { style: base.companyActivity }, s.business_activity) : null,
       ),
+      // وسط: Badge
+      badge ?? null,
       // يسار: الشعار
       logoEl,
     ),
