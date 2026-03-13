@@ -436,7 +436,7 @@ const inv = StyleSheet.create({
     fontWeight: 700,
     color: C.goldMid,
     textAlign: "left",
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
   },
 });
 
