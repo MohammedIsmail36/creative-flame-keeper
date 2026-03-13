@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ArrowRight, ChevronDown, ChevronRight, FolderTree, Folder, FolderOpen, Upload, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, FolderTree, Folder, FolderOpen, Upload, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LookupImportDialog } from "@/components/LookupImportDialog";
 import { ExportMenu } from "@/components/ExportMenu";
