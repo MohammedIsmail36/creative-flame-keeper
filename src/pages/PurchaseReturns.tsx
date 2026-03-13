@@ -174,7 +174,7 @@ export default function PurchaseReturns() {
               sheetName: "مرتجعات المشتريات",
               pdfTitle: "مرتجعات المشتريات",
               headers: ["رقم المرتجع", "المورد", "التاريخ", "الإجمالي", "الحالة"],
-              rows: filtered.map(r => [`#${r.return_number}`, r.supplier_name || "—", r.return_date, formatCurrency(r.total), statusLabels[r.status] || r.status]),
+              rows: filtered.map(r => [formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status), r.supplier_name || "—", r.return_date, formatCurrency(r.total), statusLabels[r.status] || r.status]),
               settings,
             }} disabled={loading} />
           </div>

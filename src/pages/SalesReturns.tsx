@@ -173,7 +173,7 @@ export default function SalesReturns() {
               sheetName: "مرتجعات المبيعات",
               pdfTitle: "مرتجعات المبيعات",
               headers: ["رقم المرتجع", "العميل", "التاريخ", "الإجمالي", "الحالة"],
-              rows: filtered.map(r => [`#${r.return_number}`, r.customer_name || "—", r.return_date, formatCurrency(r.total), statusLabels[r.status] || r.status]),
+              rows: filtered.map(r => [formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status), r.customer_name || "—", r.return_date, formatCurrency(r.total), statusLabels[r.status] || r.status]),
               settings,
             }} disabled={loading} />
           </div>
