@@ -138,18 +138,18 @@ const base = StyleSheet.create({
     fontSize: 14,
     fontWeight: 700,
     color: C.white,
-    textAlign: "right",
+    textAlign: "center",
   },
   companyNameEn: {
     fontSize: 8,
-    color: C.ink4,
-    textAlign: "right",
+    color: C.white,
+    textAlign: "center",
     marginTop: 2,
   },
   companyActivity: {
     fontSize: 7,
-    color: C.ink3,
-    textAlign: "right",
+    color: C.white,
+    textAlign: "center",
     marginTop: 1,
   },
 
