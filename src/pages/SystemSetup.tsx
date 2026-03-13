@@ -201,14 +201,14 @@ export default function SystemSetup() {
             تصفير قاعدة البيانات
           </CardTitle>
           <CardDescription>
-            حذف جميع البيانات مع الاحتفاظ بشجرة الحسابات وإعدادات الشركة والمستخدمين. هذا الإجراء لا يمكن التراجع عنه!
+            حذف جميع البيانات بالكامل وإعادة بناء قاعدة البيانات من الصفر مع إنشاء شجرة الحسابات الافتراضية وحساب المدير وإعدادات الشركة. هذا الإجراء لا يمكن التراجع عنه!
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm">
             <p className="font-medium text-destructive mb-1">⚠️ تحذير هام</p>
-            <p className="text-muted-foreground">سيتم حذف: المنتجات، العملاء، الموردين، الفواتير، المدفوعات، حركات المخزون، القيود المحاسبية، التصنيفات، الماركات، والوحدات.</p>
-            <p className="text-muted-foreground mt-1">سيتم الاحتفاظ بـ: شجرة الحسابات، إعدادات الشركة، حسابات المستخدمين.</p>
+            <p className="text-muted-foreground">سيتم حذف جميع البيانات بالكامل: المنتجات، العملاء، الموردين، الفواتير، المدفوعات، حركات المخزون، القيود، شجرة الحسابات، المستخدمين، وإعدادات الشركة.</p>
+            <p className="text-muted-foreground mt-1">سيتم إعادة إنشاء: شجرة الحسابات الافتراضية (29 حساب) + حساب المدير (admin@system.com) + إعدادات الشركة.</p>
           </div>
 
           <AlertDialog>
@@ -222,7 +222,7 @@ export default function SystemSetup() {
               <AlertDialogHeader>
                 <AlertDialogTitle>⚠️ تأكيد تصفير قاعدة البيانات</AlertDialogTitle>
                 <AlertDialogDescription>
-                  هل أنت متأكد من تصفير قاعدة البيانات بالكامل؟ سيتم حذف جميع البيانات التشغيلية ولا يمكن التراجع عن هذا الإجراء. يُنصح بأخذ نسخة احتياطية أولاً.
+                  هل أنت متأكد من تصفير قاعدة البيانات بالكامل؟ سيتم حذف جميع البيانات والمستخدمين وإعادة بناء القاعدة من الصفر. لا يمكن التراجع عن هذا الإجراء. يُنصح بأخذ نسخة احتياطية أولاً.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="flex-row-reverse gap-2">
