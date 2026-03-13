@@ -84,13 +84,17 @@ const fmtDateFull = (d: Date): string =>
 async function loadLogoBase64(url: string): Promise<string | null> {
   try {
     const res = await fetch(url);
+    if (!res.ok) return null;
     const blob = await res.blob();
-    return new Promise((resolve) => {
-      const r = new FileReader();
-      r.onloadend = () => resolve(r.result as string);
-      r.onerror = () => resolve(null);
-      r.readAsDataURL(blob);
-    });
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    let binary = "";
+    for (let i = 0; i < uint8.length; i++) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    const base64 = btoa(binary);
+    const mime = blob.type || "image/png";
+    return `data:${mime};base64,${base64}`;
   } catch {
     return null;
   }
