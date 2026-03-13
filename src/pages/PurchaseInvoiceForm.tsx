@@ -186,7 +186,8 @@ export default function PurchaseInvoiceForm() {
         { journal_entry_id: je.id, account_id: supplierAcc.id, debit: 0, credit: grandTotal, description: `مستحقات مورد - فاتورة ${invoiceNumber}` },
       ] as any);
 
-      await (supabase.from("purchase_invoices" as any) as any).update({ status: "posted", journal_entry_id: je.id }).eq("id", id);
+      const nextPostedNum = await getNextPostedNumber("purchase_invoices");
+      await (supabase.from("purchase_invoices" as any) as any).update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum }).eq("id", id);
 
       for (const item of items) {
         if (!item.product_id) continue;
