@@ -318,8 +318,23 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
   if (loading) return null;
 
   const isPaid = remaining <= 0;
-  const statusText = isPaid ? "مدفوعة بالكامل" : paidAmount > 0 ? "مسدد جزئياً" : "غير مدفوعة";
+  
+  // Context-aware labels for returns vs invoices
+  const sectionTitle = isReturn ? "المستردات" : "المدفوعات";
+  const newPaymentLabel = isReturn 
+    ? (isCustomerSide ? "تسجيل رد مبلغ للعميل" : "تسجيل استلام مبلغ من المورد")
+    : "دفعة جديدة";
+  const newPaymentBtnLabel = isReturn
+    ? (isCustomerSide ? "رد مبلغ" : "استلام مبلغ")
+    : "دفعة جديدة";
+  const statusText = isPaid 
+    ? (isReturn ? "مستردة بالكامل" : "مدفوعة بالكامل")
+    : paidAmount > 0 
+      ? (isReturn ? "مسترد جزئياً" : "مسدد جزئياً")
+      : (isReturn ? "غير مستردة" : "غير مدفوعة");
   const statusVariant = isPaid ? "default" : paidAmount > 0 ? "secondary" : "destructive";
+  const paidLabel = isReturn ? "المسترد" : "المدفوع";
+  const remainingLabel = isReturn ? "المتبقي للاسترداد" : "المتبقي";
 
   return (
     <Card>
@@ -327,12 +342,13 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">المدفوعات</CardTitle>
+            <CardTitle className="text-lg">{sectionTitle}</CardTitle>
             <Badge variant={statusVariant as any}>{statusText}</Badge>
           </div>
           {!isPaid && (
             <div className="flex gap-2">
-              {availablePayments.length > 0 && (
+              {/* Link existing payment - only for invoices, not returns */}
+              {!isReturn && availablePayments.length > 0 && (
                 <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
                   <DialogTrigger asChild>
                     <Button size="sm" variant="outline" className="gap-1"><Link2 className="h-3.5 w-3.5" />تخصيص دفعة</Button>
@@ -392,15 +408,23 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
               )}
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="gap-1"><Plus className="h-3.5 w-3.5" />دفعة جديدة</Button>
+                  <Button size="sm" className="gap-1"><Plus className="h-3.5 w-3.5" />{newPaymentBtnLabel}</Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md" dir="rtl">
-                  <DialogHeader><DialogTitle>تسجيل دفعة جديدة - {entityName}</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>{newPaymentLabel} - {entityName}</DialogTitle></DialogHeader>
                   <div className="space-y-4">
                     <div className="flex justify-between text-sm bg-muted/50 p-3 rounded-lg">
-                      <span>إجمالي الفاتورة: <strong className="font-mono">{invoiceTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
-                      <span>المتبقي: <strong className="font-mono text-destructive">{remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+                      <span>إجمالي {isReturn ? "المرتجع" : "الفاتورة"}: <strong className="font-mono">{invoiceTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+                      <span>{remainingLabel}: <strong className="font-mono text-destructive">{remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
                     </div>
+                    {isReturn && (
+                      <div className="text-sm text-muted-foreground bg-blue-500/10 p-3 rounded-lg border border-blue-500/20">
+                        {isCustomerSide 
+                          ? "💡 سيتم تسجيل رد مبلغ المرتجع للعميل (خروج نقدي)"
+                          : "💡 سيتم تسجيل استلام مبلغ المرتجع من المورد (دخول نقدي)"
+                        }
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label>المبلغ *</Label>
                       <Input type="number" min="0" max={remaining} step="0.01" value={amount} onChange={e => setAmount(+e.target.value)} className="font-mono" />
@@ -428,7 +452,7 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
                       <Label>ملاحظات</Label>
                       <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
                     </div>
-                    <Button onClick={handleNewPayment} disabled={saving} className="w-full">{saving ? "جاري الحفظ..." : "تسجيل الدفعة"}</Button>
+                    <Button onClick={handleNewPayment} disabled={saving} className="w-full">{saving ? "جاري الحفظ..." : isReturn ? (isCustomerSide ? "تسجيل الاسترداد" : "تسجيل الاستلام") : "تسجيل الدفعة"}</Button>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -439,10 +463,10 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
       <CardContent className="space-y-4">
         {/* Payment summary bar */}
         <div className="flex items-center gap-3 text-sm">
-          <span>المدفوع: <strong className="font-mono">{paidAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+          <span>{paidLabel}: <strong className="font-mono">{paidAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
           <span className="text-muted-foreground">من</span>
           <span><strong className="font-mono">{invoiceTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
-          {!isPaid && <span className="text-destructive">المتبقي: <strong className="font-mono">{remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>}
+          {!isPaid && <span className="text-destructive">{remainingLabel}: <strong className="font-mono">{remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>}
         </div>
         {paidAmount > 0 && (
           <div className="w-full bg-muted rounded-full h-2">
@@ -455,9 +479,9 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-right">الدفعة</TableHead>
+                <TableHead className="text-right">{isReturn ? "الاسترداد" : "الدفعة"}</TableHead>
                 <TableHead className="text-right">التاريخ</TableHead>
-                <TableHead className="text-right">مبلغ الدفعة</TableHead>
+                <TableHead className="text-right">مبلغ {isReturn ? "الاسترداد" : "الدفعة"}</TableHead>
                 <TableHead className="text-right">المخصص</TableHead>
                 <TableHead className="text-right">الطريقة</TableHead>
                 <TableHead className="text-right w-20"></TableHead>
@@ -480,10 +504,9 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
                       </AlertDialogTrigger>
                       <AlertDialogContent dir="rtl">
                         <AlertDialogHeader>
-                          <AlertDialogTitle>فك تخصيص الدفعة</AlertDialogTitle>
+                          <AlertDialogTitle>فك تخصيص {isReturn ? "الاسترداد" : "الدفعة"}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            هل تريد فك تخصيص {a.allocated_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} من الدفعة #{a.payment_number} من هذه الفاتورة؟
-                            سيعود المبلغ متاحاً للتخصيص على فواتير أخرى. الدفعة الأصلية والقيد المحاسبي لن يتأثرا.
+                            هل تريد فك تخصيص {a.allocated_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} من {isReturn ? "الاسترداد" : "الدفعة"} #{a.payment_number} من {isReturn ? "هذا المرتجع" : "هذه الفاتورة"}؟
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter className="flex-row-reverse gap-2">
@@ -499,8 +522,8 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
           </Table>
         )}
 
-        {/* Available payments hint */}
-        {!isPaid && availablePayments.length > 0 && (
+        {/* Available payments hint - only for invoices */}
+        {!isReturn && !isPaid && availablePayments.length > 0 && (
           <div className="border-t pt-3">
             <p className="text-sm text-muted-foreground flex items-center gap-1">
               <Link2 className="h-4 w-4" />
@@ -509,8 +532,10 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
           </div>
         )}
 
-        {allocations.length === 0 && availablePayments.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-2">لا توجد دفعات مسجلة أو متاحة لهذه الفاتورة</p>
+        {allocations.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-2">
+            {isReturn ? "لا توجد مبالغ مستردة مسجلة لهذا المرتجع" : "لا توجد دفعات مسجلة أو متاحة لهذه الفاتورة"}
+          </p>
         )}
       </CardContent>
     </Card>
