@@ -27,6 +27,7 @@ export interface CompanySettings {
   show_discount_on_invoice: boolean;
   invoice_notes: string;
   invoice_footer: string;
+  journal_entry_prefix: string;
 }
 
 interface SettingsContextType {
