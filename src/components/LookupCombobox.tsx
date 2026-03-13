@@ -28,7 +28,10 @@ export interface LookupComboboxProps {
   value: string;
   onValueChange: (value: string) => void;
   placeholder?: string;
+  searchPlaceholder?: string;
+  emptyMessage?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export function LookupCombobox({
@@ -36,7 +39,10 @@ export function LookupCombobox({
   value,
   onValueChange,
   placeholder = "اختر...",
+  searchPlaceholder = "ابحث...",
+  emptyMessage = "لا توجد نتائج.",
   className,
+  disabled = false,
 }: LookupComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const selected = items.find((i) => i.id === value);
@@ -48,34 +54,48 @@ export function LookupCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between h-9 font-normal", className)}
+          disabled={disabled}
+          className={cn(
+            "w-full justify-between h-9 font-normal",
+            !value && "text-muted-foreground",
+            className
+          )}
         >
-          <span className="truncate">{selected ? selected.name : placeholder}</span>
+          <span className="truncate">
+            {selected ? selected.name : placeholder}
+          </span>
           <ChevronsUpDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[320px] p-0 pointer-events-auto" align="start">
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-0"
+        align="start"
+      >
         <Command dir="rtl">
-          <CommandInput placeholder="ابحث..." className="h-9" />
+          <CommandInput placeholder={searchPlaceholder} className="h-9" />
           <CommandList>
-            <CommandEmpty>لا توجد نتائج</CommandEmpty>
+            <CommandEmpty>{emptyMessage}</CommandEmpty>
             <CommandGroup>
               {items.map((item) => (
                 <CommandItem
                   key={item.id}
-                  value={item.searchKeywords ? `${item.name} ${item.searchKeywords}` : item.name}
+                  value={
+                    item.searchKeywords
+                      ? `${item.name} ${item.searchKeywords}`
+                      : item.name
+                  }
                   onSelect={() => {
-                    onValueChange(item.id);
+                    onValueChange(item.id === value ? "" : item.id);
                     setOpen(false);
                   }}
                 >
+                  {item.name}
                   <Check
                     className={cn(
-                      "ml-2 h-4 w-4",
+                      "mr-auto h-4 w-4",
                       value === item.id ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  <span>{item.name}</span>
                 </CommandItem>
               ))}
             </CommandGroup>
