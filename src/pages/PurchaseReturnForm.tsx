@@ -16,11 +16,12 @@ import { toast } from "@/hooks/use-toast";
 import { Plus, X, Save, CheckCircle, Trash2, Ban, Printer } from "lucide-react";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 
 import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS_BASIC } from "@/lib/product-utils";
 
 interface Supplier { id: string; code: string; name: string; balance?: number; }
-type Product = ProductWithBrand & { purchase_price: number; };
+type Product = ProductWithBrand & { purchase_price: number; quantity_on_hand: number; };
 interface ReturnItem { id?: string; product_id: string; product_name: string; quantity: number; unit_price: number; discount: number; total: number; }
 
 const ACCOUNT_CODES = { INVENTORY: "1104", SUPPLIERS: "2101" };
@@ -57,7 +58,7 @@ export default function PurchaseReturnForm() {
   async function loadData() {
     const [supRes, prodRes] = await Promise.all([
       (supabase.from("suppliers" as any) as any).select("id, code, name, balance").eq("is_active", true).order("name"),
-      supabase.from("products").select(PRODUCT_SELECT_FIELDS_BASIC).eq("is_active", true).order("name"),
+      supabase.from("products").select(PRODUCT_SELECT_FIELDS_BASIC + ", quantity_on_hand").eq("is_active", true).order("name"),
     ]);
     setSuppliers(supRes.data || []);
     setProducts(prodRes.data || []);
@@ -155,6 +156,20 @@ export default function PurchaseReturnForm() {
 
   async function postReturn() {
     try {
+      // Validate: cannot return more than available stock
+      for (const item of items) {
+        if (!item.product_id) continue;
+        const { data: prod } = await supabase.from("products").select("quantity_on_hand, name").eq("id", item.product_id).single();
+        if (prod && item.quantity > prod.quantity_on_hand) {
+          toast({
+            title: "تنبيه",
+            description: `لا يمكن إرجاع كمية (${item.quantity}) من الصنف (${item.product_name}) أكبر من الكمية المتاحة في المخزون (${prod.quantity_on_hand})`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [ACCOUNT_CODES.INVENTORY, ACCOUNT_CODES.SUPPLIERS]);
       const inventoryAcc = accounts?.find(a => a.code === ACCOUNT_CODES.INVENTORY);
       const supplierAcc = accounts?.find(a => a.code === ACCOUNT_CODES.SUPPLIERS);
@@ -189,13 +204,56 @@ export default function PurchaseReturnForm() {
         });
       }
 
-      // Fetch fresh supplier balance from DB
       const { data: freshSup } = await (supabase.from("suppliers" as any) as any).select("balance").eq("id", supplierId).single();
       if (freshSup) {
         await (supabase.from("suppliers" as any) as any).update({ balance: (freshSup.balance || 0) - grandTotal }).eq("id", supplierId);
       }
 
       toast({ title: "تم الترحيل", description: "تم ترحيل مرتجع الشراء" });
+      loadData();
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    }
+  }
+
+  async function handleCancelPosted() {
+    try {
+      const { data: ret } = await (supabase.from("purchase_returns" as any) as any).select("journal_entry_id").eq("id", id).single();
+
+      // Reverse inventory
+      for (const item of items) {
+        if (!item.product_id) continue;
+        const { data: prod } = await supabase.from("products").select("quantity_on_hand").eq("id", item.product_id).single();
+        if (prod) {
+          await supabase.from("products").update({ quantity_on_hand: prod.quantity_on_hand + item.quantity } as any).eq("id", item.product_id);
+        }
+        await (supabase.from("inventory_movements" as any) as any).delete().eq("reference_id", id).eq("product_id", item.product_id);
+      }
+
+      // Reverse supplier balance
+      const { data: freshSup } = await (supabase.from("suppliers" as any) as any).select("balance").eq("id", supplierId).single();
+      if (freshSup) {
+        await (supabase.from("suppliers" as any) as any).update({ balance: (freshSup.balance || 0) + grandTotal }).eq("id", supplierId);
+      }
+
+      // Create reverse journal entry
+      if (ret?.journal_entry_id) {
+        const { data: origLines } = await supabase.from("journal_entry_lines").select("*").eq("journal_entry_id", ret.journal_entry_id);
+        const { data: reverseJe } = await supabase.from("journal_entries").insert({
+          description: `عكس مرتجع شراء رقم ${returnNumber}`, entry_date: new Date().toISOString().split("T")[0],
+          total_debit: grandTotal, total_credit: grandTotal, status: "posted",
+        } as any).select("id").single();
+        if (reverseJe && origLines) {
+          const reverseLines = origLines.map((line: any) => ({
+            journal_entry_id: reverseJe.id, account_id: line.account_id,
+            debit: line.credit, credit: line.debit, description: `عكس - ${line.description}`,
+          }));
+          await supabase.from("journal_entry_lines").insert(reverseLines as any);
+        }
+      }
+
+      await (supabase.from("purchase_returns" as any) as any).update({ status: "cancelled" }).eq("id", id);
+      toast({ title: "تم الإلغاء", description: "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون" });
       loadData();
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
@@ -234,8 +292,8 @@ export default function PurchaseReturnForm() {
     });
   }
 
-  const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل" };
-  const statusColors: Record<string, string> = { draft: "secondary", posted: "default" };
+  const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل", cancelled: "ملغي" };
+  const statusColors: Record<string, string> = { draft: "secondary", posted: "default", cancelled: "destructive" };
 
   if (loading) return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
 
@@ -265,6 +323,23 @@ export default function PurchaseReturnForm() {
                 <AlertDialogFooter className="flex-row-reverse gap-2">
                   <AlertDialogCancel>إلغاء</AlertDialogCancel>
                   <AlertDialogAction onClick={handleDeleteDraft} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {!isNew && status === "posted" && canEdit && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="gap-2 border-destructive text-destructive hover:bg-destructive/10"><Ban className="h-4 w-4" />إلغاء المرتجع</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent dir="rtl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>إلغاء المرتجع المرحّل</AlertDialogTitle>
+                  <AlertDialogDescription>سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد المورد. هل تريد المتابعة؟</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel>تراجع</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleCancelPosted} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">إلغاء المرتجع</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -391,6 +466,19 @@ export default function PurchaseReturnForm() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Payment Section - for posted returns (receive from supplier) */}
+      {!isNew && status === "posted" && id && (
+        <InvoicePaymentSection
+          type="purchase_return"
+          invoiceId={id}
+          entityId={supplierId}
+          entityName={supplierName || suppliers.find(s => s.id === supplierId)?.name || ""}
+          invoiceTotal={grandTotal}
+          invoiceNumber={returnNumber}
+          onPaymentAdded={loadData}
+        />
       )}
     </div>
   );

@@ -4,12 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { Plus, RotateCcw, Eye, X } from "lucide-react";
+import { Plus, RotateCcw, Eye, X, Clock, CheckCircle, Ban, DollarSign } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -48,6 +48,16 @@ export default function SalesReturns() {
       return true;
     });
   }, [returns, statusFilter, dateFrom, dateTo]);
+
+  const stats = useMemo(() => {
+    const s = { total: returns.length, draft: 0, posted: 0, cancelled: 0, totalAmount: 0 };
+    returns.forEach(r => {
+      if (r.status === "draft") s.draft++;
+      else if (r.status === "posted") { s.posted++; s.totalAmount += Number(r.total); }
+      else if (r.status === "cancelled") s.cancelled++;
+    });
+    return s;
+  }, [returns]);
 
   const hasFilters = statusFilter !== "all" || dateFrom || dateTo;
   const clearFilters = () => { setStatusFilter("all"); setDateFrom(""); setDateTo(""); };
@@ -103,6 +113,28 @@ export default function SalesReturns() {
           </div>
         </div>
         <Button onClick={() => navigate("/sales-returns/new")} className="gap-2"><Plus className="h-4 w-4" />مرتجع جديد</Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          { label: "إجمالي المرتجعات", value: stats.total, icon: RotateCcw, color: "bg-foreground/5 text-foreground", filter: "all" },
+          { label: "مسودات", value: stats.draft, icon: Clock, color: "bg-amber-500/10 text-amber-600", filter: "draft" },
+          { label: "مُرحّلة", value: stats.posted, icon: CheckCircle, color: "bg-green-500/10 text-green-600", filter: "posted" },
+          { label: "ملغاة", value: stats.cancelled, icon: Ban, color: "bg-destructive/10 text-destructive", filter: "cancelled" },
+          { label: "إجمالي المبالغ", value: formatCurrency(stats.totalAmount), icon: DollarSign, color: "bg-blue-500/10 text-blue-600", filter: "" },
+        ].map(({ label, value, icon: Icon, color, filter }) => (
+          <button key={label} onClick={() => filter && setStatusFilter(filter)}
+            className={`rounded-xl border p-3 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}>
+            <div className="flex items-center justify-between mb-1">
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${color}`}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xl font-bold text-foreground">{value}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">{label}</p>
+          </button>
+        ))}
       </div>
 
       <DataTable

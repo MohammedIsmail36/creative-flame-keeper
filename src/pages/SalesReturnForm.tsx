@@ -13,9 +13,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { toast } from "@/hooks/use-toast";
-import { Plus, X, Save, CheckCircle, Trash2, Printer } from "lucide-react";
+import { Plus, X, Save, CheckCircle, Trash2, Printer, Ban } from "lucide-react";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 
 import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
 
@@ -36,6 +37,7 @@ export default function SalesReturnForm() {
   const showTax = settings?.show_tax_on_invoice ?? false;
   const showDiscount = settings?.show_discount_on_invoice ?? true;
   const taxRate = settings?.tax_rate ?? 0;
+  const returnDaysLimit = (settings as any)?.return_days_limit ?? 30;
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -156,6 +158,65 @@ export default function SalesReturnForm() {
 
   async function postReturn() {
     try {
+      // Validate: check sold quantity in the last N days for each item
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - returnDaysLimit);
+      const cutoffStr = cutoffDate.toISOString().split("T")[0];
+
+      for (const item of items) {
+        if (!item.product_id) continue;
+        // Get total sold quantity for this product in the return period
+        const { data: salesData } = await (supabase.from("sales_invoice_items" as any) as any)
+          .select("quantity, invoice_id")
+          .eq("product_id", item.product_id);
+
+        // Filter by posted invoices within the date range
+        let totalSold = 0;
+        if (salesData && salesData.length > 0) {
+          const invoiceIds = [...new Set(salesData.map((s: any) => s.invoice_id))];
+          const { data: invoices } = await (supabase.from("sales_invoices" as any) as any)
+            .select("id, invoice_date, status")
+            .in("id", invoiceIds)
+            .eq("status", "posted")
+            .gte("invoice_date", cutoffStr);
+          const validIds = new Set((invoices || []).map((inv: any) => inv.id));
+          totalSold = salesData
+            .filter((s: any) => validIds.has(s.invoice_id))
+            .reduce((sum: number, s: any) => sum + Number(s.quantity), 0);
+        }
+
+        // Get already returned quantity for this product (exclude current return)
+        const { data: returnedData } = await (supabase.from("sales_return_items" as any) as any)
+          .select("quantity, return_id")
+          .eq("product_id", item.product_id);
+        
+        let totalReturned = 0;
+        if (returnedData && returnedData.length > 0) {
+          const returnIds = [...new Set(returnedData.map((r: any) => r.return_id))].filter(rid => rid !== id);
+          if (returnIds.length > 0) {
+            const { data: returns } = await (supabase.from("sales_returns" as any) as any)
+              .select("id, status")
+              .in("id", returnIds)
+              .eq("status", "posted");
+            const validReturnIds = new Set((returns || []).map((r: any) => r.id));
+            totalReturned = returnedData
+              .filter((r: any) => validReturnIds.has(r.return_id))
+              .reduce((sum: number, r: any) => sum + Number(r.quantity), 0);
+          }
+        }
+
+        const availableToReturn = totalSold - totalReturned;
+        if (item.quantity > availableToReturn) {
+          const prodName = item.product_name;
+          toast({
+            title: "تنبيه",
+            description: `الكمية المرتجعة للصنف (${prodName}) أكبر من الكمية المباعة خلال ${returnDaysLimit} يوم السابقة. المتاح للإرجاع: ${availableToReturn}`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [ACCOUNT_CODES.CUSTOMERS, ACCOUNT_CODES.REVENUE, ACCOUNT_CODES.COGS, ACCOUNT_CODES.INVENTORY]);
       const customersAcc = accounts?.find(a => a.code === ACCOUNT_CODES.CUSTOMERS);
       const revenueAcc = accounts?.find(a => a.code === ACCOUNT_CODES.REVENUE);
@@ -166,7 +227,6 @@ export default function SalesReturnForm() {
         return;
       }
 
-      // Use average purchase price for accurate cost reversal
       let totalCost = 0;
       const itemAvgCosts: Record<string, number> = {};
       for (const item of items) {
@@ -213,13 +273,57 @@ export default function SalesReturnForm() {
         });
       }
 
-      // Fetch fresh customer balance from DB
       const { data: freshCust } = await (supabase.from("customers" as any) as any).select("balance").eq("id", customerId).single();
       if (freshCust) {
         await (supabase.from("customers" as any) as any).update({ balance: (freshCust.balance || 0) - grandTotal }).eq("id", customerId);
       }
 
       toast({ title: "تم الترحيل", description: "تم ترحيل مرتجع البيع" });
+      loadData();
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    }
+  }
+
+  async function handleCancelPosted() {
+    try {
+      const { data: ret } = await (supabase.from("sales_returns" as any) as any).select("journal_entry_id").eq("id", id).single();
+
+      // Reverse inventory
+      for (const item of items) {
+        if (!item.product_id) continue;
+        const { data: prod } = await supabase.from("products").select("quantity_on_hand").eq("id", item.product_id).single();
+        if (prod) {
+          await supabase.from("products").update({ quantity_on_hand: prod.quantity_on_hand - item.quantity } as any).eq("id", item.product_id);
+        }
+        await (supabase.from("inventory_movements" as any) as any).delete().eq("reference_id", id).eq("product_id", item.product_id);
+      }
+
+      // Reverse customer balance
+      const { data: freshCust } = await (supabase.from("customers" as any) as any).select("balance").eq("id", customerId).single();
+      if (freshCust) {
+        await (supabase.from("customers" as any) as any).update({ balance: (freshCust.balance || 0) + grandTotal }).eq("id", customerId);
+      }
+
+      // Create reverse journal entry
+      if (ret?.journal_entry_id) {
+        const { data: origLines } = await supabase.from("journal_entry_lines").select("*").eq("journal_entry_id", ret.journal_entry_id);
+        const totalDebit = (origLines || []).reduce((s: number, l: any) => s + Number(l.debit), 0);
+        const { data: reverseJe } = await supabase.from("journal_entries").insert({
+          description: `عكس مرتجع بيع رقم ${returnNumber}`, entry_date: new Date().toISOString().split("T")[0],
+          total_debit: totalDebit, total_credit: totalDebit, status: "posted",
+        } as any).select("id").single();
+        if (reverseJe && origLines) {
+          const reverseLines = origLines.map((line: any) => ({
+            journal_entry_id: reverseJe.id, account_id: line.account_id,
+            debit: line.credit, credit: line.debit, description: `عكس - ${line.description}`,
+          }));
+          await supabase.from("journal_entry_lines").insert(reverseLines as any);
+        }
+      }
+
+      await (supabase.from("sales_returns" as any) as any).update({ status: "cancelled" }).eq("id", id);
+      toast({ title: "تم الإلغاء", description: "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون" });
       loadData();
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
@@ -258,8 +362,8 @@ export default function SalesReturnForm() {
     });
   }
 
-  const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل" };
-  const statusColors: Record<string, string> = { draft: "secondary", posted: "default" };
+  const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل", cancelled: "ملغي" };
+  const statusColors: Record<string, string> = { draft: "secondary", posted: "default", cancelled: "destructive" };
 
   if (loading) return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
 
@@ -289,6 +393,23 @@ export default function SalesReturnForm() {
                 <AlertDialogFooter className="flex-row-reverse gap-2">
                   <AlertDialogCancel>إلغاء</AlertDialogCancel>
                   <AlertDialogAction onClick={handleDeleteDraft} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {!isNew && status === "posted" && canEdit && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="gap-2 border-destructive text-destructive hover:bg-destructive/10"><Ban className="h-4 w-4" />إلغاء المرتجع</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent dir="rtl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>إلغاء المرتجع المرحّل</AlertDialogTitle>
+                  <AlertDialogDescription>سيتم عكس القيد المحاسبي وإرجاع الكميات من المخزون وتعديل رصيد العميل. هل تريد المتابعة؟</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel>تراجع</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleCancelPosted} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">إلغاء المرتجع</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -415,6 +536,19 @@ export default function SalesReturnForm() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Payment Section - for posted returns (refund to customer) */}
+      {!isNew && status === "posted" && id && (
+        <InvoicePaymentSection
+          type="sales_return"
+          invoiceId={id}
+          entityId={customerId}
+          entityName={customerName || customers.find(c => c.id === customerId)?.name || ""}
+          invoiceTotal={grandTotal}
+          invoiceNumber={returnNumber}
+          onPaymentAdded={loadData}
+        />
       )}
     </div>
   );
