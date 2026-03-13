@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
 import { toast } from "@/hooks/use-toast";
-import { ArrowRight, Plus, X, Save, CheckCircle, Pencil } from "lucide-react";
+import { Plus, X, Save, CheckCircle, Pencil } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 type Product = ProductWithBrand & { quantity_on_hand: number; };
@@ -306,9 +306,6 @@ export default function InventoryAdjustmentForm() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/inventory-adjustments")}>
-          <ArrowRight className="w-5 h-5" />
-        </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">
             {isNew ? "تسوية جديدة" : `تسوية رقم ADJ-${adjustmentNumber}`}

@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { ArrowRight, Upload, FileSpreadsheet, Check, AlertTriangle, Download } from "lucide-react";
+import { Upload, FileSpreadsheet, Check, AlertTriangle, Download } from "lucide-react";
 
 interface ImportRow {
   code: string;
@@ -203,9 +203,6 @@ export default function ProductImport() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto" dir="rtl">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/products")}>
-          <ArrowRight className="h-5 w-5" />
-        </Button>
         <h1 className="text-2xl font-bold text-foreground">استيراد المنتجات</h1>
       </div>
 

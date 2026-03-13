@@ -81,6 +81,7 @@ export type Database = {
           phone: string | null
           purchase_invoice_prefix: string
           purchase_return_prefix: string
+          return_days_limit: number
           sales_invoice_prefix: string
           sales_return_prefix: string
           show_discount_on_invoice: boolean
@@ -110,6 +111,7 @@ export type Database = {
           phone?: string | null
           purchase_invoice_prefix?: string
           purchase_return_prefix?: string
+          return_days_limit?: number
           sales_invoice_prefix?: string
           sales_return_prefix?: string
           show_discount_on_invoice?: boolean
@@ -139,6 +141,7 @@ export type Database = {
           phone?: string | null
           purchase_invoice_prefix?: string
           purchase_return_prefix?: string
+          return_days_limit?: number
           sales_invoice_prefix?: string
           sales_return_prefix?: string
           show_discount_on_invoice?: boolean

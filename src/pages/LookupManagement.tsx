@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ArrowRight, X, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Upload } from "lucide-react";
 import { LookupImportDialog } from "@/components/LookupImportDialog";
 
 interface LookupConfig {
@@ -193,9 +193,6 @@ export default function LookupManagement() {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/products")}>
-            <ArrowRight className="h-5 w-5" />
-          </Button>
           <h1 className="text-2xl font-bold text-foreground">{config.title}</h1>
           <Badge variant="secondary">{items.length} عنصر</Badge>
         </div>

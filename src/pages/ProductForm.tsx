@@ -11,7 +11,7 @@ import { LookupCombobox } from "@/components/LookupCombobox";
 import { CategoryTreeSelect } from "@/components/CategoryTreeSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { ArrowRight, Save, Plus, ImagePlus, X, Trash2 } from "lucide-react";
+import { Save, Plus, ImagePlus, X, Trash2 } from "lucide-react";
 
 interface LookupItem { id: string; name: string; }
 interface CategoryItem { id: string; name: string; parent_id?: string | null; }
@@ -149,7 +149,7 @@ export default function ProductForm() {
       barcode: barcode.trim() || null,
       purchase_price: purchasePrice,
       selling_price: sellingPrice,
-      quantity_on_hand: quantity,
+      quantity_on_hand: isEdit ? undefined : quantity,
       min_stock_level: minStock,
       main_image_url: mainImageUrl,
     };
@@ -272,9 +272,6 @@ export default function ProductForm() {
     <div className="space-y-6 max-w-4xl mx-auto" dir="rtl">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/products")}>
-          <ArrowRight className="h-5 w-5" />
-        </Button>
         <h1 className="text-2xl font-bold text-foreground">{isEdit ? "تعديل منتج" : "إضافة منتج جديد"}</h1>
       </div>
 
@@ -354,7 +351,8 @@ export default function ProductForm() {
             </div>
             <div className="space-y-2">
               <Label>الكمية المتاحة</Label>
-              <Input type="number" min="0" value={quantity || ""} onChange={e => setQuantity(parseFloat(e.target.value) || 0)} className="font-mono" />
+              <Input type="number" min="0" value={quantity || ""} onChange={e => setQuantity(parseFloat(e.target.value) || 0)} className="font-mono" disabled={isEdit} />
+              {isEdit && <p className="text-xs text-muted-foreground">يتم تحديث الكمية تلقائياً من العمليات</p>}
             </div>
             <div className="space-y-2">
               <Label>الحد الأدنى</Label>

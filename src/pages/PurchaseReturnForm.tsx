@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { toast } from "@/hooks/use-toast";
-import { ArrowRight, Plus, X, Save, CheckCircle, Trash2, Ban, Printer } from "lucide-react";
+import { Plus, X, Save, CheckCircle, Trash2, Ban, Printer } from "lucide-react";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
@@ -247,9 +247,6 @@ export default function PurchaseReturnForm() {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/purchase-returns")}>
-            <ArrowRight className="h-5 w-5" />
-          </Button>
           <div>
             <h1 className="text-2xl font-bold text-foreground">
               {isNew ? "مرتجع شراء جديد" : `مرتجع شراء #${returnNumber}`}

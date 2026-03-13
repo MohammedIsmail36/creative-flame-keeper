@@ -262,12 +262,12 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
         l.date, l.type, l.reference, l.description,
         l.debit ? formatCurrency(l.debit) : "-",
         l.credit ? formatCurrency(l.credit) : "-",
-        formatCurrency(Math.abs(l.runningBalance)) + (l.runningBalance >= 0 ? " مدين" : " دائن"),
+        l.runningBalance >= 0 ? formatCurrency(l.runningBalance) : `(${formatCurrency(Math.abs(l.runningBalance))})`,
       ]),
       summaryCards: [
         { label: "إجمالي المدين", value: formatCurrency(totalDebit) },
         { label: "إجمالي الدائن", value: formatCurrency(totalCredit) },
-        { label: "الرصيد النهائي", value: formatCurrency(Math.abs(finalBalance)) + (finalBalance >= 0 ? " مدين" : " دائن") },
+        { label: "الرصيد النهائي", value: finalBalance >= 0 ? formatCurrency(finalBalance) : `(${formatCurrency(Math.abs(finalBalance))})` },
       ],
       orientation: "landscape",
       filename: `كشف_حساب_${entityName}`,
@@ -337,7 +337,7 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">الرصيد النهائي</p>
                 <p className={`text-xl font-bold ${finalBalance >= 0 ? "text-success" : "text-destructive"}`}>
-                  {formatCurrency(Math.abs(finalBalance))} {finalBalance >= 0 ? "مدين" : "دائن"}
+                  {finalBalance >= 0 ? formatCurrency(finalBalance) : `(${formatCurrency(Math.abs(finalBalance))})`}
                 </p>
               </CardContent>
             </Card>
@@ -381,7 +381,7 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
                       <TableCell className="text-sm">{line.debit ? formatCurrency(line.debit) : "-"}</TableCell>
                       <TableCell className="text-sm">{line.credit ? formatCurrency(line.credit) : "-"}</TableCell>
                       <TableCell className={`text-sm font-bold ${line.runningBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {formatCurrency(Math.abs(line.runningBalance))} {line.runningBalance >= 0 ? "مدين" : "دائن"}
+                        {line.runningBalance >= 0 ? formatCurrency(line.runningBalance) : `(${formatCurrency(Math.abs(line.runningBalance))})`}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -391,7 +391,7 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
                     <TableCell className="text-sm">{formatCurrency(totalDebit)}</TableCell>
                     <TableCell className="text-sm">{formatCurrency(totalCredit)}</TableCell>
                     <TableCell className={`text-sm ${finalBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {formatCurrency(Math.abs(finalBalance))} {finalBalance >= 0 ? "مدين" : "دائن"}
+                      {finalBalance >= 0 ? formatCurrency(finalBalance) : `(${formatCurrency(Math.abs(finalBalance))})`}
                     </TableCell>
                   </TableRow>
                 </TableBody>
