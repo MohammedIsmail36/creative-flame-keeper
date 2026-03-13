@@ -207,8 +207,8 @@ export default function SystemSetup() {
         <CardContent className="space-y-3">
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm">
             <p className="font-medium text-destructive mb-1">⚠️ تحذير هام</p>
-            <p className="text-muted-foreground">سيتم حذف: المنتجات، العملاء، الموردين، الفواتير، المدفوعات، حركات المخزون، القيود المحاسبية، التصنيفات، الماركات، والوحدات.</p>
-            <p className="text-muted-foreground mt-1">سيتم الاحتفاظ بـ: شجرة الحسابات، إعدادات الشركة، حسابات المستخدمين.</p>
+            <p className="text-muted-foreground">سيتم حذف جميع البيانات بالكامل: المنتجات، العملاء، الموردين، الفواتير، المدفوعات، حركات المخزون، القيود، شجرة الحسابات، المستخدمين، وإعدادات الشركة.</p>
+            <p className="text-muted-foreground mt-1">سيتم إعادة إنشاء: شجرة الحسابات الافتراضية (29 حساب) + حساب المدير (admin@system.com) + إعدادات الشركة.</p>
           </div>
 
           <AlertDialog>
