@@ -425,7 +425,7 @@ const inv = StyleSheet.create({
     fontSize: 10,
     color: C.ink,
     textAlign: "left",
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
   },
   grandRow: {
     width: "100%",
