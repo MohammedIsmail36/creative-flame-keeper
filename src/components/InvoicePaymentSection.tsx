@@ -201,14 +201,25 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
       } as any).select("id").single();
       if (jeError) throw jeError;
 
-      const lines = isSales
+      // For returns: reverse flow (sales return = pay customer, purchase return = receive from supplier)
+      const lines = (type === "sales")
         ? [
             { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: amount, credit: 0, description: desc },
             { journal_entry_id: je.id, account_id: entityAcc.id, debit: 0, credit: amount, description: `سداد ذمم عملاء` },
           ]
-        : [
+        : (type === "purchase")
+        ? [
             { journal_entry_id: je.id, account_id: entityAcc.id, debit: amount, credit: 0, description: `سداد ذمم موردين` },
             { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: 0, credit: amount, description: desc },
+          ]
+        : (type === "sales_return")
+        ? [
+            { journal_entry_id: je.id, account_id: entityAcc.id, debit: amount, credit: 0, description: `رد ذمم عملاء - مرتجع` },
+            { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: 0, credit: amount, description: desc },
+          ]
+        : [
+            { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: amount, credit: 0, description: desc },
+            { journal_entry_id: je.id, account_id: entityAcc.id, debit: 0, credit: amount, description: `استلام من مورد - مرتجع` },
           ];
       await supabase.from("journal_entry_lines").insert(lines as any);
 
