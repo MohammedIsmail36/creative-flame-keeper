@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { ArrowRight, Pencil, Package, Barcode, Tag, Ruler, Factory, Hash, DollarSign } from "lucide-react";
+import { Pencil, Package, Barcode, Tag, Ruler, Factory, Hash, DollarSign } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 export default function ProductView() {
