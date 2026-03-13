@@ -305,7 +305,7 @@ export default function PurchaseInvoiceForm() {
         <div className="flex items-center gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              {isNew ? "فاتورة شراء جديدة" : `فاتورة شراء #${invoiceNumber}`}
+              {isNew ? "فاتورة شراء جديدة" : `فاتورة شراء ${formatDisplayNumber(settings?.purchase_invoice_prefix || "PUR-", postedNumber, invoiceNumber || 0, status)}`}
             </h1>
             {!isNew && <Badge variant={statusColors[status] as any} className="mt-1">{statusLabels[status]}</Badge>}
           </div>
