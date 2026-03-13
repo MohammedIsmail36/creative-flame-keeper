@@ -127,15 +127,26 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
       .order("payment_date");
 
     // Get all allocations for these payments to calculate remaining
+    // For accurate remaining, we must check BOTH invoice and return allocation tables
     let available: AvailablePayment[] = [];
     if (entityPayments && entityPayments.length > 0) {
       const allPaymentIds = entityPayments.map((p: any) => p.id);
-      const { data: allAllocs } = await (supabase.from(allocationTable as any) as any)
+      
+      // Get allocations from invoice allocation table
+      const invoiceAllocTable = isCustomerSide ? "customer_payment_allocations" : "supplier_payment_allocations";
+      const { data: invoiceAllocs } = await (supabase.from(invoiceAllocTable as any) as any)
         .select("payment_id, allocated_amount")
         .in("payment_id", allPaymentIds);
 
+      // Get allocations from return allocation tables
+      const returnAllocTable = isCustomerSide ? "sales_return_payment_allocations" : "purchase_return_payment_allocations";
+      const { data: returnAllocs } = await (supabase.from(returnAllocTable as any) as any)
+        .select("payment_id, allocated_amount")
+        .in("payment_id", allPaymentIds);
+
+      // Combine all allocations
       const allocByPayment = new Map<string, number>();
-      (allAllocs || []).forEach((a: any) => {
+      [...(invoiceAllocs || []), ...(returnAllocs || [])].forEach((a: any) => {
         allocByPayment.set(a.payment_id, (allocByPayment.get(a.payment_id) || 0) + a.allocated_amount);
       });
 
@@ -150,11 +161,8 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
         })
         .filter((p: AvailablePayment) => p.remaining > 0);
 
-      // Exclude payments already fully allocated to THIS invoice
+      // Exclude payments already allocated to THIS invoice/return
       const thisInvoicePaymentIds = new Set(enrichedAllocations.map(a => a.payment_id));
-      // Keep payments that either aren't allocated to this invoice, or have remaining
-      available = available.filter(p => !thisInvoicePaymentIds.has(p.id) || p.remaining > 0);
-      // Actually, if already allocated to this invoice, don't show again
       available = available.filter(p => !thisInvoicePaymentIds.has(p.id));
     }
 

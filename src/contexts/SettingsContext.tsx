@@ -28,6 +28,7 @@ export interface CompanySettings {
   invoice_notes: string;
   invoice_footer: string;
   journal_entry_prefix: string;
+  return_days_limit: number;
 }
 
 interface SettingsContextType {
