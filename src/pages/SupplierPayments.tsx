@@ -21,7 +21,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 
 interface Supplier { id: string; code: string; name: string; balance?: number; }
 interface Payment {
-  id: string; payment_number: number; supplier_id: string; supplier_name?: string;
+  id: string; payment_number: number; posted_number: number | null; supplier_id: string; supplier_name?: string;
   payment_date: string; amount: number; payment_method: string; reference: string | null;
   notes: string | null; status: string; journal_entry_id: string | null;
 }
