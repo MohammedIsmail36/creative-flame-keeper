@@ -354,7 +354,8 @@ export default function ProductForm() {
             </div>
             <div className="space-y-2">
               <Label>الكمية المتاحة</Label>
-              <Input type="number" min="0" value={quantity || ""} onChange={e => setQuantity(parseFloat(e.target.value) || 0)} className="font-mono" />
+              <Input type="number" min="0" value={quantity || ""} onChange={e => setQuantity(parseFloat(e.target.value) || 0)} className="font-mono" disabled={isEdit} />
+              {isEdit && <p className="text-xs text-muted-foreground">يتم تحديث الكمية تلقائياً من العمليات</p>}
             </div>
             <div className="space-y-2">
               <Label>الحد الأدنى</Label>
