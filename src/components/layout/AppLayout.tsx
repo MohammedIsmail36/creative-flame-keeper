@@ -27,6 +27,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="flex-1 flex flex-col">
           <header className="h-14 border-b bg-card flex items-center px-4 gap-3">
             <SidebarTrigger />
+            <Separator orientation="vertical" className="h-5 mx-1" />
+            <AppBreadcrumb />
             <div className="flex-1" />
             <div className="flex items-center gap-3">
               <button onClick={() => navigate("/profile")} className="flex items-center gap-2 text-sm hover:text-primary transition-colors cursor-pointer">
