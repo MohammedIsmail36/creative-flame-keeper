@@ -124,24 +124,15 @@ const base = StyleSheet.create({
     backgroundColor: C.ink,
     paddingHorizontal: 30,
     paddingVertical: 18,
-    // تم تغيير الاتجاه لـ column من أجل توسيط الـ Badge
-    flexDirection: "column",
-    alignItems: "center",
-  },
-
-  // صف الشركة والشعار (أعلى)
-  headerTopRow: {
-    width: "100%",
     flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
   },
 
-  // جانب الشركة
+  // جانب الشركة (يمين)
   companyBlock: {
-    maxWidth: "55%",
-    alignItems: "flex-end", // محاذاة النص يمين
+    maxWidth: "35%",
+    alignItems: "flex-end",
   },
   companyName: {
     fontSize: 14,
@@ -499,17 +490,19 @@ function PdfHeader({
   settings,
   logoData,
   accentColor,
+  badge,
 }: {
   settings: CompanySettings | null;
   logoData: string | null;
   accentColor: string;
+  badge?: React.ReactNode;
 }) {
   const s = settings;
 
   const logoEl = logoData
     ? React.createElement(Image, {
         src: logoData,
-        style: { width: 44, height: 44, borderRadius: 8, marginLeft: 10 },
+        style: { width: 44, height: 44, borderRadius: 8 },
       })
     : React.createElement(
         View,
@@ -517,11 +510,10 @@ function PdfHeader({
           style: {
             width: 44,
             height: 44,
-            backgroundColor: accentColor, // لون ديناميكي
+            backgroundColor: accentColor,
             borderRadius: 8,
             alignItems: "center" as const,
             justifyContent: "center" as const,
-            marginLeft: 10,
           },
         },
         React.createElement(
@@ -531,28 +523,25 @@ function PdfHeader({
         ),
       );
 
-  // الهيدر الجديد: عمودي (أعلى: معلومات الشركة، أسفل: Badge في المنتصف)
-  return React.createElement(
+   return React.createElement(
     View,
     null,
     React.createElement(View, { style: { ...base.goldStripe, backgroundColor: accentColor } }),
     React.createElement(
       View,
       { style: base.header },
-      // الصف العلوي: شركة يمين، شعار يسار
+      // يمين: الشركة
       React.createElement(
         View,
-        { style: base.headerTopRow },
-        React.createElement(
-          View,
-          { style: base.companyBlock },
-          React.createElement(Text, { style: base.companyName }, s?.company_name ?? "النظام المحاسبي"),
-          s?.company_name_en ? React.createElement(Text, { style: base.companyNameEn }, s.company_name_en) : null,
-          s?.business_activity ? React.createElement(Text, { style: base.companyActivity }, s.business_activity) : null,
-        ),
-        logoEl,
+        { style: base.companyBlock },
+        React.createElement(Text, { style: base.companyName }, s?.company_name ?? "النظام المحاسبي"),
+        s?.company_name_en ? React.createElement(Text, { style: base.companyNameEn }, s.company_name_en) : null,
+        s?.business_activity ? React.createElement(Text, { style: base.companyActivity }, s.business_activity) : null,
       ),
-      // الـ Badge (سيُمرر كعنصر فرعي في الفاتورة، هنا لا نعرض شيء افتراضي)
+      // وسط: Badge
+      badge ?? null,
+      // يسار: الشعار
+      logoEl,
     ),
   );
 }
@@ -810,28 +799,7 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
     React.createElement(
       Page,
       { size: "A4", orientation, style: base.page },
-      // هيدر مخصص للتقرير لأن الهيدر الرئيسي صار عاماً
-      React.createElement(View, { style: { ...base.goldStripe, backgroundColor: accent } }),
-      React.createElement(
-        View,
-        { style: { ...base.header, flexDirection: "column", alignItems: "center" } },
-        React.createElement(
-          View,
-          { style: { width: "100%", flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 12 } },
-          React.createElement(
-            View,
-            { style: base.companyBlock },
-            React.createElement(Text, { style: base.companyName }, settings?.company_name ?? "النظام المحاسبي"),
-            settings?.company_name_en
-              ? React.createElement(Text, { style: base.companyNameEn }, settings.company_name_en)
-              : null,
-          ),
-          logoData
-            ? React.createElement(Image, { src: logoData, style: { width: 44, height: 44, borderRadius: 8 } })
-            : null,
-        ),
-        badge,
-      ),
+      React.createElement(PdfHeader, { settings, logoData, accentColor: accent, badge }),
 
       React.createElement(LegalBar, { settings }),
       React.createElement(
@@ -1011,10 +979,9 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
     React.createElement(
       Page,
       { size: "A4", style: base.page },
-      // Header
-      React.createElement(PdfHeader, { settings, logoData, accentColor: accent }),
-      // Badge (مدرج هنا ليظهر في المنتصف بعد الهيدر)
-      React.createElement(View, { style: { backgroundColor: C.ink, paddingBottom: 12 } }, badge),
+      // Header with badge inline
+      React.createElement(PdfHeader, { settings, logoData, accentColor: accent, badge }),
+
 
       // Meta Bar
       React.createElement(
