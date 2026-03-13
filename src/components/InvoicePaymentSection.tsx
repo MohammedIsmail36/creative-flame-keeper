@@ -37,7 +37,7 @@ interface AvailablePayment {
 }
 
 interface Props {
-  type: "sales" | "purchase";
+  type: "sales" | "purchase" | "sales_return" | "purchase_return";
   invoiceId: string;
   entityId: string;
   entityName: string;
