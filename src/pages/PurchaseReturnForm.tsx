@@ -278,7 +278,7 @@ export default function PurchaseReturnForm() {
   async function handlePrint() {
     await exportInvoicePdf({
       type: "purchase_return",
-      number: returnNumber || "جديد",
+      number: postedNumber ? formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", postedNumber, returnNumber || 0, status) : (returnNumber || "جديد"),
       date: returnDate,
       partyName: supplierName || suppliers.find(s => s.id === supplierId)?.name || "—",
       partyLabel: "المورد",

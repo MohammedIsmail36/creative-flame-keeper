@@ -348,7 +348,7 @@ export default function SalesReturnForm() {
   async function handlePrint() {
     await exportInvoicePdf({
       type: "sales_return",
-      number: returnNumber || "جديد",
+      number: postedNumber ? formatDisplayNumber(settings?.sales_return_prefix || "SRN-", postedNumber, returnNumber || 0, status) : (returnNumber || "جديد"),
       date: returnDate,
       partyName: customerName || customers.find(c => c.id === customerId)?.name || "—",
       partyLabel: "العميل",
