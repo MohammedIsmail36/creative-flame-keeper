@@ -48,6 +48,7 @@ export default function PurchaseInvoiceForm() {
   const [saving, setSaving] = useState(false);
 
   const [invoiceNumber, setInvoiceNumber] = useState<number | null>(null);
+  const [postedNumber, setPostedNumber] = useState<number | null>(null);
   const [supplierId, setSupplierId] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
