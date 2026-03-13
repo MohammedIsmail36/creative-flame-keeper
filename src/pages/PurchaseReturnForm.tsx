@@ -70,6 +70,7 @@ export default function PurchaseReturnForm() {
         .select("*, suppliers:supplier_id(name)").eq("id", id).single();
       if (ret) {
         setReturnNumber(ret.return_number);
+        setPostedNumber(ret.posted_number || null);
         setSupplierId(ret.supplier_id || "");
         setSupplierName(ret.suppliers?.name || "");
         setReturnDate(ret.return_date);
