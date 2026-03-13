@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { ArrowRight, Upload, FileSpreadsheet, Check, AlertTriangle, Download } from "lucide-react";
+import { Upload, FileSpreadsheet, Check, AlertTriangle, Download } from "lucide-react";
 
 interface ImportRow {
   code: string;
