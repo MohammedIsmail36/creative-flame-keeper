@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
 import { toast } from "@/hooks/use-toast";
-import { ArrowRight, Plus, X, Save, CheckCircle, Pencil } from "lucide-react";
+import { Plus, X, Save, CheckCircle, Pencil } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 type Product = ProductWithBrand & { quantity_on_hand: number; };
