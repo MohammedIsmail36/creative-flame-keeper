@@ -799,28 +799,7 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
     React.createElement(
       Page,
       { size: "A4", orientation, style: base.page },
-      // هيدر مخصص للتقرير لأن الهيدر الرئيسي صار عاماً
-      React.createElement(View, { style: { ...base.goldStripe, backgroundColor: accent } }),
-      React.createElement(
-        View,
-        { style: { ...base.header, flexDirection: "column", alignItems: "center" } },
-        React.createElement(
-          View,
-          { style: { width: "100%", flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 12 } },
-          React.createElement(
-            View,
-            { style: base.companyBlock },
-            React.createElement(Text, { style: base.companyName }, settings?.company_name ?? "النظام المحاسبي"),
-            settings?.company_name_en
-              ? React.createElement(Text, { style: base.companyNameEn }, settings.company_name_en)
-              : null,
-          ),
-          logoData
-            ? React.createElement(Image, { src: logoData, style: { width: 44, height: 44, borderRadius: 8 } })
-            : null,
-        ),
-        badge,
-      ),
+      React.createElement(PdfHeader, { settings, logoData, accentColor: accent, badge }),
 
       React.createElement(LegalBar, { settings }),
       React.createElement(
