@@ -6,7 +6,7 @@
  * الإصلاحات عن النسخة السابقة:
  *  ✅ fontWeight أرقام فقط (400/500/700) — "bold"/"medium" تسبب أخطاء
  *  ✅ حذف direction:"rtl" as any — غير مدعوم في @react-pdf/renderer
- *  ✅ حذف row-reverse — استخدم justifyContent:"space-between" بدلاً منه
+ *  ✅ row-reverse مُستعاد في الهيدر/الجداول/الإجماليات لضمان RTL صحيح
  *  ✅ إضافة دعم الشعار (logo) مع loadLogoBase64
  *  ✅ footer يستخدم render prop لأرقام الصفحات
  *  ✅ تنظيم الأنواع بدون as any
@@ -115,17 +115,15 @@ function downloadBlob(blob: Blob, filename: string): void {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. الأنماط
-//    ⚠️ قواعد @react-pdf/renderer:
-//      - لا "row-reverse"   → استخدم justifyContent:"space-between" + اعكس الترتيب يدوياً
-//      - لا gap             → استخدم marginRight/marginLeft
-//      - لا direction:"rtl" → غير مدعوم، تحكم بالنصوص عبر textAlign
-//      - fontWeight         → أرقام فقط (400، 500، 700)
+//    ✅ row-reverse مُستعاد — يضمن RTL صحيح (الشركة يمين، badge يسار)
+//    ⚠️ fontWeight أرقام فقط (400، 500، 700)
+//    ⚠️ لا direction:"rtl"، لا gap — استخدم margin
 // ─────────────────────────────────────────────────────────────────────────────
 const base = StyleSheet.create({
   page: {
     fontFamily: "Tajawal",
     fontSize: 9,
-    paddingBottom: 50,
+    paddingBottom: 58, // مساحة للـ footer الثابت
     backgroundColor: C.white,
   },
   body: {
@@ -141,7 +139,7 @@ const base = StyleSheet.create({
     backgroundColor: C.ink,
     paddingHorizontal: 30,
     paddingVertical: 18,
-    flexDirection: "row",
+    flexDirection: "row-reverse", // ✅ RTL: شركة يمين، badge يسار
     justifyContent: "space-between",
     alignItems: "center",
   },
@@ -211,18 +209,26 @@ const base = StyleSheet.create({
     textAlign: "right",
   },
 
-  // ── Footer ──
-  footer: {
+  // ── Footer: ثابت في الأسفل ويشمل الشريط الذهبي ──
+  footerFixed: {
     position: "absolute",
-    bottom: 10,
-    left: 30,
-    right: 30,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  footerStripe: {
+    height: 4,
+    backgroundColor: C.gold,
+  },
+  footerContent: {
+    paddingHorizontal: 30,
+    paddingVertical: 6,
     borderTopWidth: 0.5,
     borderTopColor: C.border,
-    paddingTop: 5,
-    flexDirection: "row",
+    flexDirection: "row-reverse", // ✅ RTL
     justifyContent: "space-between",
     alignItems: "center",
+    backgroundColor: C.white,
   },
   footerText: {
     fontSize: 7,
@@ -238,7 +244,7 @@ const base = StyleSheet.create({
 
 const tbl = StyleSheet.create({
   headerRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // ✅ RTL: أعمدة من اليمين
     backgroundColor: C.ink,
     borderBottomWidth: 1.5,
     borderBottomColor: C.gold,
@@ -252,7 +258,7 @@ const tbl = StyleSheet.create({
     paddingHorizontal: 6,
   },
   row: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // ✅ RTL
     borderBottomWidth: 0.5,
     borderBottomColor: "#f1f5f9",
   },
@@ -262,22 +268,39 @@ const tbl = StyleSheet.create({
     fontSize: 9,
     color: C.ink4,
     textAlign: "center",
-    paddingVertical: 6,
+    paddingVertical: 7,
     paddingHorizontal: 6,
   },
   cellBold: {
     fontSize: 9,
     fontWeight: 700,
     color: C.ink,
-    textAlign: "center",
-    paddingVertical: 6,
+    textAlign: "left", // الإجمالي: محاذاة يسار (أرقام LTR)
+    paddingVertical: 7,
     paddingHorizontal: 6,
+    fontFamily: "Mono",
+  },
+  cellName: {
+    fontSize: 9,
+    fontWeight: 700,
+    color: C.ink,
+    textAlign: "right", // الاسم: محاذاة يمين
+    paddingVertical: 7,
+    paddingHorizontal: 6,
+  },
+  cellNum: {
+    fontFamily: "Mono",
+    fontSize: 8.5,
+    color: C.ink4,
+    textAlign: "center",
+    paddingVertical: 7,
+    paddingHorizontal: 4,
   },
 });
 
 const inv = StyleSheet.create({
   metaBar: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // ✅ RTL: عميل يمين، خلايا meta يسار
     borderBottomWidth: 0.5,
     borderBottomColor: C.border,
     backgroundColor: C.bgSoft,
@@ -287,8 +310,8 @@ const inv = StyleSheet.create({
     width: "36%",
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRightWidth: 2,
-    borderRightColor: C.gold,
+    borderLeftWidth: 2, // يسار العميل = يمين الصفحة في row-reverse
+    borderLeftColor: C.gold,
     justifyContent: "center",
   },
   clientLabel: {
@@ -308,36 +331,36 @@ const inv = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 10,
-    borderLeftWidth: 0.5,
-    borderLeftColor: C.border,
+    borderRightWidth: 0.5, // في row-reverse: border يمين = يسار الصفحة
+    borderRightColor: C.border,
   },
   metaLabel: {
     fontSize: 7,
     fontWeight: 700,
     color: C.ink6,
-    textAlign: "left",
+    textAlign: "right",
   },
   metaValue: {
     fontFamily: "Mono",
     fontSize: 10,
     fontWeight: 600,
     color: C.ink,
-    textAlign: "left",
+    textAlign: "right",
     marginTop: 3,
   },
   bottomGrid: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // ✅ RTL: ملاحظات يمين، إجماليات يسار
     marginTop: 14,
   },
   summaryCol: {
     width: "54%",
-    paddingRight: 10,
+    paddingLeft: 10, // في row-reverse: padding يسار = مسافة بين العمودين
   },
   totalsCol: {
     width: "46%",
   },
   summaryBar: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // ✅ RTL
     backgroundColor: C.goldPale,
     borderWidth: 1,
     borderColor: C.goldLine,
@@ -349,7 +372,7 @@ const inv = StyleSheet.create({
   summaryLabel: {
     fontSize: 9,
     color: C.amberDark,
-    marginRight: 4,
+    marginLeft: 4,
   },
   summaryValue: {
     fontSize: 10,
@@ -379,12 +402,11 @@ const inv = StyleSheet.create({
     textAlign: "right",
   },
   totalRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // ✅ RTL: تسمية يمين، قيمة يسار
     borderBottomWidth: 0.5,
     borderBottomColor: C.border,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    justifyContent: "space-between",
   },
   totalLabel: {
     flex: 1,
@@ -400,11 +422,10 @@ const inv = StyleSheet.create({
     fontFamily: "Mono",
   },
   grandRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // ✅ RTL
     backgroundColor: C.ink,
     paddingVertical: 8,
     paddingHorizontal: 10,
-    justifyContent: "space-between",
     borderTopWidth: 1.5,
     borderTopColor: C.gold,
   },
@@ -426,9 +447,9 @@ const inv = StyleSheet.create({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 5. مكون Footer
+// 5. مكون Footer — يشمل الشريط الذهبي + بيانات الشركة + رقم الصفحة
 // ─────────────────────────────────────────────────────────────────────────────
-function PdfFooter({ settings }: { settings: CompanySettings | null }) {
+function PdfFooter({ settings, accentColor = C.gold }: { settings: CompanySettings | null; accentColor?: string }) {
   const tags: string[] = [];
   if (settings?.address) tags.push(settings.address);
   if (settings?.email) tags.push(settings.email);
@@ -438,23 +459,34 @@ function PdfFooter({ settings }: { settings: CompanySettings | null }) {
 
   return React.createElement(
     View,
-    { style: base.footer, fixed: true },
-    // يسار: رقم الصفحة
-    React.createElement(Text, {
-      style: base.footerText,
-      render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
-        `${pageNumber} / ${totalPages}`,
-    }),
-    // وسط: معلومات الشركة
-    React.createElement(Text, { style: base.footerCenter }, tags.join("  ·  ")),
-    // يمين: التاريخ
-    React.createElement(Text, { style: base.footerText }, fmtDateFull(new Date())),
-    // ملاحظة الفاتورة
+    { style: base.footerFixed, fixed: true },
+    // ── الشريط الملون (ذهبي أو حسب نوع الفاتورة)
+    React.createElement(View, { style: { ...base.footerStripe, backgroundColor: accentColor } }),
+    // ── صف المعلومات
+    React.createElement(
+      View,
+      { style: base.footerContent },
+      // يمين (في row-reverse): التاريخ
+      React.createElement(Text, { style: base.footerText }, fmtDateFull(new Date())),
+      // وسط: معلومات الشركة
+      React.createElement(Text, { style: base.footerCenter }, tags.join("  ·  ")),
+      // يسار (في row-reverse): رقم الصفحة
+      React.createElement(Text, {
+        style: base.footerText,
+        render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
+          `${pageNumber} / ${totalPages}`,
+      }),
+    ),
+    // ── ملاحظة إضافية (اختيارية)
     settings?.invoice_footer
       ? React.createElement(
-          Text,
-          { style: { fontSize: 6.5, color: C.ink6, textAlign: "center" as const } },
-          settings.invoice_footer,
+          View,
+          { style: { backgroundColor: C.bgSoft, paddingHorizontal: 30, paddingBottom: 3 } },
+          React.createElement(
+            Text,
+            { style: { fontSize: 6.5, color: C.ink6, textAlign: "center" as const } },
+            settings.invoice_footer,
+          ),
         )
       : null,
   );
@@ -474,10 +506,11 @@ function PdfHeader({
 }) {
   const s = settings;
 
+  // الشعار أو الحرف الأول
   const logoEl = logoData
     ? React.createElement(Image, {
         src: logoData,
-        style: { width: 44, height: 44, borderRadius: 8, marginLeft: 10 },
+        style: { width: 44, height: 44, borderRadius: 8, marginRight: 10 },
       })
     : React.createElement(
         View,
@@ -489,7 +522,7 @@ function PdfHeader({
             borderRadius: 8,
             alignItems: "center" as const,
             justifyContent: "center" as const,
-            marginLeft: 10,
+            marginRight: 10,
           },
         },
         React.createElement(
@@ -499,25 +532,28 @@ function PdfHeader({
         ),
       );
 
+  // في row-reverse: logoEl يظهر أقصى اليمين، ثم النص بجانبه
   const companyStack = React.createElement(
     View,
-    { style: base.companyBlock },
-    React.createElement(Text, { style: base.companyName }, s?.company_name ?? "النظام المحاسبي"),
-    s?.company_name_en ? React.createElement(Text, { style: base.companyNameEn }, s.company_name_en) : null,
-    s?.business_activity ? React.createElement(Text, { style: base.companyActivity }, s.business_activity) : null,
+    { style: { flexDirection: "row-reverse", alignItems: "center" } },
+    logoEl,
+    React.createElement(
+      View,
+      { style: base.companyBlock },
+      React.createElement(Text, { style: base.companyName }, s?.company_name ?? "النظام المحاسبي"),
+      s?.company_name_en ? React.createElement(Text, { style: base.companyNameEn }, s.company_name_en) : null,
+      s?.business_activity ? React.createElement(Text, { style: base.companyActivity }, s.business_activity) : null,
+    ),
   );
 
-  // يمين: شركة + شعار  |  يسار: badge
   return React.createElement(
     View,
     null,
     React.createElement(View, { style: base.goldStripe }),
     React.createElement(
       View,
-      { style: base.header },
-      // يمين
-      React.createElement(View, { style: { flexDirection: "row", alignItems: "center" } }, companyStack, logoEl),
-      // يسار
+      { style: base.header }, // row-reverse: شركة يمين، badge يسار
+      companyStack,
       React.createElement(View, { style: base.badgeBlock }, badgeElements),
     ),
   );
@@ -544,19 +580,94 @@ function LegalBar({ settings }: { settings: CompanySettings | null }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 8. مكون DataTable
+//    خوارزمية عرض الأعمدة:
+//      - عمود "اسم/وصف/منتج/barcode" → عريض  (flex أو % كبير)
+//      - عمود "كمية/سعر/ضريبة/خصم"  → ضيق   (عدد ثابت أو % صغير)
 // ─────────────────────────────────────────────────────────────────────────────
+
+// كلمات تدل على عمود نصي عريض
+const WIDE_KEYWORDS = [
+  "اسم",
+  "وصف",
+  "منتج",
+  "بضاعة",
+  "صنف",
+  "بيان",
+  "عنوان",
+  "barcode",
+  "باركود",
+  "كود",
+  "رقم المنتج",
+  "العميل",
+  "الجهة",
+  "المورد",
+];
+// كلمات تدل على عمود رقمي ضيق
+const NARROW_KEYWORDS = [
+  "كمية",
+  "سعر",
+  "إجمالي",
+  "اجمالي",
+  "ضريبة",
+  "خصم",
+  "رصيد",
+  "مبلغ",
+  "#",
+  "رقم",
+  "تاريخ",
+  "نسبة",
+  "معدل",
+  "discount",
+  "qty",
+  "price",
+  "total",
+  "tax",
+  "date",
+];
+
+function detectColType(header: string): "wide" | "narrow" | "medium" {
+  const h = header.toLowerCase();
+  if (WIDE_KEYWORDS.some((k) => h.includes(k))) return "wide";
+  if (NARROW_KEYWORDS.some((k) => h.includes(k))) return "narrow";
+  return "medium";
+}
+
+function buildColWidths(headers: string[]): string[] {
+  const types = headers.map(detectColType);
+  const wCount = types.filter((t) => t === "wide").length || 0;
+  const nCount = types.filter((t) => t === "narrow").length || 0;
+  const mCount = types.filter((t) => t === "medium").length || 0;
+  const total = headers.length;
+
+  // حساب النسب المئوية
+  // wide → 30%، narrow → 10%، medium → 15% ثم نُعيد التوزيع لـ 100%
+  const rawWide = wCount > 0 ? 30 : 0;
+  const rawNarrow = 10;
+  const rawMedium = 15;
+  const rawTotal = wCount * rawWide + nCount * rawNarrow + mCount * rawMedium;
+  const scale = 100 / (rawTotal || total * 15);
+
+  return types.map((t) => {
+    const pct = t === "wide" ? rawWide * scale : t === "narrow" ? rawNarrow * scale : rawMedium * scale;
+    return `${Math.round(pct)}%`;
+  });
+}
+
 function DataTable({
   headers,
   rows,
-  colWidths,
+  colWidths: externalWidths,
 }: {
   headers: string[];
   rows: (string | number)[][];
-  colWidths: (string | number)[];
+  colWidths?: (string | number)[]; // اختياري — إذا لم يُرسَل يُحسب تلقائياً
 }) {
+  // استخدم العرض المُمرَّر أو احسبه تلقائياً
+  const colWidths = externalWidths ?? buildColWidths(headers);
+
   const headerRow = React.createElement(
     View,
-    { style: tbl.headerRow },
+    { style: tbl.headerRow }, // row-reverse
     ...headers.map((h, i) =>
       React.createElement(Text, { key: `h-${i}`, style: { ...tbl.headerCell, width: colWidths[i] } }, h),
     ),
@@ -567,18 +678,30 @@ function DataTable({
       View,
       { key: `r-${ri}`, style: { ...tbl.row, ...(ri % 2 === 0 ? tbl.rowOdd : tbl.rowEven) } },
       ...row.map((cell, ci) => {
+        const hdr = headers[ci] ?? "";
+        const colType = detectColType(hdr);
         const isLast = ci === row.length - 1;
-        const isFirst = ci === 0;
+
+        // آخر عمود دائماً = الإجمالي → bold + mono + يسار
+        if (isLast) {
+          return React.createElement(
+            Text,
+            { key: `c-${ri}-${ci}`, style: { ...tbl.cellBold, width: colWidths[ci] } },
+            String(cell),
+          );
+        }
+        // عمود نصي عريض → right align bold
+        if (colType === "wide") {
+          return React.createElement(
+            Text,
+            { key: `c-${ri}-${ci}`, style: { ...tbl.cellName, width: colWidths[ci] } },
+            String(cell),
+          );
+        }
+        // عمود رقمي ضيق → mono center
         return React.createElement(
           Text,
-          {
-            key: `c-${ri}-${ci}`,
-            style: {
-              ...(isLast ? tbl.cellBold : tbl.cell),
-              width: colWidths[ci],
-              textAlign: isFirst ? "left" : isLast ? "left" : "center",
-            },
-          },
+          { key: `c-${ri}-${ci}`, style: { ...tbl.cellNum, width: colWidths[ci] } },
           String(cell),
         );
       }),
@@ -642,8 +765,8 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
   const { title, settings, headers, rows, summaryCards, orientation = "portrait", logoData } = props;
 
   const currency = settings?.default_currency ?? "EGP";
-  const colW = `${Math.floor(100 / headers.length)}%`;
-  const colWidths = headers.map(() => colW);
+  // عرض الأعمدة يُحسب تلقائياً حسب نوع كل عمود
+  const colWidths = buildColWidths(headers);
 
   // Badge
   const badge = React.createElement(
@@ -658,13 +781,13 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
     ),
   );
 
-  // KPI Cards
+  // KPI Cards — row-reverse لـ RTL
   const summaryRow = summaryCards?.length
     ? React.createElement(
         View,
         {
           style: {
-            flexDirection: "row" as const,
+            flexDirection: "row-reverse" as const,
             backgroundColor: C.goldPale,
             borderWidth: 1,
             borderColor: C.goldLine,
@@ -681,8 +804,8 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
                 flex: 1,
                 alignItems: "center" as const,
                 paddingVertical: 8,
-                borderLeftWidth: i > 0 ? 1 : 0,
-                borderLeftColor: C.goldLine,
+                borderRightWidth: i > 0 ? 1 : 0, // row-reverse: حدود يمين
+                borderRightColor: C.goldLine,
               },
             },
             React.createElement(
@@ -713,6 +836,7 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
         { style: { ...base.body, marginTop: 12 } },
         summaryRow,
         React.createElement(Text, { style: base.sectionLabel }, "تفاصيل البيانات"),
+        // colWidths اختيارية — DataTable تحسبها تلقائياً إذا لم تُمرَّر
         React.createElement(DataTable, { headers, rows, colWidths }),
         React.createElement(
           Text,
@@ -720,7 +844,7 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
           `إجمالي السجلات: ${rows.length}`,
         ),
       ),
-      React.createElement(View, { style: { ...base.goldStripe, marginTop: 16 } }),
+      // ✅ الشريط + الفوتر داخل PdfFooter الثابت — لا حاجة لشريط منفصل هنا
       React.createElement(PdfFooter, { settings }),
     ),
   );
@@ -794,12 +918,13 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
   if (reference) metaDefs.push({ label: "المرجع", value: reference });
   metaDefs.push({ label: "العملة", value: currency });
 
-  // أعمدة الجدول
+  // أعمدة الجدول — عروض ذكية: وصف عريض، أرقام ضيقة
   const colHeaders: string[] = ["#", "الوصف", "الكمية", "سعر الوحدة"];
   if (showDiscount) colHeaders.push("الخصم");
   colHeaders.push(`الإجمالي (${currency})`);
 
-  const colWidths = showDiscount ? ["6%", "34%", "12%", "18%", "12%", "18%"] : ["6%", "38%", "14%", "22%", "20%"];
+  // "#" و"الكمية" و"الخصم" → ضيقة جداً | "الوصف" → عريض | "سعر"/"إجمالي" → متوسطة
+  const colWidths = showDiscount ? ["5%", "38%", "10%", "16%", "11%", "20%"] : ["5%", "42%", "11%", "20%", "22%"];
 
   const tableRows: (string | number)[][] = items.map((item, idx) => {
     const row: (string | number)[] = [
@@ -1024,8 +1149,8 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
           )
         : null,
 
-      React.createElement(View, { style: { ...base.goldStripe, backgroundColor: accent, marginTop: 14 } }),
-      React.createElement(PdfFooter, { settings }),
+      // ✅ الشريط الذهبي داخل PdfFooter — يتلوّن حسب نوع الفاتورة
+      React.createElement(PdfFooter, { settings, accentColor: accent }),
     ),
   );
 }
