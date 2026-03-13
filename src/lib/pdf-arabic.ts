@@ -1,29 +1,53 @@
+/**
+ * pdfExport.ts
+ * ─────────────────────────────────────────────────────────────────────────────
+ * يستخدم React.createElement بدلاً من JSX → يعمل كملف .ts بدون أخطاء
+ *
+ * الإصلاحات عن النسخة السابقة:
+ *  ✅ fontWeight أرقام فقط (400/500/700) — "bold"/"medium" تسبب أخطاء
+ *  ✅ حذف direction:"rtl" as any — غير مدعوم في @react-pdf/renderer
+ *  ✅ حذف row-reverse — استخدم justifyContent:"space-between" بدلاً منه
+ *  ✅ إضافة دعم الشعار (logo) مع loadLogoBase64
+ *  ✅ footer يستخدم render prop لأرقام الصفحات
+ *  ✅ تنظيم الأنواع بدون as any
+ *  ✅ نفس الـ signatures تماماً
+ *
+ * npm install @react-pdf/renderer
+ * الخطوط: /public/fonts/Tajawal-Regular.ttf | Medium | Bold
+ *          /public/fonts/IBMPlexMono-Regular.ttf | SemiBold
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
 import React from "react";
-import {
-  Document,
-  Page,
-  Text,
-  View,
-  StyleSheet,
-  Font,
-  pdf,
-} from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, StyleSheet, Font, pdf } from "@react-pdf/renderer";
 import type { CompanySettings } from "@/contexts/SettingsContext";
 
-// ── Font Registration ──
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. تسجيل الخطوط
+//    ⚠️ fontWeight يجب أن يكون رقماً — القيم النصية "bold"/"medium" تسبب خطأ
+// ─────────────────────────────────────────────────────────────────────────────
 Font.register({
   family: "Tajawal",
   fonts: [
-    { src: "/fonts/Tajawal-Regular.ttf", fontWeight: "normal" },
-    { src: "/fonts/Tajawal-Medium.ttf", fontWeight: "medium" },
-    { src: "/fonts/Tajawal-Bold.ttf", fontWeight: "bold" },
+    { src: "/fonts/Tajawal-Regular.ttf", fontWeight: 400 },
+    { src: "/fonts/Tajawal-Medium.ttf", fontWeight: 500 },
+    { src: "/fonts/Tajawal-Bold.ttf", fontWeight: 700 },
   ],
 });
 
-// Disable hyphenation for Arabic
+Font.register({
+  family: "Mono",
+  fonts: [
+    { src: "/fonts/IBMPlexMono-Regular.ttf", fontWeight: 400 },
+    { src: "/fonts/IBMPlexMono-SemiBold.ttf", fontWeight: 600 },
+  ],
+});
+
 Font.registerHyphenationCallback((word) => [word]);
 
-// ── Color Palette ──
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. الألوان
+// ─────────────────────────────────────────────────────────────────────────────
 const C = {
   ink: "#0f172a",
   ink2: "#1e293b",
@@ -32,7 +56,6 @@ const C = {
   ink5: "#64748b",
   ink6: "#94a3b8",
   gold: "#d4a853",
-  goldDark: "#b8860b",
   goldPale: "#fffbeb",
   goldLine: "#f0d990",
   goldMid: "#f0c96a",
@@ -40,35 +63,70 @@ const C = {
   bgSoft: "#f8fafc",
   white: "#ffffff",
   green: "#15803d",
-  greenBg: "#f0fdf4",
   red: "#dc2626",
   orange: "#ea580c",
-  orangeBg: "#fff7ed",
   amber: "#b45309",
   amberDark: "#92400e",
-};
+  cyan: "#0e7490",
+} as const;
 
-// ── Helpers ──
-const fmtNum = (v: number) =>
-  v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const fmtNum = (v: number): string => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const fmtDate = (d: string) => {
+const fmtDate = (d: string): string => {
   if (!d) return "";
-  return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
+  return new Date(d).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 };
 
-const fmtDateFull = (d: Date) =>
+const fmtDateFull = (d: Date): string =>
   d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
-// ── Shared Styles ──
+async function loadLogoBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const r = new FileReader();
+      r.onloadend = () => resolve(r.result as string);
+      r.onerror = () => resolve(null);
+      r.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. الأنماط
+//    ⚠️ قواعد @react-pdf/renderer:
+//      - لا "row-reverse"   → استخدم justifyContent:"space-between" + اعكس الترتيب يدوياً
+//      - لا gap             → استخدم marginRight/marginLeft
+//      - لا direction:"rtl" → غير مدعوم، تحكم بالنصوص عبر textAlign
+//      - fontWeight         → أرقام فقط (400، 500، 700)
+// ─────────────────────────────────────────────────────────────────────────────
 const base = StyleSheet.create({
   page: {
     fontFamily: "Tajawal",
     fontSize: 9,
-    paddingTop: 0,
     paddingBottom: 50,
-    paddingHorizontal: 0,
-    direction: "rtl" as any,
+    backgroundColor: C.white,
   },
   body: {
     paddingHorizontal: 30,
@@ -77,17 +135,24 @@ const base = StyleSheet.create({
     height: 4,
     backgroundColor: C.gold,
   },
+
+  // ── هيدر ──
   header: {
     backgroundColor: C.ink,
     paddingHorizontal: 30,
     paddingVertical: 18,
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
+
+  // جانب الشركة
+  companyBlock: {
+    maxWidth: "55%",
+  },
   companyName: {
     fontSize: 14,
-    fontWeight: "bold",
+    fontWeight: 700,
     color: C.white,
     textAlign: "right",
   },
@@ -103,20 +168,27 @@ const base = StyleSheet.create({
     textAlign: "right",
     marginTop: 1,
   },
+
+  // جانب الـ Badge
+  badgeBlock: {
+    maxWidth: "42%",
+    alignItems: "flex-start",
+  },
   badgeLabel: {
     fontSize: 7,
-    fontWeight: "bold",
+    fontWeight: 700,
     color: C.gold,
     textAlign: "left",
-    letterSpacing: 1.5,
   },
   badgeNumber: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 700,
     color: C.white,
     textAlign: "left",
     marginTop: 4,
   },
+
+  // ── Legal Bar ──
   legalBar: {
     backgroundColor: C.bgSoft,
     paddingVertical: 6,
@@ -129,14 +201,17 @@ const base = StyleSheet.create({
     color: C.ink6,
     textAlign: "center",
   },
+
+  // ── تسمية القسم ──
   sectionLabel: {
     fontSize: 7,
-    fontWeight: "bold",
+    fontWeight: 700,
     color: C.gold,
-    letterSpacing: 2,
     marginBottom: 6,
     textAlign: "right",
   },
+
+  // ── Footer ──
   footer: {
     position: "absolute",
     bottom: 10,
@@ -145,8 +220,9 @@ const base = StyleSheet.create({
     borderTopWidth: 0.5,
     borderTopColor: C.border,
     paddingTop: 5,
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
   },
   footerText: {
     fontSize: 7,
@@ -160,33 +236,28 @@ const base = StyleSheet.create({
   },
 });
 
-// ── Table Styles ──
 const tbl = StyleSheet.create({
   headerRow: {
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     backgroundColor: C.ink,
-    borderTopLeftRadius: 2,
-    borderTopRightRadius: 2,
+    borderBottomWidth: 1.5,
+    borderBottomColor: C.gold,
   },
   headerCell: {
     fontSize: 8,
-    fontWeight: "bold",
+    fontWeight: 700,
     color: "#ffffff90",
     textAlign: "center",
     paddingVertical: 7,
     paddingHorizontal: 6,
   },
   row: {
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     borderBottomWidth: 0.5,
     borderBottomColor: "#f1f5f9",
   },
-  rowEven: {
-    backgroundColor: "#fafafa",
-  },
-  rowOdd: {
-    backgroundColor: C.white,
-  },
+  rowEven: { backgroundColor: "#fafafa" },
+  rowOdd: { backgroundColor: C.white },
   cell: {
     fontSize: 9,
     color: C.ink4,
@@ -196,21 +267,167 @@ const tbl = StyleSheet.create({
   },
   cellBold: {
     fontSize: 9,
-    fontWeight: "bold",
+    fontWeight: 700,
     color: C.ink,
     textAlign: "center",
     paddingVertical: 6,
     paddingHorizontal: 6,
   },
-  cellRight: {
+});
+
+const inv = StyleSheet.create({
+  metaBar: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
+    backgroundColor: C.bgSoft,
+    marginBottom: 14,
+  },
+  clientBox: {
+    width: "36%",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRightWidth: 2,
+    borderRightColor: C.gold,
+    justifyContent: "center",
+  },
+  clientLabel: {
+    fontSize: 7,
+    fontWeight: 700,
+    color: C.gold,
+    textAlign: "right",
+    marginBottom: 4,
+  },
+  clientName: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: C.ink,
     textAlign: "right",
   },
-  cellLeft: {
+  metaCell: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderLeftWidth: 0.5,
+    borderLeftColor: C.border,
+  },
+  metaLabel: {
+    fontSize: 7,
+    fontWeight: 700,
+    color: C.ink6,
     textAlign: "left",
+  },
+  metaValue: {
+    fontFamily: "Mono",
+    fontSize: 10,
+    fontWeight: 600,
+    color: C.ink,
+    textAlign: "left",
+    marginTop: 3,
+  },
+  bottomGrid: {
+    flexDirection: "row",
+    marginTop: 14,
+  },
+  summaryCol: {
+    width: "54%",
+    paddingRight: 10,
+  },
+  totalsCol: {
+    width: "46%",
+  },
+  summaryBar: {
+    flexDirection: "row",
+    backgroundColor: C.goldPale,
+    borderWidth: 1,
+    borderColor: C.goldLine,
+    borderRadius: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    alignItems: "center",
+  },
+  summaryLabel: {
+    fontSize: 9,
+    color: C.amberDark,
+    marginRight: 4,
+  },
+  summaryValue: {
+    fontSize: 10,
+    fontWeight: 700,
+    color: C.amber,
+  },
+  notesBox: {
+    backgroundColor: C.bgSoft,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRightWidth: 2,
+    borderRightColor: C.gold,
+    padding: 10,
+    marginTop: 8,
+  },
+  notesLabel: {
+    fontSize: 7,
+    fontWeight: 700,
+    color: C.gold,
+    marginBottom: 4,
+    textAlign: "right",
+  },
+  notesText: {
+    fontSize: 9,
+    color: C.ink5,
+    lineHeight: 1.8,
+    textAlign: "right",
+  },
+  totalRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    justifyContent: "space-between",
+  },
+  totalLabel: {
+    flex: 1,
+    fontSize: 10,
+    color: C.ink5,
+    textAlign: "right",
+  },
+  totalValue: {
+    width: 110,
+    fontSize: 10,
+    color: C.ink,
+    textAlign: "left",
+    fontFamily: "Mono",
+  },
+  grandRow: {
+    flexDirection: "row",
+    backgroundColor: C.ink,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    justifyContent: "space-between",
+    borderTopWidth: 1.5,
+    borderTopColor: C.gold,
+  },
+  grandLabel: {
+    flex: 1,
+    fontSize: 10,
+    fontWeight: 700,
+    color: "#ffffff90",
+    textAlign: "right",
+  },
+  grandValue: {
+    width: 110,
+    fontSize: 14,
+    fontWeight: 700,
+    color: C.goldMid,
+    textAlign: "left",
+    fontFamily: "Mono",
   },
 });
 
-// ── Footer Component ──
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. مكون Footer
+// ─────────────────────────────────────────────────────────────────────────────
 function PdfFooter({ settings }: { settings: CompanySettings | null }) {
   const tags: string[] = [];
   if (settings?.address) tags.push(settings.address);
@@ -222,32 +439,75 @@ function PdfFooter({ settings }: { settings: CompanySettings | null }) {
   return React.createElement(
     View,
     { style: base.footer, fixed: true },
-    React.createElement(Text, { style: base.footerText }, fmtDateFull(new Date())),
+    // يسار: رقم الصفحة
+    React.createElement(Text, {
+      style: base.footerText,
+      render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
+        `${pageNumber} / ${totalPages}`,
+    }),
+    // وسط: معلومات الشركة
     React.createElement(Text, { style: base.footerCenter }, tags.join("  ·  ")),
-    React.createElement(
-      Text,
-      { style: base.footerText, render: ({ pageNumber, totalPages }: any) => `${pageNumber} / ${totalPages}` }
-    )
+    // يمين: التاريخ
+    React.createElement(Text, { style: base.footerText }, fmtDateFull(new Date())),
+    // ملاحظة الفاتورة
+    settings?.invoice_footer
+      ? React.createElement(
+          Text,
+          { style: { fontSize: 6.5, color: C.ink6, textAlign: "center" as const } },
+          settings.invoice_footer,
+        )
+      : null,
   );
 }
 
-// ── Header Component ──
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. مكون Header
+// ─────────────────────────────────────────────────────────────────────────────
 function PdfHeader({
   settings,
+  logoData,
   badgeElements,
 }: {
   settings: CompanySettings | null;
+  logoData: string | null;
   badgeElements: React.ReactNode;
 }) {
   const s = settings;
+
+  const logoEl = logoData
+    ? React.createElement(Image, {
+        src: logoData,
+        style: { width: 44, height: 44, borderRadius: 8, marginLeft: 10 },
+      })
+    : React.createElement(
+        View,
+        {
+          style: {
+            width: 44,
+            height: 44,
+            backgroundColor: C.gold,
+            borderRadius: 8,
+            alignItems: "center" as const,
+            justifyContent: "center" as const,
+            marginLeft: 10,
+          },
+        },
+        React.createElement(
+          Text,
+          { style: { fontSize: 20, fontWeight: 700, color: C.white, fontFamily: "Tajawal" } },
+          (s?.company_name ?? "N").charAt(0).toUpperCase(),
+        ),
+      );
+
   const companyStack = React.createElement(
     View,
-    { style: { maxWidth: "55%" } },
-    React.createElement(Text, { style: base.companyName }, s?.company_name || "النظام المحاسبي"),
+    { style: base.companyBlock },
+    React.createElement(Text, { style: base.companyName }, s?.company_name ?? "النظام المحاسبي"),
     s?.company_name_en ? React.createElement(Text, { style: base.companyNameEn }, s.company_name_en) : null,
-    s?.business_activity ? React.createElement(Text, { style: base.companyActivity }, s.business_activity) : null
+    s?.business_activity ? React.createElement(Text, { style: base.companyActivity }, s.business_activity) : null,
   );
 
+  // يمين: شركة + شعار  |  يسار: badge
   return React.createElement(
     View,
     null,
@@ -255,30 +515,36 @@ function PdfHeader({
     React.createElement(
       View,
       { style: base.header },
-      companyStack,
-      React.createElement(View, { style: { maxWidth: "42%" } }, badgeElements)
-    )
+      // يمين
+      React.createElement(View, { style: { flexDirection: "row", alignItems: "center" } }, companyStack, logoEl),
+      // يسار
+      React.createElement(View, { style: base.badgeBlock }, badgeElements),
+    ),
   );
 }
 
-// ── Legal Bar ──
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. مكون LegalBar
+// ─────────────────────────────────────────────────────────────────────────────
 function LegalBar({ settings }: { settings: CompanySettings | null }) {
   const s = settings;
-  const legal: string[] = [];
-  if (s?.address) legal.push(s.address);
-  if (s?.phone) legal.push(s.phone);
-  if (s?.email) legal.push(s.email);
-  if (s?.tax_number) legal.push(`VAT: ${s.tax_number}`);
-  if (s?.commercial_register) legal.push(`C.R: ${s.commercial_register}`);
-  if (!legal.length) return null;
+  const parts: string[] = [];
+  if (s?.address) parts.push(s.address);
+  if (s?.phone) parts.push(s.phone);
+  if (s?.email) parts.push(s.email);
+  if (s?.tax_number) parts.push(`VAT: ${s.tax_number}`);
+  if (s?.commercial_register) parts.push(`C.R: ${s.commercial_register}`);
+  if (!parts.length) return null;
   return React.createElement(
     View,
     { style: base.legalBar },
-    React.createElement(Text, { style: base.legalText }, legal.join("   ·   "))
+    React.createElement(Text, { style: base.legalText }, parts.join("   ·   ")),
   );
 }
 
-// ── Data Table ──
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. مكون DataTable
+// ─────────────────────────────────────────────────────────────────────────────
 function DataTable({
   headers,
   rows,
@@ -292,55 +558,52 @@ function DataTable({
     View,
     { style: tbl.headerRow },
     ...headers.map((h, i) =>
-      React.createElement(
-        Text,
-        { key: `h-${i}`, style: [tbl.headerCell, { width: colWidths[i] }] },
-        h
-      )
-    )
+      React.createElement(Text, { key: `h-${i}`, style: { ...tbl.headerCell, width: colWidths[i] } }, h),
+    ),
   );
 
   const bodyRows = rows.map((row, ri) =>
     React.createElement(
       View,
-      { key: `r-${ri}`, style: [tbl.row, ri % 2 === 0 ? tbl.rowOdd : tbl.rowEven] },
-      ...row.map((cell, ci) =>
-        React.createElement(
+      { key: `r-${ri}`, style: { ...tbl.row, ...(ri % 2 === 0 ? tbl.rowOdd : tbl.rowEven) } },
+      ...row.map((cell, ci) => {
+        const isLast = ci === row.length - 1;
+        const isFirst = ci === 0;
+        return React.createElement(
           Text,
           {
             key: `c-${ri}-${ci}`,
-            style: [
-              ci === row.length - 1 ? tbl.cellBold : tbl.cell,
-              { width: colWidths[ci] },
-              ci === 0 ? tbl.cellLeft : null,
-              ci === 1 ? tbl.cellRight : null,
-            ].filter(Boolean),
+            style: {
+              ...(isLast ? tbl.cellBold : tbl.cell),
+              width: colWidths[ci],
+              textAlign: isFirst ? "left" : isLast ? "left" : "center",
+            },
           },
-          String(cell)
-        )
-      )
-    )
+          String(cell),
+        );
+      }),
+    ),
   );
 
   return React.createElement(View, null, headerRow, ...bodyRows);
 }
 
-// ── Download helper ──
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. أنواع الفاتورة
+// ─────────────────────────────────────────────────────────────────────────────
+type InvoiceType = "sales_invoice" | "purchase_invoice" | "sales_return" | "purchase_return";
 
-// ═══════════════════════════════════════════════
-//  REPORT PDF
-// ═══════════════════════════════════════════════
-interface ReportPdfOptions {
+const TYPE_META: Record<InvoiceType, { label: string; typeLabel: string; stripe: string }> = {
+  sales_invoice: { label: "فاتورة مبيعات", typeLabel: "INVOICE · فاتورة ضريبية رسمية", stripe: C.gold },
+  purchase_invoice: { label: "فاتورة مشتريات", typeLabel: "INVOICE · فاتورة مشتريات", stripe: C.cyan },
+  sales_return: { label: "مرتجع مبيعات", typeLabel: "RETURN · مرتجع مبيعات", stripe: C.red },
+  purchase_return: { label: "مرتجع مشتريات", typeLabel: "RETURN · مرتجع مشتريات", stripe: C.orange },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10. Interfaces
+// ─────────────────────────────────────────────────────────────────────────────
+export interface ReportPdfOptions {
   title: string;
   settings: CompanySettings | null;
   headers: string[];
@@ -350,124 +613,8 @@ interface ReportPdfOptions {
   filename: string;
 }
 
-function ReportDocument({
-  title,
-  settings,
-  headers,
-  rows,
-  summaryCards,
-  orientation = "portrait",
-}: Omit<ReportPdfOptions, "filename">) {
-  const currency = settings?.default_currency || "EGP";
-  const colCount = headers.length;
-  const colW = `${Math.floor(100 / colCount)}%`;
-  const colWidths = headers.map(() => colW);
-
-  const badge = React.createElement(
-    View,
-    null,
-    React.createElement(Text, { style: base.badgeLabel }, "REPORT · تقرير"),
-    React.createElement(
-      Text,
-      { style: [base.badgeNumber, { fontSize: 13 }] },
-      title
-    ),
-    React.createElement(
-      Text,
-      { style: { fontSize: 8, color: C.ink4, textAlign: "left" as any, marginTop: 2 } },
-      `${fmtDateFull(new Date())}  ·  ${currency}`
-    )
-  );
-
-  const summaryRow =
-    summaryCards && summaryCards.length
-      ? React.createElement(
-          View,
-          {
-            style: {
-              flexDirection: "row-reverse",
-              backgroundColor: C.goldPale,
-              borderWidth: 1,
-              borderColor: C.goldLine,
-              borderRadius: 2,
-              marginBottom: 12,
-              paddingHorizontal: 30,
-            },
-          },
-          ...summaryCards.map((card, i) =>
-            React.createElement(
-              View,
-              {
-                key: `sc-${i}`,
-                style: {
-                  flex: 1,
-                  alignItems: "center",
-                  paddingVertical: 8,
-                  borderRightWidth: i > 0 ? 1 : 0,
-                  borderRightColor: C.goldLine,
-                },
-              },
-              React.createElement(
-                Text,
-                { style: { fontSize: 7, color: C.amberDark, textAlign: "center" as any } },
-                card.label
-              ),
-              React.createElement(
-                Text,
-                {
-                  style: {
-                    fontSize: 12,
-                    fontWeight: "bold",
-                    color: C.amber,
-                    textAlign: "center" as any,
-                    marginTop: 3,
-                  },
-                },
-                card.value
-              )
-            )
-          )
-        )
-      : null;
-
-  return React.createElement(
-    Document,
-    null,
-    React.createElement(
-      Page,
-      { size: "A4", orientation, style: base.page },
-      React.createElement(PdfHeader, { settings, badgeElements: badge }),
-      React.createElement(LegalBar, { settings }),
-      React.createElement(
-        View,
-        { style: [base.body, { marginTop: 12 }] },
-        summaryRow,
-        React.createElement(Text, { style: base.sectionLabel }, "تفاصيل البيانات"),
-        React.createElement(DataTable, { headers, rows, colWidths }),
-        React.createElement(
-          Text,
-          { style: { fontSize: 7, color: C.ink6, textAlign: "left" as any, marginTop: 6 } },
-          `إجمالي السجلات: ${rows.length}`
-        )
-      ),
-      React.createElement(View, { style: [base.goldStripe, { marginTop: 16 }] }),
-      React.createElement(PdfFooter, { settings })
-    )
-  );
-}
-
-export async function exportReportPdf(options: ReportPdfOptions) {
-  const { filename, ...rest } = options;
-  const doc = React.createElement(ReportDocument, rest) as any;
-  const blob = await pdf(doc).toBlob();
-  downloadBlob(blob, `${filename}.pdf`);
-}
-
-// ═══════════════════════════════════════════════
-//  INVOICE PDF
-// ═══════════════════════════════════════════════
-interface InvoicePdfOptions {
-  type: "sales_invoice" | "purchase_invoice" | "sales_return" | "purchase_return";
+export interface InvoicePdfOptions {
+  type: InvoiceType;
   number: number | string;
   date: string;
   partyName: string;
@@ -488,165 +635,101 @@ interface InvoicePdfOptions {
   paidAmount?: number;
 }
 
-const TYPE_META: Record<string, { label: string; typeLabel: string; stripe: string }> = {
-  sales_invoice: { label: "فاتورة مبيعات", typeLabel: "INVOICE · فاتورة ضريبية رسمية", stripe: C.gold },
-  purchase_invoice: { label: "فاتورة مشتريات", typeLabel: "INVOICE · فاتورة مشتريات", stripe: "#0e7490" },
-  sales_return: { label: "مرتجع مبيعات", typeLabel: "RETURN · مرتجع مبيعات", stripe: C.red },
-  purchase_return: { label: "مرتجع مشتريات", typeLabel: "RETURN · مرتجع مشتريات", stripe: C.orange },
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// 11. ReportDocument
+// ─────────────────────────────────────────────────────────────────────────────
+function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: string | null }) {
+  const { title, settings, headers, rows, summaryCards, orientation = "portrait", logoData } = props;
 
-const inv = StyleSheet.create({
-  metaBar: {
-    flexDirection: "row-reverse",
-    borderBottomWidth: 0.5,
-    borderBottomColor: C.border,
-    backgroundColor: C.bgSoft,
-    marginBottom: 14,
-  },
-  clientBox: {
-    width: "36%",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderLeftWidth: 1,
-    borderLeftColor: C.gold,
-  },
-  clientLabel: {
-    fontSize: 7,
-    fontWeight: "bold",
-    color: C.gold,
-    letterSpacing: 1.5,
-    textAlign: "right",
-    marginBottom: 4,
-  },
-  clientName: {
-    fontSize: 11,
-    fontWeight: "bold",
-    color: C.ink,
-    textAlign: "right",
-  },
-  metaCell: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderLeftWidth: 0.5,
-    borderLeftColor: C.border,
-  },
-  metaLabel: {
-    fontSize: 7,
-    fontWeight: "bold",
-    color: C.ink6,
-    letterSpacing: 1,
-    textAlign: "right",
-  },
-  metaValue: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: C.ink,
-    textAlign: "right",
-    marginTop: 3,
-  },
-  bottomGrid: {
-    flexDirection: "row-reverse",
-    marginTop: 14,
-  },
-  summaryCol: {
-    width: "54%",
-    paddingRight: 10,
-  },
-  totalsCol: {
-    width: "46%",
-  },
-  summaryBar: {
-    flexDirection: "row-reverse",
-    backgroundColor: C.goldPale,
-    borderWidth: 1,
-    borderColor: C.goldLine,
-    borderRadius: 2,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-  },
-  summaryItem: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    marginLeft: 14,
-  },
-  summaryLabel: {
-    fontSize: 9,
-    color: C.amberDark,
-    marginLeft: 4,
-  },
-  summaryValue: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: C.amber,
-  },
-  notesBox: {
-    backgroundColor: C.bgSoft,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRightWidth: 2,
-    borderRightColor: C.gold,
-    padding: 10,
-    marginTop: 8,
-  },
-  notesLabel: {
-    fontSize: 7,
-    fontWeight: "bold",
-    color: C.gold,
-    letterSpacing: 1.5,
-    marginBottom: 4,
-    textAlign: "right",
-  },
-  notesText: {
-    fontSize: 9,
-    color: C.ink5,
-    lineHeight: 1.8,
-    textAlign: "right",
-  },
-  totalRow: {
-    flexDirection: "row-reverse",
-    borderBottomWidth: 0.5,
-    borderBottomColor: C.border,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-  },
-  totalLabel: {
-    flex: 1,
-    fontSize: 10,
-    color: C.ink5,
-    textAlign: "right",
-  },
-  totalValue: {
-    width: 110,
-    fontSize: 10,
-    color: C.ink,
-    textAlign: "left",
-  },
-  grandRow: {
-    flexDirection: "row-reverse",
-    backgroundColor: C.ink,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderTopWidth: 1.5,
-    borderTopColor: C.gold,
-  },
-  grandLabel: {
-    flex: 1,
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#ffffff90",
-    textAlign: "right",
-  },
-  grandValue: {
-    width: 110,
-    fontSize: 14,
-    fontWeight: "bold",
-    color: C.goldMid,
-    textAlign: "left",
-  },
-});
+  const currency = settings?.default_currency ?? "EGP";
+  const colW = `${Math.floor(100 / headers.length)}%`;
+  const colWidths = headers.map(() => colW);
 
-function InvoiceDocument(props: Omit<InvoicePdfOptions, "settings"> & { settings: CompanySettings | null }) {
+  // Badge
+  const badge = React.createElement(
+    View,
+    null,
+    React.createElement(Text, { style: base.badgeLabel }, "REPORT · تقرير"),
+    React.createElement(Text, { style: { ...base.badgeNumber, fontSize: 13 } }, title),
+    React.createElement(
+      Text,
+      { style: { fontSize: 8, color: C.ink4, textAlign: "left" as const, marginTop: 2 } },
+      `${fmtDateFull(new Date())}  ·  ${currency}`,
+    ),
+  );
+
+  // KPI Cards
+  const summaryRow = summaryCards?.length
+    ? React.createElement(
+        View,
+        {
+          style: {
+            flexDirection: "row" as const,
+            backgroundColor: C.goldPale,
+            borderWidth: 1,
+            borderColor: C.goldLine,
+            borderRadius: 2,
+            marginBottom: 12,
+          },
+        },
+        ...summaryCards.map((card, i) =>
+          React.createElement(
+            View,
+            {
+              key: `sc-${i}`,
+              style: {
+                flex: 1,
+                alignItems: "center" as const,
+                paddingVertical: 8,
+                borderLeftWidth: i > 0 ? 1 : 0,
+                borderLeftColor: C.goldLine,
+              },
+            },
+            React.createElement(
+              Text,
+              { style: { fontSize: 7, color: C.amberDark, textAlign: "center" as const } },
+              card.label,
+            ),
+            React.createElement(
+              Text,
+              { style: { fontSize: 12, fontWeight: 700, color: C.amber, textAlign: "center" as const, marginTop: 3 } },
+              card.value,
+            ),
+          ),
+        ),
+      )
+    : null;
+
+  return React.createElement(
+    Document,
+    null,
+    React.createElement(
+      Page,
+      { size: "A4", orientation, style: base.page },
+      React.createElement(PdfHeader, { settings, logoData, badgeElements: badge }),
+      React.createElement(LegalBar, { settings }),
+      React.createElement(
+        View,
+        { style: { ...base.body, marginTop: 12 } },
+        summaryRow,
+        React.createElement(Text, { style: base.sectionLabel }, "تفاصيل البيانات"),
+        React.createElement(DataTable, { headers, rows, colWidths }),
+        React.createElement(
+          Text,
+          { style: { fontSize: 7, color: C.ink6, textAlign: "left" as const, marginTop: 6 } },
+          `إجمالي السجلات: ${rows.length}`,
+        ),
+      ),
+      React.createElement(View, { style: { ...base.goldStripe, marginTop: 16 } }),
+      React.createElement(PdfFooter, { settings }),
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 12. InvoiceDocument
+// ─────────────────────────────────────────────────────────────────────────────
+function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null }) {
   const {
     type,
     number: num,
@@ -667,32 +750,42 @@ function InvoiceDocument(props: Omit<InvoicePdfOptions, "settings"> & { settings
     status,
     dueDate,
     paidAmount,
+    logoData,
   } = props;
 
-  const meta = TYPE_META[type] || TYPE_META.sales_invoice;
-  const currency = settings?.default_currency || "EGP";
+  const meta = TYPE_META[type] ?? TYPE_META.sales_invoice;
+  const currency = settings?.default_currency ?? "EGP";
+  const accent = meta.stripe;
 
   const pillText =
-    status === "posted" || status === "approved" ? "✓ مُعتمد" : status === "draft" ? "مسودة" : status || "";
+    status === "posted" || status === "approved" ? "✓ مُعتمد" : status === "draft" ? "◷ مسودة" : (status ?? "");
   const pillColor = status === "posted" || status === "approved" ? C.green : status === "draft" ? C.orange : C.ink5;
 
   // Badge
   const badge = React.createElement(
     View,
     null,
-    React.createElement(
-      Text,
-      { style: [base.badgeLabel, { color: meta.stripe === C.gold ? C.gold : meta.stripe }] },
-      meta.typeLabel
-    ),
+    React.createElement(Text, { style: { ...base.badgeLabel, color: accent } }, meta.typeLabel),
     React.createElement(Text, { style: base.badgeNumber }, `#${num}`),
     pillText
       ? React.createElement(
           Text,
-          { style: { fontSize: 8, fontWeight: "bold", color: pillColor, textAlign: "left" as any, marginTop: 4 } },
-          pillText
+          {
+            style: {
+              fontSize: 8,
+              fontWeight: 700,
+              color: pillColor,
+              textAlign: "left" as const,
+              marginTop: 4,
+              paddingHorizontal: 10,
+              paddingVertical: 2,
+              backgroundColor: `${pillColor}1a`,
+              borderRadius: 20,
+            },
+          },
+          pillText,
         )
-      : null
+      : null,
   );
 
   // Meta defs
@@ -701,14 +794,12 @@ function InvoiceDocument(props: Omit<InvoicePdfOptions, "settings"> & { settings
   if (reference) metaDefs.push({ label: "المرجع", value: reference });
   metaDefs.push({ label: "العملة", value: currency });
 
-  // Items table
+  // أعمدة الجدول
   const colHeaders: string[] = ["#", "الوصف", "الكمية", "سعر الوحدة"];
   if (showDiscount) colHeaders.push("الخصم");
   colHeaders.push(`الإجمالي (${currency})`);
 
-  const colWidths = showDiscount
-    ? ["6%", "34%", "12%", "18%", "12%", "18%"]
-    : ["6%", "38%", "14%", "22%", "20%"];
+  const colWidths = showDiscount ? ["6%", "34%", "12%", "18%", "12%", "18%"] : ["6%", "38%", "14%", "22%", "20%"];
 
   const tableRows: (string | number)[][] = items.map((item, idx) => {
     const row: (string | number)[] = [
@@ -724,70 +815,75 @@ function InvoiceDocument(props: Omit<InvoicePdfOptions, "settings"> & { settings
 
   const totalQty = items.reduce((a, i) => a + i.quantity, 0);
 
-  // Totals rows
-  const totalsElements: React.ReactNode[] = [];
-  totalsElements.push(
+  // صفوف الإجماليات
+  const totalsEls: React.ReactNode[] = [];
+
+  totalsEls.push(
     React.createElement(
       View,
       { key: "sub", style: inv.totalRow },
+      React.createElement(Text, { style: inv.totalValue }, fmtNum(subtotal)),
       React.createElement(Text, { style: inv.totalLabel }, "المجموع الفرعي"),
-      React.createElement(Text, { style: inv.totalValue }, fmtNum(subtotal))
-    )
+    ),
   );
+
   if (showTax && taxRate > 0) {
-    totalsElements.push(
+    totalsEls.push(
       React.createElement(
         View,
         { key: "tax", style: inv.totalRow },
+        React.createElement(Text, { style: inv.totalValue }, fmtNum(taxAmount)),
         React.createElement(Text, { style: inv.totalLabel }, `ضريبة القيمة المضافة ${taxRate}%`),
-        React.createElement(Text, { style: inv.totalValue }, fmtNum(taxAmount))
-      )
+      ),
     );
   }
+
   if (showDiscount && discountTotal && discountTotal > 0) {
-    totalsElements.push(
+    totalsEls.push(
       React.createElement(
         View,
         { key: "disc", style: inv.totalRow },
+        React.createElement(Text, { style: { ...inv.totalValue, color: C.red } }, `− ${fmtNum(discountTotal)}`),
         React.createElement(Text, { style: inv.totalLabel }, "الخصم"),
-        React.createElement(Text, { style: [inv.totalValue, { color: C.red }] }, `− ${fmtNum(discountTotal)}`)
-      )
+      ),
     );
   }
-  totalsElements.push(
+
+  totalsEls.push(
     React.createElement(
       View,
       { key: "grand", style: inv.grandRow },
+      React.createElement(Text, { style: inv.grandValue }, `${fmtNum(grandTotal)} ${currency}`),
       React.createElement(Text, { style: inv.grandLabel }, "الإجمالي المستحق"),
-      React.createElement(Text, { style: inv.grandValue }, `${fmtNum(grandTotal)} ${currency}`)
-    )
+    ),
   );
+
   if (paidAmount !== undefined && paidAmount > 0) {
-    totalsElements.push(
+    totalsEls.push(
       React.createElement(
         View,
         { key: "paid", style: inv.totalRow },
-        React.createElement(Text, { style: [inv.totalLabel, { fontWeight: "bold", color: C.green }] }, "المدفوع"),
         React.createElement(
           Text,
-          { style: [inv.totalValue, { fontWeight: "bold", color: C.green }] },
-          `${fmtNum(paidAmount)} ${currency}`
-        )
-      )
+          { style: { ...inv.totalValue, color: C.green, fontWeight: 700 } },
+          `${fmtNum(paidAmount)} ${currency}`,
+        ),
+        React.createElement(Text, { style: { ...inv.totalLabel, color: C.green } }, "المدفوع"),
+      ),
     );
     const balance = grandTotal - paidAmount;
     if (balance > 0.01) {
-      totalsElements.push(
+      totalsEls.push(
         React.createElement(
           View,
-          { key: "bal", style: inv.totalRow },
-          React.createElement(Text, { style: [inv.totalLabel, { fontWeight: "bold", color: C.red }] }, "المتبقي"),
+          { key: "bal", style: { ...inv.totalRow, borderBottomWidth: 0 } },
           React.createElement(
             Text,
-            { style: [inv.totalValue, { fontWeight: "bold", color: C.red }] },
-            `${fmtNum(balance)} ${currency}`
-          )
-        )
+            { style: { ...inv.totalValue, color: C.red, fontWeight: 700 } },
+            `${fmtNum(balance)} ${currency}`,
+          ),
+          React.createElement(Text, { style: { ...inv.totalLabel, color: C.red } }, "المتبقي"),
+        ),
       );
     }
   }
@@ -798,105 +894,158 @@ function InvoiceDocument(props: Omit<InvoicePdfOptions, "settings"> & { settings
     React.createElement(
       Page,
       { size: "A4", style: base.page },
-      // Header
-      React.createElement(PdfHeader, { settings, badgeElements: badge }),
-      // Meta bar
+
+      // ── الشريط العلوي بلون نوع الفاتورة
+      React.createElement(View, { style: { ...base.goldStripe, backgroundColor: accent } }),
+
+      // ── الهيدر
+      React.createElement(
+        View,
+        { style: base.header },
+        // يمين: شركة + شعار
+        React.createElement(
+          View,
+          { style: { flexDirection: "row", alignItems: "center" } },
+          React.createElement(
+            View,
+            { style: base.companyBlock },
+            React.createElement(Text, { style: base.companyName }, settings?.company_name ?? "النظام المحاسبي"),
+            settings?.company_name_en
+              ? React.createElement(Text, { style: base.companyNameEn }, settings.company_name_en)
+              : null,
+            settings?.business_activity
+              ? React.createElement(Text, { style: base.companyActivity }, settings.business_activity)
+              : null,
+          ),
+          logoData
+            ? React.createElement(Image, {
+                src: logoData,
+                style: { width: 44, height: 44, borderRadius: 8, marginLeft: 10 },
+              })
+            : React.createElement(
+                View,
+                {
+                  style: {
+                    width: 44,
+                    height: 44,
+                    backgroundColor: accent,
+                    borderRadius: 8,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginLeft: 10,
+                  },
+                },
+                React.createElement(
+                  Text,
+                  { style: { fontSize: 20, fontWeight: 700, color: C.white } },
+                  (settings?.company_name ?? "N").charAt(0).toUpperCase(),
+                ),
+              ),
+        ),
+        // يسار: badge
+        React.createElement(View, { style: base.badgeBlock }, badge),
+      ),
+
+      // ── Meta Bar
       React.createElement(
         View,
         { style: inv.metaBar },
         React.createElement(
           View,
           { style: inv.clientBox },
-          React.createElement(Text, { style: inv.clientLabel }, partyLabel),
-          React.createElement(
-            View,
-            { style: { width: 20, height: 1.5, backgroundColor: C.gold, marginBottom: 4 } }
-          ),
-          React.createElement(Text, { style: inv.clientName }, partyName)
+          React.createElement(Text, { style: { ...inv.clientLabel, color: accent } }, partyLabel),
+          React.createElement(View, { style: { width: 20, height: 1.5, backgroundColor: accent, marginBottom: 4 } }),
+          React.createElement(Text, { style: inv.clientName }, partyName),
         ),
         ...metaDefs.map((m, i) =>
           React.createElement(
             View,
             { key: `meta-${i}`, style: inv.metaCell },
             React.createElement(Text, { style: inv.metaLabel }, m.label),
-            React.createElement(Text, { style: inv.metaValue }, m.value)
-          )
-        )
+            React.createElement(Text, { style: inv.metaValue }, m.value),
+          ),
+        ),
       ),
-      // Items section
+
+      // ── البنود والإجماليات
       React.createElement(
         View,
         { style: base.body },
         React.createElement(Text, { style: base.sectionLabel }, "تفاصيل البنود"),
         React.createElement(DataTable, { headers: colHeaders, rows: tableRows, colWidths }),
-        // Bottom grid
+
         React.createElement(
           View,
           { style: inv.bottomGrid },
-          // Right side: summary + notes
+          // يمين: ملخص + ملاحظات
           React.createElement(
             View,
             { style: inv.summaryCol },
             React.createElement(
               View,
               { style: inv.summaryBar },
-              React.createElement(
-                View,
-                { style: inv.summaryItem },
-                React.createElement(Text, { style: inv.summaryLabel }, "منتجات: "),
-                React.createElement(Text, { style: inv.summaryValue }, String(items.length))
-              ),
-              React.createElement(
-                View,
-                { style: { width: 1, backgroundColor: C.goldLine, marginHorizontal: 10 } }
-              ),
-              React.createElement(
-                View,
-                { style: inv.summaryItem },
-                React.createElement(Text, { style: inv.summaryLabel }, "وحدات: "),
-                React.createElement(Text, { style: inv.summaryValue }, fmtNum(totalQty))
-              )
+              React.createElement(Text, { style: inv.summaryLabel }, "منتجات: "),
+              React.createElement(Text, { style: inv.summaryValue }, String(items.length)),
+              React.createElement(View, {
+                style: { width: 1, height: 14, backgroundColor: C.goldLine, marginHorizontal: 10 },
+              }),
+              React.createElement(Text, { style: inv.summaryLabel }, "وحدات: "),
+              React.createElement(Text, { style: inv.summaryValue }, fmtNum(totalQty)),
             ),
             notes
               ? React.createElement(
                   View,
                   { style: inv.notesBox },
                   React.createElement(Text, { style: inv.notesLabel }, "ملاحظات وشروط الدفع"),
-                  React.createElement(Text, { style: inv.notesText }, notes)
+                  React.createElement(Text, { style: inv.notesText }, notes),
                 )
-              : null
+              : null,
           ),
-          // Left side: totals
+          // يسار: إجماليات
           React.createElement(
             View,
             { style: inv.totalsCol },
             React.createElement(
               View,
               { style: { borderWidth: 1, borderColor: C.border, borderRadius: 2 } },
-              ...totalsElements
-            )
-          )
-        )
+              ...totalsEls,
+            ),
+          ),
+        ),
       ),
-      // Invoice notes
+
       settings?.invoice_notes
         ? React.createElement(
             Text,
-            { style: { fontSize: 7, color: C.ink6, textAlign: "center", marginTop: 4, paddingHorizontal: 30 } },
-            settings.invoice_notes
+            {
+              style: { fontSize: 7, color: C.ink6, textAlign: "center" as const, marginTop: 4, paddingHorizontal: 30 },
+            },
+            settings.invoice_notes,
           )
         : null,
-      // Bottom stripe
-      React.createElement(View, { style: [base.goldStripe, { marginTop: 14 }] }),
-      // Footer
-      React.createElement(PdfFooter, { settings })
-    )
+
+      React.createElement(View, { style: { ...base.goldStripe, backgroundColor: accent, marginTop: 14 } }),
+      React.createElement(PdfFooter, { settings }),
+    ),
   );
 }
 
-export async function exportInvoicePdf(options: InvoicePdfOptions) {
-  const meta = TYPE_META[options.type] || TYPE_META.sales_invoice;
-  const doc = React.createElement(InvoiceDocument, options) as any;
+// ─────────────────────────────────────────────────────────────────────────────
+// 13. الدوال المُصدَّرة — نفس الـ signature تماماً
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function exportReportPdf(options: ReportPdfOptions): Promise<void> {
+  const { filename, ...rest } = options;
+  const logoData = rest.settings?.logo_url ? await loadLogoBase64(rest.settings.logo_url) : null;
+  const doc = React.createElement(ReportDocument, { ...rest, logoData }) as React.ReactElement;
+  const blob = await pdf(doc).toBlob();
+  downloadBlob(blob, `${filename}.pdf`);
+}
+
+export async function exportInvoicePdf(options: InvoicePdfOptions): Promise<void> {
+  const meta = TYPE_META[options.type] ?? TYPE_META.sales_invoice;
+  const logoData = options.settings?.logo_url ? await loadLogoBase64(options.settings.logo_url) : null;
+  const doc = React.createElement(InvoiceDocument, { ...options, logoData }) as React.ReactElement;
   const blob = await pdf(doc).toBlob();
   downloadBlob(blob, `${meta.label}-${options.number}.pdf`);
 }
