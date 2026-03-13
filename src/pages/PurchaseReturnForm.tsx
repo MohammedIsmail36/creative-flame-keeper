@@ -276,6 +276,11 @@ export default function PurchaseReturnForm() {
               <CheckCircle className="h-4 w-4" />ترحيل
             </Button>
           )}
+          {!isNew && (
+            <Button variant="outline" onClick={handlePrint} className="gap-2">
+              <Printer className="h-4 w-4" />طباعة
+            </Button>
+          )}
           {isEditable && (
             <Button onClick={handleSave} disabled={saving} className="gap-2">
               <Save className="h-4 w-4" />{saving ? "جاري الحفظ..." : "حفظ"}
