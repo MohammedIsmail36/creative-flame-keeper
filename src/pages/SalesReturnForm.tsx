@@ -71,6 +71,7 @@ export default function SalesReturnForm() {
         .select("*, customers:customer_id(name)").eq("id", id).single();
       if (ret) {
         setReturnNumber(ret.return_number);
+        setPostedNumber(ret.posted_number || null);
         setCustomerId(ret.customer_id || "");
         setCustomerName(ret.customers?.name || "");
         setReturnDate(ret.return_date);
