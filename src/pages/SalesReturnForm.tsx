@@ -46,6 +46,7 @@ export default function SalesReturnForm() {
   const [saving, setSaving] = useState(false);
 
   const [returnNumber, setReturnNumber] = useState<number | null>(null);
+  const [postedNumber, setPostedNumber] = useState<number | null>(null);
   const [customerId, setCustomerId] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [returnDate, setReturnDate] = useState(new Date().toISOString().split("T")[0]);
@@ -70,6 +71,7 @@ export default function SalesReturnForm() {
         .select("*, customers:customer_id(name)").eq("id", id).single();
       if (ret) {
         setReturnNumber(ret.return_number);
+        setPostedNumber(ret.posted_number || null);
         setCustomerId(ret.customer_id || "");
         setCustomerName(ret.customers?.name || "");
         setReturnDate(ret.return_date);
@@ -258,7 +260,8 @@ export default function SalesReturnForm() {
       }
       await supabase.from("journal_entry_lines").insert(lines as any);
 
-      await (supabase.from("sales_returns" as any) as any).update({ status: "posted", journal_entry_id: je.id }).eq("id", id);
+      const nextPostedNum = await getNextPostedNumber("sales_returns");
+      await (supabase.from("sales_returns" as any) as any).update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum }).eq("id", id);
 
       for (const item of items) {
         if (!item.product_id) continue;
@@ -345,7 +348,7 @@ export default function SalesReturnForm() {
   async function handlePrint() {
     await exportInvoicePdf({
       type: "sales_return",
-      number: returnNumber || "جديد",
+      number: postedNumber ? formatDisplayNumber(settings?.sales_return_prefix || "SRN-", postedNumber, returnNumber || 0, status) : (returnNumber || "جديد"),
       date: returnDate,
       partyName: customerName || customers.find(c => c.id === customerId)?.name || "—",
       partyLabel: "العميل",
@@ -378,7 +381,7 @@ export default function SalesReturnForm() {
         <div className="flex items-center gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              {isNew ? "مرتجع بيع جديد" : `مرتجع بيع #${returnNumber}`}
+              {isNew ? "مرتجع بيع جديد" : `مرتجع بيع ${formatDisplayNumber(settings?.sales_return_prefix || "SRN-", postedNumber, returnNumber || 0, status)}`}
             </h1>
             {!isNew && <Badge variant={statusColors[status] as any} className="mt-1">{statusLabels[status]}</Badge>}
           </div>

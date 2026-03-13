@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 
 interface Return {
-  id: string; return_number: number; customer_id: string | null; customer_name?: string;
+  id: string; return_number: number; posted_number: number | null; customer_id: string | null; customer_name?: string;
   return_date: string; status: string; total: number;
 }
 
@@ -62,11 +63,13 @@ export default function SalesReturns() {
   const hasFilters = statusFilter !== "all" || dateFrom || dateTo;
   const clearFilters = () => { setStatusFilter("all"); setDateFrom(""); setDateTo(""); };
 
+  const prefix = settings?.sales_return_prefix || "SRN-";
+
   const columns: ColumnDef<Return, any>[] = [
     {
       accessorKey: "return_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="رقم المرتجع" />,
-      cell: ({ row }) => <span className="font-mono">#{row.original.return_number}</span>,
+      cell: ({ row }) => <span className="font-mono">{formatDisplayNumber(prefix, row.original.posted_number, row.original.return_number, row.original.status)}</span>,
     },
     {
       accessorKey: "customer_name",
@@ -170,7 +173,7 @@ export default function SalesReturns() {
               sheetName: "مرتجعات المبيعات",
               pdfTitle: "مرتجعات المبيعات",
               headers: ["رقم المرتجع", "العميل", "التاريخ", "الإجمالي", "الحالة"],
-              rows: filtered.map(r => [`#${r.return_number}`, r.customer_name || "—", r.return_date, formatCurrency(r.total), statusLabels[r.status] || r.status]),
+              rows: filtered.map(r => [formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status), r.customer_name || "—", r.return_date, formatCurrency(r.total), statusLabels[r.status] || r.status]),
               settings,
             }} disabled={loading} />
           </div>

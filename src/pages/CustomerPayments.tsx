@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 
 interface Customer { id: string; code: string; name: string; balance?: number; }
 interface Payment {
-  id: string; payment_number: number; customer_id: string; customer_name?: string;
+  id: string; payment_number: number; posted_number: number | null; customer_id: string; customer_name?: string;
   payment_date: string; amount: number; payment_method: string; reference: string | null;
   notes: string | null; status: string; journal_entry_id: string | null;
 }
@@ -163,14 +164,16 @@ export default function CustomerPayments() {
     ] as any);
 
     if (existingPaymentId) {
+      const nextPostedNum = await getNextPostedNumber("customer_payments");
       await (supabase.from("customer_payments" as any) as any)
-        .update({ status: "posted", journal_entry_id: je.id })
+        .update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum })
         .eq("id", existingPaymentId);
     } else {
+      const nextPostedNum = await getNextPostedNumber("customer_payments");
       await (supabase.from("customer_payments" as any) as any).insert({
         customer_id: custId, payment_date: date, amount: amt,
         payment_method: method, reference: ref, notes: note,
-        journal_entry_id: je.id, status: "posted",
+        journal_entry_id: je.id, status: "posted", posted_number: nextPostedNum,
       });
     }
 
@@ -270,11 +273,13 @@ export default function CustomerPayments() {
     setPaymentMethod("cash"); setReference(""); setNotes("");
   }
 
+  const prefix = settings?.customer_payment_prefix || "CPY-";
+
   const columns: ColumnDef<Payment, any>[] = [
     {
       accessorKey: "payment_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="#" />,
-      cell: ({ row }) => <span className="font-mono">#{row.original.payment_number}</span>,
+      cell: ({ row }) => <span className="font-mono">{formatDisplayNumber(prefix, row.original.posted_number, row.original.payment_number, row.original.status)}</span>,
     },
     {
       accessorKey: "customer_name",
