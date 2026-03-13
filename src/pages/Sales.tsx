@@ -24,7 +24,8 @@ const statusColors: Record<string, string> = { draft: "secondary", posted: "defa
 
 export default function Sales() {
   const { role } = useAuth();
-  const { formatCurrency } = useSettings();
+  const { settings, formatCurrency } = useSettings();
+  const prefix = settings?.sales_invoice_prefix || "INV-";
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
