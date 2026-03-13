@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -378,7 +379,7 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
                     </div>
                     <div className="space-y-2">
                       <Label>التاريخ</Label>
-                      <Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} />
+                      <DatePickerInput value={paymentDate} onChange={setPaymentDate} placeholder="اختر التاريخ" />
                     </div>
                     <div className="space-y-2">
                       <Label>طريقة الدفع</Label>

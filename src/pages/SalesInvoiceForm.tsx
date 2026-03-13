@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -418,7 +419,7 @@ export default function SalesInvoiceForm() {
             <div className="space-y-2">
               <Label>تاريخ الفاتورة</Label>
               {isEditable ? (
-                <Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
+                <DatePickerInput value={invoiceDate} onChange={setInvoiceDate} placeholder="اختر التاريخ" />
               ) : (
                 <p className="text-sm font-medium p-2 bg-muted/30 rounded">{invoiceDate}</p>
               )}

@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { FileDown, FileSpreadsheet, Users, Truck } from "lucide-react";
 import { exportToExcel } from "@/lib/excel-export";
@@ -302,11 +303,11 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
             </div>
             <div>
               <Label className="text-xs">من تاريخ</Label>
-              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+              <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" />
             </div>
             <div>
               <Label className="text-xs">إلى تاريخ</Label>
-              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+              <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" />
             </div>
             <Button onClick={fetchStatement} disabled={!selectedEntity || loading}>
               {loading ? "جاري التحميل..." : "عرض الكشف"}

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -366,7 +367,7 @@ export default function CustomerPayments() {
               </div>
               <div className="space-y-2">
                 <Label>التاريخ</Label>
-                <Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} />
+                <DatePickerInput value={paymentDate} onChange={setPaymentDate} placeholder="اختر التاريخ" />
               </div>
               <div className="space-y-2">
                 <Label>طريقة الدفع</Label>
@@ -426,8 +427,8 @@ export default function CustomerPayments() {
                 <SelectItem value="cancelled">ملغي</SelectItem>
               </SelectContent>
             </Select>
-            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36 h-9 text-sm" />
-            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36 h-9 text-sm" />
+            <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-[150px] h-9 text-sm" />
+            <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-[150px] h-9 text-sm" />
             {hasFilters && (
               <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1 text-muted-foreground hover:text-foreground">
                 <X className="h-3.5 w-3.5" />
