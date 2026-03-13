@@ -458,7 +458,7 @@ function ReportDocument({
 
 export async function exportReportPdf(options: ReportPdfOptions) {
   const { filename, ...rest } = options;
-  const doc = React.createElement(ReportDocument, rest);
+  const doc = React.createElement(ReportDocument, rest) as any;
   const blob = await pdf(doc).toBlob();
   downloadBlob(blob, `${filename}.pdf`);
 }
