@@ -237,11 +237,12 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
       }).select("id").single();
 
       // Create allocation
-      await (supabase.from(allocationTable as any) as any).insert({
+      const allocPayload: any = {
         payment_id: newPayment.id,
-        invoice_id: invoiceId,
         allocated_amount: amount,
-      });
+      };
+      allocPayload[allocIdCol] = invoiceId;
+      await (supabase.from(allocationTable as any) as any).insert(allocPayload);
 
       // Update entity balance (for returns, reverse the direction)
       const { data: entity } = await (supabase.from(entityTable as any) as any).select("balance").eq("id", entityId).single();
