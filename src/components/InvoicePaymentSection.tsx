@@ -37,7 +37,7 @@ interface AvailablePayment {
 }
 
 interface Props {
-  type: "sales" | "purchase";
+  type: "sales" | "purchase" | "sales_return" | "purchase_return";
   invoiceId: string;
   entityId: string;
   entityName: string;
@@ -72,12 +72,16 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
 
-  const isSales = type === "sales";
-  const paymentTable = isSales ? "customer_payments" : "supplier_payments";
-  const allocationTable = isSales ? "customer_payment_allocations" : "supplier_payment_allocations";
-  const invoiceTable = isSales ? "sales_invoices" : "purchase_invoices";
-  const entityIdCol = isSales ? "customer_id" : "supplier_id";
-  const entityTable = isSales ? "customers" : "suppliers";
+  const isCustomerSide = type === "sales" || type === "sales_return";
+  const paymentTable = isCustomerSide ? "customer_payments" : "supplier_payments";
+  const isReturn = type === "sales_return" || type === "purchase_return";
+  const allocationTable = isReturn
+    ? (type === "sales_return" ? "sales_return_payment_allocations" : "purchase_return_payment_allocations")
+    : (isCustomerSide ? "customer_payment_allocations" : "supplier_payment_allocations");
+  const allocIdCol = isReturn ? "return_id" : "invoice_id";
+  const invoiceTable = type === "sales" ? "sales_invoices" : type === "purchase" ? "purchase_invoices" : type === "sales_return" ? "sales_returns" : "purchase_returns";
+  const entityIdCol = isCustomerSide ? "customer_id" : "supplier_id";
+  const entityTable = isCustomerSide ? "customers" : "suppliers";
 
   useEffect(() => { fetchData(); }, [invoiceId, entityId]);
 
@@ -87,7 +91,7 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     // 1. Fetch allocations for this invoice (with payment details)
     const { data: allocData } = await (supabase.from(allocationTable as any) as any)
       .select("id, payment_id, allocated_amount")
-      .eq("invoice_id", invoiceId);
+      .eq(allocIdCol, invoiceId);
 
     let enrichedAllocations: Allocation[] = [];
     if (allocData && allocData.length > 0) {
@@ -158,10 +162,12 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     setPaidAmount(totalPaid);
     setAvailablePayments(available);
 
-    // Sync invoice paid_amount if it differs
-    await (supabase.from(invoiceTable as any) as any)
-      .update({ paid_amount: totalPaid })
-      .eq("id", invoiceId);
+    // Sync paid_amount if applicable (invoices have paid_amount, returns don't)
+    if (!isReturn) {
+      await (supabase.from(invoiceTable as any) as any)
+        .update({ paid_amount: totalPaid })
+        .eq("id", invoiceId);
+    }
 
     setLoading(false);
   }
@@ -180,7 +186,7 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     }
     setSaving(true);
     try {
-      const entityAccCode = isSales ? ACCOUNT_CODES.CUSTOMERS : ACCOUNT_CODES.SUPPLIERS;
+      const entityAccCode = isCustomerSide ? ACCOUNT_CODES.CUSTOMERS : ACCOUNT_CODES.SUPPLIERS;
       const cashBankCode = paymentMethod === "cash" ? ACCOUNT_CODES.CASH : ACCOUNT_CODES.BANK;
       const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [entityAccCode, cashBankCode]);
       const entityAcc = accounts?.find(a => a.code === entityAccCode);
@@ -191,21 +197,32 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
         return;
       }
 
-      const desc = isSales ? `تحصيل من عميل - فاتورة ${invoiceNumber}` : `سداد لمورد - فاتورة ${invoiceNumber}`;
+      const desc = type === "sales" ? `تحصيل من عميل - فاتورة ${invoiceNumber}` : type === "purchase" ? `سداد لمورد - فاتورة ${invoiceNumber}` : type === "sales_return" ? `رد مبلغ لعميل - مرتجع ${invoiceNumber}` : `استلام مبلغ من مورد - مرتجع ${invoiceNumber}`;
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
         description: desc, entry_date: paymentDate,
         total_debit: amount, total_credit: amount, status: "posted",
       } as any).select("id").single();
       if (jeError) throw jeError;
 
-      const lines = isSales
+      // For returns: reverse flow (sales return = pay customer, purchase return = receive from supplier)
+      const lines = (type === "sales")
         ? [
             { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: amount, credit: 0, description: desc },
             { journal_entry_id: je.id, account_id: entityAcc.id, debit: 0, credit: amount, description: `سداد ذمم عملاء` },
           ]
-        : [
+        : (type === "purchase")
+        ? [
             { journal_entry_id: je.id, account_id: entityAcc.id, debit: amount, credit: 0, description: `سداد ذمم موردين` },
             { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: 0, credit: amount, description: desc },
+          ]
+        : (type === "sales_return")
+        ? [
+            { journal_entry_id: je.id, account_id: entityAcc.id, debit: amount, credit: 0, description: `رد ذمم عملاء - مرتجع` },
+            { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: 0, credit: amount, description: desc },
+          ]
+        : [
+            { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: amount, credit: 0, description: desc },
+            { journal_entry_id: je.id, account_id: entityAcc.id, debit: 0, credit: amount, description: `استلام من مورد - مرتجع` },
           ];
       await supabase.from("journal_entry_lines").insert(lines as any);
 
@@ -220,16 +237,18 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
       }).select("id").single();
 
       // Create allocation
-      await (supabase.from(allocationTable as any) as any).insert({
+      const allocPayload: any = {
         payment_id: newPayment.id,
-        invoice_id: invoiceId,
         allocated_amount: amount,
-      });
+      };
+      allocPayload[allocIdCol] = invoiceId;
+      await (supabase.from(allocationTable as any) as any).insert(allocPayload);
 
-      // Update entity balance
+      // Update entity balance (for returns, reverse the direction)
       const { data: entity } = await (supabase.from(entityTable as any) as any).select("balance").eq("id", entityId).single();
       if (entity) {
-        await (supabase.from(entityTable as any) as any).update({ balance: (entity.balance || 0) - amount }).eq("id", entityId);
+        const balanceChange = isReturn ? amount : -amount;
+        await (supabase.from(entityTable as any) as any).update({ balance: (entity.balance || 0) + balanceChange }).eq("id", entityId);
       }
 
       toast({ title: "تم التسجيل", description: "تم تسجيل الدفعة وتخصيصها للفاتورة" });
@@ -254,11 +273,12 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     }
 
     try {
-      await (supabase.from(allocationTable as any) as any).insert({
+      const allocPayload2: any = {
         payment_id: payment.id,
-        invoice_id: invoiceId,
         allocated_amount: allocAmount,
-      });
+      };
+      allocPayload2[allocIdCol] = invoiceId;
+      await (supabase.from(allocationTable as any) as any).insert(allocPayload2);
 
       toast({
         title: "تم التخصيص",
