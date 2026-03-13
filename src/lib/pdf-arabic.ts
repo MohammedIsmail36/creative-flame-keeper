@@ -549,21 +549,21 @@ function PdfHeader({
 // ─────────────────────────────────────────────────────────────────────────────
 // 7. LegalBar
 // ─────────────────────────────────────────────────────────────────────────────
-function LegalBar({ settings }: { settings: CompanySettings | null }) {
-  const s = settings;
-  const parts: string[] = [];
-  if (s?.address) parts.push(s.address);
-  if (s?.phone) parts.push(s.phone);
-  if (s?.email) parts.push(s.email);
-  if (s?.tax_number) parts.push(`VAT: ${s.tax_number}`);
-  if (s?.commercial_register) parts.push(`C.R: ${s.commercial_register}`);
-  if (!parts.length) return null;
-  return React.createElement(
-    View,
-    { style: base.legalBar },
-    React.createElement(Text, { style: base.legalText }, parts.join("   ·   ")),
-  );
-}
+// function LegalBar({ settings }: { settings: CompanySettings | null }) {
+//   const s = settings;
+//   const parts: string[] = [];
+//   if (s?.address) parts.push(s.address);
+//   if (s?.phone) parts.push(s.phone);
+//   if (s?.email) parts.push(s.email);
+//   if (s?.tax_number) parts.push(`VAT: ${s.tax_number}`);
+//   if (s?.commercial_register) parts.push(`C.R: ${s.commercial_register}`);
+//   if (!parts.length) return null;
+//   return React.createElement(
+//     View,
+//     { style: base.legalBar },
+//     React.createElement(Text, { style: base.legalText }, parts.join("   ·   ")),
+//   );
+// }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 8. DataTable (Optimized)
@@ -690,9 +690,9 @@ type InvoiceType = "sales_invoice" | "purchase_invoice" | "sales_return" | "purc
 
 const TYPE_META: Record<InvoiceType, { label: string; typeLabel: string; stripe: string }> = {
   sales_invoice: { label: "فاتورة مبيعات", typeLabel: "INVOICE · فاتورة مبيعات ", stripe: C.gold },
-  purchase_invoice: { label: "فاتورة مشتريات", typeLabel: "INVOICE · فاتورة مشتريات", stripe: C.cyan },
-  sales_return: { label: "مرتجع مبيعات", typeLabel: "RETURN · مرتجع مبيعات", stripe: C.red },
-  purchase_return: { label: "مرتجع مشتريات", typeLabel: "RETURN · مرتجع مشتريات", stripe: C.orange },
+  purchase_invoice: { label: "فاتورة مشتريات", typeLabel: "INVOICE · فاتورة مشتريات", stripe: C.gold },
+  sales_return: { label: "مرتجع مبيعات", typeLabel: "RETURN · مرتجع مبيعات", stripe: C.gold },
+  purchase_return: { label: "مرتجع مشتريات", typeLabel: "RETURN · مرتجع مشتريات", stripe: C.gold },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
