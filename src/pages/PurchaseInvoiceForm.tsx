@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
