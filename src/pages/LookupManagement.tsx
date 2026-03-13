@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ArrowRight, X, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Upload } from "lucide-react";
 import { LookupImportDialog } from "@/components/LookupImportDialog";
 
 interface LookupConfig {
