@@ -706,7 +706,7 @@ function DataTable({
 type InvoiceType = "sales_invoice" | "purchase_invoice" | "sales_return" | "purchase_return";
 
 const TYPE_META: Record<InvoiceType, { label: string; typeLabel: string; stripe: string }> = {
-  sales_invoice: { label: "فاتورة مبيعات", typeLabel: "INVOICE · فاتورة ضريبية رسمية", stripe: C.gold },
+  sales_invoice: { label: "فاتورة مبيعات", typeLabel: "INVOICE · فاتورة مبيعات ", stripe: C.gold },
   purchase_invoice: { label: "فاتورة مشتريات", typeLabel: "INVOICE · فاتورة مشتريات", stripe: C.cyan },
   sales_return: { label: "مرتجع مبيعات", typeLabel: "RETURN · مرتجع مبيعات", stripe: C.red },
   purchase_return: { label: "مرتجع مشتريات", typeLabel: "RETURN · مرتجع مشتريات", stripe: C.orange },
@@ -889,7 +889,7 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
   const currency = settings?.default_currency ?? "EGP";
 
   const pillText =
-    status === "posted" || status === "approved" ? "✓ مُعتمد" : status === "draft" ? "◷ مسودة" : (status ?? "");
+    status === "posted" || status === "approved" ? "مؤكدة" : status === "draft" ? "مسودة" : (status ?? "");
   const pillColor = status === "posted" || status === "approved" ? C.green : status === "draft" ? C.orange : C.ink5;
 
   // Badge (وسط)
@@ -917,8 +917,7 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
 
   // Meta Bar
   // إزالة العملة
-  const metaDefs: { label: string; value: string }[] = [{ label: "تاريخ الإصدار", value: fmtDate(date) }];
-  if (dueDate) metaDefs.push({ label: "الاستحقاق", value: fmtDate(dueDate) });
+  const metaDefs: { label: string; value: string }[] = [{ label: "تاريخ الفاتورة", value: fmtDate(date) }];
   if (reference) metaDefs.push({ label: "المرجع", value: reference });
 
   const colHeaders: string[] = ["#", "الوصف", "الكمية", "سعر الوحدة"];
