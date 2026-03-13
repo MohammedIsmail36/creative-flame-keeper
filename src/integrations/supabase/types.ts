@@ -950,6 +950,45 @@ export type Database = {
           },
         ]
       }
+      purchase_return_payment_allocations: {
+        Row: {
+          allocated_amount: number
+          created_at: string
+          id: string
+          payment_id: string
+          return_id: string
+        }
+        Insert: {
+          allocated_amount: number
+          created_at?: string
+          id?: string
+          payment_id: string
+          return_id: string
+        }
+        Update: {
+          allocated_amount?: number
+          created_at?: string
+          id?: string
+          payment_id?: string
+          return_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_return_payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_return_payment_allocations_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_returns: {
         Row: {
           created_at: string
@@ -1199,6 +1238,45 @@ export type Database = {
           },
           {
             foreignKeyName: "sales_return_items_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "sales_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_return_payment_allocations: {
+        Row: {
+          allocated_amount: number
+          created_at: string
+          id: string
+          payment_id: string
+          return_id: string
+        }
+        Insert: {
+          allocated_amount: number
+          created_at?: string
+          id?: string
+          payment_id: string
+          return_id: string
+        }
+        Update: {
+          allocated_amount?: number
+          created_at?: string
+          id?: string
+          payment_id?: string
+          return_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_return_payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "customer_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_return_payment_allocations_return_id_fkey"
             columns: ["return_id"]
             isOneToOne: false
             referencedRelation: "sales_returns"
