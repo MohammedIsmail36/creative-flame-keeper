@@ -194,7 +194,7 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
         return;
       }
 
-      const desc = isSales ? `تحصيل من عميل - فاتورة ${invoiceNumber}` : `سداد لمورد - فاتورة ${invoiceNumber}`;
+      const desc = type === "sales" ? `تحصيل من عميل - فاتورة ${invoiceNumber}` : type === "purchase" ? `سداد لمورد - فاتورة ${invoiceNumber}` : type === "sales_return" ? `رد مبلغ لعميل - مرتجع ${invoiceNumber}` : `استلام مبلغ من مورد - مرتجع ${invoiceNumber}`;
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
         description: desc, entry_date: paymentDate,
         total_debit: amount, total_credit: amount, status: "posted",
