@@ -29,6 +29,7 @@ interface AccountComboboxProps {
   onValueChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export function AccountCombobox({
@@ -37,9 +38,9 @@ export function AccountCombobox({
   onValueChange,
   placeholder = "اختر الحساب...",
   className,
+  disabled = false,
 }: AccountComboboxProps) {
   const [open, setOpen] = React.useState(false);
-
   const selectedAccount = accounts.find((a) => a.id === value);
 
   return (
@@ -49,7 +50,12 @@ export function AccountCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between h-9 font-normal", className)}
+          disabled={disabled}
+          className={cn(
+            "w-full justify-between h-9 font-normal",
+            !value && "text-muted-foreground",
+            className
+          )}
         >
           <span className="truncate">
             {selectedAccount
@@ -59,29 +65,34 @@ export function AccountCombobox({
           <ChevronsUpDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[350px] p-0 pointer-events-auto" align="start">
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-0"
+        align="start"
+      >
         <Command dir="rtl">
           <CommandInput placeholder="ابحث عن حساب..." className="h-9" />
           <CommandList>
-            <CommandEmpty>لا توجد نتائج</CommandEmpty>
+            <CommandEmpty>لا توجد نتائج.</CommandEmpty>
             <CommandGroup>
               {accounts.map((account) => (
                 <CommandItem
                   key={account.id}
                   value={`${account.code} ${account.name}`}
                   onSelect={() => {
-                    onValueChange(account.id);
+                    onValueChange(account.id === value ? "" : account.id);
                     setOpen(false);
                   }}
                 >
+                  <span className="font-mono text-xs ml-2">
+                    {account.code}
+                  </span>
+                  <span>{account.name}</span>
                   <Check
                     className={cn(
-                      "ml-2 h-4 w-4",
+                      "mr-auto h-4 w-4",
                       value === account.id ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  <span className="font-mono text-xs ml-2">{account.code}</span>
-                  <span>{account.name}</span>
                 </CommandItem>
               ))}
             </CommandGroup>
