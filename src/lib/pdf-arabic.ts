@@ -35,13 +35,7 @@ Font.register({
   ],
 });
 
-Font.register({
-  family: "Mono",
-  fonts: [
-    { src: "/fonts/IBMPlexMono-Regular.ttf", fontWeight: 400 },
-    { src: "/fonts/IBMPlexMono-SemiBold.ttf", fontWeight: 600 },
-  ],
-});
+// No Mono font — use Tajawal for all text
 
 Font.registerHyphenationCallback((word) => [word]);
 
@@ -90,13 +84,17 @@ const fmtDateFull = (d: Date): string =>
 async function loadLogoBase64(url: string): Promise<string | null> {
   try {
     const res = await fetch(url);
+    if (!res.ok) return null;
     const blob = await res.blob();
-    return new Promise((resolve) => {
-      const r = new FileReader();
-      r.onloadend = () => resolve(r.result as string);
-      r.onerror = () => resolve(null);
-      r.readAsDataURL(blob);
-    });
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    let binary = "";
+    for (let i = 0; i < uint8.length; i++) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    const base64 = btoa(binary);
+    const mime = blob.type || "image/png";
+    return `data:${mime};base64,${base64}`;
   } catch {
     return null;
   }
@@ -278,7 +276,7 @@ const tbl = StyleSheet.create({
     textAlign: "left", // الإجمالي: محاذاة يسار (أرقام LTR)
     paddingVertical: 7,
     paddingHorizontal: 6,
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
   },
   cellName: {
     fontSize: 9,
@@ -289,7 +287,7 @@ const tbl = StyleSheet.create({
     paddingHorizontal: 6,
   },
   cellNum: {
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
     fontSize: 8.5,
     color: C.ink4,
     textAlign: "center",
@@ -341,7 +339,7 @@ const inv = StyleSheet.create({
     textAlign: "right",
   },
   metaValue: {
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
     fontSize: 10,
     fontWeight: 600,
     color: C.ink,
@@ -419,7 +417,7 @@ const inv = StyleSheet.create({
     fontSize: 10,
     color: C.ink,
     textAlign: "left",
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
   },
   grandRow: {
     flexDirection: "row-reverse", // ✅ RTL
@@ -442,7 +440,7 @@ const inv = StyleSheet.create({
     fontWeight: 700,
     color: C.goldMid,
     textAlign: "left",
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
   },
 });
 

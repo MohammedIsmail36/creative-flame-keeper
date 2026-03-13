@@ -12,7 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { toast } from "@/hooks/use-toast";
-import { ArrowRight, Plus, X, Save, CheckCircle, Trash2, Ban } from "lucide-react";
+import { ArrowRight, Plus, X, Save, CheckCircle, Trash2, Ban, Printer } from "lucide-react";
+import { exportInvoicePdf } from "@/lib/pdf-arabic";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS_BASIC } from "@/lib/product-utils";
@@ -211,6 +212,27 @@ export default function PurchaseReturnForm() {
     }
   }
 
+  async function handlePrint() {
+    await exportInvoicePdf({
+      type: "purchase_return",
+      number: returnNumber || "جديد",
+      date: returnDate,
+      partyName: supplierName || suppliers.find(s => s.id === supplierId)?.name || "—",
+      partyLabel: "المورد",
+      reference: reference || undefined,
+      notes: notes || undefined,
+      items: items.map(i => ({ name: i.product_name, quantity: i.quantity, unitPrice: i.unit_price, discount: i.discount, total: i.total })),
+      subtotal,
+      taxAmount,
+      taxRate,
+      grandTotal,
+      showTax,
+      showDiscount,
+      settings,
+      status,
+    });
+  }
+
   const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل" };
   const statusColors: Record<string, string> = { draft: "secondary", posted: "default" };
 
@@ -252,6 +274,11 @@ export default function PurchaseReturnForm() {
           {!isNew && isDraft && canEdit && (
             <Button variant="default" onClick={postReturn} className="gap-2 bg-green-600 hover:bg-green-700">
               <CheckCircle className="h-4 w-4" />ترحيل
+            </Button>
+          )}
+          {!isNew && (
+            <Button variant="outline" onClick={handlePrint} className="gap-2">
+              <Printer className="h-4 w-4" />طباعة
             </Button>
           )}
           {isEditable && (
