@@ -262,7 +262,7 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
         l.date, l.type, l.reference, l.description,
         l.debit ? formatCurrency(l.debit) : "-",
         l.credit ? formatCurrency(l.credit) : "-",
-        formatCurrency(Math.abs(l.runningBalance)) + (l.runningBalance >= 0 ? " مدين" : " دائن"),
+        l.runningBalance >= 0 ? formatCurrency(l.runningBalance) : `(${formatCurrency(Math.abs(l.runningBalance))})`,
       ]),
       summaryCards: [
         { label: "إجمالي المدين", value: formatCurrency(totalDebit) },
