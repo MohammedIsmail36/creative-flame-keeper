@@ -164,14 +164,16 @@ export default function CustomerPayments() {
     ] as any);
 
     if (existingPaymentId) {
+      const nextPostedNum = await getNextPostedNumber("customer_payments");
       await (supabase.from("customer_payments" as any) as any)
-        .update({ status: "posted", journal_entry_id: je.id })
+        .update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum })
         .eq("id", existingPaymentId);
     } else {
+      const nextPostedNum = await getNextPostedNumber("customer_payments");
       await (supabase.from("customer_payments" as any) as any).insert({
         customer_id: custId, payment_date: date, amount: amt,
         payment_method: method, reference: ref, notes: note,
-        journal_entry_id: je.id, status: "posted",
+        journal_entry_id: je.id, status: "posted", posted_number: nextPostedNum,
       });
     }
 
