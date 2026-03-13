@@ -335,7 +335,7 @@ const inv = StyleSheet.create({
     textAlign: "right",
   },
   metaValue: {
-    fontFamily: "Mono",
+    fontFamily: "Tajawal",
     fontSize: 10,
     fontWeight: 600,
     color: C.ink,
