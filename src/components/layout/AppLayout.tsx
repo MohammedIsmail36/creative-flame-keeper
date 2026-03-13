@@ -1,10 +1,11 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
+import { AppBreadcrumb } from "./AppBreadcrumb";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
+import { Separator } from "@/components/ui/separator";
 interface AppLayoutProps {
   children: React.ReactNode;
 }
@@ -26,6 +27,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="flex-1 flex flex-col">
           <header className="h-14 border-b bg-card flex items-center px-4 gap-3">
             <SidebarTrigger />
+            <Separator orientation="vertical" className="h-5 mx-1" />
+            <AppBreadcrumb />
             <div className="flex-1" />
             <div className="flex items-center gap-3">
               <button onClick={() => navigate("/profile")} className="flex items-center gap-2 text-sm hover:text-primary transition-colors cursor-pointer">
