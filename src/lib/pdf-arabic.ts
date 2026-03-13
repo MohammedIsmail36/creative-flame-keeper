@@ -141,13 +141,13 @@ const base = StyleSheet.create({
     textAlign: "center",
   },
   companyNameEn: {
-    fontSize: 8,
+    fontSize: 12,
     color: C.white,
     textAlign: "center",
     marginTop: 2,
   },
   companyActivity: {
-    fontSize: 7,
+    fontSize: 10,
     color: C.white,
     textAlign: "center",
     marginTop: 1,
