@@ -330,10 +330,7 @@ export default function Journal() {
         };
         const cfg = statusConfig[s] || statusConfig.draft;
         return (
-          <div className="flex items-center gap-1">
-            <Badge variant="secondary" className={cfg.className}>{cfg.label}</Badge>
-            {isLinked && s !== "cancelled" && <Badge variant="outline" className="text-[10px] px-1">آلي</Badge>}
-          </div>
+          <Badge variant="secondary" className={cfg.className}>{cfg.label}</Badge>
         );
       },
     },
