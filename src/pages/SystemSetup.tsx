@@ -222,7 +222,7 @@ export default function SystemSetup() {
               <AlertDialogHeader>
                 <AlertDialogTitle>⚠️ تأكيد تصفير قاعدة البيانات</AlertDialogTitle>
                 <AlertDialogDescription>
-                  هل أنت متأكد من تصفير قاعدة البيانات بالكامل؟ سيتم حذف جميع البيانات التشغيلية ولا يمكن التراجع عن هذا الإجراء. يُنصح بأخذ نسخة احتياطية أولاً.
+                  هل أنت متأكد من تصفير قاعدة البيانات بالكامل؟ سيتم حذف جميع البيانات والمستخدمين وإعادة بناء القاعدة من الصفر. لا يمكن التراجع عن هذا الإجراء. يُنصح بأخذ نسخة احتياطية أولاً.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="flex-row-reverse gap-2">
