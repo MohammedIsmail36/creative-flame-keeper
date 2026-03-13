@@ -896,7 +896,7 @@ function InvoiceDocument(props: Omit<InvoicePdfOptions, "settings"> & { settings
 
 export async function exportInvoicePdf(options: InvoicePdfOptions) {
   const meta = TYPE_META[options.type] || TYPE_META.sales_invoice;
-  const doc = React.createElement(InvoiceDocument, options);
+  const doc = React.createElement(InvoiceDocument, options) as any;
   const blob = await pdf(doc).toBlob();
   downloadBlob(blob, `${meta.label}-${options.number}.pdf`);
 }
