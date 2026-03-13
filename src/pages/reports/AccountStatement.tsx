@@ -337,7 +337,7 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">الرصيد النهائي</p>
                 <p className={`text-xl font-bold ${finalBalance >= 0 ? "text-success" : "text-destructive"}`}>
-                  {formatCurrency(Math.abs(finalBalance))} {finalBalance >= 0 ? "مدين" : "دائن"}
+                  {finalBalance >= 0 ? formatCurrency(finalBalance) : `(${formatCurrency(Math.abs(finalBalance))})`}
                 </p>
               </CardContent>
             </Card>
