@@ -272,9 +272,6 @@ export default function ProductForm() {
     <div className="space-y-6 max-w-4xl mx-auto" dir="rtl">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/products")}>
-          <ArrowRight className="h-5 w-5" />
-        </Button>
         <h1 className="text-2xl font-bold text-foreground">{isEdit ? "تعديل منتج" : "إضافة منتج جديد"}</h1>
       </div>
 
