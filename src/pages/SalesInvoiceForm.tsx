@@ -218,7 +218,8 @@ export default function SalesInvoiceForm() {
       }
       await supabase.from("journal_entry_lines").insert(lines as any);
 
-      await (supabase.from("sales_invoices" as any) as any).update({ status: "posted", journal_entry_id: je.id }).eq("id", id);
+      const nextPostedNum = await getNextPostedNumber("sales_invoices");
+      await (supabase.from("sales_invoices" as any) as any).update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum }).eq("id", id);
 
       // Update stock & record inventory movements with correct cost
       for (const item of items) {
