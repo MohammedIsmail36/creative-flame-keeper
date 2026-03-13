@@ -323,3 +323,172 @@ describe("Balance Sheet Equation", () => {
     expect(assets).toBe(liabilities + equity + netProfit);
   });
 });
+
+describe("Purchase Return Full Cycle - Journal Entries & Balances", () => {
+  // Scenario: Purchase invoice 5000, fully paid, then return 1000, supplier refunds 1000
+  
+  it("should have correct journal entries through full cycle", () => {
+    // Step 1: Purchase invoice posted
+    // Dr Inventory 5000, Cr Suppliers 5000
+    const purchaseJE = [
+      { debit: 5000, credit: 0 },  // Inventory
+      { debit: 0, credit: 5000 },  // Suppliers
+    ];
+    expect(validateJournalEntry(purchaseJE)).toBe(true);
+
+    // Step 2: Supplier payment (we pay them 5000)
+    // Dr Suppliers 5000, Cr Cash 5000
+    const paymentJE = [
+      { debit: 5000, credit: 0 },  // Suppliers
+      { debit: 0, credit: 5000 },  // Cash
+    ];
+    expect(validateJournalEntry(paymentJE)).toBe(true);
+
+    // Step 3: Purchase return posted (return 1000)
+    // Dr Suppliers 1000, Cr Inventory 1000
+    const returnJE = [
+      { debit: 1000, credit: 0 },  // Suppliers (reduces liability)
+      { debit: 0, credit: 1000 },  // Inventory (reduces inventory)
+    ];
+    expect(validateJournalEntry(returnJE)).toBe(true);
+
+    // Step 4: Supplier refund (they pay us back 1000)
+    // Dr Cash 1000, Cr Suppliers 1000
+    const refundJE = [
+      { debit: 1000, credit: 0 },  // Cash (we receive)
+      { debit: 0, credit: 1000 },  // Suppliers (settles debit balance)
+    ];
+    expect(validateJournalEntry(refundJE)).toBe(true);
+  });
+
+  it("should have correct supplier balance through cycle", () => {
+    let supplierBalance = 0;
+    
+    // Purchase invoice: we owe them more
+    supplierBalance += 5000;
+    expect(supplierBalance).toBe(5000);
+    
+    // Payment: we pay them
+    supplierBalance -= 5000;
+    expect(supplierBalance).toBe(0);
+    
+    // Purchase return: they owe us (negative means they owe us)
+    supplierBalance -= 1000;
+    expect(supplierBalance).toBe(-1000);
+    
+    // Refund: they pay us back, settling the balance
+    supplierBalance += 1000;
+    expect(supplierBalance).toBe(0);
+  });
+
+  it("should have correct supplier account ledger", () => {
+    // Supplier account (credit = liability increases, debit = liability decreases)
+    const supplierLedger = [
+      { debit: 0, credit: 5000 },     // Purchase invoice (we owe them)
+      { debit: 5000, credit: 0 },     // Payment (we paid)
+      { debit: 1000, credit: 0 },     // Purchase return (reduces what we owe)
+      { debit: 0, credit: 1000 },     // Refund (settles return credit)
+    ];
+    const totalDebit = supplierLedger.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = supplierLedger.reduce((s, l) => s + l.credit, 0);
+    // Net should be zero - all settled
+    expect(totalDebit).toBe(totalCredit); // 6000 = 6000
+  });
+
+  it("should have correct cash account through cycle", () => {
+    // Cash movements
+    let cashBalance = 10000; // Starting cash
+    
+    cashBalance -= 5000; // Paid supplier
+    expect(cashBalance).toBe(5000);
+    
+    cashBalance += 1000; // Received refund from supplier
+    expect(cashBalance).toBe(6000);
+    
+    // Net cash impact: -4000 (paid 5000, got 1000 back)
+    expect(10000 - cashBalance).toBe(4000);
+  });
+});
+
+describe("Sales Return Full Cycle - Journal Entries & Balances", () => {
+  // Scenario: Sales invoice 5000, customer paid, then return 1000, we refund customer 1000
+  
+  it("should have correct journal entries through full cycle", () => {
+    // Step 1: Sales invoice posted (with COGS)
+    // Dr Customers 5000, Cr Revenue 5000
+    // Dr COGS 3000, Cr Inventory 3000
+    const salesJE = [
+      { debit: 5000, credit: 0 },  // Customers
+      { debit: 0, credit: 5000 },  // Revenue
+      { debit: 3000, credit: 0 },  // COGS
+      { debit: 0, credit: 3000 },  // Inventory
+    ];
+    expect(validateJournalEntry(salesJE)).toBe(true);
+
+    // Step 2: Customer payment (they pay us 5000)
+    // Dr Cash 5000, Cr Customers 5000
+    const paymentJE = [
+      { debit: 5000, credit: 0 },  // Cash
+      { debit: 0, credit: 5000 },  // Customers
+    ];
+    expect(validateJournalEntry(paymentJE)).toBe(true);
+
+    // Step 3: Sales return posted (return 1000 worth, cost 600)
+    // Dr Revenue 1000, Cr Customers 1000
+    // Dr Inventory 600, Cr COGS 600
+    const returnJE = [
+      { debit: 1000, credit: 0 },  // Revenue (reduces revenue)
+      { debit: 0, credit: 1000 },  // Customers (reduces what they owe / we owe them)
+      { debit: 600, credit: 0 },   // Inventory (returns to stock)
+      { debit: 0, credit: 600 },   // COGS (reverses cost)
+    ];
+    expect(validateJournalEntry(returnJE)).toBe(true);
+
+    // Step 4: Refund to customer (we pay them back 1000)
+    // Dr Customers 1000, Cr Cash 1000
+    const refundJE = [
+      { debit: 1000, credit: 0 },  // Customers (settles credit balance)
+      { debit: 0, credit: 1000 },  // Cash (we pay out)
+    ];
+    expect(validateJournalEntry(refundJE)).toBe(true);
+  });
+
+  it("should have correct customer balance through cycle", () => {
+    let customerBalance = 0;
+    
+    // Sales invoice: customer owes us
+    customerBalance += 5000;
+    expect(customerBalance).toBe(5000);
+    
+    // Customer payment
+    customerBalance -= 5000;
+    expect(customerBalance).toBe(0);
+    
+    // Sales return: we owe customer (negative = we owe them)
+    customerBalance -= 1000;
+    expect(customerBalance).toBe(-1000);
+    
+    // Refund: we pay customer back
+    customerBalance += 1000;
+    expect(customerBalance).toBe(0);
+  });
+
+  it("should have correct customer account ledger", () => {
+    const customerLedger = [
+      { debit: 5000, credit: 0 },     // Sales invoice (they owe us)
+      { debit: 0, credit: 5000 },     // Payment (they paid)
+      { debit: 0, credit: 1000 },     // Sales return (reduces what they owe / we owe them)
+      { debit: 1000, credit: 0 },     // Refund (settles return credit)
+    ];
+    const totalDebit = customerLedger.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = customerLedger.reduce((s, l) => s + l.credit, 0);
+    expect(totalDebit).toBe(totalCredit); // 6000 = 6000
+  });
+
+  it("should have correct net profit after return", () => {
+    const revenue = 5000 - 1000; // Revenue minus return
+    const cogs = 3000 - 600;     // COGS minus reversed cost
+    const netProfit = revenue - cogs;
+    expect(netProfit).toBe(1600); // 4000 - 2400
+  });
+});
