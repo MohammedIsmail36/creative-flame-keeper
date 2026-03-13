@@ -75,6 +75,7 @@ export default function SalesInvoiceForm() {
         .select("*, customers:customer_id(name)").eq("id", id).single();
       if (inv) {
         setInvoiceNumber(inv.invoice_number);
+        setPostedNumber(inv.posted_number || null);
         setCustomerId(inv.customer_id || "");
         setCustomerName(inv.customers?.name || "");
         setInvoiceDate(inv.invoice_date);
