@@ -59,7 +59,7 @@ export default function Sales() {
     {
       accessorKey: "invoice_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="رقم الفاتورة" />,
-      cell: ({ row }) => <span className="font-mono">#{row.original.invoice_number}</span>,
+      cell: ({ row }) => <span className="font-mono">{formatDisplayNumber(prefix, row.original.posted_number, row.original.invoice_number, row.original.status)}</span>,
     },
     {
       accessorKey: "customer_name",
