@@ -24,7 +24,8 @@ const statusColors: Record<string, string> = { draft: "secondary", posted: "defa
 
 export default function Purchases() {
   const { role } = useAuth();
-  const { formatCurrency } = useSettings();
+  const { settings, formatCurrency } = useSettings();
+  const prefix = settings?.purchase_invoice_prefix || "PUR-";
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
