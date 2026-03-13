@@ -523,7 +523,7 @@ function PdfHeader({
         ),
       );
 
-   return React.createElement(
+  return React.createElement(
     View,
     null,
     React.createElement(View, { style: { ...base.goldStripe, backgroundColor: accentColor } }),
@@ -578,7 +578,6 @@ const WIDE_KEYWORDS = [
   "عنوان",
   "barcode",
   "باركود",
-  "كود",
   "رقم المنتج",
   "العميل",
   "الجهة",
@@ -594,6 +593,7 @@ const NARROW_KEYWORDS = [
   "رصيد",
   "مبلغ",
   "#",
+  "كود",
   "رقم",
   "تاريخ",
   "نسبة",
@@ -981,7 +981,6 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
       { size: "A4", style: base.page },
       // Header with badge inline
       React.createElement(PdfHeader, { settings, logoData, accentColor: accent, badge }),
-
 
       // Meta Bar
       React.createElement(
