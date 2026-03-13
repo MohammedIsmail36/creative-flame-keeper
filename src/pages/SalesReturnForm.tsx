@@ -328,7 +328,7 @@ export default function SalesReturnForm() {
             <div className="space-y-2">
               <Label>تاريخ المرتجع</Label>
               {isEditable ? (
-                <Input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)} />
+                <DatePickerInput value={returnDate} onChange={setReturnDate} placeholder="اختر التاريخ" />
               ) : (
                 <p className="text-sm font-medium p-2 bg-muted/30 rounded">{returnDate}</p>
               )}

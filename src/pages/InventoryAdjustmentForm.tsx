@@ -326,7 +326,7 @@ export default function InventoryAdjustmentForm() {
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label>التاريخ</Label>
-            <Input type="date" value={adjustmentDate} onChange={e => setAdjustmentDate(e.target.value)} disabled={!editMode} />
+            <DatePickerInput value={adjustmentDate} onChange={setAdjustmentDate} placeholder="اختر التاريخ" disabled={!editMode} />
           </div>
           <div className="md:col-span-2">
             <Label>الوصف</Label>

@@ -171,8 +171,8 @@ export default function ProductAnalytics() {
       <Card>
         <CardContent className="pt-4">
           <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-1"><Label>من تاريخ</Label><Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-40" /></div>
-            <div className="space-y-1"><Label>إلى تاريخ</Label><Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-40" /></div>
+            <div className="space-y-1"><Label>من تاريخ</Label><DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-40" /></div>
+            <div className="space-y-1"><Label>إلى تاريخ</Label><DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-40" /></div>
             <div className="space-y-1">
               <Label>نوع التقرير</Label>
               <Select value={view} onValueChange={(v: any) => setView(v)}>
