@@ -1000,10 +1000,9 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
     React.createElement(
       Page,
       { size: "A4", style: base.page },
-      // Header
-      React.createElement(PdfHeader, { settings, logoData, accentColor: accent }),
-      // Badge (مدرج هنا ليظهر في المنتصف بعد الهيدر)
-      React.createElement(View, { style: { backgroundColor: C.ink, paddingBottom: 12 } }, badge),
+      // Header with badge inline
+      React.createElement(PdfHeader, { settings, logoData, accentColor: accent, badge }),
+
 
       // Meta Bar
       React.createElement(
