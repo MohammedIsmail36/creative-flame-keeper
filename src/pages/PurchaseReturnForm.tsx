@@ -21,7 +21,7 @@ import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS_BASIC } from "@/lib/product-utils";
 
 interface Supplier { id: string; code: string; name: string; balance?: number; }
-type Product = ProductWithBrand & { purchase_price: number; quantity_on_hand: number; };
+type Product = ProductWithBrand & { purchase_price: number; quantity_on_hand: number; selling_price?: number; };
 interface ReturnItem { id?: string; product_id: string; product_name: string; quantity: number; unit_price: number; discount: number; total: number; }
 
 const ACCOUNT_CODES = { INVENTORY: "1104", SUPPLIERS: "2101" };
