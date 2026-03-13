@@ -73,6 +73,7 @@ export default function PurchaseInvoiceForm() {
         .select("*, suppliers:supplier_id(name)").eq("id", id).single();
       if (inv) {
         setInvoiceNumber(inv.invoice_number);
+        setPostedNumber(inv.posted_number || null);
         setSupplierId(inv.supplier_id || "");
         setSupplierName(inv.suppliers?.name || "");
         setInvoiceDate(inv.invoice_date);
