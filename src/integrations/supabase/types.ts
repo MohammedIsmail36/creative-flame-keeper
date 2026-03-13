@@ -76,6 +76,7 @@ export type Database = {
           id: string
           invoice_footer: string | null
           invoice_notes: string | null
+          journal_entry_prefix: string
           logo_url: string | null
           payment_terms_days: number
           phone: string | null
@@ -106,6 +107,7 @@ export type Database = {
           id?: string
           invoice_footer?: string | null
           invoice_notes?: string | null
+          journal_entry_prefix?: string
           logo_url?: string | null
           payment_terms_days?: number
           phone?: string | null
@@ -136,6 +138,7 @@ export type Database = {
           id?: string
           invoice_footer?: string | null
           invoice_notes?: string | null
+          journal_entry_prefix?: string
           logo_url?: string | null
           payment_terms_days?: number
           phone?: string | null
@@ -205,6 +208,7 @@ export type Database = {
           payment_date: string
           payment_method: string
           payment_number: number
+          posted_number: number | null
           reference: string | null
           sales_invoice_id: string | null
           status: string
@@ -221,6 +225,7 @@ export type Database = {
           payment_date?: string
           payment_method?: string
           payment_number?: number
+          posted_number?: number | null
           reference?: string | null
           sales_invoice_id?: string | null
           status?: string
@@ -237,6 +242,7 @@ export type Database = {
           payment_date?: string
           payment_method?: string
           payment_number?: number
+          posted_number?: number | null
           reference?: string | null
           sales_invoice_id?: string | null
           status?: string
@@ -473,6 +479,7 @@ export type Database = {
           entry_date: string
           entry_number: number
           id: string
+          posted_number: number | null
           status: string
           total_credit: number
           total_debit: number
@@ -485,6 +492,7 @@ export type Database = {
           entry_date?: string
           entry_number?: number
           id?: string
+          posted_number?: number | null
           status?: string
           total_credit?: number
           total_debit?: number
@@ -497,6 +505,7 @@ export type Database = {
           entry_date?: string
           entry_number?: number
           id?: string
+          posted_number?: number | null
           status?: string
           total_credit?: number
           total_debit?: number
@@ -836,6 +845,7 @@ export type Database = {
           journal_entry_id: string | null
           notes: string | null
           paid_amount: number
+          posted_number: number | null
           reference: string | null
           status: string
           subtotal: number
@@ -855,6 +865,7 @@ export type Database = {
           journal_entry_id?: string | null
           notes?: string | null
           paid_amount?: number
+          posted_number?: number | null
           reference?: string | null
           status?: string
           subtotal?: number
@@ -874,6 +885,7 @@ export type Database = {
           journal_entry_id?: string | null
           notes?: string | null
           paid_amount?: number
+          posted_number?: number | null
           reference?: string | null
           status?: string
           subtotal?: number
@@ -997,6 +1009,7 @@ export type Database = {
           id: string
           journal_entry_id: string | null
           notes: string | null
+          posted_number: number | null
           purchase_invoice_id: string | null
           reference: string | null
           return_date: string
@@ -1015,6 +1028,7 @@ export type Database = {
           id?: string
           journal_entry_id?: string | null
           notes?: string | null
+          posted_number?: number | null
           purchase_invoice_id?: string | null
           reference?: string | null
           return_date?: string
@@ -1033,6 +1047,7 @@ export type Database = {
           id?: string
           journal_entry_id?: string | null
           notes?: string | null
+          posted_number?: number | null
           purchase_invoice_id?: string | null
           reference?: string | null
           return_date?: string
@@ -1132,6 +1147,7 @@ export type Database = {
           journal_entry_id: string | null
           notes: string | null
           paid_amount: number
+          posted_number: number | null
           reference: string | null
           status: string
           subtotal: number
@@ -1151,6 +1167,7 @@ export type Database = {
           journal_entry_id?: string | null
           notes?: string | null
           paid_amount?: number
+          posted_number?: number | null
           reference?: string | null
           status?: string
           subtotal?: number
@@ -1170,6 +1187,7 @@ export type Database = {
           journal_entry_id?: string | null
           notes?: string | null
           paid_amount?: number
+          posted_number?: number | null
           reference?: string | null
           status?: string
           subtotal?: number
@@ -1293,6 +1311,7 @@ export type Database = {
           id: string
           journal_entry_id: string | null
           notes: string | null
+          posted_number: number | null
           reference: string | null
           return_date: string
           return_number: number
@@ -1311,6 +1330,7 @@ export type Database = {
           id?: string
           journal_entry_id?: string | null
           notes?: string | null
+          posted_number?: number | null
           reference?: string | null
           return_date?: string
           return_number?: number
@@ -1329,6 +1349,7 @@ export type Database = {
           id?: string
           journal_entry_id?: string | null
           notes?: string | null
+          posted_number?: number | null
           reference?: string | null
           return_date?: string
           return_number?: number
@@ -1413,6 +1434,7 @@ export type Database = {
           payment_date: string
           payment_method: string
           payment_number: number
+          posted_number: number | null
           purchase_invoice_id: string | null
           reference: string | null
           status: string
@@ -1429,6 +1451,7 @@ export type Database = {
           payment_date?: string
           payment_method?: string
           payment_number?: number
+          posted_number?: number | null
           purchase_invoice_id?: string | null
           reference?: string | null
           status?: string
@@ -1445,6 +1468,7 @@ export type Database = {
           payment_date?: string
           payment_method?: string
           payment_number?: number
+          posted_number?: number | null
           purchase_invoice_id?: string | null
           reference?: string | null
           status?: string

@@ -436,6 +436,13 @@ export default function SettingsPage() {
                   <Input value={settings.supplier_payment_prefix} onChange={(e) => updateField("supplier_payment_prefix", e.target.value)} dir="ltr" />
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>القيود المحاسبية</Label>
+                  <Input value={(settings as any).journal_entry_prefix || "JV-"} onChange={(e) => updateField("journal_entry_prefix", e.target.value)} dir="ltr" />
+                </div>
+              </div>
             </CardContent>
           </Card>
 

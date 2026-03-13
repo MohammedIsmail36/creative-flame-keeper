@@ -11,10 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus, FileText, Eye, X } from "lucide-react";
+import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { ExportMenu } from "@/components/ExportMenu";
 
 interface Invoice {
-  id: string; invoice_number: number; customer_id: string | null; customer_name?: string;
+  id: string; invoice_number: number; posted_number: number | null; customer_id: string | null; customer_name?: string;
   invoice_date: string; status: string; subtotal: number; discount: number; tax: number; total: number; paid_amount: number; notes: string | null;
 }
 
@@ -23,7 +24,8 @@ const statusColors: Record<string, string> = { draft: "secondary", posted: "defa
 
 export default function Sales() {
   const { role } = useAuth();
-  const { formatCurrency } = useSettings();
+  const { settings, formatCurrency } = useSettings();
+  const prefix = settings?.sales_invoice_prefix || "INV-";
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +59,7 @@ export default function Sales() {
     {
       accessorKey: "invoice_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="رقم الفاتورة" />,
-      cell: ({ row }) => <span className="font-mono">#{row.original.invoice_number}</span>,
+      cell: ({ row }) => <span className="font-mono">{formatDisplayNumber(prefix, row.original.posted_number, row.original.invoice_number, row.original.status)}</span>,
     },
     {
       accessorKey: "customer_name",
@@ -154,7 +156,7 @@ export default function Sales() {
               sheetName: "فواتير البيع",
               pdfTitle: "فواتير البيع",
               headers: ["رقم الفاتورة", "العميل", "التاريخ", "الإجمالي", "الحالة"],
-              rows: filtered.map(i => [`#${i.invoice_number}`, i.customer_name || "—", i.invoice_date, formatCurrency(i.total), statusLabels[i.status] || i.status]),
+              rows: filtered.map(i => [formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status), i.customer_name || "—", i.invoice_date, formatCurrency(i.total), statusLabels[i.status] || i.status]),
               settings: null,
               pdfOrientation: "landscape",
             }} disabled={loading} />

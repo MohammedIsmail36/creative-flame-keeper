@@ -12,9 +12,10 @@ import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus, ShoppingCart, Eye, X } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
+import { formatDisplayNumber } from "@/lib/posted-number-utils";
 
 interface Invoice {
-  id: string; invoice_number: number; supplier_id: string | null; supplier_name?: string;
+  id: string; invoice_number: number; posted_number: number | null; supplier_id: string | null; supplier_name?: string;
   invoice_date: string; status: string; subtotal: number; discount: number; tax: number; total: number; paid_amount: number; notes: string | null;
 }
 
@@ -23,7 +24,8 @@ const statusColors: Record<string, string> = { draft: "secondary", posted: "defa
 
 export default function Purchases() {
   const { role } = useAuth();
-  const { formatCurrency } = useSettings();
+  const { settings, formatCurrency } = useSettings();
+  const prefix = settings?.purchase_invoice_prefix || "PUR-";
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function Purchases() {
     {
       accessorKey: "invoice_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="رقم الفاتورة" />,
-      cell: ({ row }) => <span className="font-mono">#{row.original.invoice_number}</span>,
+      cell: ({ row }) => <span className="font-mono">{formatDisplayNumber(prefix, row.original.posted_number, row.original.invoice_number, row.original.status)}</span>,
     },
     {
       accessorKey: "supplier_name",

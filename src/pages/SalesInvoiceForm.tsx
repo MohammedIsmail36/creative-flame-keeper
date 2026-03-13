@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,6 +50,7 @@ export default function SalesInvoiceForm() {
   const [saving, setSaving] = useState(false);
 
   const [invoiceNumber, setInvoiceNumber] = useState<number | null>(null);
+  const [postedNumber, setPostedNumber] = useState<number | null>(null);
   const [customerId, setCustomerId] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
@@ -73,6 +75,7 @@ export default function SalesInvoiceForm() {
         .select("*, customers:customer_id(name)").eq("id", id).single();
       if (inv) {
         setInvoiceNumber(inv.invoice_number);
+        setPostedNumber(inv.posted_number || null);
         setCustomerId(inv.customer_id || "");
         setCustomerName(inv.customers?.name || "");
         setInvoiceDate(inv.invoice_date);
@@ -215,7 +218,8 @@ export default function SalesInvoiceForm() {
       }
       await supabase.from("journal_entry_lines").insert(lines as any);
 
-      await (supabase.from("sales_invoices" as any) as any).update({ status: "posted", journal_entry_id: je.id }).eq("id", id);
+      const nextPostedNum = await getNextPostedNumber("sales_invoices");
+      await (supabase.from("sales_invoices" as any) as any).update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum }).eq("id", id);
 
       // Update stock & record inventory movements with correct cost
       for (const item of items) {
@@ -338,7 +342,7 @@ export default function SalesInvoiceForm() {
         <div className="flex items-center gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              {isNew ? "فاتورة بيع جديدة" : `فاتورة بيع #${invoiceNumber}`}
+              {isNew ? "فاتورة بيع جديدة" : `فاتورة بيع ${formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", postedNumber, invoiceNumber || 0, status)}`}
             </h1>
             {!isNew && <Badge variant={statusColors[status] as any} className="mt-1">{statusLabels[status]}</Badge>}
           </div>

@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Accounts from "./pages/Accounts";
 import Journal from "./pages/Journal";
+import JournalEntryForm from "./pages/JournalEntryForm";
 import Ledger from "./pages/Ledger";
 import Sales from "./pages/Sales";
 import SalesInvoiceForm from "./pages/SalesInvoiceForm";
@@ -60,6 +61,8 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
             <Route path="/accounts" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Accounts /></AppLayout></ProtectedRoute>} />
             <Route path="/journal" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Journal /></AppLayout></ProtectedRoute>} />
+            <Route path="/journal/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><JournalEntryForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/journal/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><JournalEntryForm /></AppLayout></ProtectedRoute>} />
             <Route path="/ledger" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Ledger /></AppLayout></ProtectedRoute>} />
             <Route path="/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Sales /></AppLayout></ProtectedRoute>} />
             <Route path="/sales/new" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesInvoiceForm /></AppLayout></ProtectedRoute>} />
