@@ -124,24 +124,15 @@ const base = StyleSheet.create({
     backgroundColor: C.ink,
     paddingHorizontal: 30,
     paddingVertical: 18,
-    // تم تغيير الاتجاه لـ column من أجل توسيط الـ Badge
-    flexDirection: "column",
-    alignItems: "center",
-  },
-
-  // صف الشركة والشعار (أعلى)
-  headerTopRow: {
-    width: "100%",
     flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
   },
 
-  // جانب الشركة
+  // جانب الشركة (يمين)
   companyBlock: {
-    maxWidth: "55%",
-    alignItems: "flex-end", // محاذاة النص يمين
+    maxWidth: "35%",
+    alignItems: "flex-end",
   },
   companyName: {
     fontSize: 14,
