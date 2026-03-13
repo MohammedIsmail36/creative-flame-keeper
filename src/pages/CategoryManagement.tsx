@@ -258,9 +258,6 @@ export default function CategoryManagement() {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/products")}>
-            <ArrowRight className="h-5 w-5" />
-          </Button>
           <div>
             <h1 className="text-xl font-bold text-foreground">إدارة التصنيفات</h1>
             <p className="text-xs text-muted-foreground">{items.length} تصنيف</p>
