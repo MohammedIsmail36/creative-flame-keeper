@@ -35,13 +35,7 @@ Font.register({
   ],
 });
 
-Font.register({
-  family: "Mono",
-  fonts: [
-    { src: "/fonts/IBMPlexMono-Regular.ttf", fontWeight: 400 },
-    { src: "/fonts/IBMPlexMono-SemiBold.ttf", fontWeight: 600 },
-  ],
-});
+// No Mono font — use Tajawal for all text
 
 Font.registerHyphenationCallback((word) => [word]);
 
