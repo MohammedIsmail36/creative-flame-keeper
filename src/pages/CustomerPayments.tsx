@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
