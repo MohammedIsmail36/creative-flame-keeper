@@ -45,6 +45,7 @@ export default function PurchaseReturnForm() {
   const [saving, setSaving] = useState(false);
 
   const [returnNumber, setReturnNumber] = useState<number | null>(null);
+  const [postedNumber, setPostedNumber] = useState<number | null>(null);
   const [supplierId, setSupplierId] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [returnDate, setReturnDate] = useState(new Date().toISOString().split("T")[0]);
