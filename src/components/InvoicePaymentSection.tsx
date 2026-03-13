@@ -72,12 +72,13 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
 
-  const isSales = type === "sales";
-  const paymentTable = isSales ? "customer_payments" : "supplier_payments";
-  const allocationTable = isSales ? "customer_payment_allocations" : "supplier_payment_allocations";
-  const invoiceTable = isSales ? "sales_invoices" : "purchase_invoices";
-  const entityIdCol = isSales ? "customer_id" : "supplier_id";
-  const entityTable = isSales ? "customers" : "suppliers";
+  const isCustomerSide = type === "sales" || type === "sales_return";
+  const paymentTable = isCustomerSide ? "customer_payments" : "supplier_payments";
+  const allocationTable = isCustomerSide ? "customer_payment_allocations" : "supplier_payment_allocations";
+  const invoiceTable = type === "sales" ? "sales_invoices" : type === "purchase" ? "purchase_invoices" : type === "sales_return" ? "sales_returns" : "purchase_returns";
+  const entityIdCol = isCustomerSide ? "customer_id" : "supplier_id";
+  const entityTable = isCustomerSide ? "customers" : "suppliers";
+  const isReturn = type === "sales_return" || type === "purchase_return";
 
   useEffect(() => { fetchData(); }, [invoiceId, entityId]);
 
