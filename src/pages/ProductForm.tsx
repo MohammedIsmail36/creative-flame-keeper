@@ -149,7 +149,7 @@ export default function ProductForm() {
       barcode: barcode.trim() || null,
       purchase_price: purchasePrice,
       selling_price: sellingPrice,
-      quantity_on_hand: quantity,
+      quantity_on_hand: isEdit ? undefined : quantity,
       min_stock_level: minStock,
       main_image_url: mainImageUrl,
     };
