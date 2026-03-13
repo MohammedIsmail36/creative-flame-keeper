@@ -273,11 +273,12 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     }
 
     try {
-      await (supabase.from(allocationTable as any) as any).insert({
+      const allocPayload2: any = {
         payment_id: payment.id,
-        invoice_id: invoiceId,
         allocated_amount: allocAmount,
-      });
+      };
+      allocPayload2[allocIdCol] = invoiceId;
+      await (supabase.from(allocationTable as any) as any).insert(allocPayload2);
 
       toast({
         title: "تم التخصيص",
