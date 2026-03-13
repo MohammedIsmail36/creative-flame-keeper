@@ -271,9 +271,6 @@ export default function SalesReturnForm() {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/sales-returns")}>
-            <ArrowRight className="h-5 w-5" />
-          </Button>
           <div>
             <h1 className="text-2xl font-bold text-foreground">
               {isNew ? "مرتجع بيع جديد" : `مرتجع بيع #${returnNumber}`}

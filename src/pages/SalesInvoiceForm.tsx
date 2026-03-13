@@ -336,9 +336,6 @@ export default function SalesInvoiceForm() {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/sales")}>
-            <ArrowRight className="h-5 w-5" />
-          </Button>
           <div>
             <h1 className="text-2xl font-bold text-foreground">
               {isNew ? "فاتورة بيع جديدة" : `فاتورة بيع #${invoiceNumber}`}
