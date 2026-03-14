@@ -278,10 +278,7 @@ export default function SalesReturnForm() {
         });
       }
 
-      const { data: freshCust } = await (supabase.from("customers" as any) as any).select("balance").eq("id", customerId).single();
-      if (freshCust) {
-        await (supabase.from("customers" as any) as any).update({ balance: (freshCust.balance || 0) - grandTotal }).eq("id", customerId);
-      }
+      await recalculateEntityBalance("customer", customerId);
 
       toast({ title: "تم الترحيل", description: "تم ترحيل مرتجع البيع" });
       loadData();

@@ -204,11 +204,7 @@ export default function PurchaseInvoiceForm() {
         });
       }
 
-      // Fetch fresh supplier balance from DB to avoid stale data
-      const { data: freshSup } = await (supabase.from("suppliers" as any) as any).select("balance").eq("id", supplierId).single();
-      if (freshSup) {
-        await (supabase.from("suppliers" as any) as any).update({ balance: (freshSup.balance || 0) + grandTotal }).eq("id", supplierId);
-      }
+      await recalculateEntityBalance("supplier", supplierId);
 
       toast({ title: "تم الترحيل", description: "تم ترحيل فاتورة الشراء وتوليد القيد المحاسبي وتحديث المخزون" });
       loadData();

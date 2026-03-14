@@ -238,11 +238,7 @@ export default function SalesInvoiceForm() {
         }
       }
 
-      // Update customer balance - fetch fresh from DB to avoid stale data
-      const { data: freshCust } = await (supabase.from("customers" as any) as any).select("balance").eq("id", customerId).single();
-      if (freshCust) {
-        await (supabase.from("customers" as any) as any).update({ balance: (freshCust.balance || 0) + grandTotal }).eq("id", customerId);
-      }
+      await recalculateEntityBalance("customer", customerId);
 
       toast({ title: "تم الترحيل", description: "تم ترحيل فاتورة البيع وتوليد القيد المحاسبي وتحديث المخزون" });
       loadData();
