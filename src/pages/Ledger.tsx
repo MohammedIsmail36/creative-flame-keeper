@@ -46,6 +46,8 @@ const formatNumber = (val: number) =>
 const formatCurrency = (val: number) => `${formatNumber(val)} EGP`;
 
 export default function Ledger() {
+  const { settings } = useSettings();
+  const jePrefix = (settings as any)?.journal_entry_prefix || "JV-";
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [lines, setLines] = useState<LedgerLine[]>([]);
   const [loading, setLoading] = useState(true);
