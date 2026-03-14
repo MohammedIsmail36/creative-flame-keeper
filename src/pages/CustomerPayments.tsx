@@ -295,6 +295,19 @@ export default function CustomerPayments() {
       cell: ({ row }) => <span className="font-mono">{formatDisplayNumber(prefix, row.original.posted_number, row.original.payment_number, row.original.status)}</span>,
     },
     {
+      id: "type",
+      header: "النوع",
+      cell: ({ row }) => {
+        const isRefund = row.original.isRefund;
+        return (
+          <Badge variant={isRefund ? "destructive" : "default"} className="gap-1">
+            {isRefund ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownLeft className="h-3 w-3" />}
+            {isRefund ? "رد مبلغ" : "تحصيل"}
+          </Badge>
+        );
+      },
+    },
+    {
       accessorKey: "customer_name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="العميل" />,
       cell: ({ row }) => <span className="font-medium">{row.original.customer_name || "—"}</span>,
