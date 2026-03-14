@@ -69,7 +69,19 @@ export default function SupplierPayments() {
       (supabase.from("supplier_payments" as any) as any).select("*, suppliers:supplier_id(name)").order("payment_number", { ascending: false }),
     ]);
     setSuppliers(supRes.data || []);
-    setPayments((payRes.data || []).map((p: any) => ({ ...p, supplier_name: p.suppliers?.name })));
+    const rawPayments = (payRes.data || []).map((p: any) => ({ ...p, supplier_name: p.suppliers?.name }));
+    
+    // Identify refund payments (linked to purchase returns)
+    const postedIds = rawPayments.filter((p: any) => p.status === "posted").map((p: any) => p.id);
+    let refundIds = new Set<string>();
+    if (postedIds.length > 0) {
+      const { data: returnAllocs } = await supabase
+        .from("purchase_return_payment_allocations")
+        .select("payment_id")
+        .in("payment_id", postedIds);
+      refundIds = new Set((returnAllocs || []).map((a: any) => a.payment_id));
+    }
+    setPayments(rawPayments.map((p: any) => ({ ...p, isRefund: refundIds.has(p.id) })));
     setLoading(false);
   }
 
