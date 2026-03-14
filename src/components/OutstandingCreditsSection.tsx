@@ -34,30 +34,36 @@ interface Props {
   invoiceId: string;
   entityId: string;
   invoiceTotal: number;
-  paidAmount: number;
   onSettlementChanged: () => void;
 }
 
-export default function OutstandingCreditsSection({ type, invoiceId, entityId, invoiceTotal, paidAmount, onSettlementChanged }: Props) {
+export default function OutstandingCreditsSection({ type, invoiceId, entityId, invoiceTotal, onSettlementChanged }: Props) {
   const [outstandingReturns, setOutstandingReturns] = useState<OutstandingReturn[]>([]);
   const [existingSettlements, setExistingSettlements] = useState<ExistingSettlement[]>([]);
   const [applyAmounts, setApplyAmounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [settlementTotal, setSettlementTotal] = useState(0);
+  const [paymentAllocTotal, setPaymentAllocTotal] = useState(0);
 
   const isSales = type === "sales";
   const returnsTable = isSales ? "sales_returns" : "purchase_returns";
   const settlementTable = isSales ? "sales_invoice_return_settlements" : "purchase_invoice_return_settlements";
   const entityIdCol = isSales ? "customer_id" : "supplier_id";
-  const invoiceRefCol = isSales ? "sales_invoice_id" : "purchase_invoice_id";
-  const entityTable = isSales ? "customers" : "suppliers";
+  const allocTable = isSales ? "customer_payment_allocations" : "supplier_payment_allocations";
 
   useEffect(() => { fetchData(); }, [invoiceId, entityId]);
 
   async function fetchData() {
     setLoading(true);
 
-    // 1. Get existing settlements for THIS invoice
+    // 1. Get payment allocations total for this invoice (to know real remaining)
+    const { data: payAllocs } = await (supabase.from(allocTable as any) as any)
+      .select("allocated_amount")
+      .eq("invoice_id", invoiceId);
+    const payAllocSum = (payAllocs || []).reduce((s: number, a: any) => s + Number(a.allocated_amount), 0);
+    setPaymentAllocTotal(payAllocSum);
+
+    // 2. Get existing settlements for THIS invoice
     const { data: settlements } = await (supabase.from(settlementTable as any) as any)
       .select("id, return_id, settled_amount")
       .eq("invoice_id", invoiceId);
@@ -91,14 +97,14 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
 
     setSettlementTotal(totalSettled);
 
-    // 2. Get all posted returns for this entity
+    // 3. Get all posted returns for this entity
     const { data: allReturns } = await (supabase.from(returnsTable as any) as any)
       .select("id, return_number, posted_number, return_date, total")
       .eq(entityIdCol, entityId)
       .eq("status", "posted")
       .order("return_date");
 
-    // 3. For each return, calculate how much has been settled across ALL invoices
+    // 4. For each return, calculate how much has been settled/paid across ALL invoices
     let outstanding: OutstandingReturn[] = [];
     if (allReturns && allReturns.length > 0) {
       const allReturnIds = allReturns.map((r: any) => r.id);
@@ -106,7 +112,6 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
         .select("return_id, settled_amount")
         .in("return_id", allReturnIds);
 
-      // Also check payment allocations for returns (from the payment system)
       const returnAllocTable = isSales ? "sales_return_payment_allocations" : "purchase_return_payment_allocations";
       const { data: returnPayAllocs } = await (supabase.from(returnAllocTable as any) as any)
         .select("return_id, allocated_amount")
@@ -116,7 +121,6 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
       (allSettlements || []).forEach((s: any) => {
         settledByReturn.set(s.return_id, (settledByReturn.get(s.return_id) || 0) + s.settled_amount);
       });
-      // Also count payment allocations as settled
       (returnPayAllocs || []).forEach((a: any) => {
         settledByReturn.set(a.return_id, (settledByReturn.get(a.return_id) || 0) + a.allocated_amount);
       });
@@ -142,11 +146,12 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
     setLoading(false);
   }
 
-  const invoiceRemaining = invoiceTotal - paidAmount - settlementTotal;
+  // Invoice remaining = total - payments - settlements
+  const invoiceRemaining = invoiceTotal - paymentAllocTotal - settlementTotal;
 
   async function applyReturn(ret: OutstandingReturn) {
-    const amount = applyAmounts[ret.id] ?? Math.min(ret.remaining, invoiceRemaining);
-    const maxAmount = Math.min(ret.remaining, invoiceRemaining);
+    const amount = applyAmounts[ret.id] ?? Math.min(ret.remaining, Math.max(invoiceRemaining, 0));
+    const maxAmount = Math.min(ret.remaining, Math.max(invoiceRemaining, 0));
 
     if (amount <= 0 || amount > maxAmount + 0.01) {
       toast({ title: "تنبيه", description: `المبلغ يجب أن يكون بين 0.01 و ${maxAmount.toFixed(2)}`, variant: "destructive" });
@@ -154,17 +159,12 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
     }
 
     try {
-      // 1. Create settlement record
+      // Create settlement record only - InvoicePaymentSection handles paid_amount sync
       await (supabase.from(settlementTable as any) as any).insert({
         invoice_id: invoiceId,
         return_id: ret.id,
         settled_amount: amount,
       });
-
-      // 2. Update invoice paid_amount
-      await (supabase.from(isSales ? "sales_invoices" : "purchase_invoices" as any) as any)
-        .update({ paid_amount: paidAmount + settlementTotal + amount })
-        .eq("id", invoiceId);
 
       toast({
         title: "تم التسوية",
@@ -183,11 +183,6 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
       await (supabase.from(settlementTable as any) as any)
         .delete()
         .eq("id", settlement.id);
-
-      // Update invoice paid_amount
-      await (supabase.from(isSales ? "sales_invoices" : "purchase_invoices" as any) as any)
-        .update({ paid_amount: paidAmount + settlementTotal - settlement.settled_amount })
-        .eq("id", invoiceId);
 
       toast({ title: "تم إلغاء التسوية", description: `تم إلغاء تسوية المرتجع #${settlement.posted_number || settlement.return_number}` });
       fetchData();
@@ -289,7 +284,7 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
               </TableHeader>
               <TableBody>
                 {outstandingReturns.map(r => {
-                  const maxAmount = Math.min(r.remaining, invoiceRemaining);
+                  const maxAmount = Math.min(r.remaining, Math.max(invoiceRemaining, 0));
                   const currentVal = applyAmounts[r.id] ?? maxAmount;
                   return (
                     <TableRow key={r.id}>
