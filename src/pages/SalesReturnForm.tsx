@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { toast } from "@/hooks/use-toast";
 import { Plus, X, Save, CheckCircle, Trash2, Printer, Ban } from "lucide-react";
