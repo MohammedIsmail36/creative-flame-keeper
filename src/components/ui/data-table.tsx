@@ -277,16 +277,16 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* ── Table ── */}
-      <div className="rounded-lg border bg-card overflow-hidden shadow-sm">
+      <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
         <div className="relative w-full overflow-auto">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="bg-muted/40 hover:bg-muted/40 border-b">
+                <TableRow key={headerGroup.id} className="bg-muted/30 hover:bg-muted/30 border-b-2 border-border/60">
                   {headerGroup.headers.map((header) => (
                     <TableHead
                       key={header.id}
-                      className="text-right font-semibold text-xs text-muted-foreground h-11 px-4 whitespace-nowrap"
+                      className="text-right font-bold text-[0.8rem] text-muted-foreground h-11 px-4 whitespace-nowrap tracking-wide"
                     >
                       {header.isPlaceholder
                         ? null
@@ -299,30 +299,31 @@ export function DataTable<TData, TValue>({
 
             <TableBody>
               {isLoading ? (
-                // Loading skeleton rows
                 Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
                   <TableRow key={`skeleton-${i}`} className="hover:bg-transparent">
                     {columns.map((_, j) => (
-                      <TableCell key={j} className="px-4 py-3">
+                      <TableCell key={j} className="px-4 py-3.5">
                         <Skeleton className="h-5 w-full max-w-[180px]" />
                       </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
+                table.getRowModel().rows.map((row, idx) => (
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    className={
+                    className={cn(
+                      "transition-colors border-b border-border/40",
+                      idx % 2 === 1 && "bg-muted/15",
                       onRowClick
-                        ? "cursor-pointer hover:bg-muted/50 transition-colors"
-                        : "hover:bg-muted/30 transition-colors"
-                    }
+                        ? "cursor-pointer hover:bg-primary/5"
+                        : "hover:bg-muted/30",
+                    )}
                     onClick={() => onRowClick?.(row.original)}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="px-4 py-3">
+                      <TableCell key={cell.id} className="px-4 py-3.5 text-[0.9rem]">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
@@ -336,7 +337,7 @@ export function DataTable<TData, TValue>({
                   >
                     <div className="flex flex-col items-center gap-2">
                       <Search className="h-8 w-8 text-muted-foreground/40" />
-                      <p>{emptyMessage}</p>
+                      <p className="text-sm">{emptyMessage}</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -349,9 +350,9 @@ export function DataTable<TData, TValue>({
             ) && (
               <TableFooter>
                 {table.getFooterGroups().map((footerGroup) => (
-                  <TableRow key={footerGroup.id}>
+                  <TableRow key={footerGroup.id} className="bg-muted/20 border-t-2 border-border/60">
                     {footerGroup.headers.map((header) => (
-                      <TableCell key={header.id} className="px-4 py-2 font-semibold">
+                      <TableCell key={header.id} className="px-4 py-3 font-bold text-[0.9rem]">
                         {header.isPlaceholder
                           ? null
                           : flexRender(header.column.columnDef.footer, header.getContext())}
