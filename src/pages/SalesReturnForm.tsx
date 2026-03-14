@@ -39,6 +39,8 @@ function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: 
     </div>
   );
 }
+
+export default function SalesReturnForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { role } = useAuth();
