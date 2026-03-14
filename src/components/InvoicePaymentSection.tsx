@@ -120,13 +120,19 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     // 2. Calculate paid amount from allocations
     const totalFromAllocations = enrichedAllocations.reduce((s, a) => s + a.allocated_amount, 0);
 
-    // 2b. For invoices (not returns), also include return settlements in paid total
+    // 2b. Include settlements in paid total
     let totalFromSettlements = 0;
     if (!isReturn) {
       const settlementTable = isCustomerSide ? "sales_invoice_return_settlements" : "purchase_invoice_return_settlements";
       const { data: settlements } = await (supabase.from(settlementTable as any) as any)
         .select("settled_amount")
         .eq("invoice_id", invoiceId);
+      totalFromSettlements = (settlements || []).reduce((s: number, r: any) => s + Number(r.settled_amount), 0);
+    } else {
+      const settlementTable = type === "sales_return" ? "sales_invoice_return_settlements" : "purchase_invoice_return_settlements";
+      const { data: settlements } = await (supabase.from(settlementTable as any) as any)
+        .select("settled_amount")
+        .eq("return_id", invoiceId);
       totalFromSettlements = (settlements || []).reduce((s: number, r: any) => s + Number(r.settled_amount), 0);
     }
 
