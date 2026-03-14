@@ -67,7 +67,7 @@ export default function Ledger() {
 
     if (linesRes.data && linesRes.data.length > 0) {
       const entryIds = [...new Set(linesRes.data.map((l: any) => l.journal_entry_id))];
-      const { data: entriesData } = await supabase.from("journal_entries").select("id, entry_number, entry_date, description, status").in("id", entryIds);
+      const { data: entriesData } = await supabase.from("journal_entries").select("id, entry_number, posted_number, entry_date, description, status").in("id", entryIds);
 
       const entryMap = new Map<string, any>();
       (entriesData || []).forEach((e: any) => entryMap.set(e.id, e));
