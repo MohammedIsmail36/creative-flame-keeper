@@ -538,7 +538,6 @@ export default function SalesInvoiceForm() {
           invoiceId={id}
           entityId={customerId}
           invoiceTotal={grandTotal}
-          paidAmount={0}
           onSettlementChanged={loadData}
         />
       )}
