@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle, Pencil } from "lucide-react";
+import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle, Pencil, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 
