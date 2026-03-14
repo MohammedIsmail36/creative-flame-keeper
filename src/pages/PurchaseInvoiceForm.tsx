@@ -237,11 +237,7 @@ export default function PurchaseInvoiceForm() {
         await (supabase.from("inventory_movements" as any) as any).delete().eq("reference_id", id).eq("product_id", item.product_id);
       }
 
-      // Fetch fresh supplier balance from DB to avoid stale data
-      const { data: freshSup } = await (supabase.from("suppliers" as any) as any).select("balance").eq("id", supplierId).single();
-      if (freshSup) {
-        await (supabase.from("suppliers" as any) as any).update({ balance: (freshSup.balance || 0) - grandTotal }).eq("id", supplierId);
-      }
+      await recalculateEntityBalance("supplier", supplierId);
 
       if (inv?.journal_entry_id) {
         const { data: origLines } = await supabase.from("journal_entry_lines").select("*").eq("journal_entry_id", inv.journal_entry_id);

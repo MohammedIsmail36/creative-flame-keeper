@@ -232,11 +232,7 @@ export default function PurchaseReturnForm() {
         await (supabase.from("inventory_movements" as any) as any).delete().eq("reference_id", id).eq("product_id", item.product_id);
       }
 
-      // Reverse supplier balance
-      const { data: freshSup } = await (supabase.from("suppliers" as any) as any).select("balance").eq("id", supplierId).single();
-      if (freshSup) {
-        await (supabase.from("suppliers" as any) as any).update({ balance: (freshSup.balance || 0) + grandTotal }).eq("id", supplierId);
-      }
+      await recalculateEntityBalance("supplier", supplierId);
 
       // Create reverse journal entry
       if (ret?.journal_entry_id) {
