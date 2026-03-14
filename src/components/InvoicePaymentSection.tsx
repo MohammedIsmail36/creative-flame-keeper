@@ -226,9 +226,10 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
       }
 
       const desc = type === "sales" ? `تحصيل من عميل - فاتورة ${invoiceNumber}` : type === "purchase" ? `سداد لمورد - فاتورة ${invoiceNumber}` : type === "sales_return" ? `رد مبلغ لعميل - مرتجع ${invoiceNumber}` : `استلام مبلغ من مورد - مرتجع ${invoiceNumber}`;
+      const jePostedNum = await getNextPostedNumber("journal_entries");
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
         description: desc, entry_date: paymentDate,
-        total_debit: amount, total_credit: amount, status: "posted",
+        total_debit: amount, total_credit: amount, status: "posted", posted_number: jePostedNum,
       } as any).select("id").single();
       if (jeError) throw jeError;
 
