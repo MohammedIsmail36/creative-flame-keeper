@@ -501,7 +501,6 @@ export default function PurchaseInvoiceForm() {
           invoiceId={id}
           entityId={supplierId}
           invoiceTotal={grandTotal}
-          paidAmount={0}
           onSettlementChanged={loadData}
         />
       )}
