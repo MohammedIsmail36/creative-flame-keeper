@@ -242,7 +242,7 @@ export default function CustomerPayments() {
           .delete()
           .eq("payment_id", cancelTarget.id);
 
-        const affectedInvoiceIds = [...new Set(allocations.map((a: any) => a.invoice_id))];
+        const affectedInvoiceIds = [...new Set((allocations || []).map((a: any) => String(a.invoice_id)))];
         for (const invoiceId of affectedInvoiceIds) {
           await recalculateInvoicePaidAmount("sales", invoiceId);
         }
