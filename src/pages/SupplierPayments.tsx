@@ -248,11 +248,7 @@ export default function SupplierPayments() {
         if (jeError) console.error("Failed to update journal entry status:", jeError);
       }
 
-      // 5. Restore supplier balance
-      const { data: sup } = await (supabase.from("suppliers" as any) as any).select("balance").eq("id", cancelTarget.supplier_id).single();
-      if (sup) {
-        await (supabase.from("suppliers" as any) as any).update({ balance: (sup.balance || 0) + cancelTarget.amount }).eq("id", cancelTarget.supplier_id);
-      }
+      await recalculateEntityBalance("supplier", cancelTarget.supplier_id);
 
       // 6. Update payment status
       await (supabase.from("supplier_payments" as any) as any).update({ status: "cancelled" }).eq("id", cancelTarget.id);

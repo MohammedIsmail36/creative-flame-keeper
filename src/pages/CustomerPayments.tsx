@@ -254,11 +254,7 @@ export default function CustomerPayments() {
         if (jeError) console.error("Failed to update journal entry status:", jeError);
       }
 
-      // 5. Restore customer balance
-      const { data: cust } = await (supabase.from("customers" as any) as any).select("balance").eq("id", cancelTarget.customer_id).single();
-      if (cust) {
-        await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) + cancelTarget.amount }).eq("id", cancelTarget.customer_id);
-      }
+      await recalculateEntityBalance("customer", cancelTarget.customer_id);
 
       // 6. Update payment status
       await (supabase.from("customer_payments" as any) as any).update({ status: "cancelled" }).eq("id", cancelTarget.id);
