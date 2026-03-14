@@ -141,10 +141,22 @@
 
   table {
     font-weight: 500;
+    font-size: 0.9rem;
   }
 
   th {
     font-weight: 700 !important;
+  }
+
+  /* Unified tabular numbers for all numeric content */
+  .font-mono,
+  .tabular-nums,
+  td .font-mono {
+    font-family: 'IBM Plex Sans Arabic', 'Tajawal', system-ui, sans-serif;
+    font-variant-numeric: tabular-nums lining-nums;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    font-size: 0.9rem;
   }
 
   button, [role="button"] {
