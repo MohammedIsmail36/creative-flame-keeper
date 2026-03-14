@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Link2 } from "lucide-react";
+import { Link2, ExternalLink, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 
 interface Settlement {
   id: string;
@@ -36,21 +35,13 @@ export default function ReturnSettlementsView({ type, returnId, returnTotal }: P
   const invoicePrefix = isSales ? "INV-" : "PINV-";
   const invoiceRoute = isSales ? "/sales" : "/purchases";
 
-  useEffect(() => {
-    fetchSettlements();
-  }, [returnId]);
+  useEffect(() => { fetchSettlements(); }, [returnId]);
 
   async function fetchSettlements() {
     setLoading(true);
-
-    // Fetch settlements and payment allocations in parallel
     const [{ data: settlementsData }, { data: payAllocs }] = await Promise.all([
-      (supabase.from(settlementTable as any) as any)
-        .select("id, invoice_id, settled_amount")
-        .eq("return_id", returnId),
-      (supabase.from(payAllocTable as any) as any)
-        .select("allocated_amount")
-        .eq("return_id", returnId),
+      (supabase.from(settlementTable as any) as any).select("id, invoice_id, settled_amount").eq("return_id", returnId),
+      (supabase.from(payAllocTable as any) as any).select("allocated_amount").eq("return_id", returnId),
     ]);
 
     const payTotal = (payAllocs || []).reduce((s: number, a: any) => s + Number(a.allocated_amount), 0);
@@ -64,98 +55,74 @@ export default function ReturnSettlementsView({ type, returnId, returnTotal }: P
 
     const invoiceIds = settlementsData.map((s: any) => s.invoice_id);
     const { data: invoices } = await (supabase.from(invoiceTable as any) as any)
-      .select("id, invoice_number, posted_number, invoice_date, total")
-      .in("id", invoiceIds);
+      .select("id, invoice_number, posted_number, invoice_date, total").in("id", invoiceIds);
 
     const invoiceMap = new Map((invoices || []).map((inv: any) => [inv.id, inv]));
-
     const enriched: Settlement[] = settlementsData.map((s: any) => {
       const inv = invoiceMap.get(s.invoice_id) || {} as any;
-      return {
-        id: s.id,
-        invoice_id: s.invoice_id,
-        invoice_number: inv.invoice_number || 0,
-        posted_number: inv.posted_number || null,
-        invoice_date: inv.invoice_date || "",
-        invoice_total: inv.total || 0,
-        settled_amount: s.settled_amount,
-      };
+      return { id: s.id, invoice_id: s.invoice_id, invoice_number: inv.invoice_number || 0, posted_number: inv.posted_number || null, invoice_date: inv.invoice_date || "", invoice_total: inv.total || 0, settled_amount: s.settled_amount };
     });
 
     setSettlements(enriched);
     setLoading(false);
   }
 
-  if (loading) return null;
-  if (settlements.length === 0) return null;
+  if (loading || settlements.length === 0) return null;
 
   const totalSettled = settlements.reduce((s, r) => s + r.settled_amount, 0);
   const totalCovered = totalSettled + paymentAllocTotal;
   const remaining = returnTotal - totalCovered;
+  const percentage = returnTotal > 0 ? Math.min((totalCovered / returnTotal) * 100, 100) : 0;
+  const isFullySettled = remaining <= 0.01;
+  const fmt = (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <Card className="border-dashed border-primary/30">
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <Link2 className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg">تسويات مطبقة على فواتير</CardTitle>
-          <Badge variant="secondary">مسوّى: {totalSettled.toFixed(2)}</Badge>
-          {remaining <= 0.01 && (
-            <Badge variant="default">مسوّى بالكامل</Badge>
-          )}
+    <div className="rounded-lg border border-dashed border-primary/30 overflow-hidden">
+      <div className="p-4 pb-3">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-sm">تسويات على فواتير</span>
+            {isFullySettled && (
+              <div className="flex items-center gap-1 text-xs text-green-600">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>مسوّى بالكامل</span>
+              </div>
+            )}
+          </div>
+          <Badge variant="secondary" className="font-mono text-xs">{fmt(totalSettled)}</Badge>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {isSales
-            ? "هذا المرتجع تم تطبيقه كتسوية على الفواتير التالية"
-            : "هذا المرتجع تم تطبيقه كتسوية على الفواتير التالية"
-          }
-        </p>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-right">الفاتورة</TableHead>
-              <TableHead className="text-right">التاريخ</TableHead>
-              <TableHead className="text-right">مبلغ الفاتورة</TableHead>
-              <TableHead className="text-right">المبلغ المسوّى</TableHead>
-              <TableHead className="text-right w-20"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {settlements.map(s => (
-              <TableRow key={s.id}>
-                <TableCell className="font-mono">
-                  {invoicePrefix}{s.posted_number || s.invoice_number}
-                </TableCell>
-                <TableCell className="text-muted-foreground">{s.invoice_date}</TableCell>
-                <TableCell className="font-mono text-muted-foreground">{s.invoice_total.toFixed(2)}</TableCell>
-                <TableCell className="font-mono font-semibold text-primary">{s.settled_amount.toFixed(2)}</TableCell>
-                <TableCell>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-xs"
-                    onClick={() => navigate(`${invoiceRoute}/${s.invoice_id}`)}
-                  >
-                    عرض الفاتورة
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
 
-        {/* Summary */}
-        <div className="mt-3 flex items-center gap-4 text-sm border-t pt-3">
-          <span className="text-muted-foreground">إجمالي المرتجع: <span className="font-mono font-medium text-foreground">{returnTotal.toFixed(2)}</span></span>
-          <span className="text-muted-foreground">تسويات: <span className="font-mono font-medium text-primary">{totalSettled.toFixed(2)}</span></span>
-          {paymentAllocTotal > 0 && (
-            <span className="text-muted-foreground">مدفوعات: <span className="font-mono font-medium text-primary">{paymentAllocTotal.toFixed(2)}</span></span>
-          )}
-          <span className="text-muted-foreground">المتبقي: <span className="font-mono font-medium text-foreground">{Math.max(remaining, 0).toFixed(2)}</span></span>
+        {/* Progress */}
+        <div className="space-y-1.5">
+          <Progress value={percentage} className="h-1.5" />
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>تسويات: <span className="font-mono text-primary font-medium">{fmt(totalSettled)}</span>
+              {paymentAllocTotal > 0 && <> + مدفوعات: <span className="font-mono text-primary font-medium">{fmt(paymentAllocTotal)}</span></>}
+            </span>
+            <span>من <span className="font-mono text-foreground font-medium">{fmt(returnTotal)}</span></span>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Settlement items */}
+      <div className="border-t divide-y">
+        {settlements.map(s => (
+          <div key={s.id} className="flex items-center justify-between px-4 py-2.5 text-xs hover:bg-muted/30 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="font-mono font-medium">{invoicePrefix}{s.posted_number || s.invoice_number}</span>
+              <span className="text-muted-foreground">{s.invoice_date}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="font-mono font-semibold text-primary">{fmt(s.settled_amount)}</span>
+              <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+                onClick={() => navigate(`${invoiceRoute}/${s.invoice_id}`)}>
+                <ExternalLink className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

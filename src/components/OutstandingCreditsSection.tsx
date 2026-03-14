@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ReceiptText, Check, Unlink } from "lucide-react";
+import { ReceiptText, Check, Unlink, ChevronDown, ChevronUp } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface OutstandingReturn {
   id: string;
@@ -44,6 +43,7 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
   const [loading, setLoading] = useState(true);
   const [settlementTotal, setSettlementTotal] = useState(0);
   const [paymentAllocTotal, setPaymentAllocTotal] = useState(0);
+  const [availableOpen, setAvailableOpen] = useState(false);
 
   const isSales = type === "sales";
   const returnsTable = isSales ? "sales_returns" : "purchase_returns";
@@ -56,17 +56,13 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
   async function fetchData() {
     setLoading(true);
 
-    // 1. Get payment allocations total for this invoice (to know real remaining)
     const { data: payAllocs } = await (supabase.from(allocTable as any) as any)
-      .select("allocated_amount")
-      .eq("invoice_id", invoiceId);
+      .select("allocated_amount").eq("invoice_id", invoiceId);
     const payAllocSum = (payAllocs || []).reduce((s: number, a: any) => s + Number(a.allocated_amount), 0);
     setPaymentAllocTotal(payAllocSum);
 
-    // 2. Get existing settlements for THIS invoice
     const { data: settlements } = await (supabase.from(settlementTable as any) as any)
-      .select("id, return_id, settled_amount")
-      .eq("invoice_id", invoiceId);
+      .select("id, return_id, settled_amount").eq("invoice_id", invoiceId);
 
     let enrichedSettlements: ExistingSettlement[] = [];
     const settledReturnIds = new Set<string>();
@@ -75,8 +71,7 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
     if (settlements && settlements.length > 0) {
       const returnIds = settlements.map((s: any) => s.return_id);
       const { data: returns } = await (supabase.from(returnsTable as any) as any)
-        .select("id, return_number, posted_number, return_date, total")
-        .in("id", returnIds);
+        .select("id, return_number, posted_number, return_date, total").in("id", returnIds);
 
       const returnMap = new Map((returns || []).map((r: any) => [r.id, r]));
       enrichedSettlements = settlements.map((s: any) => {
@@ -84,12 +79,9 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
         settledReturnIds.add(s.return_id);
         totalSettled += s.settled_amount;
         return {
-          id: s.id,
-          return_id: s.return_id,
-          return_number: (r as any).return_number || 0,
-          posted_number: (r as any).posted_number || null,
-          return_date: (r as any).return_date || "",
-          return_total: (r as any).total || 0,
+          id: s.id, return_id: s.return_id,
+          return_number: (r as any).return_number || 0, posted_number: (r as any).posted_number || null,
+          return_date: (r as any).return_date || "", return_total: (r as any).total || 0,
           settled_amount: s.settled_amount,
         };
       });
@@ -97,25 +89,18 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
 
     setSettlementTotal(totalSettled);
 
-    // 3. Get all posted returns for this entity
     const { data: allReturns } = await (supabase.from(returnsTable as any) as any)
       .select("id, return_number, posted_number, return_date, total")
-      .eq(entityIdCol, entityId)
-      .eq("status", "posted")
-      .order("return_date");
+      .eq(entityIdCol, entityId).eq("status", "posted").order("return_date");
 
-    // 4. For each return, calculate how much has been settled/paid across ALL invoices
     let outstanding: OutstandingReturn[] = [];
     if (allReturns && allReturns.length > 0) {
       const allReturnIds = allReturns.map((r: any) => r.id);
       const { data: allSettlements } = await (supabase.from(settlementTable as any) as any)
-        .select("return_id, settled_amount")
-        .in("return_id", allReturnIds);
-
+        .select("return_id, settled_amount").in("return_id", allReturnIds);
       const returnAllocTable = isSales ? "sales_return_payment_allocations" : "purchase_return_payment_allocations";
       const { data: returnPayAllocs } = await (supabase.from(returnAllocTable as any) as any)
-        .select("return_id, allocated_amount")
-        .in("return_id", allReturnIds);
+        .select("return_id, allocated_amount").in("return_id", allReturnIds);
 
       const settledByReturn = new Map<string, number>();
       (allSettlements || []).forEach((s: any) => {
@@ -126,18 +111,11 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
       });
 
       outstanding = allReturns
-        .map((r: any) => {
-          const settledTotal = settledByReturn.get(r.id) || 0;
-          return {
-            id: r.id,
-            return_number: r.return_number,
-            posted_number: r.posted_number,
-            return_date: r.return_date,
-            total: r.total,
-            settled_total: settledTotal,
-            remaining: r.total - settledTotal,
-          };
-        })
+        .map((r: any) => ({
+          id: r.id, return_number: r.return_number, posted_number: r.posted_number,
+          return_date: r.return_date, total: r.total,
+          settled_total: settledByReturn.get(r.id) || 0, remaining: r.total - (settledByReturn.get(r.id) || 0),
+        }))
         .filter((r: OutstandingReturn) => r.remaining > 0.01 && !settledReturnIds.has(r.id));
     }
 
@@ -146,30 +124,18 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
     setLoading(false);
   }
 
-  // Invoice remaining = total - payments - settlements
   const invoiceRemaining = invoiceTotal - paymentAllocTotal - settlementTotal;
 
   async function applyReturn(ret: OutstandingReturn) {
     const amount = applyAmounts[ret.id] ?? Math.min(ret.remaining, Math.max(invoiceRemaining, 0));
     const maxAmount = Math.min(ret.remaining, Math.max(invoiceRemaining, 0));
-
     if (amount <= 0 || amount > maxAmount + 0.01) {
       toast({ title: "تنبيه", description: `المبلغ يجب أن يكون بين 0.01 و ${maxAmount.toFixed(2)}`, variant: "destructive" });
       return;
     }
-
     try {
-      // Create settlement record only - InvoicePaymentSection handles paid_amount sync
-      await (supabase.from(settlementTable as any) as any).insert({
-        invoice_id: invoiceId,
-        return_id: ret.id,
-        settled_amount: amount,
-      });
-
-      toast({
-        title: "تم التسوية",
-        description: `تم تطبيق ${amount.toFixed(2)} من المرتجع #${ret.posted_number || ret.return_number} على الفاتورة`
-      });
+      await (supabase.from(settlementTable as any) as any).insert({ invoice_id: invoiceId, return_id: ret.id, settled_amount: amount });
+      toast({ title: "تم التسوية", description: `تم تطبيق ${amount.toFixed(2)} من المرتجع #${ret.posted_number || ret.return_number}` });
       setApplyAmounts({});
       fetchData();
       onSettlementChanged();
@@ -180,11 +146,8 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
 
   async function removeSettlement(settlement: ExistingSettlement) {
     try {
-      await (supabase.from(settlementTable as any) as any)
-        .delete()
-        .eq("id", settlement.id);
-
-      toast({ title: "تم إلغاء التسوية", description: `تم إلغاء تسوية المرتجع #${settlement.posted_number || settlement.return_number}` });
+      await (supabase.from(settlementTable as any) as any).delete().eq("id", settlement.id);
+      toast({ title: "تم إلغاء التسوية" });
       fetchData();
       onSettlementChanged();
     } catch (error: any) {
@@ -195,129 +158,95 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
   if (loading) return null;
   if (outstandingReturns.length === 0 && existingSettlements.length === 0) return null;
 
-  const sectionTitle = isSales ? "أرصدة دائنة معلقة (مرتجعات)" : "أرصدة مدينة معلقة (مرتجعات)";
   const prefix = isSales ? "SRN-" : "PRN-";
+  const fmt = (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <Card className="border-dashed border-primary/30">
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <ReceiptText className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg">{sectionTitle}</CardTitle>
+    <div className="rounded-lg border border-dashed border-primary/30 overflow-hidden">
+      <div className="p-4 pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ReceiptText className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-sm">{isSales ? "أرصدة دائنة (مرتجعات)" : "أرصدة مدينة (مرتجعات)"}</span>
+          </div>
           {settlementTotal > 0 && (
-            <Badge variant="secondary">مسوى: {settlementTotal.toFixed(2)}</Badge>
+            <Badge variant="secondary" className="font-mono text-xs">مسوى: {fmt(settlementTotal)}</Badge>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">
-          {isSales
-            ? "مرتجعات مبيعات لنفس العميل يمكن تطبيقها كتسوية على هذه الفاتورة بدلاً من إنشاء سند دفع منفصل"
-            : "مرتجعات مشتريات لنفس المورد يمكن تطبيقها كتسوية على هذه الفاتورة بدلاً من إنشاء سند دفع منفصل"
-          }
+        <p className="text-[11px] text-muted-foreground mt-1">
+          {isSales ? "مرتجعات يمكن تطبيقها كتسوية بدلاً من سند دفع" : "مرتجعات يمكن تطبيقها كتسوية بدلاً من سند دفع"}
         </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Existing settlements */}
-        {existingSettlements.length > 0 && (
-          <div>
-            <h4 className="text-sm font-medium mb-2 text-muted-foreground">التسويات المطبقة</h4>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">المرتجع</TableHead>
-                  <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">مبلغ المرتجع</TableHead>
-                  <TableHead className="text-right">المبلغ المسوى</TableHead>
-                  <TableHead className="text-right w-20"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {existingSettlements.map(s => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-mono">
-                      {prefix}{s.posted_number || s.return_number}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{s.return_date}</TableCell>
-                    <TableCell className="font-mono text-muted-foreground">{s.return_total.toFixed(2)}</TableCell>
-                    <TableCell className="font-mono font-semibold text-primary">{s.settled_amount.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="ghost" className="gap-1 text-xs text-destructive hover:text-destructive">
-                            <Unlink className="h-3 w-3" />إلغاء
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent dir="rtl">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>إلغاء تسوية المرتجع</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              هل تريد إلغاء تسوية {s.settled_amount.toFixed(2)} من المرتجع #{s.posted_number || s.return_number} من هذه الفاتورة؟
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter className="flex-row-reverse gap-2">
-                            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => removeSettlement(s)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">إلغاء التسوية</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+      </div>
 
-        {/* Outstanding returns available to apply */}
-        {outstandingReturns.length > 0 && invoiceRemaining > 0.01 && (
-          <div>
-            <h4 className="text-sm font-medium mb-2 text-muted-foreground">مرتجعات متاحة للتسوية</h4>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">المرتجع</TableHead>
-                  <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">المبلغ الكلي</TableHead>
-                  <TableHead className="text-right">المتاح</TableHead>
-                  <TableHead className="text-right">مبلغ التسوية</TableHead>
-                  <TableHead className="text-right w-24"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {outstandingReturns.map(r => {
-                  const maxAmount = Math.min(r.remaining, Math.max(invoiceRemaining, 0));
-                  const currentVal = applyAmounts[r.id] ?? maxAmount;
-                  return (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-mono">
-                        {prefix}{r.posted_number || r.return_number}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{r.return_date}</TableCell>
-                      <TableCell className="font-mono text-xs">{r.total.toFixed(2)}</TableCell>
-                      <TableCell className="font-mono text-xs text-primary">{r.remaining.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min={0.01}
-                          max={maxAmount}
-                          step="0.01"
-                          value={currentVal}
-                          onChange={e => setApplyAmounts({ ...applyAmounts, [r.id]: +e.target.value })}
-                          className="font-mono h-8 w-24"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button size="sm" variant="outline" onClick={() => applyReturn(r)} className="text-xs h-8 gap-1">
-                          <Check className="h-3 w-3" />تطبيق
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {/* Existing settlements */}
+      {existingSettlements.length > 0 && (
+        <div className="border-t divide-y">
+          {existingSettlements.map(s => (
+            <div key={s.id} className="flex items-center justify-between px-4 py-2.5 text-xs hover:bg-muted/30 transition-colors">
+              <div className="flex items-center gap-3">
+                <span className="font-mono font-medium">{prefix}{s.posted_number || s.return_number}</span>
+                <span className="text-muted-foreground">{s.return_date}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-semibold text-primary">{fmt(s.settled_amount)}</span>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive hover:text-destructive">
+                      <Unlink className="h-3 w-3" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent dir="rtl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>إلغاء التسوية</AlertDialogTitle>
+                      <AlertDialogDescription>هل تريد إلغاء تسوية {fmt(s.settled_amount)} من المرتجع #{s.posted_number || s.return_number}؟</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-row-reverse gap-2">
+                      <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => removeSettlement(s)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">إلغاء التسوية</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Available returns to apply */}
+      {outstandingReturns.length > 0 && invoiceRemaining > 0.01 && (
+        <Collapsible open={availableOpen} onOpenChange={setAvailableOpen}>
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-center gap-1.5 py-2 border-t text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors">
+              {availableOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {availableOpen ? "إخفاء المرتجعات المتاحة" : `عرض ${outstandingReturns.length} مرتجع متاح للتسوية`}
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="border-t p-3 space-y-2">
+              {outstandingReturns.map(r => {
+                const maxAmount = Math.min(r.remaining, Math.max(invoiceRemaining, 0));
+                const currentVal = applyAmounts[r.id] ?? maxAmount;
+                return (
+                  <div key={r.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-medium">{prefix}{r.posted_number || r.return_number}</span>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">{r.return_date} · متاح: <span className="font-mono text-primary">{fmt(r.remaining)}</span></div>
+                    </div>
+                    <Input type="number" min={0.01} max={maxAmount} step="0.01" value={currentVal}
+                      onChange={e => setApplyAmounts({ ...applyAmounts, [r.id]: +e.target.value })}
+                      className="font-mono h-8 w-24 text-xs" />
+                    <Button size="sm" variant="default" onClick={() => applyReturn(r)} className="text-xs h-8 px-3 gap-1">
+                      <Check className="h-3 w-3" />تطبيق
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+    </div>
   );
 }
