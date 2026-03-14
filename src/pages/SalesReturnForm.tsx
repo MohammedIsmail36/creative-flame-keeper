@@ -244,9 +244,10 @@ export default function SalesReturnForm() {
       }
 
       const totalDebit = grandTotal + totalCost;
+      const jePostedNum = await getNextPostedNumber("journal_entries");
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
         description: `مرتجع بيع رقم ${returnNumber}`, entry_date: returnDate,
-        total_debit: totalDebit, total_credit: totalDebit, status: "posted",
+        total_debit: totalDebit, total_credit: totalDebit, status: "posted", posted_number: jePostedNum,
       } as any).select("id").single();
       if (jeError) throw jeError;
 

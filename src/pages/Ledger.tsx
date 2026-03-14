@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { useSettings } from "@/contexts/SettingsContext";
+import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,7 @@ interface LedgerLine {
   description: string | null;
   created_at: string;
   entry_number: number;
+  entry_posted_number: number | null;
   entry_date: string;
   entry_description: string;
   entry_status: string;
@@ -43,6 +46,8 @@ const formatNumber = (val: number) =>
 const formatCurrency = (val: number) => `${formatNumber(val)} EGP`;
 
 export default function Ledger() {
+  const { settings } = useSettings();
+  const jePrefix = (settings as any)?.journal_entry_prefix || "JV-";
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [lines, setLines] = useState<LedgerLine[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +67,7 @@ export default function Ledger() {
 
     if (linesRes.data && linesRes.data.length > 0) {
       const entryIds = [...new Set(linesRes.data.map((l: any) => l.journal_entry_id))];
-      const { data: entriesData } = await supabase.from("journal_entries").select("id, entry_number, entry_date, description, status").in("id", entryIds);
+      const { data: entriesData } = await supabase.from("journal_entries").select("id, entry_number, posted_number, entry_date, description, status").in("id", entryIds);
 
       const entryMap = new Map<string, any>();
       (entriesData || []).forEach((e: any) => entryMap.set(e.id, e));
@@ -71,7 +76,7 @@ export default function Ledger() {
         .map((l: any) => {
           const entry = entryMap.get(l.journal_entry_id);
           if (!entry || entry.status !== "posted") return null;
-          return { ...l, debit: Number(l.debit), credit: Number(l.credit), entry_number: entry.entry_number, entry_date: entry.entry_date, entry_description: entry.description, entry_status: entry.status };
+          return { ...l, debit: Number(l.debit), credit: Number(l.credit), entry_number: entry.entry_number, entry_posted_number: entry.posted_number, entry_date: entry.entry_date, entry_description: entry.description, entry_status: entry.status };
         })
         .filter(Boolean) as LedgerLine[];
 
@@ -138,7 +143,7 @@ export default function Ledger() {
     const selectedAccount = selectedAccountId !== "all" ? accountMap.get(selectedAccountId) : null;
     const pdfTitle = selectedAccount ? `دفتر الأستاذ - ${selectedAccount.code} ${selectedAccount.name}` : "دفتر الأستاذ العام";
     const tableData = linesWithBalance.map((l) => [
-      l.entry_number, l.entry_date, l.accountCode ? `${l.accountCode} - ${l.accountName}` : "",
+      formatDisplayNumber(jePrefix, l.entry_posted_number, l.entry_number, l.entry_status), l.entry_date, l.accountCode ? `${l.accountCode} - ${l.accountName}` : "",
       l.entry_description, l.debit > 0 ? formatNumber(l.debit) : "-", l.credit > 0 ? formatNumber(l.credit) : "-",
       l.showBalance ? formatNumber(l.runningBalance!) : "-",
     ]);
@@ -156,7 +161,7 @@ export default function Ledger() {
 
   const handleExportExcel = async () => {
     const { exportToExcel } = await import("@/lib/excel-export");
-    const data = linesWithBalance.map((l) => ({ "#": l.entry_number, "التاريخ": l.entry_date, "الحساب": `${l.accountCode} - ${l.accountName}`, "الوصف": l.entry_description, "مدين": l.debit, "دائن": l.credit, "الرصيد": l.showBalance ? l.runningBalance : "" }));
+    const data = linesWithBalance.map((l) => ({ "#": formatDisplayNumber(jePrefix, l.entry_posted_number, l.entry_number, l.entry_status), "التاريخ": l.entry_date, "الحساب": `${l.accountCode} - ${l.accountName}`, "الوصف": l.entry_description, "مدين": l.debit, "دائن": l.credit, "الرصيد": l.showBalance ? l.runningBalance : "" }));
     await exportToExcel(data, "Ledger", "General_Ledger.xlsx");
     toast({ title: "تم التصدير" });
     setExportMenuOpen(false);
@@ -166,7 +171,7 @@ export default function Ledger() {
     {
       accessorKey: "entry_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="رقم القيد" />,
-      cell: ({ row }) => <span className="font-mono text-sm">{row.original.entry_number}</span>,
+      cell: ({ row }) => <span className="font-mono text-sm">{formatDisplayNumber(jePrefix, row.original.entry_posted_number, row.original.entry_number, row.original.entry_status)}</span>,
     },
     {
       accessorKey: "entry_date",

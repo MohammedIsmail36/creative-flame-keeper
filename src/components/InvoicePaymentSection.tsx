@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getNextPostedNumber } from "@/lib/posted-number-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -225,9 +226,10 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
       }
 
       const desc = type === "sales" ? `تحصيل من عميل - فاتورة ${invoiceNumber}` : type === "purchase" ? `سداد لمورد - فاتورة ${invoiceNumber}` : type === "sales_return" ? `رد مبلغ لعميل - مرتجع ${invoiceNumber}` : `استلام مبلغ من مورد - مرتجع ${invoiceNumber}`;
+      const jePostedNum = await getNextPostedNumber("journal_entries");
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
         description: desc, entry_date: paymentDate,
-        total_debit: amount, total_credit: amount, status: "posted",
+        total_debit: amount, total_credit: amount, status: "posted", posted_number: jePostedNum,
       } as any).select("id").single();
       if (jeError) throw jeError;
 
@@ -254,13 +256,14 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
       await supabase.from("journal_entry_lines").insert(lines as any);
 
       // Insert payment
+      const paymentPostedNum = await getNextPostedNumber(paymentTable as any);
       const { data: newPayment } = await (supabase.from(paymentTable as any) as any).insert({
         [entityIdCol]: entityId,
         payment_date: paymentDate, amount,
         payment_method: paymentMethod,
         reference: reference.trim() || null,
         notes: notes.trim() || null,
-        journal_entry_id: je.id, status: "posted",
+        journal_entry_id: je.id, status: "posted", posted_number: paymentPostedNum,
       }).select("id").single();
 
       // Create allocation
