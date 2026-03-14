@@ -69,7 +69,19 @@ export default function CustomerPayments() {
       (supabase.from("customer_payments" as any) as any).select("*, customers:customer_id(name)").order("payment_number", { ascending: false }),
     ]);
     setCustomers(custRes.data || []);
-    setPayments((payRes.data || []).map((p: any) => ({ ...p, customer_name: p.customers?.name })));
+    const rawPayments = (payRes.data || []).map((p: any) => ({ ...p, customer_name: p.customers?.name }));
+    
+    // Identify refund payments (linked to sales returns)
+    const postedIds = rawPayments.filter((p: any) => p.status === "posted").map((p: any) => p.id);
+    let refundIds = new Set<string>();
+    if (postedIds.length > 0) {
+      const { data: returnAllocs } = await supabase
+        .from("sales_return_payment_allocations")
+        .select("payment_id")
+        .in("payment_id", postedIds);
+      refundIds = new Set((returnAllocs || []).map((a: any) => a.payment_id));
+    }
+    setPayments(rawPayments.map((p: any) => ({ ...p, isRefund: refundIds.has(p.id) })));
     setLoading(false);
   }
 
