@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle, Pencil } from "lucide-react";
+import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle, Pencil, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -24,6 +24,7 @@ interface Payment {
   id: string; payment_number: number; posted_number: number | null; supplier_id: string; supplier_name?: string;
   payment_date: string; amount: number; payment_method: string; reference: string | null;
   notes: string | null; status: string; journal_entry_id: string | null;
+  isRefund?: boolean;
 }
 
 const ACCOUNT_CODES = { SUPPLIERS: "2101", CASH: "1101", BANK: "1102" };
@@ -68,7 +69,19 @@ export default function SupplierPayments() {
       (supabase.from("supplier_payments" as any) as any).select("*, suppliers:supplier_id(name)").order("payment_number", { ascending: false }),
     ]);
     setSuppliers(supRes.data || []);
-    setPayments((payRes.data || []).map((p: any) => ({ ...p, supplier_name: p.suppliers?.name })));
+    const rawPayments = (payRes.data || []).map((p: any) => ({ ...p, supplier_name: p.suppliers?.name }));
+    
+    // Identify refund payments (linked to purchase returns)
+    const postedIds = rawPayments.filter((p: any) => p.status === "posted").map((p: any) => p.id);
+    let refundIds = new Set<string>();
+    if (postedIds.length > 0) {
+      const { data: returnAllocs } = await supabase
+        .from("purchase_return_payment_allocations")
+        .select("payment_id")
+        .in("payment_id", postedIds);
+      refundIds = new Set((returnAllocs || []).map((a: any) => a.payment_id));
+    }
+    setPayments(rawPayments.map((p: any) => ({ ...p, isRefund: refundIds.has(p.id) })));
     setLoading(false);
   }
 
@@ -274,6 +287,19 @@ export default function SupplierPayments() {
       accessorKey: "payment_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="#" />,
       cell: ({ row }) => <span className="font-mono">{formatDisplayNumber(prefix, row.original.posted_number, row.original.payment_number, row.original.status)}</span>,
+    },
+    {
+      id: "type",
+      header: "النوع",
+      cell: ({ row }) => {
+        const isRefund = row.original.isRefund;
+        return (
+          <Badge variant={isRefund ? "default" : "destructive"} className="gap-1">
+            {isRefund ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
+            {isRefund ? "مبلغ مسترد" : "سداد"}
+          </Badge>
+        );
+      },
     },
     {
       accessorKey: "supplier_name",
