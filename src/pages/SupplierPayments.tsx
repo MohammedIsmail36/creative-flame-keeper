@@ -24,6 +24,7 @@ interface Payment {
   id: string; payment_number: number; posted_number: number | null; supplier_id: string; supplier_name?: string;
   payment_date: string; amount: number; payment_method: string; reference: string | null;
   notes: string | null; status: string; journal_entry_id: string | null;
+  isRefund?: boolean;
 }
 
 const ACCOUNT_CODES = { SUPPLIERS: "2101", CASH: "1101", BANK: "1102" };
