@@ -161,7 +161,7 @@ export default function Ledger() {
 
   const handleExportExcel = async () => {
     const { exportToExcel } = await import("@/lib/excel-export");
-    const data = linesWithBalance.map((l) => ({ "#": l.entry_number, "التاريخ": l.entry_date, "الحساب": `${l.accountCode} - ${l.accountName}`, "الوصف": l.entry_description, "مدين": l.debit, "دائن": l.credit, "الرصيد": l.showBalance ? l.runningBalance : "" }));
+    const data = linesWithBalance.map((l) => ({ "#": formatDisplayNumber(jePrefix, l.entry_posted_number, l.entry_number, l.entry_status), "التاريخ": l.entry_date, "الحساب": `${l.accountCode} - ${l.accountName}`, "الوصف": l.entry_description, "مدين": l.debit, "دائن": l.credit, "الرصيد": l.showBalance ? l.runningBalance : "" }));
     await exportToExcel(data, "Ledger", "General_Ledger.xlsx");
     toast({ title: "تم التصدير" });
     setExportMenuOpen(false);
