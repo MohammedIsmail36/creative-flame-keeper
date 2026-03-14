@@ -332,21 +332,24 @@ export default function SalesInvoiceForm() {
   const colCount = 3 + (showDiscount ? 1 : 0) + 1 + (isEditable ? 1 : 0); // product + qty + price + discount? + total + action?
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-4" dir="rtl">
+      {/* Header with status & actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              {isNew ? "فاتورة بيع جديدة" : `فاتورة بيع ${formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", postedNumber, invoiceNumber || 0, status)}`}
-            </h1>
-            {!isNew && <Badge variant={statusColors[status] as any} className="mt-1">{statusLabels[status]}</Badge>}
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-foreground">
+                {isNew ? "فاتورة بيع جديدة" : `فاتورة بيع ${formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", postedNumber, invoiceNumber || 0, status)}`}
+              </h1>
+              {!isNew && <Badge variant={statusColors[status] as any}>{statusLabels[status]}</Badge>}
+            </div>
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
           {!isNew && isDraft && canEdit && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="gap-2"><Trash2 className="h-4 w-4" />حذف</Button>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-destructive hover:text-destructive h-8"><Trash2 className="h-3.5 w-3.5" />حذف</Button>
               </AlertDialogTrigger>
               <AlertDialogContent dir="rtl">
                 <AlertDialogHeader>
@@ -363,7 +366,7 @@ export default function SalesInvoiceForm() {
           {!isNew && status === "posted" && canEdit && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" className="gap-2 border-destructive text-destructive hover:bg-destructive/10"><Ban className="h-4 w-4" />إلغاء الفاتورة</Button>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-destructive hover:text-destructive h-8"><Ban className="h-3.5 w-3.5" />إلغاء</Button>
               </AlertDialogTrigger>
               <AlertDialogContent dir="rtl">
                 <AlertDialogHeader>
@@ -378,65 +381,62 @@ export default function SalesInvoiceForm() {
             </AlertDialog>
           )}
           {!isNew && (
-            <Button variant="outline" onClick={handlePrint} className="gap-2">
-              <Printer className="h-4 w-4" />طباعة
-            </Button>
+            <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5 h-8"><Printer className="h-3.5 w-3.5" />طباعة</Button>
           )}
           {!isNew && isDraft && canEdit && !editMode && (
-            <Button variant="outline" onClick={() => setEditMode(true)} className="gap-2">
-              <Pencil className="h-4 w-4" />تعديل
-            </Button>
+            <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="gap-1.5 h-8"><Pencil className="h-3.5 w-3.5" />تعديل</Button>
           )}
           {!isNew && isDraft && canEdit && (
-            <Button variant="default" onClick={postInvoice} className="gap-2 bg-green-600 hover:bg-green-700">
-              <CheckCircle className="h-4 w-4" />ترحيل
-            </Button>
+            <Button size="sm" onClick={postInvoice} className="gap-1.5 h-8 bg-green-600 hover:bg-green-700"><CheckCircle className="h-3.5 w-3.5" />ترحيل</Button>
           )}
           {isEditable && (
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              <Save className="h-4 w-4" />{saving ? "جاري الحفظ..." : "حفظ"}
-            </Button>
+            <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5 h-8"><Save className="h-3.5 w-3.5" />{saving ? "جاري الحفظ..." : "حفظ"}</Button>
           )}
         </div>
       </div>
 
-      {/* Invoice Info */}
+      {/* Invoice Info - Compact inline */}
       <Card>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>العميل *</Label>
+        <CardContent className="p-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">العميل *</Label>
               {isEditable ? (
                 <LookupCombobox items={customers} value={customerId} onValueChange={setCustomerId} placeholder="اختر العميل" />
               ) : (
                 <p className="text-sm font-medium p-2 bg-muted/30 rounded">{customerName || customers.find(c => c.id === customerId)?.name || "—"}</p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label>تاريخ الفاتورة</Label>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">تاريخ الفاتورة</Label>
               {isEditable ? (
                 <DatePickerInput value={invoiceDate} onChange={setInvoiceDate} placeholder="اختر التاريخ" />
               ) : (
                 <p className="text-sm font-medium p-2 bg-muted/30 rounded">{invoiceDate}</p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label>مرجع الفاتورة</Label>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">مرجع</Label>
               {isEditable ? (
                 <Input value={reference} onChange={e => setReference(e.target.value)} placeholder="رقم مرجعي (اختياري)" />
               ) : (
                 <p className="text-sm font-medium p-2 bg-muted/30 rounded">{reference || "—"}</p>
               )}
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">ملاحظات</Label>
+              {isEditable ? (
+                <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="ملاحظات (اختياري)" />
+              ) : (
+                <p className="text-sm font-medium p-2 bg-muted/30 rounded">{notes || "—"}</p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Items */}
+      {/* Items + Totals - Single unified card */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">الأصناف</CardTitle>
-        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -456,10 +456,7 @@ export default function SalesInvoiceForm() {
                 <TableRow key={i}>
                   <TableCell>
                     {isEditable ? (
-                      <LookupCombobox
-                        items={productsToLookupItems(products, true)}
-                        value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)} placeholder="اختر المنتج"
-                      />
+                      <LookupCombobox items={productsToLookupItems(products, true)} value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)} placeholder="اختر المنتج" />
                     ) : (
                       <span className="font-medium">{item.product_name}</span>
                     )}
@@ -481,72 +478,60 @@ export default function SalesInvoiceForm() {
               ))}
             </TableBody>
           </Table>
+
           {isEditable && (
             <div className="p-3 border-t">
               <Button variant="outline" size="sm" onClick={addItem} className="gap-1 w-full"><Plus className="h-3 w-3" />إضافة صنف</Button>
             </div>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Notes */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="space-y-2">
-            <Label>ملاحظات</Label>
-            {isEditable ? (
-              <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="ملاحظات (اختياري)" rows={2} />
-            ) : (
-              <p className="text-sm p-2 bg-muted/30 rounded">{notes || "—"}</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Totals */}
-      {items.length > 0 && (
-        <Card>
-          <CardContent className="p-4 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">الإجمالي الفرعي</span>
-              <span className="font-mono">{formatCurrency(subtotal)}</span>
-            </div>
-            {showTax && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">الضريبة ({taxRate}%)</span>
-                <span className="font-mono">{formatCurrency(taxAmount)}</span>
+          {/* Totals - integrated as footer */}
+          {items.length > 0 && (
+            <div className="border-t bg-muted/20 p-4">
+              <div className="flex justify-end">
+                <div className="w-full max-w-xs space-y-1.5">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">الإجمالي الفرعي</span>
+                    <span className="font-mono">{formatCurrency(subtotal)}</span>
+                  </div>
+                  {showTax && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">الضريبة ({taxRate}%)</span>
+                      <span className="font-mono">{formatCurrency(taxAmount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center pt-1.5 border-t">
+                    <span className="font-bold">الإجمالي الكلي</span>
+                    <span className="text-xl font-bold font-mono text-primary">{formatCurrency(grandTotal)}</span>
+                  </div>
+                </div>
               </div>
-            )}
-            <div className="flex justify-between items-center border-t pt-2">
-              <span className="text-lg font-bold">الإجمالي الكلي</span>
-              <span className="text-2xl font-bold font-mono">{formatCurrency(grandTotal)}</span>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Outstanding Credits - returns that can be applied directly */}
+      {/* Financial section - settlements & payments for posted invoices */}
       {!isNew && status === "posted" && id && customerId && (
-        <OutstandingCreditsSection
-          type="sales"
-          invoiceId={id}
-          entityId={customerId}
-          invoiceTotal={grandTotal}
-          onSettlementChanged={loadData}
-        />
-      )}
+        <div className="space-y-3">
+          <OutstandingCreditsSection
+            type="sales"
+            invoiceId={id}
+            entityId={customerId}
+            invoiceTotal={grandTotal}
+            onSettlementChanged={loadData}
+          />
 
-      {/* Payment Section - only for posted invoices */}
-      {!isNew && status === "posted" && id && (
-        <InvoicePaymentSection
-          type="sales"
-          invoiceId={id}
-          entityId={customerId}
-          entityName={customerName || customers.find(c => c.id === customerId)?.name || ""}
-          invoiceTotal={grandTotal}
-          invoiceNumber={invoiceNumber}
-          onPaymentAdded={loadData}
-        />
+          <InvoicePaymentSection
+            type="sales"
+            invoiceId={id}
+            entityId={customerId}
+            entityName={customerName || customers.find(c => c.id === customerId)?.name || ""}
+            invoiceTotal={grandTotal}
+            invoiceNumber={invoiceNumber}
+            onPaymentAdded={loadData}
+          />
+        </div>
       )}
     </div>
   );
