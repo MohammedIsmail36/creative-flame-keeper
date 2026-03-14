@@ -139,10 +139,7 @@ function CollapsibleSection({ section }: { section: MenuSection }) {
               className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: `hsl(${section.colorVar} / 0.12)` }}
             >
-              <section.icon
-                className="w-4 h-4"
-                style={{ color: `hsl(${section.colorVar})` }}
-              />
+              <section.icon className="w-4 h-4" />
             </div>
             <span className="flex-1 text-right">{section.label}</span>
             <ChevronDown
