@@ -18,6 +18,7 @@ import { exportInvoicePdf } from "@/lib/pdf-arabic";
 import { Plus, X, Save, CheckCircle, Printer, Pencil, Trash2, Ban } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
+import OutstandingCreditsSection from "@/components/OutstandingCreditsSection";
 
 import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS_BASIC } from "@/lib/product-utils";
 
