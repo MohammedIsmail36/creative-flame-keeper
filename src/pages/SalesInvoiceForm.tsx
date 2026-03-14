@@ -19,6 +19,7 @@ import { Plus, X, Save, CheckCircle, Printer, Pencil, Trash2, Ban } from "lucide
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import OutstandingCreditsSection from "@/components/OutstandingCreditsSection";
+import { recalculateEntityBalance } from "@/lib/entity-balance";
 
 import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
 

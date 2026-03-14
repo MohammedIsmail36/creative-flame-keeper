@@ -18,6 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle, Pencil, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import { recalculateEntityBalance, recalculateInvoicePaidAmount } from "@/lib/entity-balance";
 
 interface Customer { id: string; code: string; name: string; balance?: number; }
 interface Payment {
