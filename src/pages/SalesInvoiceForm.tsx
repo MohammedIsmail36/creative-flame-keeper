@@ -531,6 +531,18 @@ export default function SalesInvoiceForm() {
         </Card>
       )}
 
+      {/* Outstanding Credits - returns that can be applied directly */}
+      {!isNew && status === "posted" && id && customerId && (
+        <OutstandingCreditsSection
+          type="sales"
+          invoiceId={id}
+          entityId={customerId}
+          invoiceTotal={grandTotal}
+          paidAmount={0}
+          onSettlementChanged={loadData}
+        />
+      )}
+
       {/* Payment Section - only for posted invoices */}
       {!isNew && status === "posted" && id && (
         <InvoicePaymentSection

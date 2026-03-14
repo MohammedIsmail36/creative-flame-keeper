@@ -494,6 +494,18 @@ export default function PurchaseInvoiceForm() {
         </Card>
       )}
 
+      {/* Outstanding Credits - returns that can be applied directly */}
+      {!isNew && status === "posted" && id && supplierId && (
+        <OutstandingCreditsSection
+          type="purchase"
+          invoiceId={id}
+          entityId={supplierId}
+          invoiceTotal={grandTotal}
+          paidAmount={0}
+          onSettlementChanged={loadData}
+        />
+      )}
+
       {/* Payment Section - only for posted invoices */}
       {!isNew && status === "posted" && id && (
         <InvoicePaymentSection
