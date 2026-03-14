@@ -24,6 +24,7 @@ interface Payment {
   id: string; payment_number: number; posted_number: number | null; customer_id: string; customer_name?: string;
   payment_date: string; amount: number; payment_method: string; reference: string | null;
   notes: string | null; status: string; journal_entry_id: string | null;
+  isRefund?: boolean;
 }
 
 const ACCOUNT_CODES = { CUSTOMERS: "1103", CASH: "1101", BANK: "1102" };
