@@ -137,7 +137,7 @@ function CollapsibleSection({ section }: { section: MenuSection }) {
           <SidebarGroupLabel className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-muted/50 rounded-md transition-colors text-foreground/80 text-sm font-semibold">
             <div
               className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: `hsl(${section.colorVar} / 0.12)` }}
+              style={{ backgroundColor: `hsl(${section.colorVar} / 0.12)`, color: `hsl(${section.colorVar})` }}
             >
               <section.icon className="w-4 h-4" />
             </div>
