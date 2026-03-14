@@ -236,7 +236,7 @@ export default function SupplierPayments() {
           .delete()
           .eq("payment_id", cancelTarget.id);
 
-        const affectedInvoiceIds = [...new Set((allocations || []).map((a: any) => String(a.invoice_id)))];
+        const affectedInvoiceIds = (allocations || []).map((a: any) => String(a.invoice_id)).filter((v: string, i: number, arr: string[]) => arr.indexOf(v) === i);
         for (const invoiceId of affectedInvoiceIds) {
           await recalculateInvoicePaidAmount("purchase", invoiceId);
         }
