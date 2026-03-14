@@ -833,6 +833,45 @@ export type Database = {
           },
         ]
       }
+      purchase_invoice_return_settlements: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          return_id: string
+          settled_amount: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          return_id: string
+          settled_amount: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          return_id?: string
+          settled_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_invoice_return_settlements_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoice_return_settlements_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_invoices: {
         Row: {
           created_at: string
@@ -1130,6 +1169,45 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_invoice_return_settlements: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          return_id: string
+          settled_amount: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          return_id: string
+          settled_amount: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          return_id?: string
+          settled_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_invoice_return_settlements_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_invoice_return_settlements_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "sales_returns"
             referencedColumns: ["id"]
           },
         ]
