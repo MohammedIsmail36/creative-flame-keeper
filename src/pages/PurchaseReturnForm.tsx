@@ -28,6 +28,18 @@ interface ReturnItem { id?: string; product_id: string; product_name: string; qu
 
 const ACCOUNT_CODES = { INVENTORY: "1104", SUPPLIERS: "2101" };
 
+// ── Section Header Component ──
+function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
+  return (
+    <div className="flex items-center gap-2.5 mb-4">
+      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+        <Icon className="h-4 w-4 text-primary" />
+      </div>
+      <h2 className="text-base font-bold text-foreground">{title}</h2>
+    </div>
+  );
+}
+
 export default function PurchaseReturnForm() {
   const { id } = useParams();
   const navigate = useNavigate();
