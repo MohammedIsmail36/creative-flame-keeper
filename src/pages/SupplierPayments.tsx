@@ -163,9 +163,10 @@ export default function SupplierPayments() {
     const cashBankAcc = accounts?.find(a => a.code === accountCode);
     if (!suppliersAcc || !cashBankAcc) throw new Error("تأكد من وجود حسابات الموردين والصندوق/البنك");
 
+    const jePostedNum = await getNextPostedNumber("journal_entries");
     const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
       description: `سداد لمورد`, entry_date: date,
-      total_debit: amt, total_credit: amt, status: "posted",
+      total_debit: amt, total_credit: amt, status: "posted", posted_number: jePostedNum,
     } as any).select("id").single();
     if (jeError) throw jeError;
 

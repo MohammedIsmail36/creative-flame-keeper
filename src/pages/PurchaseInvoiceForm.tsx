@@ -177,9 +177,10 @@ export default function PurchaseInvoiceForm() {
         return;
       }
 
+      const jePostedNum = await getNextPostedNumber("journal_entries");
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
         description: `فاتورة شراء رقم ${invoiceNumber}`, entry_date: invoiceDate,
-        total_debit: grandTotal, total_credit: grandTotal, status: "posted",
+        total_debit: grandTotal, total_credit: grandTotal, status: "posted", posted_number: jePostedNum,
       } as any).select("id").single();
       if (jeError) throw jeError;
 

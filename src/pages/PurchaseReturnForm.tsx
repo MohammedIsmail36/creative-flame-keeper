@@ -183,9 +183,10 @@ export default function PurchaseReturnForm() {
         return;
       }
 
+      const jePostedNum = await getNextPostedNumber("journal_entries");
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
         description: `مرتجع شراء رقم ${returnNumber}`, entry_date: returnDate,
-        total_debit: grandTotal, total_credit: grandTotal, status: "posted",
+        total_debit: grandTotal, total_credit: grandTotal, status: "posted", posted_number: jePostedNum,
       } as any).select("id").single();
       if (jeError) throw jeError;
 

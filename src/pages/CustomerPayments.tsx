@@ -166,9 +166,10 @@ export default function CustomerPayments() {
     const cashBankAcc = accounts?.find(a => a.code === accountCode);
     if (!customersAcc || !cashBankAcc) throw new Error("تأكد من وجود حسابات العملاء والصندوق/البنك");
 
+    const jePostedNum = await getNextPostedNumber("journal_entries");
     const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
       description: `تحصيل من عميل`, entry_date: date,
-      total_debit: amt, total_credit: amt, status: "posted",
+      total_debit: amt, total_credit: amt, status: "posted", posted_number: jePostedNum,
     } as any).select("id").single();
     if (jeError) throw jeError;
 
