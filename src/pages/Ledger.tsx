@@ -30,6 +30,7 @@ interface LedgerLine {
   description: string | null;
   created_at: string;
   entry_number: number;
+  entry_posted_number: number | null;
   entry_date: string;
   entry_description: string;
   entry_status: string;
