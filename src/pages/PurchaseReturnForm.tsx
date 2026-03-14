@@ -18,6 +18,7 @@ import { Plus, X, Save, CheckCircle, Trash2, Ban, Printer } from "lucide-react";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
+import { recalculateEntityBalance } from "@/lib/entity-balance";
 
 import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS_BASIC } from "@/lib/product-utils";
 
@@ -208,10 +209,7 @@ export default function PurchaseReturnForm() {
         });
       }
 
-      const { data: freshSup } = await (supabase.from("suppliers" as any) as any).select("balance").eq("id", supplierId).single();
-      if (freshSup) {
-        await (supabase.from("suppliers" as any) as any).update({ balance: (freshSup.balance || 0) - grandTotal }).eq("id", supplierId);
-      }
+      await recalculateEntityBalance("supplier", supplierId);
 
       toast({ title: "تم الترحيل", description: "تم ترحيل مرتجع الشراء" });
       loadData();
@@ -234,11 +232,7 @@ export default function PurchaseReturnForm() {
         await (supabase.from("inventory_movements" as any) as any).delete().eq("reference_id", id).eq("product_id", item.product_id);
       }
 
-      // Reverse supplier balance
-      const { data: freshSup } = await (supabase.from("suppliers" as any) as any).select("balance").eq("id", supplierId).single();
-      if (freshSup) {
-        await (supabase.from("suppliers" as any) as any).update({ balance: (freshSup.balance || 0) + grandTotal }).eq("id", supplierId);
-      }
+      await recalculateEntityBalance("supplier", supplierId);
 
       // Create reverse journal entry
       if (ret?.journal_entry_id) {

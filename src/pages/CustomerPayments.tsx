@@ -18,6 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle, Pencil, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import { recalculateEntityBalance, recalculateInvoicePaidAmount } from "@/lib/entity-balance";
 
 interface Customer { id: string; code: string; name: string; balance?: number; }
 interface Payment {
@@ -190,10 +191,7 @@ export default function CustomerPayments() {
       });
     }
 
-    const cust = customers.find(c => c.id === custId);
-    if (cust) {
-      await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) - amt }).eq("id", custId);
-    }
+    await recalculateEntityBalance("customer", custId);
   }
 
   // Post a draft payment
@@ -244,15 +242,9 @@ export default function CustomerPayments() {
           .delete()
           .eq("payment_id", cancelTarget.id);
 
-        // 3. Recalculate paid_amount for each affected invoice
-        for (const alloc of allocations) {
-          const { data: remainingAllocs } = await (supabase.from("customer_payment_allocations" as any) as any)
-            .select("allocated_amount")
-            .eq("invoice_id", alloc.invoice_id);
-          const newPaid = (remainingAllocs || []).reduce((s: number, a: any) => s + a.allocated_amount, 0);
-          await (supabase.from("sales_invoices" as any) as any)
-            .update({ paid_amount: newPaid })
-            .eq("id", alloc.invoice_id);
+        const affectedInvoiceIds = [...new Set((allocations || []).map((a: any) => String(a.invoice_id)))];
+        for (const invoiceId of affectedInvoiceIds) {
+          await recalculateInvoicePaidAmount("sales", invoiceId);
         }
       }
 
@@ -262,11 +254,7 @@ export default function CustomerPayments() {
         if (jeError) console.error("Failed to update journal entry status:", jeError);
       }
 
-      // 5. Restore customer balance
-      const { data: cust } = await (supabase.from("customers" as any) as any).select("balance").eq("id", cancelTarget.customer_id).single();
-      if (cust) {
-        await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) + cancelTarget.amount }).eq("id", cancelTarget.customer_id);
-      }
+      await recalculateEntityBalance("customer", cancelTarget.customer_id);
 
       // 6. Update payment status
       await (supabase.from("customer_payments" as any) as any).update({ status: "cancelled" }).eq("id", cancelTarget.id);

@@ -18,6 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle, Pencil, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import { recalculateEntityBalance, recalculateInvoicePaidAmount } from "@/lib/entity-balance";
 
 interface Supplier { id: string; code: string; name: string; balance?: number; }
 interface Payment {
@@ -187,10 +188,7 @@ export default function SupplierPayments() {
       });
     }
 
-    const sup = suppliers.find(s => s.id === supId);
-    if (sup) {
-      await (supabase.from("suppliers" as any) as any).update({ balance: (sup.balance || 0) - amt }).eq("id", supId);
-    }
+    await recalculateEntityBalance("supplier", supId);
   }
 
   async function handlePostDraft() {
@@ -238,15 +236,9 @@ export default function SupplierPayments() {
           .delete()
           .eq("payment_id", cancelTarget.id);
 
-        // 3. Recalculate paid_amount for each affected invoice
-        for (const alloc of allocations) {
-          const { data: remainingAllocs } = await (supabase.from("supplier_payment_allocations" as any) as any)
-            .select("allocated_amount")
-            .eq("invoice_id", alloc.invoice_id);
-          const newPaid = (remainingAllocs || []).reduce((s: number, a: any) => s + a.allocated_amount, 0);
-          await (supabase.from("purchase_invoices" as any) as any)
-            .update({ paid_amount: newPaid })
-            .eq("id", alloc.invoice_id);
+        const affectedInvoiceIds = [...new Set((allocations || []).map((a: any) => String(a.invoice_id)))];
+        for (const invoiceId of affectedInvoiceIds) {
+          await recalculateInvoicePaidAmount("purchase", invoiceId);
         }
       }
 
@@ -256,11 +248,7 @@ export default function SupplierPayments() {
         if (jeError) console.error("Failed to update journal entry status:", jeError);
       }
 
-      // 5. Restore supplier balance
-      const { data: sup } = await (supabase.from("suppliers" as any) as any).select("balance").eq("id", cancelTarget.supplier_id).single();
-      if (sup) {
-        await (supabase.from("suppliers" as any) as any).update({ balance: (sup.balance || 0) + cancelTarget.amount }).eq("id", cancelTarget.supplier_id);
-      }
+      await recalculateEntityBalance("supplier", cancelTarget.supplier_id);
 
       // 6. Update payment status
       await (supabase.from("supplier_payments" as any) as any).update({ status: "cancelled" }).eq("id", cancelTarget.id);

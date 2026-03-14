@@ -19,6 +19,7 @@ import { Plus, X, Save, CheckCircle, Printer, Pencil, Trash2, Ban } from "lucide
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import OutstandingCreditsSection from "@/components/OutstandingCreditsSection";
+import { recalculateEntityBalance } from "@/lib/entity-balance";
 
 import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS_BASIC } from "@/lib/product-utils";
 
@@ -203,11 +204,7 @@ export default function PurchaseInvoiceForm() {
         });
       }
 
-      // Fetch fresh supplier balance from DB to avoid stale data
-      const { data: freshSup } = await (supabase.from("suppliers" as any) as any).select("balance").eq("id", supplierId).single();
-      if (freshSup) {
-        await (supabase.from("suppliers" as any) as any).update({ balance: (freshSup.balance || 0) + grandTotal }).eq("id", supplierId);
-      }
+      await recalculateEntityBalance("supplier", supplierId);
 
       toast({ title: "تم الترحيل", description: "تم ترحيل فاتورة الشراء وتوليد القيد المحاسبي وتحديث المخزون" });
       loadData();
@@ -240,11 +237,7 @@ export default function PurchaseInvoiceForm() {
         await (supabase.from("inventory_movements" as any) as any).delete().eq("reference_id", id).eq("product_id", item.product_id);
       }
 
-      // Fetch fresh supplier balance from DB to avoid stale data
-      const { data: freshSup } = await (supabase.from("suppliers" as any) as any).select("balance").eq("id", supplierId).single();
-      if (freshSup) {
-        await (supabase.from("suppliers" as any) as any).update({ balance: (freshSup.balance || 0) - grandTotal }).eq("id", supplierId);
-      }
+      await recalculateEntityBalance("supplier", supplierId);
 
       if (inv?.journal_entry_id) {
         const { data: origLines } = await supabase.from("journal_entry_lines").select("*").eq("journal_entry_id", inv.journal_entry_id);
