@@ -171,7 +171,7 @@ export default function Ledger() {
     {
       accessorKey: "entry_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="رقم القيد" />,
-      cell: ({ row }) => <span className="font-mono text-sm">{row.original.entry_number}</span>,
+      cell: ({ row }) => <span className="font-mono text-sm">{formatDisplayNumber(jePrefix, row.original.entry_posted_number, row.original.entry_number, row.original.entry_status)}</span>,
     },
     {
       accessorKey: "entry_date",
