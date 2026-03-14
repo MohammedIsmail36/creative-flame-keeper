@@ -76,7 +76,7 @@ export default function Ledger() {
         .map((l: any) => {
           const entry = entryMap.get(l.journal_entry_id);
           if (!entry || entry.status !== "posted") return null;
-          return { ...l, debit: Number(l.debit), credit: Number(l.credit), entry_number: entry.entry_number, entry_date: entry.entry_date, entry_description: entry.description, entry_status: entry.status };
+          return { ...l, debit: Number(l.debit), credit: Number(l.credit), entry_number: entry.entry_number, entry_posted_number: entry.posted_number, entry_date: entry.entry_date, entry_description: entry.description, entry_status: entry.status };
         })
         .filter(Boolean) as LedgerLine[];
 
