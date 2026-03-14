@@ -256,13 +256,14 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
       await supabase.from("journal_entry_lines").insert(lines as any);
 
       // Insert payment
+      const paymentPostedNum = await getNextPostedNumber(paymentTable as any);
       const { data: newPayment } = await (supabase.from(paymentTable as any) as any).insert({
         [entityIdCol]: entityId,
         payment_date: paymentDate, amount,
         payment_method: paymentMethod,
         reference: reference.trim() || null,
         notes: notes.trim() || null,
-        journal_entry_id: je.id, status: "posted",
+        journal_entry_id: je.id, status: "posted", posted_number: paymentPostedNum,
       }).select("id").single();
 
       // Create allocation
