@@ -133,7 +133,7 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
       // Customer payments
       let qp = supabase
         .from("customer_payments")
-        .select("payment_number, payment_date, amount, status")
+        .select("id, payment_number, payment_date, amount, status")
         .eq("customer_id", selectedEntity)
         .eq("status", "posted")
         .order("payment_date");
@@ -141,14 +141,26 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
       if (dateTo) qp = qp.lte("payment_date", dateTo);
       const { data: payments } = await qp;
 
-      (payments || []).forEach(pay => {
+      // Identify refund payments (linked to sales returns)
+      const custPaymentIds = (payments || []).map((p: any) => p.id);
+      let custRefundIds = new Set<string>();
+      if (custPaymentIds.length > 0) {
+        const { data: returnAllocs } = await supabase
+          .from("sales_return_payment_allocations")
+          .select("payment_id")
+          .in("payment_id", custPaymentIds);
+        custRefundIds = new Set((returnAllocs || []).map((a: any) => a.payment_id));
+      }
+
+      (payments || []).forEach((pay: any) => {
+        const isRefund = custRefundIds.has(pay.id);
         allLines.push({
           date: pay.payment_date,
-          type: "سند قبض",
+          type: isRefund ? "رد مبلغ لعميل" : "سند قبض",
           reference: `#${pay.payment_number}`,
-          description: "تحصيل من العميل",
-          debit: 0,
-          credit: Number(pay.amount),
+          description: isRefund ? "رد مبلغ مرتجع للعميل" : "تحصيل من العميل",
+          debit: isRefund ? Number(pay.amount) : 0,
+          credit: isRefund ? 0 : Number(pay.amount),
           runningBalance: 0,
         });
       });
