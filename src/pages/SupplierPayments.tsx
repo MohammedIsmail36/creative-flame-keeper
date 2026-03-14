@@ -188,10 +188,7 @@ export default function SupplierPayments() {
       });
     }
 
-    const sup = suppliers.find(s => s.id === supId);
-    if (sup) {
-      await (supabase.from("suppliers" as any) as any).update({ balance: (sup.balance || 0) - amt }).eq("id", supId);
-    }
+    await recalculateEntityBalance("supplier", supId);
   }
 
   async function handlePostDraft() {

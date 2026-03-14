@@ -191,10 +191,7 @@ export default function CustomerPayments() {
       });
     }
 
-    const cust = customers.find(c => c.id === custId);
-    if (cust) {
-      await (supabase.from("customers" as any) as any).update({ balance: (cust.balance || 0) - amt }).eq("id", custId);
-    }
+    await recalculateEntityBalance("customer", custId);
   }
 
   // Post a draft payment
