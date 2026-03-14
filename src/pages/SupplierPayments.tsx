@@ -236,15 +236,9 @@ export default function SupplierPayments() {
           .delete()
           .eq("payment_id", cancelTarget.id);
 
-        // 3. Recalculate paid_amount for each affected invoice
-        for (const alloc of allocations) {
-          const { data: remainingAllocs } = await (supabase.from("supplier_payment_allocations" as any) as any)
-            .select("allocated_amount")
-            .eq("invoice_id", alloc.invoice_id);
-          const newPaid = (remainingAllocs || []).reduce((s: number, a: any) => s + a.allocated_amount, 0);
-          await (supabase.from("purchase_invoices" as any) as any)
-            .update({ paid_amount: newPaid })
-            .eq("id", alloc.invoice_id);
+        const affectedInvoiceIds = [...new Set(allocations.map((a: any) => a.invoice_id))];
+        for (const invoiceId of affectedInvoiceIds) {
+          await recalculateInvoicePaidAmount("purchase", invoiceId);
         }
       }
 
