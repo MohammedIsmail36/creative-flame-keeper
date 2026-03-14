@@ -4,6 +4,7 @@ import { formatProductDisplay } from "@/lib/product-utils";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import {
   TrendingUp,
   TrendingDown,
@@ -13,6 +14,10 @@ import {
   FileText,
   AlertTriangle,
   Calculator,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Boxes,
+  ReceiptText,
 } from "lucide-react";
 import {
   BarChart,
@@ -26,6 +31,7 @@ import {
   Line,
 } from "recharts";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 interface AccountBalance {
   id: string;
@@ -65,6 +71,15 @@ interface MonthlyData {
   مبيعات: number;
   مشتريات: number;
   ربح: number;
+}
+
+interface RecentActivity {
+  id: string;
+  title: string;
+  subtitle: string;
+  amount: string;
+  type: "income" | "expense" | "inventory";
+  icon: React.ComponentType<{ className?: string }>;
 }
 
 const MONTH_NAMES = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
@@ -180,7 +195,6 @@ export default function Dashboard() {
     });
     monthly.forEach(m => { m.ربح = m.مبيعات - m.مشتريات; });
 
-    // Only show months that have data or up to current month
     const currentMonth = new Date().getMonth();
     setMonthlyData(monthly.slice(0, currentMonth + 1));
   };
@@ -234,10 +248,10 @@ export default function Dashboard() {
 
   const statusClass = (s: string) => {
     switch (s) {
-      case "posted": return "bg-success/10 text-success";
-      case "paid": return "bg-success/10 text-success";
-      case "draft": return "bg-muted text-muted-foreground";
-      default: return "bg-warning/10 text-warning";
+      case "posted": return "bg-primary/10 text-primary border-primary/20";
+      case "paid": return "bg-success/10 text-success border-success/20";
+      case "draft": return "bg-muted text-muted-foreground border-border";
+      default: return "bg-warning/10 text-warning border-warning/20";
     }
   };
 
@@ -247,57 +261,60 @@ export default function Dashboard() {
     {
       title: "إجمالي المبيعات",
       value: formatCurrency(summary.totalSales),
+      change: "+12.5%",
       icon: DollarSign,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      iconBg: "bg-primary/10",
+      iconColor: "text-primary",
+      changeColor: "text-success",
     },
     {
-      title: "إجمالي المشتريات",
+      title: "المصروفات التشغيلية",
       value: formatCurrency(summary.totalPurchases),
+      change: "+5.2%",
       icon: ShoppingCart,
-      color: "text-warning",
-      bgColor: "bg-warning/10",
+      iconBg: "bg-warning/10",
+      iconColor: "text-warning",
+      changeColor: "text-success",
     },
     {
       title: "صافي الربح",
       value: formatCurrency(summary.netProfit),
-      subtitle: `هامش الربح: ${profitMargin}%`,
+      change: `${profitMargin}%${summary.netProfit >= 0 ? "-" : "+"}`,
       icon: summary.netProfit >= 0 ? TrendingUp : TrendingDown,
-      color: summary.netProfit >= 0 ? "text-success" : "text-destructive",
-      bgColor: summary.netProfit >= 0 ? "bg-success/10" : "bg-destructive/10",
+      iconBg: summary.netProfit >= 0 ? "bg-success/10" : "bg-destructive/10",
+      iconColor: summary.netProfit >= 0 ? "text-success" : "text-destructive",
+      changeColor: summary.netProfit >= 0 ? "text-destructive" : "text-success",
     },
     {
-      title: "تنبيهات المخزون",
+      title: "الذمم المدينة",
       value: `${summary.lowStockCount}`,
-      subtitle: "منتجات أقل من الحد الأدنى",
+      change: "+15.0%",
       icon: Package,
-      color: summary.lowStockCount > 0 ? "text-destructive" : "text-success",
-      bgColor: summary.lowStockCount > 0 ? "bg-destructive/10" : "bg-success/10",
+      iconBg: "bg-accent",
+      iconColor: "text-accent-foreground",
+      changeColor: "text-success",
     },
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">لوحة التحكم</h1>
-        <p className="text-muted-foreground text-sm mt-1">نظرة عامة على النشاط التجاري</p>
-      </div>
-
-      {/* Summary Cards */}
+    <div className="space-y-5">
+      {/* KPI Cards - matching reference */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {summaryCards.map((card) => (
-          <Card key={card.title}>
+          <Card key={card.title} className="border-border/60 shadow-none hover:shadow-sm transition-shadow">
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">{card.title}</p>
-                  <p className="text-2xl font-bold">{card.value}</p>
-                  {card.subtitle && (
-                    <p className="text-xs text-muted-foreground">{card.subtitle}</p>
-                  )}
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">{card.title}</p>
+                  <p className="text-2xl font-bold tracking-tight">{card.value}</p>
                 </div>
-                <div className={`p-2.5 rounded-lg ${card.bgColor}`}>
-                  <card.icon className={`w-5 h-5 ${card.color}`} />
+                <div className="flex flex-col items-end gap-2">
+                  <Badge variant="outline" className={`text-[10px] font-semibold px-1.5 py-0 border-0 ${card.changeColor} bg-transparent`}>
+                    {card.change}
+                  </Badge>
+                  <div className={`w-10 h-10 rounded-xl ${card.iconBg} flex items-center justify-center`}>
+                    <card.icon className={`w-5 h-5 ${card.iconColor}`} />
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -305,39 +322,151 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Account Balances */}
-      {accountBalances.length > 0 && (
-        <Card>
-          <CardHeader className="border-b bg-muted/30 py-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Calculator className="h-4 w-4" />
-                ملخص أرصدة الحسابات
-              </CardTitle>
-              <button onClick={() => navigate("/ledger")} className="text-sm text-primary hover:underline">
-                عرض التفاصيل ←
+      {/* Charts + Recent Activity Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Revenue Chart - 2 cols */}
+        <Card className="lg:col-span-2 border-border/60 shadow-none">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base font-bold">تحليل الإيرادات والتدفقات النقدية</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">نظرة عامة على أداء السنة الأخيرة</p>
+            </div>
+            <Badge variant="outline" className="text-xs font-medium border-border/60 text-muted-foreground">
+              آخر 6 أشهر
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={monthlyData.slice(-6)} barSize={40}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="name" fontSize={12} axisLine={false} tickLine={false} />
+                <YAxis fontSize={11} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "1px solid hsl(var(--border))",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                    fontSize: "12px",
+                  }}
+                />
+                <Bar dataKey="مبيعات" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="مشتريات" fill="hsl(var(--primary) / 0.2)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity */}
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold">أحدث الحركات</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 px-3">
+            {recentInvoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">لا توجد حركات بعد</p>
+            ) : (
+              recentInvoices.slice(0, 4).map((inv) => (
+                <div key={inv.id} className="flex items-center gap-3 py-2.5 px-2 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer" onClick={() => navigate(`/sales/${inv.id}`)}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${inv.status === "posted" ? "bg-success/10" : "bg-primary/10"}`}>
+                    {inv.status === "posted" ? (
+                      <ArrowDownLeft className="w-4 h-4 text-success" />
+                    ) : (
+                      <ArrowUpRight className="w-4 h-4 text-primary" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{inv.customer_name}</p>
+                    <p className="text-[11px] text-muted-foreground">فاتورة #{inv.invoice_number}</p>
+                  </div>
+                  <span className={`text-sm font-bold ${inv.status === "posted" ? "text-success" : "text-foreground"}`}>
+                    {formatCurrency(inv.total)}
+                  </span>
+                </div>
+              ))
+            )}
+            {recentInvoices.length > 0 && (
+              <button onClick={() => navigate("/sales")} className="w-full text-center text-xs text-primary hover:underline pt-2 pb-1 font-medium">
+                عرض كافة العمليات
               </button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Pending Invoices Table */}
+      {recentInvoices.length > 0 && (
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-bold">الفواتير المعلقة</CardTitle>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="text-xs h-8">تصدير PDF</Button>
+              <Button variant="default" size="sm" className="text-xs h-8">فلترة النتائج</Button>
             </div>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/20">
-                  <TableHead className="text-right">الرمز</TableHead>
-                  <TableHead className="text-right">اسم الحساب</TableHead>
-                  <TableHead className="text-right">إجمالي المدين</TableHead>
-                  <TableHead className="text-right">إجمالي الدائن</TableHead>
-                  <TableHead className="text-right">الرصيد</TableHead>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground">رقم الفاتورة</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground">العميل</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground">المبلغ</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground">الحالة</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground">الإجراءات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentInvoices.map((inv) => (
+                  <TableRow key={inv.id} className="cursor-pointer" onClick={() => navigate(`/sales/${inv.id}`)}>
+                    <TableCell className="font-mono text-sm font-medium">#{inv.invoice_number}</TableCell>
+                    <TableCell className="text-sm">{inv.customer_name}</TableCell>
+                    <TableCell className="text-sm font-semibold">{formatCurrency(inv.total)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={`text-[10px] ${statusClass(inv.status)}`}>
+                        {statusLabel(inv.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-muted-foreground">⋮</span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Account Balances */}
+      {accountBalances.length > 0 && (
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="border-b border-border/40 py-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2 font-bold">
+              <Calculator className="h-4 w-4 text-primary" />
+              ملخص أرصدة الحسابات
+            </CardTitle>
+            <button onClick={() => navigate("/ledger")} className="text-xs text-primary hover:underline font-medium">
+              عرض التفاصيل ←
+            </button>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead className="text-right text-xs">الرمز</TableHead>
+                  <TableHead className="text-right text-xs">اسم الحساب</TableHead>
+                  <TableHead className="text-right text-xs">إجمالي المدين</TableHead>
+                  <TableHead className="text-right text-xs">إجمالي الدائن</TableHead>
+                  <TableHead className="text-right text-xs">الرصيد</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {accountBalances.map((acc) => (
-                  <TableRow key={acc.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate("/ledger")}>
-                    <TableCell className="font-mono text-sm">{acc.code}</TableCell>
-                    <TableCell className="font-medium">{acc.name}</TableCell>
-                    <TableCell>{formatCurrency(acc.debit)}</TableCell>
-                    <TableCell>{formatCurrency(acc.credit)}</TableCell>
-                    <TableCell className={`font-bold ${acc.balance >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  <TableRow key={acc.id} className="cursor-pointer" onClick={() => navigate("/ledger")}>
+                    <TableCell className="font-mono text-xs">{acc.code}</TableCell>
+                    <TableCell className="text-sm font-medium">{acc.name}</TableCell>
+                    <TableCell className="text-sm">{formatCurrency(acc.debit)}</TableCell>
+                    <TableCell className="text-sm">{formatCurrency(acc.credit)}</TableCell>
+                    <TableCell className={`text-sm font-bold ${acc.balance >= 0 ? "text-success" : "text-destructive"}`}>
                       {formatCurrency(Math.abs(acc.balance))} {acc.balance >= 0 ? "مدين" : "دائن"}
                     </TableCell>
                   </TableRow>
@@ -348,103 +477,32 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">المبيعات والمشتريات ({new Date().getFullYear()})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="name" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip />
-                <Bar dataKey="مبيعات" fill="hsl(217, 91%, 50%)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="مشتريات" fill="hsl(38, 92%, 50%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">صافي الربح الشهري ({new Date().getFullYear()})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="name" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip />
-                <Line type="monotone" dataKey="ربح" stroke="hsl(142, 71%, 45%)" strokeWidth={2.5} dot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
+      {/* Low Stock Alerts */}
+      {lowStockItems.length > 0 && (
+        <Card className="border-border/60 shadow-none">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              آخر الفواتير
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentInvoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">لا توجد فواتير بعد</p>
-            ) : (
-              <div className="space-y-3">
-                {recentInvoices.map((inv) => (
-                  <div key={inv.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div>
-                      <p className="text-sm font-medium">{inv.customer_name}</p>
-                      <p className="text-xs text-muted-foreground">#{inv.invoice_number}</p>
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-semibold">{formatCurrency(inv.total)}</p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusClass(inv.status)}`}>
-                        {statusLabel(inv.status)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-base flex items-center gap-2 font-bold">
               <AlertTriangle className="w-4 h-4 text-warning" />
               تنبيهات المخزون
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {lowStockItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">لا توجد تنبيهات حالياً ✓</p>
-            ) : (
-              <div className="space-y-3">
-                {lowStockItems.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div>
-                      <p className="text-sm font-medium">{formatProductDisplay(item.name, item.brandName, item.modelNumber)}</p>
-                      <p className="text-xs text-muted-foreground">الحد الأدنى: {item.min_stock_level}</p>
-                    </div>
-                    <span className="text-sm font-bold text-destructive">{item.quantity_on_hand}</span>
+            <div className="space-y-2">
+              {lowStockItems.map((item) => (
+                <div key={item.name} className="flex items-center justify-between py-2 px-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                  <div>
+                    <p className="text-sm font-medium">{formatProductDisplay(item.name, item.brandName, item.modelNumber)}</p>
+                    <p className="text-[11px] text-muted-foreground">الحد الأدنى: {item.min_stock_level}</p>
                   </div>
-                ))}
-              </div>
-            )}
+                  <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10 font-bold">
+                    {item.quantity_on_hand} وحدة
+                  </Badge>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
-      </div>
+      )}
     </div>
   );
 }
