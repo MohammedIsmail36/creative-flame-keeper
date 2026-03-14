@@ -467,6 +467,15 @@ export default function PurchaseReturnForm() {
         </Card>
       )}
 
+      {/* Settlement View - show which invoices this return is settled against */}
+      {!isNew && status === "posted" && id && (
+        <ReturnSettlementsView
+          type="purchase"
+          returnId={id}
+          returnTotal={grandTotal}
+        />
+      )}
+
       {/* Payment Section - for posted returns (receive from supplier) */}
       {!isNew && status === "posted" && id && (
         <InvoicePaymentSection
