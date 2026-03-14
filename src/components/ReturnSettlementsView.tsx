@@ -101,7 +101,7 @@ export default function ReturnSettlementsView({ type, returnId, returnTotal }: P
           <CardTitle className="text-lg">تسويات مطبقة على فواتير</CardTitle>
           <Badge variant="secondary">مسوّى: {totalSettled.toFixed(2)}</Badge>
           {remaining <= 0.01 && (
-            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">مسوّى بالكامل</Badge>
+            <Badge variant="default">مسوّى بالكامل</Badge>
           )}
         </div>
         <p className="text-sm text-muted-foreground">

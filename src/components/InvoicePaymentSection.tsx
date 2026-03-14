@@ -271,12 +271,8 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
       allocPayload[allocIdCol] = invoiceId;
       await (supabase.from(allocationTable as any) as any).insert(allocPayload);
 
-      // Update entity balance (for returns, reverse the direction)
-      const { data: entity } = await (supabase.from(entityTable as any) as any).select("balance").eq("id", entityId).single();
-      if (entity) {
-        const balanceChange = isReturn ? amount : -amount;
-        await (supabase.from(entityTable as any) as any).update({ balance: (entity.balance || 0) + balanceChange }).eq("id", entityId);
-      }
+      // Recalculate entity balance from source-of-truth (prevents drift)
+      await recalculateEntityBalance(isCustomerSide ? "customer" : "supplier", entityId);
 
       toast({ title: "تم التسجيل", description: "تم تسجيل الدفعة وتخصيصها للفاتورة" });
       setDialogOpen(false);
