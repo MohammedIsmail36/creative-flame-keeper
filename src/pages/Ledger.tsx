@@ -143,7 +143,7 @@ export default function Ledger() {
     const selectedAccount = selectedAccountId !== "all" ? accountMap.get(selectedAccountId) : null;
     const pdfTitle = selectedAccount ? `دفتر الأستاذ - ${selectedAccount.code} ${selectedAccount.name}` : "دفتر الأستاذ العام";
     const tableData = linesWithBalance.map((l) => [
-      l.entry_number, l.entry_date, l.accountCode ? `${l.accountCode} - ${l.accountName}` : "",
+      formatDisplayNumber(jePrefix, l.entry_posted_number, l.entry_number, l.entry_status), l.entry_date, l.accountCode ? `${l.accountCode} - ${l.accountName}` : "",
       l.entry_description, l.debit > 0 ? formatNumber(l.debit) : "-", l.credit > 0 ? formatNumber(l.credit) : "-",
       l.showBalance ? formatNumber(l.runningBalance!) : "-",
     ]);
