@@ -289,6 +289,19 @@ export default function SupplierPayments() {
       cell: ({ row }) => <span className="font-mono">{formatDisplayNumber(prefix, row.original.posted_number, row.original.payment_number, row.original.status)}</span>,
     },
     {
+      id: "type",
+      header: "النوع",
+      cell: ({ row }) => {
+        const isRefund = row.original.isRefund;
+        return (
+          <Badge variant={isRefund ? "default" : "destructive"} className="gap-1">
+            {isRefund ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
+            {isRefund ? "مبلغ مسترد" : "سداد"}
+          </Badge>
+        );
+      },
+    },
+    {
       accessorKey: "supplier_name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="المورد" />,
       cell: ({ row }) => <span className="font-medium">{row.original.supplier_name || "—"}</span>,
