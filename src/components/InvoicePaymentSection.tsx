@@ -120,13 +120,19 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
     // 2. Calculate paid amount from allocations
     const totalFromAllocations = enrichedAllocations.reduce((s, a) => s + a.allocated_amount, 0);
 
-    // 2b. For invoices (not returns), also include return settlements in paid total
+    // 2b. Include settlements in paid total
     let totalFromSettlements = 0;
     if (!isReturn) {
       const settlementTable = isCustomerSide ? "sales_invoice_return_settlements" : "purchase_invoice_return_settlements";
       const { data: settlements } = await (supabase.from(settlementTable as any) as any)
         .select("settled_amount")
         .eq("invoice_id", invoiceId);
+      totalFromSettlements = (settlements || []).reduce((s: number, r: any) => s + Number(r.settled_amount), 0);
+    } else {
+      const settlementTable = type === "sales_return" ? "sales_invoice_return_settlements" : "purchase_invoice_return_settlements";
+      const { data: settlements } = await (supabase.from(settlementTable as any) as any)
+        .select("settled_amount")
+        .eq("return_id", invoiceId);
       totalFromSettlements = (settlements || []).reduce((s: number, r: any) => s + Number(r.settled_amount), 0);
     }
 
@@ -265,12 +271,8 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
       allocPayload[allocIdCol] = invoiceId;
       await (supabase.from(allocationTable as any) as any).insert(allocPayload);
 
-      // Update entity balance (for returns, reverse the direction)
-      const { data: entity } = await (supabase.from(entityTable as any) as any).select("balance").eq("id", entityId).single();
-      if (entity) {
-        const balanceChange = isReturn ? amount : -amount;
-        await (supabase.from(entityTable as any) as any).update({ balance: (entity.balance || 0) + balanceChange }).eq("id", entityId);
-      }
+      // Recalculate entity balance from source-of-truth (prevents drift)
+      await recalculateEntityBalance(isCustomerSide ? "customer" : "supplier", entityId);
 
       toast({ title: "تم التسجيل", description: "تم تسجيل الدفعة وتخصيصها للفاتورة" });
       setDialogOpen(false);

@@ -39,18 +39,21 @@ export async function recalculateEntityBalance(entityType: EntityType, entityId:
   if (payments && payments.length > 0) {
     const paymentIds = payments.map((p: any) => p.id);
     const { data: returnAllocs } = await (supabase.from(returnPaymentAllocTable as any) as any)
-      .select("payment_id")
+      .select("payment_id, allocated_amount")
       .in("payment_id", paymentIds);
 
-    const refundPaymentIds = new Set((returnAllocs || []).map((a: any) => a.payment_id));
+    const allocatedByPayment = new Map<string, number>();
+    (returnAllocs || []).forEach((a: any) => {
+      const paymentId = String(a.payment_id);
+      allocatedByPayment.set(paymentId, (allocatedByPayment.get(paymentId) || 0) + toNumber(a.allocated_amount));
+    });
 
     for (const payment of payments) {
+      const paymentId = String((payment as any).id);
       const amount = toNumber((payment as any).amount);
-      if (refundPaymentIds.has((payment as any).id)) {
-        refundPayments += amount;
-      } else {
-        normalPayments += amount;
-      }
+      const returnAllocated = Math.min(amount, Math.max(0, toNumber(allocatedByPayment.get(paymentId))));
+      normalPayments += amount - returnAllocated;
+      refundPayments += returnAllocated;
     }
   }
 
