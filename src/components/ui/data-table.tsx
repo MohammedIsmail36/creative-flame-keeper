@@ -306,8 +306,8 @@ export function DataTable<TData, TValue>({
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
                     className={cn(
-                      // ↓ h-10 ثابت (40px) — موحّد ومحكم
-                      "h-10 border-b border-border/50 transition-colors",
+                      // ↓ h-11 ثابت (44px) — موحّد ومحكم
+                      "h-11 border-b border-border/50 transition-colors",
                       // ↓ zebra بقيمة /25 مرئية لكن غير ثقيلة
                       idx % 2 === 1 && "bg-muted/25",
                       // ↓ hover فقط إذا الصف قابل للنقر
@@ -342,7 +342,7 @@ export function DataTable<TData, TValue>({
             {table.getFooterGroups().some((fg) => fg.headers.some((h) => h.column.columnDef.footer)) && (
               <TableFooter>
                 {table.getFooterGroups().map((footerGroup) => (
-                  <TableRow key={footerGroup.id} className="bg-muted/30 border-t border-border h-10">
+                  <TableRow key={footerGroup.id} className="bg-muted/30 border-t border-border h-11">
                     {footerGroup.headers.map((header) => (
                       <TableCell key={header.id} className="px-3 py-0 font-semibold text-sm">
                         {header.isPlaceholder ? null : flexRender(header.column.columnDef.footer, header.getContext())}
