@@ -37,22 +37,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -149,7 +135,7 @@ export function DataTable<TData, TValue>({
         setInternalRowSelection(updater);
       }
     },
-    [onRowSelectionChange]
+    [onRowSelectionChange],
   );
 
   const handleColumnVisibilityChange = React.useCallback(
@@ -157,12 +143,10 @@ export function DataTable<TData, TValue>({
       if (onColumnVisibilityChange) {
         onColumnVisibilityChange(updater);
       } else {
-        setInternalColumnVisibility(
-          typeof updater === "function" ? updater(internalColumnVisibility) : updater
-        );
+        setInternalColumnVisibility(typeof updater === "function" ? updater(internalColumnVisibility) : updater);
       }
     },
-    [onColumnVisibilityChange, internalColumnVisibility]
+    [onColumnVisibilityChange, internalColumnVisibility],
   );
 
   const handleColumnFiltersChange: OnChangeFn<ColumnFiltersState> = React.useCallback(
@@ -173,7 +157,7 @@ export function DataTable<TData, TValue>({
         setInternalColumnFilters(updater);
       }
     },
-    [onColumnFiltersChange]
+    [onColumnFiltersChange],
   );
 
   const table = useReactTable({
@@ -209,7 +193,7 @@ export function DataTable<TData, TValue>({
       {/* ── Toolbar ── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         {toolbarStart}
-        
+
         {showSearch && (
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -249,19 +233,14 @@ export function DataTable<TData, TValue>({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                إظهار / إخفاء الأعمدة
-              </DropdownMenuLabel>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">إظهار / إخفاء الأعمدة</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {table
                 .getAllColumns()
                 .filter((col) => col.getCanHide())
                 .map((col) => {
                   const label =
-                    columnLabels[col.id] ||
-                    (typeof col.columnDef.header === "string"
-                      ? col.columnDef.header
-                      : col.id);
+                    columnLabels[col.id] || (typeof col.columnDef.header === "string" ? col.columnDef.header : col.id);
                   return (
                     <DropdownMenuCheckboxItem
                       key={col.id}
@@ -289,9 +268,7 @@ export function DataTable<TData, TValue>({
                       key={header.id}
                       className="text-right font-bold text-[0.8rem] text-muted-foreground h-11 px-4 whitespace-nowrap tracking-wide"
                     >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -317,9 +294,7 @@ export function DataTable<TData, TValue>({
                     className={cn(
                       "transition-colors border-b border-border/40",
                       idx % 2 === 1 && "bg-muted/15",
-                      onRowClick
-                        ? "cursor-pointer hover:bg-primary/5"
-                        : "hover:bg-muted/30",
+                      onRowClick ? "cursor-pointer hover:bg-primary/5" : "hover:bg-muted/30",
                     )}
                     onClick={() => onRowClick?.(row.original)}
                   >
@@ -332,10 +307,7 @@ export function DataTable<TData, TValue>({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-32 text-center text-muted-foreground"
-                  >
+                  <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
                     <div className="flex flex-col items-center gap-2">
                       <Search className="h-8 w-8 text-muted-foreground/40" />
                       <p className="text-sm">{emptyMessage}</p>
@@ -346,17 +318,13 @@ export function DataTable<TData, TValue>({
             </TableBody>
 
             {/* Footer */}
-            {table.getFooterGroups().some((fg) =>
-              fg.headers.some((h) => h.column.columnDef.footer)
-            ) && (
+            {table.getFooterGroups().some((fg) => fg.headers.some((h) => h.column.columnDef.footer)) && (
               <TableFooter>
                 {table.getFooterGroups().map((footerGroup) => (
                   <TableRow key={footerGroup.id} className="bg-muted/20 border-t-2 border-border/60">
                     {footerGroup.headers.map((header) => (
-                      <TableCell key={header.id} className="px-4 py-3 font-bold text-[0.9rem]">
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.footer, header.getContext())}
+                      <TableCell key={header.id} className="px-4 h-11 font-bold text-[0.9rem]">
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.footer, header.getContext())}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -374,9 +342,7 @@ export function DataTable<TData, TValue>({
           <div className="flex items-center gap-3">
             {/* Selected count */}
             {Object.keys(rowSelectionValue).length > 0 && (
-              <span className="text-sm text-primary font-medium">
-                {Object.keys(rowSelectionValue).length} محدد
-              </span>
+              <span className="text-sm text-primary font-medium">{Object.keys(rowSelectionValue).length} محدد</span>
             )}
             <span className="text-sm text-muted-foreground">
               {table.getFilteredRowModel().rows.length > 0 ? (
@@ -493,13 +459,7 @@ export function getSelectionColumn<TData>(): ColumnDef<TData, any> {
     id: "select",
     header: ({ table }) => (
       <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected()
-            ? true
-            : table.getIsSomePageRowsSelected()
-              ? "indeterminate"
-              : false
-        }
+        checked={table.getIsAllPageRowsSelected() ? true : table.getIsSomePageRowsSelected() ? "indeterminate" : false}
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="تحديد الكل"
         className="translate-y-[2px]"
