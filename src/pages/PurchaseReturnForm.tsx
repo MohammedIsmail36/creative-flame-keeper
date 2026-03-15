@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { toast } from "@/hooks/use-toast";
-import { Plus, X, Save, CheckCircle, Trash2, Ban, Printer, User, FileText, ListChecks, CreditCard } from "lucide-react";
+import { Plus, X, Save, CheckCircle, Trash2, Ban, Printer, Truck, FileText, ListChecks, CreditCard, StickyNote, ArrowLeftRight } from "lucide-react";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
@@ -312,230 +312,230 @@ export default function PurchaseReturnForm() {
   const isEditable = editMode && isDraft && canEdit;
   const colCount = 3 + (showDiscount ? 1 : 0) + 1 + (isEditable ? 1 : 0);
 
+  const displayNumber = !isNew ? formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", postedNumber, returnNumber || 0, status) : null;
+
   return (
-    <div className="space-y-5" dir="rtl">
-      {/* ── Header ── */}
-      <div className="text-center space-y-1">
-        <h1 className="text-xl font-bold text-foreground">
-          {isNew ? "مرتجع شراء جديد" : `مرتجع شراء ${formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", postedNumber, returnNumber || 0, status)}`}
-        </h1>
-        {!isNew && <Badge variant={statusColors[status] as any}>{statusLabels[status]}</Badge>}
+    <div className="space-y-8" dir="rtl">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <h1 className="text-3xl font-black text-foreground tracking-tight">
+              {isNew ? "مرتجع شراء جديد" : "مرتجع شراء"}
+            </h1>
+            {displayNumber && (
+              <span className="text-base font-semibold text-muted-foreground border border-border px-3 py-1 rounded-lg bg-muted/50 font-mono tabular-nums">
+                {displayNumber}
+              </span>
+            )}
+            {!isNew && <Badge variant={statusColors[status] as any} className="text-xs px-3 py-1">{statusLabels[status]}</Badge>}
+          </div>
+          <p className="text-muted-foreground mt-2 font-medium">إدارة وتوثيق مرتجعات المشتريات بدقة وسهولة</p>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          {!isNew && isDraft && canEdit && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"><Trash2 className="h-4 w-4" />حذف</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent dir="rtl">
+                <AlertDialogHeader><AlertDialogTitle>حذف المرتجع</AlertDialogTitle><AlertDialogDescription>هل أنت متأكد من حذف هذا المرتجع؟ لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription></AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2"><AlertDialogCancel>إلغاء</AlertDialogCancel><AlertDialogAction onClick={handleDeleteDraft} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction></AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {!isNew && status === "posted" && canEdit && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"><Ban className="h-4 w-4" />إلغاء</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent dir="rtl">
+                <AlertDialogHeader><AlertDialogTitle>إلغاء المرتجع المرحّل</AlertDialogTitle><AlertDialogDescription>سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد المورد.</AlertDialogDescription></AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2"><AlertDialogCancel>تراجع</AlertDialogCancel><AlertDialogAction onClick={handleCancelPosted} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">إلغاء المرتجع</AlertDialogAction></AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {!isNew && <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5"><Printer className="h-4 w-4" />طباعة</Button>}
+          {isEditable && (
+            <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+              <Save className="h-4 w-4" />{saving ? "جاري الحفظ..." : "حفظ مسودة"}
+            </Button>
+          )}
+          {!isNew && isDraft && canEdit && (
+            <Button size="sm" onClick={postReturn} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 px-6">
+              <CheckCircle className="h-4 w-4" />ترحيل المرتجع
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* ── Action Buttons ── */}
-      <div className="flex items-center justify-center gap-2 flex-wrap">
-        {!isNew && isDraft && canEdit && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1.5 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" />حذف</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent dir="rtl">
-              <AlertDialogHeader><AlertDialogTitle>حذف المرتجع</AlertDialogTitle><AlertDialogDescription>هل أنت متأكد من حذف هذا المرتجع؟ لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription></AlertDialogHeader>
-              <AlertDialogFooter className="flex-row-reverse gap-2">
-                <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteDraft} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
-        {!isNew && status === "posted" && canEdit && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1.5 text-destructive hover:text-destructive"><Ban className="h-3.5 w-3.5" />إلغاء</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent dir="rtl">
-              <AlertDialogHeader>
-                <AlertDialogTitle>إلغاء المرتجع المرحّل</AlertDialogTitle>
-                <AlertDialogDescription>سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد المورد. هل تريد المتابعة؟</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="flex-row-reverse gap-2">
-                <AlertDialogCancel>تراجع</AlertDialogCancel>
-                <AlertDialogAction onClick={handleCancelPosted} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">إلغاء المرتجع</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
-        {!isNew && (
-          <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5"><Printer className="h-3.5 w-3.5" />طباعة</Button>
-        )}
-        {!isNew && isDraft && canEdit && (
-          <Button size="sm" onClick={postReturn} className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"><CheckCircle className="h-3.5 w-3.5" />ترحيل</Button>
-        )}
-        {isEditable && (
-          <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
-            <Save className="h-3.5 w-3.5" />{saving ? "جاري الحفظ..." : "حفظ مسودة"}
-          </Button>
-        )}
-      </div>
-
-      {/* ── Metadata: Two-column layout ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <Card className="lg:col-span-2">
-          <CardContent className="p-5">
-            <SectionHeader icon={User} title="بيانات المورد" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-sm text-muted-foreground">اسم المورد</Label>
-                {isEditable ? (
-                  <LookupCombobox items={suppliers} value={supplierId} onValueChange={setSupplierId} placeholder="اختر المورد" />
-                ) : (
-                  <div className="h-10 px-3 flex items-center rounded-lg border bg-muted/30 text-sm font-medium">
-                    {supplierName || suppliers.find(s => s.id === supplierId)?.name || "—"}
-                  </div>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm text-muted-foreground">ملاحظات</Label>
-                {isEditable ? (
-                  <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="ملاحظات (اختياري)" />
-                ) : (
-                  <div className="h-10 px-3 flex items-center rounded-lg border bg-muted/30 text-sm">{notes || "—"}</div>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm text-muted-foreground">مرجع</Label>
-                {isEditable ? (
-                  <Input value={reference} onChange={e => setReference(e.target.value)} placeholder="رقم مرجعي (اختياري)" />
-                ) : (
-                  <div className="h-10 px-3 flex items-center rounded-lg border bg-muted/30 text-sm">{reference || "—"}</div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <SectionHeader icon={FileText} title="تفاصيل المرتجع" />
-            <div className="space-y-4">
-              {!isNew && (
-                <div className="space-y-1.5">
-                  <Label className="text-sm text-muted-foreground">رقم المرتجع</Label>
-                  <div className="h-10 px-3 flex items-center rounded-lg border bg-muted/30 text-sm font-bold font-mono tabular-nums">
-                    {formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", postedNumber, returnNumber || 0, status)}
-                  </div>
-                </div>
-              )}
-              <div className="space-y-1.5">
-                <Label className="text-sm text-muted-foreground">تاريخ المرتجع</Label>
-                {isEditable ? (
-                  <DatePickerInput value={returnDate} onChange={setReturnDate} placeholder="اختر التاريخ" />
-                ) : (
-                  <div className="h-10 px-3 flex items-center rounded-lg border bg-muted/30 text-sm font-mono tabular-nums">{returnDate}</div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Items + Summary: Two-column layout ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <Card className="lg:col-span-2">
-          <CardContent className="p-5 pb-0">
-            <SectionHeader icon={ListChecks} title="بنود المرتجع" />
-          </CardContent>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30">
-                  <TableHead className="text-right">المنتج</TableHead>
-                  <TableHead className="text-right w-[10%]">الكمية</TableHead>
-                  <TableHead className="text-right w-[15%]">السعر</TableHead>
-                  {showDiscount && <TableHead className="text-right w-[12%]">خصم</TableHead>}
-                  <TableHead className="text-right w-[15%]">المجموع</TableHead>
-                  {isEditable && <TableHead className="w-[5%]"></TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={colCount} className="text-center py-10 text-muted-foreground">لا توجد أصناف بعد</TableCell>
-                  </TableRow>
-                ) : items.map((item, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      {isEditable ? (
-                        <LookupCombobox items={productsToLookupItems(products)} value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)} placeholder="اختر المنتج" />
-                      ) : <span className="font-medium text-sm">{item.product_name}</span>}
-                    </TableCell>
-                    <TableCell>
-                      {isEditable ? (
-                        <Input type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", +e.target.value)} className="font-mono tabular-nums text-center" />
-                      ) : <span className="font-mono tabular-nums">{item.quantity}</span>}
-                    </TableCell>
-                    <TableCell>
-                      {isEditable ? (
-                        <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", +e.target.value)} className="font-mono tabular-nums" />
-                      ) : <span className="font-mono tabular-nums">{item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}
-                    </TableCell>
-                    {showDiscount && (
-                      <TableCell>
-                        {isEditable ? (
-                          <Input type="number" min="0" step="0.01" value={item.discount} onChange={e => updateItem(i, "discount", +e.target.value)} className="font-mono tabular-nums" />
-                        ) : <span className="font-mono tabular-nums">{item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <span className="font-mono tabular-nums font-semibold">{formatCurrency(item.total)}</span>
-                    </TableCell>
-                    {isEditable && (
-                      <TableCell>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItem(i)}>
-                          <X className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-
-            {isEditable && (
-              <div className="p-4 border-t">
-                <button onClick={addItem} className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
-                  <Plus className="h-4 w-4" />إضافة بند جديد
-                </button>
+      {/* ── Entity Details Card (single row) ── */}
+      <div className="bg-card p-6 rounded-2xl border shadow-sm">
+        <SectionHeader icon={Truck} title="بيانات المرتجع" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-muted-foreground">اسم المورد</Label>
+            {isEditable ? (
+              <LookupCombobox items={suppliers} value={supplierId} onValueChange={setSupplierId} placeholder="اختر المورد" />
+            ) : (
+              <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-medium">
+                {supplierName || suppliers.find(s => s.id === supplierId)?.name || "—"}
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Summary Card */}
-        <Card>
-          <CardContent className="p-5">
-            <SectionHeader icon={CreditCard} title="ملخص المرتجع" />
-            <div className="space-y-3">
-              <div className="flex justify-between items-center text-sm">
-                <span className="font-mono tabular-nums">{formatCurrency(subtotal)}</span>
-                <span className="text-muted-foreground">الإجمالي الفرعي</span>
-              </div>
-              {showTax && (
-                <div className="flex justify-between items-center text-sm">
-                  <span className="font-mono tabular-nums">{formatCurrency(taxAmount)}</span>
-                  <span className="text-muted-foreground">الضريبة ({taxRate}%)</span>
-                </div>
-              )}
-              <div className="border-t pt-3 mt-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-2xl font-bold font-mono tabular-nums text-primary">{formatCurrency(grandTotal)}</span>
-                  <span className="font-bold text-base">الإجمالي الكلي</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-muted-foreground">تاريخ المرتجع</Label>
+            {isEditable ? (
+              <DatePickerInput value={returnDate} onChange={setReturnDate} placeholder="اختر التاريخ" />
+            ) : (
+              <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-mono tabular-nums">{returnDate}</div>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-muted-foreground">رقم المرجع</Label>
+            {isEditable ? (
+              <Input value={reference} onChange={e => setReference(e.target.value)} placeholder="رقم مرجعي (اختياري)" className="rounded-xl" />
+            ) : (
+              <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm">{reference || "—"}</div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* ── Financial section ── */}
+      {/* ── Items Table Card ── */}
+      <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between p-6 pb-4">
+          <SectionHeader icon={ListChecks} title="بنود المرتجع" />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-right border-collapse">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="pb-4 px-6 font-bold text-muted-foreground text-sm">البند</th>
+                <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-20">الكمية</th>
+                <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-32">السعر</th>
+                {showDiscount && <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-24">خصم</th>}
+                <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-32">المجموع</th>
+                {isEditable && <th className="pb-4 px-3 w-12"></th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={colCount} className="text-center py-12 text-muted-foreground">لا توجد أصناف بعد</td>
+                </tr>
+              ) : items.map((item, i) => (
+                <tr key={i} className="group hover:bg-muted/30 transition-colors">
+                  <td className="py-4 px-6">
+                    {isEditable ? (
+                      <LookupCombobox items={productsToLookupItems(products)} value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)} placeholder="اختر المنتج" />
+                    ) : (
+                      <span className="font-medium text-sm">{item.product_name}</span>
+                    )}
+                  </td>
+                  <td className="py-4 px-3">
+                    {isEditable ? (
+                      <Input type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9" />
+                    ) : (
+                      <span className="font-mono tabular-nums">{item.quantity}</span>
+                    )}
+                  </td>
+                  <td className="py-4 px-3">
+                    {isEditable ? (
+                      <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9" />
+                    ) : (
+                      <span className="font-mono tabular-nums">{item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                    )}
+                  </td>
+                  {showDiscount && (
+                    <td className="py-4 px-3">
+                      {isEditable ? (
+                        <Input type="number" min="0" step="0.01" value={item.discount} onChange={e => updateItem(i, "discount", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9" />
+                      ) : (
+                        <span className="font-mono tabular-nums">{item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                      )}
+                    </td>
+                  )}
+                  <td className="py-4 px-3">
+                    <span className="font-mono tabular-nums font-bold text-foreground">{formatCurrency(item.total)}</span>
+                  </td>
+                  {isEditable && (
+                    <td className="py-4 px-3">
+                      <button className="p-1 text-muted-foreground/40 hover:text-destructive transition-colors" onClick={() => removeItem(i)}>
+                        <X className="h-5 w-5" />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {isEditable && (
+          <div className="p-4 border-t">
+            <button onClick={addItem} className="flex items-center gap-2 text-sm font-bold text-primary hover:bg-primary/5 px-4 py-2 rounded-xl transition-all">
+              <Plus className="h-4 w-4" />
+              إضافة بند جديد
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Notes + Summary: Side by side ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col">
+          <SectionHeader icon={StickyNote} title="ملاحظات داخلية" />
+          <div className="flex-1 space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground">ملاحظات داخلية (لا تظهر في الطباعة)</Label>
+            {isEditable ? (
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                className="w-full h-32 px-4 py-3 bg-muted/30 border border-border rounded-xl text-sm transition-all resize-none focus:ring-2 focus:ring-ring focus:border-ring"
+                placeholder="أدخل أي ملاحظات إضافية هنا..."
+              />
+            ) : (
+              <div className="h-32 px-4 py-3 bg-muted/30 border rounded-xl text-sm">{notes || "لا توجد ملاحظات"}</div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-muted/50 p-8 rounded-2xl border shadow-sm">
+          <SectionHeader icon={CreditCard} title="ملخص المرتجع" />
+          <div className="space-y-4">
+            <div className="flex justify-between text-base">
+              <span className="font-medium font-mono tabular-nums">{formatCurrency(subtotal)}</span>
+              <span className="text-muted-foreground">الإجمالي الفرعي</span>
+            </div>
+            {showTax && (
+              <div className="flex justify-between text-base">
+                <span className="font-medium font-mono tabular-nums">{formatCurrency(taxAmount)}</span>
+                <span className="text-muted-foreground">إجمالي الضريبة ({taxRate}%)</span>
+              </div>
+            )}
+            <div className="h-px bg-border my-4"></div>
+            <div className="flex justify-between items-center">
+              <div className="text-right">
+                <span className="text-3xl font-black text-primary font-mono tabular-nums">{formatCurrency(grandTotal)}</span>
+              </div>
+              <span className="text-lg font-bold text-foreground">الإجمالي الكلي</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Related Operations ── */}
       {!isNew && status === "posted" && id && (
-        <div className="space-y-4">
-          <ReturnSettlementsView type="purchase" returnId={id} returnTotal={grandTotal} />
-          <InvoicePaymentSection
-            type="purchase_return" invoiceId={id} entityId={supplierId}
-            entityName={supplierName || suppliers.find(s => s.id === supplierId)?.name || ""}
-            invoiceTotal={grandTotal} invoiceNumber={returnNumber} onPaymentAdded={loadData}
-          />
+        <div className="bg-card p-6 rounded-2xl border shadow-sm">
+          <SectionHeader icon={ArrowLeftRight} title="العمليات المرتبطة" />
+          <div className="space-y-4">
+            <ReturnSettlementsView type="purchase" returnId={id} returnTotal={grandTotal} />
+            <InvoicePaymentSection
+              type="purchase_return" invoiceId={id} entityId={supplierId}
+              entityName={supplierName || suppliers.find(s => s.id === supplierId)?.name || ""}
+              invoiceTotal={grandTotal} invoiceNumber={returnNumber} onPaymentAdded={loadData}
+            />
+          </div>
         </div>
       )}
     </div>

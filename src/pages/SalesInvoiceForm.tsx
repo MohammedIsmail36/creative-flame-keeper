@@ -400,9 +400,9 @@ export default function SalesInvoiceForm() {
 
       {/* ── Customer Details Card ── */}
       <div className="bg-card p-6 rounded-2xl border shadow-sm">
-        <SectionHeader icon={User} title="بيانات العميل" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1.5 md:col-span-2">
+        <SectionHeader icon={User} title="بيانات الفاتورة" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">اسم العميل</Label>
             {isEditable ? (
               <LookupCombobox items={customers} value={customerId} onValueChange={setCustomerId} placeholder="اختر عميل أو أضف جديداً" />
