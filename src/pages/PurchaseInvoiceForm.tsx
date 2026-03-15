@@ -364,9 +364,9 @@ export default function PurchaseInvoiceForm() {
 
       {/* ── Supplier Details Card ── */}
       <div className="bg-card p-6 rounded-2xl border shadow-sm">
-        <SectionHeader icon={Truck} title="بيانات المورد" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1.5 md:col-span-2">
+        <SectionHeader icon={Truck} title="بيانات الفاتورة" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">اسم المورد</Label>
             {isEditable ? (
               <LookupCombobox items={suppliers} value={supplierId} onValueChange={setSupplierId} placeholder="اختر مورد أو أضف جديداً" />
