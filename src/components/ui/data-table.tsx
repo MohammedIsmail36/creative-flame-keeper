@@ -280,7 +280,7 @@ export function DataTable<TData, TValue>({
                 Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
                   <TableRow key={`skeleton-${i}`} className="hover:bg-transparent">
                     {columns.map((_, j) => (
-                      <TableCell key={j} className="px-4 py-3.5">
+                      <TableCell key={j} className="px-4 h11">
                         <Skeleton className="h-5 w-full max-w-[180px]" />
                       </TableCell>
                     ))}
@@ -299,7 +299,7 @@ export function DataTable<TData, TValue>({
                     onClick={() => onRowClick?.(row.original)}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="px-4 py-3.5 text-[0.9rem]">
+                      <TableCell key={cell.id} className="px-4 h-11 text-[0.9rem]">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
