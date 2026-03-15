@@ -24,7 +24,6 @@ import {
   Search,
   SlidersHorizontal,
   X,
-  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -113,14 +112,14 @@ export function DataTable<TData, TValue>({
   toolbarStart,
   globalFilterFn: customGlobalFilterFn,
 }: DataTableProps<TData, TValue>) {
-  // Internal state (used when not controlled externally)
+  // ── Internal state (used when not controlled externally) ──
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("");
   const [internalColumnFilters, setInternalColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [internalColumnVisibility, setInternalColumnVisibility] = React.useState<VisibilityState>({});
   const [internalRowSelection, setInternalRowSelection] = React.useState<RowSelectionState>({});
 
-  // Resolve controlled vs uncontrolled
+  // ── Resolve controlled vs uncontrolled ────────────────────
   const globalFilterValue = externalGlobalFilter ?? internalGlobalFilter;
   const setGlobalFilter = onGlobalFilterChange ?? setInternalGlobalFilter;
   const columnFiltersValue = externalColumnFilters ?? internalColumnFilters;
@@ -188,27 +187,31 @@ export function DataTable<TData, TValue>({
 
   const activeFiltersCount = columnFiltersValue.length + (globalFilterValue ? 1 : 0);
 
+  const selectedCount = Object.keys(rowSelectionValue).length;
+
   return (
-    <div className="space-y-3">
-      {/* ── Toolbar ── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+    <div className="space-y-2.5">
+      {/* ── Toolbar ───────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
         {toolbarStart}
 
         {showSearch && (
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <Input
               placeholder={searchPlaceholder}
               value={globalFilterValue}
               onChange={(e) => setGlobalFilter(e.target.value)}
-              className="pr-9 h-9 text-sm"
+              // ↓ h-8 بدل h-9 لتوحيد الـ toolbar مع أزرار الـ sm size
+              className="pr-8 h-8 text-sm"
             />
             {globalFilterValue && (
               <button
                 onClick={() => setGlobalFilter("")}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="مسح البحث"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-3 w-3" />
               </button>
             )}
           </div>
@@ -216,9 +219,8 @@ export function DataTable<TData, TValue>({
 
         {toolbarContent}
 
-        {/* Active filters badge */}
         {activeFiltersCount > 0 && (
-          <Badge variant="secondary" className="gap-1.5 h-8 px-3">
+          <Badge variant="secondary" className="gap-1.5 h-8 px-2.5 text-xs font-medium">
             <SlidersHorizontal className="h-3 w-3" />
             {activeFiltersCount} فلتر نشط
           </Badge>
@@ -227,8 +229,9 @@ export function DataTable<TData, TValue>({
         {showColumnToggle && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="mr-auto gap-2 h-9">
-                <Settings2 className="h-4 w-4" />
+              {/* ↓ mr-auto يدفع الزر لليسار في RTL */}
+              <Button variant="outline" size="sm" className="mr-auto gap-1.5 h-8 text-xs">
+                <Settings2 className="h-3.5 w-3.5" />
                 الأعمدة
               </Button>
             </DropdownMenuTrigger>
@@ -256,17 +259,27 @@ export function DataTable<TData, TValue>({
         )}
       </div>
 
-      {/* ── Table ── */}
-      <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+      {/* ── Table ─────────────────────────────────────────── */}
+      {/*
+        - border بدون shadow — نتجنب الثقل البصري المزدوج
+        - rounded-lg بدل rounded-xl — أنسب لجداول البيانات
+      */}
+      <div className="rounded-lg border bg-card overflow-hidden">
         <div className="relative w-full overflow-auto">
           <Table>
+            {/* Header */}
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="bg-muted/30 hover:bg-muted/30 border-b-2 border-border/60">
+                <TableRow
+                  key={headerGroup.id}
+                  // ↓ border-b واحد واضح بدل border-b-2 + opacity
+                  className="bg-muted/40 hover:bg-muted/40 border-b border-border"
+                >
                   {headerGroup.headers.map((header) => (
                     <TableHead
                       key={header.id}
-                      className="text-right font-bold text-[0.8rem] text-muted-foreground h-11 px-4 whitespace-nowrap tracking-wide"
+                      // ↓ h-9 بدل h-11 — header أكثر إحكاماً
+                      className="text-right font-semibold text-xs text-muted-foreground h-9 px-3 whitespace-nowrap uppercase tracking-wide"
                     >
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
@@ -275,13 +288,14 @@ export function DataTable<TData, TValue>({
               ))}
             </TableHeader>
 
+            {/* Body */}
             <TableBody>
               {isLoading ? (
                 Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
                   <TableRow key={`skeleton-${i}`} className="hover:bg-transparent">
                     {columns.map((_, j) => (
-                      <TableCell key={j} className="px-4 py-3.5">
-                        <Skeleton className="h-5 w-full max-w-[180px]" />
+                      <TableCell key={j} className="px-3 h-10">
+                        <Skeleton className="h-4 w-full max-w-[160px]" />
                       </TableCell>
                     ))}
                   </TableRow>
@@ -292,14 +306,21 @@ export function DataTable<TData, TValue>({
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
                     className={cn(
-                      "transition-colors border-b border-border/40",
-                      idx % 2 === 1 && "bg-muted/15",
-                      onRowClick ? "cursor-pointer hover:bg-primary/5" : "hover:bg-muted/30",
+                      // ↓ h-10 ثابت (40px) — موحّد ومحكم
+                      "h-10 border-b border-border/50 transition-colors",
+                      // ↓ zebra بقيمة /25 مرئية لكن غير ثقيلة
+                      idx % 2 === 1 && "bg-muted/25",
+                      // ↓ hover فقط إذا الصف قابل للنقر
+                      onRowClick ? "cursor-pointer hover:bg-primary/5" : "hover:bg-muted/40",
                     )}
                     onClick={() => onRowClick?.(row.original)}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="px-4 py-3.5 text-[0.9rem]">
+                      <TableCell
+                        key={cell.id}
+                        // ↓ py-0 لأن الارتفاع محكوم بـ h-10 على الـ row
+                        className="px-3 py-0 text-sm"
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
@@ -307,9 +328,9 @@ export function DataTable<TData, TValue>({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={columns.length} className="h-28 text-center text-muted-foreground">
                     <div className="flex flex-col items-center gap-2">
-                      <Search className="h-8 w-8 text-muted-foreground/40" />
+                      <Search className="h-7 w-7 text-muted-foreground/30" />
                       <p className="text-sm">{emptyMessage}</p>
                     </div>
                   </TableCell>
@@ -321,9 +342,9 @@ export function DataTable<TData, TValue>({
             {table.getFooterGroups().some((fg) => fg.headers.some((h) => h.column.columnDef.footer)) && (
               <TableFooter>
                 {table.getFooterGroups().map((footerGroup) => (
-                  <TableRow key={footerGroup.id} className="bg-muted/20 border-t-2 border-border/60">
+                  <TableRow key={footerGroup.id} className="bg-muted/30 border-t border-border h-10">
                     {footerGroup.headers.map((header) => (
-                      <TableCell key={header.id} className="px-4 py-3 font-bold text-[0.9rem]">
+                      <TableCell key={header.id} className="px-3 py-0 font-semibold text-sm">
                         {header.isPlaceholder ? null : flexRender(header.column.columnDef.footer, header.getContext())}
                       </TableCell>
                     ))}
@@ -335,17 +356,14 @@ export function DataTable<TData, TValue>({
         </div>
       </div>
 
-      {/* ── Pagination ── */}
+      {/* ── Pagination ────────────────────────────────────── */}
       {showPagination && (
-        <div className="flex items-center justify-between gap-4 flex-wrap pt-1">
+        <div className="flex items-center justify-between gap-3 flex-wrap pt-0.5">
           {/* Info */}
           <div className="flex items-center gap-3">
-            {/* Selected count */}
-            {Object.keys(rowSelectionValue).length > 0 && (
-              <span className="text-sm text-primary font-medium">{Object.keys(rowSelectionValue).length} محدد</span>
-            )}
-            <span className="text-sm text-muted-foreground">
-              {table.getFilteredRowModel().rows.length > 0 ? (
+            {selectedCount > 0 && <span className="text-xs text-primary font-medium">{selectedCount} محدد</span>}
+            <span className="text-xs text-muted-foreground">
+              {table.getFilteredRowModel().rows.length !== data.length ? (
                 <>
                   {table.getFilteredRowModel().rows.length} من أصل {data.length} عنصر
                 </>
@@ -356,20 +374,20 @@ export function DataTable<TData, TValue>({
           </div>
 
           {/* Controls */}
-          <div className="flex items-center gap-3">
-            {/* Page size selector */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground whitespace-nowrap">صفوف لكل صفحة</span>
+          <div className="flex items-center gap-2.5">
+            {/* Page size */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">صفوف لكل صفحة</span>
               <Select
                 value={`${table.getState().pagination.pageSize}`}
-                onValueChange={(value) => table.setPageSize(Number(value))}
+                onValueChange={(v) => table.setPageSize(Number(v))}
               >
-                <SelectTrigger className="h-8 w-[70px] text-sm">
+                <SelectTrigger className="h-7 w-[60px] text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {[10, 15, 20, 30, 50, 100].map((size) => (
-                    <SelectItem key={size} value={`${size}`}>
+                    <SelectItem key={size} value={`${size}`} className="text-xs">
                       {size}
                     </SelectItem>
                   ))}
@@ -378,51 +396,51 @@ export function DataTable<TData, TValue>({
             </div>
 
             {/* Page indicator */}
-            <span className="text-sm text-muted-foreground whitespace-nowrap min-w-[80px] text-center">
+            <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[90px] text-center">
               صفحة {table.getState().pagination.pageIndex + 1} من {table.getPageCount() || 1}
             </span>
 
-            {/* Navigation buttons */}
-            <div className="flex items-center gap-1">
+            {/* Nav buttons */}
+            <div className="flex items-center gap-0.5">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-7 w-7"
                 onClick={() => table.setPageIndex(0)}
                 disabled={!table.getCanPreviousPage()}
                 title="أول صفحة"
               >
-                <ChevronsRight className="h-4 w-4" />
+                <ChevronsRight className="h-3.5 w-3.5" />
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-7 w-7"
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
                 title="الصفحة السابقة"
               >
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3.5 w-3.5" />
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-7 w-7"
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
                 title="الصفحة التالية"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-7 w-7"
                 onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                 disabled={!table.getCanNextPage()}
                 title="آخر صفحة"
               >
-                <ChevronsLeft className="h-4 w-4" />
+                <ChevronsLeft className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
@@ -444,11 +462,11 @@ export function DataTableColumnHeader<TData, TValue>({
     <Button
       variant="ghost"
       size="sm"
-      className="-mr-3 h-8 gap-1.5 text-[0.8rem] font-bold hover:bg-muted/60 tracking-wide"
+      className="-mr-2 h-7 gap-1 text-xs font-semibold hover:bg-muted/60 uppercase tracking-wide"
       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
     >
       {title}
-      <ArrowUpDown className="h-3 w-3 opacity-50" />
+      <ArrowUpDown className="h-3 w-3 opacity-40" />
     </Button>
   );
 }
@@ -462,7 +480,7 @@ export function getSelectionColumn<TData>(): ColumnDef<TData, any> {
         checked={table.getIsAllPageRowsSelected() ? true : table.getIsSomePageRowsSelected() ? "indeterminate" : false}
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="تحديد الكل"
-        className="translate-y-[2px]"
+        className="translate-y-[1px]"
       />
     ),
     cell: ({ row }) => (
@@ -470,7 +488,7 @@ export function getSelectionColumn<TData>(): ColumnDef<TData, any> {
         checked={row.getIsSelected()}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
         aria-label="تحديد الصف"
-        className="translate-y-[2px]"
+        className="translate-y-[1px]"
         onClick={(e) => e.stopPropagation()}
       />
     ),
