@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { toast } from "@/hooks/use-toast";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
-import { Plus, X, Save, CheckCircle, Printer, Pencil, Trash2, Ban, Truck, FileText, ListChecks, CreditCard } from "lucide-react";
+import { Plus, X, Save, CheckCircle, Printer, Pencil, Trash2, Ban, Truck, FileText, ListChecks, CreditCard, StickyNote, ArrowLeftRight } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import OutstandingCreditsSection from "@/components/OutstandingCreditsSection";
