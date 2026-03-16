@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, role, loading } = useAuth();
+  const { user, role, loading, mfaRequired } = useAuth();
 
   if (loading) {
     return (
@@ -21,6 +21,11 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // If MFA is enrolled but not yet verified for this session, redirect to MFA verification
+  if (mfaRequired) {
+    return <Navigate to="/auth/mfa" replace />;
   }
 
   if (allowedRoles && role && !allowedRoles.includes(role)) {
