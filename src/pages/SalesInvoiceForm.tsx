@@ -14,17 +14,63 @@ import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { toast } from "@/hooks/use-toast";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
-import { Plus, X, Save, CheckCircle, Printer, Pencil, Trash2, Ban, User, FileText, ListChecks, CreditCard, Eye, StickyNote, ArrowLeftRight } from "lucide-react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  Plus,
+  X,
+  Save,
+  CheckCircle,
+  Printer,
+  Pencil,
+  Trash2,
+  Ban,
+  User,
+  FileText,
+  ListChecks,
+  CreditCard,
+  Eye,
+  StickyNote,
+  ArrowLeftRight,
+} from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import OutstandingCreditsSection from "@/components/OutstandingCreditsSection";
 import { recalculateEntityBalance } from "@/lib/entity-balance";
 
-import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
+import {
+  ProductWithBrand,
+  productsToLookupItems,
+  formatProductName,
+  formatProductDisplay,
+  PRODUCT_SELECT_FIELDS,
+} from "@/lib/product-utils";
 
-interface Customer { id: string; code: string; name: string; balance?: number; }
-type Product = ProductWithBrand & { selling_price: number; purchase_price: number; quantity_on_hand: number; };
-interface InvoiceItem { id?: string; product_id: string; product_name: string; quantity: number; unit_price: number; cost_price: number; discount: number; total: number; }
+interface Customer {
+  id: string;
+  code: string;
+  name: string;
+  balance?: number;
+}
+type Product = ProductWithBrand & { selling_price: number; purchase_price: number; quantity_on_hand: number };
+interface InvoiceItem {
+  id?: string;
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  cost_price: number;
+  discount: number;
+  total: number;
+}
 
 const ACCOUNT_CODES = {
   CUSTOMERS: "1103",
@@ -73,7 +119,9 @@ export default function SalesInvoiceForm() {
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [editMode, setEditMode] = useState(true);
 
-  useEffect(() => { loadData(); }, [id]);
+  useEffect(() => {
+    loadData();
+  }, [id]);
 
   async function loadData() {
     const [custRes, prodRes] = await Promise.all([
@@ -85,7 +133,9 @@ export default function SalesInvoiceForm() {
 
     if (id) {
       const { data: inv } = await (supabase.from("sales_invoices" as any) as any)
-        .select("*, customers:customer_id(name)").eq("id", id).single();
+        .select("*, customers:customer_id(name)")
+        .eq("id", id)
+        .single();
       if (inv) {
         setInvoiceNumber(inv.invoice_number);
         setPostedNumber(inv.posted_number || null);
@@ -98,12 +148,22 @@ export default function SalesInvoiceForm() {
         setEditMode(inv.status === "draft");
 
         const { data: itemsData } = await (supabase.from("sales_invoice_items" as any) as any)
-          .select("*, products:product_id(name, code, purchase_price, model_number, product_brands(name))").eq("invoice_id", id);
-        setItems((itemsData || []).map((it: any) => ({
-          id: it.id, product_id: it.product_id || "", product_name: it.products ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number) : (it.description || ""),
-          quantity: it.quantity, unit_price: it.unit_price, cost_price: it.products?.purchase_price || 0,
-          discount: it.discount, total: it.total,
-        })));
+          .select("*, products:product_id(name, code, purchase_price, model_number, product_brands(name))")
+          .eq("invoice_id", id);
+        setItems(
+          (itemsData || []).map((it: any) => ({
+            id: it.id,
+            product_id: it.product_id || "",
+            product_name: it.products
+              ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number)
+              : it.description || "",
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+            cost_price: it.products?.purchase_price || 0,
+            discount: it.discount,
+            total: it.total,
+          })),
+        );
       }
       setLoading(false);
     } else {
@@ -113,24 +173,33 @@ export default function SalesInvoiceForm() {
   }
 
   function addItem() {
-    setItems(prev => [...prev, { product_id: "", product_name: "", quantity: 1, unit_price: 0, cost_price: 0, discount: 0, total: 0 }]);
+    setItems((prev) => [
+      ...prev,
+      { product_id: "", product_name: "", quantity: 1, unit_price: 0, cost_price: 0, discount: 0, total: 0 },
+    ]);
   }
 
   function updateItem(index: number, field: string, value: any) {
-    setItems(prev => {
+    setItems((prev) => {
       const updated = [...prev];
       const item = { ...updated[index], [field]: value };
       if (field === "product_id") {
-        const prod = products.find(p => p.id === value);
-        if (prod) { item.product_name = formatProductName(prod); item.unit_price = prod.selling_price; item.cost_price = prod.purchase_price; }
+        const prod = products.find((p) => p.id === value);
+        if (prod) {
+          item.product_name = formatProductName(prod);
+          item.unit_price = prod.selling_price;
+          item.cost_price = prod.purchase_price;
+        }
       }
-      item.total = (item.quantity * item.unit_price) - item.discount;
+      item.total = item.quantity * item.unit_price - item.discount;
       updated[index] = item;
       return updated;
     });
   }
 
-  function removeItem(index: number) { setItems(prev => prev.filter((_, i) => i !== index)); }
+  function removeItem(index: number) {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  }
 
   const subtotal = items.reduce((s, i) => s + i.total, 0);
   const taxAmount = showTax ? subtotal * (taxRate / 100) : 0;
@@ -141,24 +210,38 @@ export default function SalesInvoiceForm() {
       toast({ title: "تنبيه", description: "يرجى اختيار العميل وإضافة أصناف", variant: "destructive" });
       return;
     }
-    if (items.some(i => !i.product_id)) {
+    if (items.some((i) => !i.product_id)) {
       toast({ title: "تنبيه", description: "يرجى اختيار المنتج لكل صنف", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
       const payload: any = {
-        customer_id: customerId, invoice_date: invoiceDate,
-        subtotal, discount: 0, tax: taxAmount, total: grandTotal,
-        notes: notes.trim() || null, reference: reference.trim() || null, status: "draft",
+        customer_id: customerId,
+        invoice_date: invoiceDate,
+        subtotal,
+        discount: 0,
+        tax: taxAmount,
+        total: grandTotal,
+        notes: notes.trim() || null,
+        reference: reference.trim() || null,
+        status: "draft",
       };
 
       if (isNew) {
-        const { data: inv, error } = await (supabase.from("sales_invoices" as any) as any).insert(payload).select("id").single();
+        const { data: inv, error } = await (supabase.from("sales_invoices" as any) as any)
+          .insert(payload)
+          .select("id")
+          .single();
         if (error) throw error;
-        const rows = items.map(i => ({
-          invoice_id: inv.id, product_id: i.product_id, description: i.product_name,
-          quantity: i.quantity, unit_price: i.unit_price, discount: i.discount, total: i.total,
+        const rows = items.map((i) => ({
+          invoice_id: inv.id,
+          product_id: i.product_id,
+          description: i.product_name,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          discount: i.discount,
+          total: i.total,
         }));
         await (supabase.from("sales_invoice_items" as any) as any).insert(rows);
         toast({ title: "تمت الإضافة", description: "تم إنشاء فاتورة البيع كمسودة" });
@@ -167,9 +250,14 @@ export default function SalesInvoiceForm() {
         const { error } = await (supabase.from("sales_invoices" as any) as any).update(payload).eq("id", id);
         if (error) throw error;
         await (supabase.from("sales_invoice_items" as any) as any).delete().eq("invoice_id", id);
-        const rows = items.map(i => ({
-          invoice_id: id, product_id: i.product_id, description: i.product_name,
-          quantity: i.quantity, unit_price: i.unit_price, discount: i.discount, total: i.total,
+        const rows = items.map((i) => ({
+          invoice_id: id,
+          product_id: i.product_id,
+          description: i.product_name,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          discount: i.discount,
+          total: i.total,
         }));
         await (supabase.from("sales_invoice_items" as any) as any).insert(rows);
         toast({ title: "تم التحديث", description: "تم تحديث فاتورة البيع" });
@@ -183,13 +271,20 @@ export default function SalesInvoiceForm() {
 
   async function postInvoice() {
     try {
-      const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [ACCOUNT_CODES.CUSTOMERS, ACCOUNT_CODES.REVENUE, ACCOUNT_CODES.COGS, ACCOUNT_CODES.INVENTORY]);
-      const customersAcc = accounts?.find(a => a.code === ACCOUNT_CODES.CUSTOMERS);
-      const revenueAcc = accounts?.find(a => a.code === ACCOUNT_CODES.REVENUE);
-      const cogsAcc = accounts?.find(a => a.code === ACCOUNT_CODES.COGS);
-      const inventoryAcc = accounts?.find(a => a.code === ACCOUNT_CODES.INVENTORY);
+      const { data: accounts } = await supabase
+        .from("accounts")
+        .select("id, code")
+        .in("code", [ACCOUNT_CODES.CUSTOMERS, ACCOUNT_CODES.REVENUE, ACCOUNT_CODES.COGS, ACCOUNT_CODES.INVENTORY]);
+      const customersAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.CUSTOMERS);
+      const revenueAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.REVENUE);
+      const cogsAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.COGS);
+      const inventoryAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.INVENTORY);
       if (!customersAcc || !revenueAcc || !cogsAcc || !inventoryAcc) {
-        toast({ title: "خطأ", description: "تأكد من وجود حسابات العملاء والإيرادات والتكلفة والمخزون", variant: "destructive" });
+        toast({
+          title: "خطأ",
+          description: "تأكد من وجود حسابات العملاء والإيرادات والتكلفة والمخزون",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -197,10 +292,18 @@ export default function SalesInvoiceForm() {
       const itemAvgCosts: Record<string, number> = {};
       for (const item of items) {
         if (!item.product_id) continue;
-        const { data: prod } = await supabase.from("products").select("quantity_on_hand").eq("id", item.product_id).single();
+        const { data: prod } = await supabase
+          .from("products")
+          .select("quantity_on_hand")
+          .eq("id", item.product_id)
+          .single();
         if (prod) {
           if (prod.quantity_on_hand < item.quantity) {
-            toast({ title: "تنبيه", description: `الكمية المطلوبة من ${item.product_name} أكبر من المتاح (${prod.quantity_on_hand})`, variant: "destructive" });
+            toast({
+              title: "تنبيه",
+              description: `الكمية المطلوبة من ${item.product_name} أكبر من المتاح (${prod.quantity_on_hand})`,
+              variant: "destructive",
+            });
             return;
           }
         }
@@ -212,37 +315,83 @@ export default function SalesInvoiceForm() {
 
       const totalDebit = grandTotal + totalCost;
       const jePostedNum = await getNextPostedNumber("journal_entries");
-      const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
-        description: `فاتورة بيع رقم ${invoiceNumber}`, entry_date: invoiceDate,
-        total_debit: totalDebit, total_credit: totalDebit, status: "posted", posted_number: jePostedNum,
-      } as any).select("id").single();
+      const { data: je, error: jeError } = await supabase
+        .from("journal_entries")
+        .insert({
+          description: `فاتورة بيع رقم ${invoiceNumber}`,
+          entry_date: invoiceDate,
+          total_debit: totalDebit,
+          total_credit: totalDebit,
+          status: "posted",
+          posted_number: jePostedNum,
+        } as any)
+        .select("id")
+        .single();
       if (jeError) throw jeError;
 
       const lines: any[] = [
-        { journal_entry_id: je.id, account_id: customersAcc.id, debit: grandTotal, credit: 0, description: `مبيعات - فاتورة ${invoiceNumber}` },
-        { journal_entry_id: je.id, account_id: revenueAcc.id, debit: 0, credit: grandTotal, description: `إيراد مبيعات - فاتورة ${invoiceNumber}` },
+        {
+          journal_entry_id: je.id,
+          account_id: customersAcc.id,
+          debit: grandTotal,
+          credit: 0,
+          description: `مبيعات - فاتورة ${invoiceNumber}`,
+        },
+        {
+          journal_entry_id: je.id,
+          account_id: revenueAcc.id,
+          debit: 0,
+          credit: grandTotal,
+          description: `إيراد مبيعات - فاتورة ${invoiceNumber}`,
+        },
       ];
       if (totalCost > 0) {
         lines.push(
-          { journal_entry_id: je.id, account_id: cogsAcc.id, debit: totalCost, credit: 0, description: `تكلفة بضاعة مباعة - فاتورة ${invoiceNumber}` },
-          { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: 0, credit: totalCost, description: `خصم مخزون - فاتورة ${invoiceNumber}` },
+          {
+            journal_entry_id: je.id,
+            account_id: cogsAcc.id,
+            debit: totalCost,
+            credit: 0,
+            description: `تكلفة بضاعة مباعة - فاتورة ${invoiceNumber}`,
+          },
+          {
+            journal_entry_id: je.id,
+            account_id: inventoryAcc.id,
+            debit: 0,
+            credit: totalCost,
+            description: `خصم مخزون - فاتورة ${invoiceNumber}`,
+          },
         );
       }
       await supabase.from("journal_entry_lines").insert(lines as any);
 
       const nextPostedNum = await getNextPostedNumber("sales_invoices");
-      await (supabase.from("sales_invoices" as any) as any).update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum }).eq("id", id);
+      await (supabase.from("sales_invoices" as any) as any)
+        .update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum })
+        .eq("id", id);
 
       for (const item of items) {
         if (!item.product_id) continue;
         const avgCost = itemAvgCosts[item.product_id] || 0;
-        const { data: prod } = await supabase.from("products").select("quantity_on_hand").eq("id", item.product_id).single();
+        const { data: prod } = await supabase
+          .from("products")
+          .select("quantity_on_hand")
+          .eq("id", item.product_id)
+          .single();
         if (prod) {
-          await supabase.from("products").update({ quantity_on_hand: prod.quantity_on_hand - item.quantity } as any).eq("id", item.product_id);
+          await supabase
+            .from("products")
+            .update({ quantity_on_hand: prod.quantity_on_hand - item.quantity } as any)
+            .eq("id", item.product_id);
           await (supabase.from("inventory_movements" as any) as any).insert({
-            product_id: item.product_id, movement_type: "sale",
-            quantity: item.quantity, unit_cost: avgCost, total_cost: avgCost * item.quantity,
-            reference_id: id, reference_type: "sales_invoice", movement_date: invoiceDate,
+            product_id: item.product_id,
+            movement_type: "sale",
+            quantity: item.quantity,
+            unit_cost: avgCost,
+            total_cost: avgCost * item.quantity,
+            reference_id: id,
+            reference_type: "sales_invoice",
+            movement_date: invoiceDate,
           });
         }
       }
@@ -269,32 +418,58 @@ export default function SalesInvoiceForm() {
 
   async function handleCancelPosted() {
     try {
-      const { data: inv } = await (supabase.from("sales_invoices" as any) as any).select("journal_entry_id").eq("id", id).single();
+      const { data: inv } = await (supabase.from("sales_invoices" as any) as any)
+        .select("journal_entry_id")
+        .eq("id", id)
+        .single();
 
       let totalCost = 0;
       for (const item of items) {
         if (!item.product_id) continue;
-        const { data: prod } = await supabase.from("products").select("quantity_on_hand, purchase_price").eq("id", item.product_id).single();
+        const { data: prod } = await supabase
+          .from("products")
+          .select("quantity_on_hand, purchase_price")
+          .eq("id", item.product_id)
+          .single();
         if (prod) {
-          await supabase.from("products").update({ quantity_on_hand: prod.quantity_on_hand + item.quantity } as any).eq("id", item.product_id);
+          await supabase
+            .from("products")
+            .update({ quantity_on_hand: prod.quantity_on_hand + item.quantity } as any)
+            .eq("id", item.product_id);
           totalCost += prod.purchase_price * item.quantity;
         }
-        await (supabase.from("inventory_movements" as any) as any).delete().eq("reference_id", id).eq("product_id", item.product_id);
+        await (supabase.from("inventory_movements" as any) as any)
+          .delete()
+          .eq("reference_id", id)
+          .eq("product_id", item.product_id);
       }
 
       await recalculateEntityBalance("customer", customerId);
 
       if (inv?.journal_entry_id) {
-        const { data: origLines } = await supabase.from("journal_entry_lines").select("*").eq("journal_entry_id", inv.journal_entry_id);
+        const { data: origLines } = await supabase
+          .from("journal_entry_lines")
+          .select("*")
+          .eq("journal_entry_id", inv.journal_entry_id);
         const totalDebit = grandTotal + totalCost;
-        const { data: reverseJe } = await supabase.from("journal_entries").insert({
-          description: `عكس فاتورة بيع رقم ${invoiceNumber}`, entry_date: new Date().toISOString().split("T")[0],
-          total_debit: totalDebit, total_credit: totalDebit, status: "posted",
-        } as any).select("id").single();
+        const { data: reverseJe } = await supabase
+          .from("journal_entries")
+          .insert({
+            description: `عكس فاتورة بيع رقم ${invoiceNumber}`,
+            entry_date: new Date().toISOString().split("T")[0],
+            total_debit: totalDebit,
+            total_credit: totalDebit,
+            status: "posted",
+          } as any)
+          .select("id")
+          .single();
         if (reverseJe && origLines) {
           const reverseLines = origLines.map((line: any) => ({
-            journal_entry_id: reverseJe.id, account_id: line.account_id,
-            debit: line.credit, credit: line.debit, description: `عكس - ${line.description}`,
+            journal_entry_id: reverseJe.id,
+            account_id: line.account_id,
+            debit: line.credit,
+            credit: line.debit,
+            description: `عكس - ${line.description}`,
           }));
           await supabase.from("journal_entry_lines").insert(reverseLines as any);
         }
@@ -313,11 +488,17 @@ export default function SalesInvoiceForm() {
       type: "sales_invoice",
       number: invoiceNumber || "جديدة",
       date: invoiceDate,
-      partyName: customerName || customers.find(c => c.id === customerId)?.name || "—",
+      partyName: customerName || customers.find((c) => c.id === customerId)?.name || "—",
       partyLabel: "العميل",
       reference: reference || undefined,
       notes: notes || undefined,
-      items: items.map(i => ({ name: i.product_name, quantity: i.quantity, unitPrice: i.unit_price, discount: i.discount, total: i.total })),
+      items: items.map((i) => ({
+        name: i.product_name,
+        quantity: i.quantity,
+        unitPrice: i.unit_price,
+        discount: i.discount,
+        total: i.total,
+      })),
       subtotal,
       taxAmount,
       taxRate,
@@ -338,7 +519,9 @@ export default function SalesInvoiceForm() {
   const isEditable = editMode && isDraft && canEdit;
   const colCount = 3 + (showDiscount ? 1 : 0) + (showTax ? 1 : 0) + 1 + (isEditable ? 1 : 0);
 
-  const displayNumber = !isNew ? formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", postedNumber, invoiceNumber || 0, status) : null;
+  const displayNumber = !isNew
+    ? formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", postedNumber, invoiceNumber || 0, status)
+    : null;
 
   return (
     <div className="space-y-8" dir="rtl">
@@ -354,7 +537,11 @@ export default function SalesInvoiceForm() {
                 {displayNumber}
               </span>
             )}
-            {!isNew && <Badge variant={statusColors[status] as any} className="text-xs px-3 py-1">{statusLabels[status]}</Badge>}
+            {!isNew && (
+              <Badge variant={statusColors[status] as any} className="text-xs px-3 py-1">
+                {statusLabels[status]}
+              </Badge>
+            )}
           </div>
           <p className="text-muted-foreground mt-2 font-medium">إدارة وتوثيق مبيعات المنشأة بدقة وسهولة</p>
         </div>
@@ -362,37 +549,91 @@ export default function SalesInvoiceForm() {
           {!isNew && isDraft && canEdit && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"><Trash2 className="h-4 w-4" />حذف</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  حذف
+                </Button>
               </AlertDialogTrigger>
               <AlertDialogContent dir="rtl">
-                <AlertDialogHeader><AlertDialogTitle>حذف الفاتورة المسودة</AlertDialogTitle><AlertDialogDescription>هل أنت متأكد من حذف هذه الفاتورة؟ لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription></AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2"><AlertDialogCancel>إلغاء</AlertDialogCancel><AlertDialogAction onClick={handleDeleteDraft} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction></AlertDialogFooter>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>حذف الفاتورة المسودة</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    هل أنت متأكد من حذف هذه الفاتورة؟ لا يمكن التراجع عن هذا الإجراء.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteDraft}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    حذف
+                  </AlertDialogAction>
+                </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           )}
           {!isNew && status === "posted" && canEdit && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"><Ban className="h-4 w-4" />إلغاء</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+                >
+                  <Ban className="h-4 w-4" />
+                  إلغاء
+                </Button>
               </AlertDialogTrigger>
               <AlertDialogContent dir="rtl">
-                <AlertDialogHeader><AlertDialogTitle>إلغاء الفاتورة المرحّلة</AlertDialogTitle><AlertDialogDescription>سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد العميل.</AlertDialogDescription></AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2"><AlertDialogCancel>تراجع</AlertDialogCancel><AlertDialogAction onClick={handleCancelPosted} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">إلغاء الفاتورة</AlertDialogAction></AlertDialogFooter>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>إلغاء الفاتورة المرحّلة</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد العميل.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel>تراجع</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleCancelPosted}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    إلغاء الفاتورة
+                  </AlertDialogAction>
+                </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           )}
-          {!isNew && <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5"><Printer className="h-4 w-4" />طباعة الفاتورة</Button>}
+          {!isNew && (
+            <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5">
+              <Printer className="h-4 w-4" />
+              طباعة الفاتورة
+            </Button>
+          )}
           {!isNew && isDraft && canEdit && !editMode && (
-            <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="gap-1.5"><Pencil className="h-4 w-4" />تعديل</Button>
+            <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="gap-1.5">
+              <Pencil className="h-4 w-4" />
+              تعديل
+            </Button>
           )}
           {isEditable && (
             <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
-              <Save className="h-4 w-4" />{saving ? "جاري الحفظ..." : "حفظ مسودة"}
+              <Save className="h-4 w-4" />
+              {saving ? "جاري الحفظ..." : "حفظ مسودة"}
             </Button>
           )}
           {!isNew && isDraft && canEdit && (
-            <Button size="sm" onClick={postInvoice} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 px-6">
-              <CheckCircle className="h-4 w-4" />إصدار الفاتورة
+            <Button
+              size="sm"
+              onClick={postInvoice}
+              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 px-6"
+            >
+              <CheckCircle className="h-4 w-4" />
+              إصدار الفاتورة
             </Button>
           )}
         </div>
@@ -405,10 +646,15 @@ export default function SalesInvoiceForm() {
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">اسم العميل</Label>
             {isEditable ? (
-              <LookupCombobox items={customers} value={customerId} onValueChange={setCustomerId} placeholder="اختر عميل أو أضف جديداً" />
+              <LookupCombobox
+                items={customers}
+                value={customerId}
+                onValueChange={setCustomerId}
+                placeholder="اختر عميل أو أضف جديداً"
+              />
             ) : (
               <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-medium">
-                {customerName || customers.find(c => c.id === customerId)?.name || "—"}
+                {customerName || customers.find((c) => c.id === customerId)?.name || "—"}
               </div>
             )}
           </div>
@@ -417,225 +663,174 @@ export default function SalesInvoiceForm() {
             {isEditable ? (
               <DatePickerInput value={invoiceDate} onChange={setInvoiceDate} placeholder="اختر التاريخ" />
             ) : (
-              <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-mono tabular-nums">{invoiceDate}</div>
+              <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-mono tabular-nums">
+                {invoiceDate}
+              </div>
             )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">رقم المرجع</Label>
             {isEditable ? (
-              <Input value={reference} onChange={e => setReference(e.target.value)} placeholder="أدخل رقم المرجع" className="rounded-xl" />
+              <Input
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="أدخل رقم المرجع"
+                className="rounded-xl"
+              />
             ) : (
-              <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm">{reference || "—"}</div>
+              <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm">
+                {reference || "—"}
+              </div>
             )}
           </div>
         </div>
       </div>
 
-{/* ── Items Table Card ── */}
-<div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
-
-  {/* Header */}
-  <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/20">
-    <div className="flex items-center gap-3">
-      <SectionHeader icon={ListChecks} title="بنود الفاتورة" />
-      {items.length > 0 && (
-        <span className="text-xs font-medium text-muted-foreground bg-muted border border-border px-2.5 py-0.5 rounded-full -mt-4">
-          {items.length} {items.length === 1 ? "بند" : "بنود"}
-        </span>
-      )}
-    </div>
-  </div>
-
-  {/* Table */}
-  <div className="overflow-x-auto">
-    <table className="w-full text-right border-collapse">
-      <thead>
-        <tr className="border-b border-border bg-muted/10">
-          <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-10 text-center">#</th>
-          <th className="py-3 px-4 font-medium text-muted-foreground text-xs">البند</th>
-          <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-24 text-center">الكمية</th>
-          <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-36">السعر</th>
-          {showDiscount && (
-            <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-28">الخصم</th>
-          )}
-          {showTax && (
-            <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-24 text-center">الضريبة</th>
-          )}
-          <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-36 text-left">المجموع</th>
-          {isEditable && <th className="py-3 px-3 w-10" />}
-        </tr>
-      </thead>
-      <tbody>
-        {items.length === 0 ? (
-          <tr>
-            <td colSpan={colCount}>
-              <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
-                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                  <ListChecks className="h-5 w-5 opacity-40" />
-                </div>
-                <p className="text-sm font-medium">لا توجد بنود بعد</p>
-                {isEditable && (
-                  <p className="text-xs opacity-60">اضغط «إضافة بند جديد» للبدء</p>
-                )}
-              </div>
-            </td>
-          </tr>
-        ) : (
-          items.map((item, i) => (
-            <tr
-              key={i}
-              className="group border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors duration-100"
-            >
-              {/* Row number */}
-              <td className="py-3.5 px-4 text-center">
-                <span className="text-xs font-medium text-muted-foreground/50 tabular-nums">{i + 1}</span>
-              </td>
-
-              {/* Product */}
-              <td className="py-3.5 px-4">
-                {isEditable ? (
-                  <LookupCombobox
-                    items={productsToLookupItems(products, true)}
-                    value={item.product_id}
-                    onValueChange={v => updateItem(i, "product_id", v)}
-                    placeholder="اختر المنتج"
-                  />
-                ) : (
-                  <span className="font-medium text-sm leading-tight">{item.product_name}</span>
-                )}
-              </td>
-
-              {/* Quantity */}
-              <td className="py-3.5 px-4">
-                {isEditable ? (
-                  <Input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={e => updateItem(i, "quantity", +e.target.value)}
-                    className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9 w-20 mx-auto"
-                  />
-                ) : (
-                  <span className="font-mono tabular-nums text-sm block text-center">{item.quantity}</span>
-                )}
-              </td>
-
-              {/* Unit price */}
-              <td className="py-3.5 px-4">
-                {isEditable ? (
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.unit_price}
-                    onChange={e => updateItem(i, "unit_price", +e.target.value)}
-                    className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9"
-                  />
-                ) : (
-                  <span className="font-mono tabular-nums text-sm text-muted-foreground">
-                    {item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                  </span>
-                )}
-              </td>
-
-              {/* Discount */}
-              {showDiscount && (
-                <td className="py-3.5 px-4">
-                  {isEditable ? (
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.discount}
-                      onChange={e => updateItem(i, "discount", +e.target.value)}
-                      className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9"
-                    />
-                  ) : item.discount > 0 ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 font-mono tabular-nums">
-                      -{item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground/40">—</span>
-                  )}
-                </td>
-              )}
-
-              {/* Tax */}
-              {showTax && (
-                <td className="py-3.5 px-4 text-center">
-                  <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
-                    {taxRate}%
-                  </span>
-                </td>
-              )}
-
-              {/* Total */}
-              <td className="py-3.5 px-4 text-left">
-                <span className="font-mono tabular-nums font-semibold text-sm text-foreground">
-                  {formatCurrency(item.total)}
-                </span>
-              </td>
-
-              {/* Delete */}
-              {isEditable && (
-                <td className="py-3.5 px-3">
-                  <button
-                    onClick={() => removeItem(i)}
-                    className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/8 transition-all opacity-0 group-hover:opacity-100"
-                    aria-label="حذف البند"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </td>
-              )}
-            </tr>
-          ))
-        )}
-      </tbody>
-    </table>
-  </div>
-
-  {/* Footer: Add button + inline totals */}
-  <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/10 flex-wrap gap-3">
-    {isEditable ? (
-      <button
-        onClick={addItem}
-        className="flex items-center gap-2 text-sm font-semibold text-primary hover:bg-primary/8 px-3 py-1.5 rounded-lg transition-all"
-      >
-        <Plus className="h-4 w-4" />
-        إضافة بند جديد
-      </button>
-    ) : <div />}
-
-    {/* Mini summary chips */}
-    {items.length > 0 && (
-      <div className="flex items-center gap-2 text-xs flex-wrap">
-        {showDiscount && items.some(i => i.discount > 0) && (
-          <div className="flex items-center gap-1.5 bg-muted border border-border px-3 py-1.5 rounded-lg">
-            <span className="text-muted-foreground">إجمالي الخصم</span>
-            <span className="font-mono font-semibold tabular-nums text-foreground">
-              {formatCurrency(items.reduce((s, i) => s + i.discount, 0))}
-            </span>
-          </div>
-        )}
-        {showTax && (
-          <div className="flex items-center gap-1.5 bg-muted border border-border px-3 py-1.5 rounded-lg">
-            <span className="text-muted-foreground">الضريبة ({taxRate}%)</span>
-            <span className="font-mono font-semibold tabular-nums text-foreground">
-              {formatCurrency(taxAmount)}
-            </span>
-          </div>
-        )}
-        <div className="flex items-center gap-1.5 bg-primary/8 border border-primary/20 px-3 py-1.5 rounded-lg">
-          <span className="text-primary/70 font-medium">الإجمالي</span>
-          <span className="font-mono font-bold tabular-nums text-primary">
-            {formatCurrency(grandTotal)}
-          </span>
+      {/* ── Items Table Card ── */}
+      <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between p-6 pb-4">
+          <SectionHeader icon={ListChecks} title="بنود الفاتورة" />
         </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-right border-collapse">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="pb-4 px-6 font-bold text-muted-foreground text-sm">البند</th>
+                <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-20">الكمية</th>
+                <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-32">السعر</th>
+                {showDiscount && <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-24">خصم</th>}
+                {showTax && <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-24">ضريبة</th>}
+                <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-32">المجموع</th>
+                {isEditable && <th className="pb-4 px-3 w-12"></th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={colCount} className="text-center py-12 text-muted-foreground">
+                    لا توجد أصناف بعد
+                  </td>
+                </tr>
+              ) : (
+                items.map((item, i) => (
+                  <tr key={i} className="group hover:bg-muted/30 transition-colors">
+                    <td className="py-4 px-6">
+                      {isEditable ? (
+                        <LookupCombobox
+                          items={productsToLookupItems(products, true)}
+                          value={item.product_id}
+                          onValueChange={(v) => updateItem(i, "product_id", v)}
+                          placeholder="اختر المنتج"
+                        />
+                      ) : (
+                        <span className="font-medium text-sm">{item.product_name}</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-3">
+                      {isEditable ? (
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => updateItem(i, "quantity", +e.target.value)}
+                          className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9"
+                        />
+                      ) : (
+                        <span className="font-mono tabular-nums">{item.quantity}</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-3">
+                      {isEditable ? (
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.unit_price}
+                          onChange={(e) => updateItem(i, "unit_price", +e.target.value)}
+                          className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9"
+                        />
+                      ) : (
+                        <span className="font-mono tabular-nums">
+                          {item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </span>
+                      )}
+                    </td>
+                    {showDiscount && (
+                      <td className="py-4 px-3">
+                        {isEditable ? (
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.discount}
+                            onChange={(e) => updateItem(i, "discount", +e.target.value)}
+                            className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9"
+                          />
+                        ) : (
+                          <span className="font-mono tabular-nums">
+                            {item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </span>
+                        )}
+                      </td>
+                    )}
+                    {showTax && (
+                      <td className="py-4 px-3">
+                        <span className="text-sm text-muted-foreground">{taxRate}%</span>
+                      </td>
+                    )}
+                    <td className="py-4 px-3">
+                      <span className="font-mono tabular-nums font-bold text-foreground">
+                        {formatCurrency(item.total)}
+                      </span>
+                    </td>
+                    {isEditable && (
+                      <td className="py-4 px-3">
+                        <button
+                          className="p-1 text-muted-foreground/40 hover:text-destructive transition-colors"
+                          onClick={() => removeItem(i)}
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {isEditable && (
+          <div className="p-4 border-t">
+            <button
+              onClick={addItem}
+              className="flex items-center gap-2 text-sm font-bold text-primary hover:bg-primary/5 px-4 py-2 rounded-xl transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              إضافة بند جديد
+            </button>
+          </div>
+        )}
       </div>
-    )}
-  </div>
-</div>
+
+      {/* ── Notes + Summary: Side by side ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Notes */}
+        <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col">
+          <SectionHeader icon={StickyNote} title="ملاحظات داخلية" />
+          <div className="flex-1 space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground">ملاحظات داخلية (لا تظهر في الطباعة)</Label>
+            {isEditable ? (
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full h-32 px-4 py-3 bg-muted/30 border border-border rounded-xl text-sm transition-all resize-none focus:ring-2 focus:ring-ring focus:border-ring"
+                placeholder="أدخل أي ملاحظات إضافية هنا..."
+              />
+            ) : (
+              <div className="h-32 px-4 py-3 bg-muted/30 border rounded-xl text-sm">{notes || "لا توجد ملاحظات"}</div>
+            )}
+          </div>
+        </div>
 
         {/* Summary */}
         <div className="bg-muted/50 p-8 rounded-2xl border shadow-sm">
@@ -654,7 +849,9 @@ export default function SalesInvoiceForm() {
             <div className="h-px bg-border my-4"></div>
             <div className="flex justify-between items-center">
               <div className="text-right">
-                <span className="text-3xl font-black text-primary font-mono tabular-nums">{formatCurrency(grandTotal)}</span>
+                <span className="text-3xl font-black text-primary font-mono tabular-nums">
+                  {formatCurrency(grandTotal)}
+                </span>
               </div>
               <span className="text-lg font-bold text-foreground">الإجمالي الكلي</span>
             </div>
@@ -672,7 +869,7 @@ export default function SalesInvoiceForm() {
                 type="sales"
                 invoiceId={id}
                 entityId={customerId}
-                entityName={customerName || customers.find(c => c.id === customerId)?.name || ""}
+                entityName={customerName || customers.find((c) => c.id === customerId)?.name || ""}
                 invoiceTotal={grandTotal}
                 invoiceNumber={invoiceNumber}
                 onPaymentAdded={loadData}
