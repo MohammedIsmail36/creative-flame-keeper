@@ -59,6 +59,7 @@ const App = () => (
           <SettingsProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/mfa" element={<MfaVerify />} />
             <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
             <Route path="/accounts" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Accounts /></AppLayout></ProtectedRoute>} />
             <Route path="/journal" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Journal /></AppLayout></ProtectedRoute>} />
