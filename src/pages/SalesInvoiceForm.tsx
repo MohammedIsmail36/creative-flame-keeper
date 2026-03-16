@@ -431,112 +431,211 @@ export default function SalesInvoiceForm() {
         </div>
       </div>
 
-      {/* ── Items Table Card ── */}
-      <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between p-6 pb-4">
-          <SectionHeader icon={ListChecks} title="بنود الفاتورة" />
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-right border-collapse">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="pb-4 px-6 font-bold text-muted-foreground text-sm">البند</th>
-                <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-20">الكمية</th>
-                <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-32">السعر</th>
-                {showDiscount && <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-24">خصم</th>}
-                {showTax && <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-24">ضريبة</th>}
-                <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-32">المجموع</th>
-                {isEditable && <th className="pb-4 px-3 w-12"></th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={colCount} className="text-center py-12 text-muted-foreground">
-                    لا توجد أصناف بعد
-                  </td>
-                </tr>
-              ) : items.map((item, i) => (
-                <tr key={i} className="group hover:bg-muted/30 transition-colors">
-                  <td className="py-4 px-6">
-                    {isEditable ? (
-                      <LookupCombobox items={productsToLookupItems(products, true)} value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)} placeholder="اختر المنتج" />
-                    ) : (
-                      <span className="font-medium text-sm">{item.product_name}</span>
-                    )}
-                  </td>
-                  <td className="py-4 px-3">
-                    {isEditable ? (
-                      <Input type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9" />
-                    ) : (
-                      <span className="font-mono tabular-nums">{item.quantity}</span>
-                    )}
-                  </td>
-                  <td className="py-4 px-3">
-                    {isEditable ? (
-                      <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9" />
-                    ) : (
-                      <span className="font-mono tabular-nums">{item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-                    )}
-                  </td>
-                  {showDiscount && (
-                    <td className="py-4 px-3">
-                      {isEditable ? (
-                        <Input type="number" min="0" step="0.01" value={item.discount} onChange={e => updateItem(i, "discount", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9" />
-                      ) : (
-                        <span className="font-mono tabular-nums">{item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-                      )}
-                    </td>
+{/* ── Items Table Card ── */}
+<div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+
+  {/* Header */}
+  <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/20">
+    <div className="flex items-center gap-3">
+      <SectionHeader icon={ListChecks} title="بنود الفاتورة" />
+      {items.length > 0 && (
+        <span className="text-xs font-medium text-muted-foreground bg-muted border border-border px-2.5 py-0.5 rounded-full -mt-4">
+          {items.length} {items.length === 1 ? "بند" : "بنود"}
+        </span>
+      )}
+    </div>
+  </div>
+
+  {/* Table */}
+  <div className="overflow-x-auto">
+    <table className="w-full text-right border-collapse">
+      <thead>
+        <tr className="border-b border-border bg-muted/10">
+          <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-10 text-center">#</th>
+          <th className="py-3 px-4 font-medium text-muted-foreground text-xs">البند</th>
+          <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-24 text-center">الكمية</th>
+          <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-36">السعر</th>
+          {showDiscount && (
+            <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-28">الخصم</th>
+          )}
+          {showTax && (
+            <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-24 text-center">الضريبة</th>
+          )}
+          <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-36 text-left">المجموع</th>
+          {isEditable && <th className="py-3 px-3 w-10" />}
+        </tr>
+      </thead>
+      <tbody>
+        {items.length === 0 ? (
+          <tr>
+            <td colSpan={colCount}>
+              <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <ListChecks className="h-5 w-5 opacity-40" />
+                </div>
+                <p className="text-sm font-medium">لا توجد بنود بعد</p>
+                {isEditable && (
+                  <p className="text-xs opacity-60">اضغط «إضافة بند جديد» للبدء</p>
+                )}
+              </div>
+            </td>
+          </tr>
+        ) : (
+          items.map((item, i) => (
+            <tr
+              key={i}
+              className="group border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors duration-100"
+            >
+              {/* Row number */}
+              <td className="py-3.5 px-4 text-center">
+                <span className="text-xs font-medium text-muted-foreground/50 tabular-nums">{i + 1}</span>
+              </td>
+
+              {/* Product */}
+              <td className="py-3.5 px-4">
+                {isEditable ? (
+                  <LookupCombobox
+                    items={productsToLookupItems(products, true)}
+                    value={item.product_id}
+                    onValueChange={v => updateItem(i, "product_id", v)}
+                    placeholder="اختر المنتج"
+                  />
+                ) : (
+                  <span className="font-medium text-sm leading-tight">{item.product_name}</span>
+                )}
+              </td>
+
+              {/* Quantity */}
+              <td className="py-3.5 px-4">
+                {isEditable ? (
+                  <Input
+                    type="number"
+                    min="1"
+                    value={item.quantity}
+                    onChange={e => updateItem(i, "quantity", +e.target.value)}
+                    className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9 w-20 mx-auto"
+                  />
+                ) : (
+                  <span className="font-mono tabular-nums text-sm block text-center">{item.quantity}</span>
+                )}
+              </td>
+
+              {/* Unit price */}
+              <td className="py-3.5 px-4">
+                {isEditable ? (
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.unit_price}
+                    onChange={e => updateItem(i, "unit_price", +e.target.value)}
+                    className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9"
+                  />
+                ) : (
+                  <span className="font-mono tabular-nums text-sm text-muted-foreground">
+                    {item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </span>
+                )}
+              </td>
+
+              {/* Discount */}
+              {showDiscount && (
+                <td className="py-3.5 px-4">
+                  {isEditable ? (
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.discount}
+                      onChange={e => updateItem(i, "discount", +e.target.value)}
+                      className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9"
+                    />
+                  ) : item.discount > 0 ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 font-mono tabular-nums">
+                      -{item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground/40">—</span>
                   )}
-                  {showTax && (
-                    <td className="py-4 px-3">
-                      <span className="text-sm text-muted-foreground">{taxRate}%</span>
-                    </td>
-                  )}
-                  <td className="py-4 px-3">
-                    <span className="font-mono tabular-nums font-bold text-foreground">{formatCurrency(item.total)}</span>
-                  </td>
-                  {isEditable && (
-                    <td className="py-4 px-3">
-                      <button className="p-1 text-muted-foreground/40 hover:text-destructive transition-colors" onClick={() => removeItem(i)}>
-                        <X className="h-5 w-5" />
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {isEditable && (
-          <div className="p-4 border-t">
-            <button onClick={addItem} className="flex items-center gap-2 text-sm font-bold text-primary hover:bg-primary/5 px-4 py-2 rounded-xl transition-all">
-              <Plus className="h-4 w-4" />
-              إضافة بند جديد
-            </button>
+                </td>
+              )}
+
+              {/* Tax */}
+              {showTax && (
+                <td className="py-3.5 px-4 text-center">
+                  <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+                    {taxRate}%
+                  </span>
+                </td>
+              )}
+
+              {/* Total */}
+              <td className="py-3.5 px-4 text-left">
+                <span className="font-mono tabular-nums font-semibold text-sm text-foreground">
+                  {formatCurrency(item.total)}
+                </span>
+              </td>
+
+              {/* Delete */}
+              {isEditable && (
+                <td className="py-3.5 px-3">
+                  <button
+                    onClick={() => removeItem(i)}
+                    className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/8 transition-all opacity-0 group-hover:opacity-100"
+                    aria-label="حذف البند"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </td>
+              )}
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+
+  {/* Footer: Add button + inline totals */}
+  <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/10 flex-wrap gap-3">
+    {isEditable ? (
+      <button
+        onClick={addItem}
+        className="flex items-center gap-2 text-sm font-semibold text-primary hover:bg-primary/8 px-3 py-1.5 rounded-lg transition-all"
+      >
+        <Plus className="h-4 w-4" />
+        إضافة بند جديد
+      </button>
+    ) : <div />}
+
+    {/* Mini summary chips */}
+    {items.length > 0 && (
+      <div className="flex items-center gap-2 text-xs flex-wrap">
+        {showDiscount && items.some(i => i.discount > 0) && (
+          <div className="flex items-center gap-1.5 bg-muted border border-border px-3 py-1.5 rounded-lg">
+            <span className="text-muted-foreground">إجمالي الخصم</span>
+            <span className="font-mono font-semibold tabular-nums text-foreground">
+              {formatCurrency(items.reduce((s, i) => s + i.discount, 0))}
+            </span>
           </div>
         )}
-      </div>
-
-      {/* ── Notes + Summary: Side by side ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Notes */}
-        <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col">
-          <SectionHeader icon={StickyNote} title="ملاحظات داخلية" />
-          <div className="flex-1 space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">ملاحظات داخلية (لا تظهر في الطباعة)</Label>
-            {isEditable ? (
-              <textarea
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                className="w-full h-32 px-4 py-3 bg-muted/30 border border-border rounded-xl text-sm transition-all resize-none focus:ring-2 focus:ring-ring focus:border-ring"
-                placeholder="أدخل أي ملاحظات إضافية هنا..."
-              />
-            ) : (
-              <div className="h-32 px-4 py-3 bg-muted/30 border rounded-xl text-sm">{notes || "لا توجد ملاحظات"}</div>
-            )}
+        {showTax && (
+          <div className="flex items-center gap-1.5 bg-muted border border-border px-3 py-1.5 rounded-lg">
+            <span className="text-muted-foreground">الضريبة ({taxRate}%)</span>
+            <span className="font-mono font-semibold tabular-nums text-foreground">
+              {formatCurrency(taxAmount)}
+            </span>
           </div>
+        )}
+        <div className="flex items-center gap-1.5 bg-primary/8 border border-primary/20 px-3 py-1.5 rounded-lg">
+          <span className="text-primary/70 font-medium">الإجمالي</span>
+          <span className="font-mono font-bold tabular-nums text-primary">
+            {formatCurrency(grandTotal)}
+          </span>
         </div>
+      </div>
+    )}
+  </div>
+</div>
 
         {/* Summary */}
         <div className="bg-muted/50 p-8 rounded-2xl border shadow-sm">
