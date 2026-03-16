@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { User, Lock, Save } from "lucide-react";
+import { User, Lock, Save, ShieldCheck, QrCode, KeyRound, CalendarDays, Loader2, Copy, Check } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const roleLabels: Record<string, string> = {
   admin: "مدير",
@@ -19,13 +22,50 @@ export default function Profile() {
   const { user, fullName, role } = useAuth();
   const { toast } = useToast();
 
+  // Personal info
   const [name, setName] = useState(fullName);
   const [savingName, setSavingName] = useState(false);
 
-  const [currentPassword, setCurrentPassword] = useState("");
+  // Password
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+
+  // MFA
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [mfaLoading, setMfaLoading] = useState(true);
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
+  const [qrCode, setQrCode] = useState("");
+  const [secret, setSecret] = useState("");
+  const [factorId, setFactorId] = useState("");
+  const [verifyCode, setVerifyCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [unenrolling, setUnenrolling] = useState(false);
+  const [copiedSecret, setCopiedSecret] = useState(false);
+
+  useEffect(() => {
+    setName(fullName);
+  }, [fullName]);
+
+  // Check existing MFA factors
+  useEffect(() => {
+    const checkMFA = async () => {
+      try {
+        const { data, error } = await supabase.auth.mfa.listFactors();
+        if (error) throw error;
+        const verified = data.totp.filter(f => f.status === "verified");
+        setMfaEnabled(verified.length > 0);
+        if (verified.length > 0) {
+          setFactorId(verified[0].id);
+        }
+      } catch (err) {
+        console.error("Error checking MFA:", err);
+      } finally {
+        setMfaLoading(false);
+      }
+    };
+    checkMFA();
+  }, []);
 
   const handleUpdateName = async () => {
     if (!name.trim()) {
@@ -38,9 +78,7 @@ export default function Profile() {
         .from("profiles")
         .update({ full_name: name.trim() })
         .eq("id", user?.id);
-
       if (error) throw error;
-
       toast({ title: "تم التحديث", description: "تم تحديث الاسم بنجاح" });
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
@@ -66,9 +104,7 @@ export default function Profile() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-
       toast({ title: "تم التحديث", description: "تم تغيير كلمة المرور بنجاح" });
-      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
@@ -78,84 +114,333 @@ export default function Profile() {
     }
   };
 
+  const handleEnrollMFA = async () => {
+    try {
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
+      if (error) throw error;
+      setQrCode(data.totp.qr_code);
+      setSecret(data.totp.secret);
+      setFactorId(data.id);
+      setVerifyCode("");
+      setEnrollDialogOpen(true);
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleVerifyMFA = async () => {
+    if (verifyCode.length !== 6) return;
+    setVerifying(true);
+    try {
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId });
+      if (challengeError) throw challengeError;
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.id,
+        code: verifyCode,
+      });
+      if (verifyError) throw verifyError;
+
+      setMfaEnabled(true);
+      setEnrollDialogOpen(false);
+      toast({ title: "تم التفعيل", description: "تم تفعيل التحقق بخطوتين بنجاح" });
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleUnenrollMFA = async () => {
+    setUnenrolling(true);
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId });
+      if (error) throw error;
+      setMfaEnabled(false);
+      setFactorId("");
+      toast({ title: "تم الإلغاء", description: "تم إلغاء التحقق بخطوتين" });
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    } finally {
+      setUnenrolling(false);
+    }
+  };
+
+  const handleMfaToggle = (checked: boolean) => {
+    if (checked) {
+      handleEnrollMFA();
+    } else {
+      handleUnenrollMFA();
+    }
+  };
+
+  const copySecret = () => {
+    navigator.clipboard.writeText(secret);
+    setCopiedSecret(true);
+    setTimeout(() => setCopiedSecret(false), 2000);
+  };
+
+  const joinDate = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" })
+    : "";
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6" dir="rtl">
-      <div>
-        <h1 className="text-2xl font-bold">الملف الشخصي</h1>
-        <p className="text-muted-foreground">إدارة بيانات حسابك</p>
+    <div className="space-y-6" dir="rtl">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold">إعدادات الملف الشخصي</h1>
+          <p className="text-muted-foreground mt-1">
+            قم بتحديث معلوماتك الشخصية وإدارة إعدادات الأمان الخاصة بك
+          </p>
+        </div>
       </div>
 
-      {/* Account Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" />
-            معلومات الحساب
-          </CardTitle>
-          <CardDescription>تعديل الاسم والبيانات الأساسية</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>البريد الإلكتروني</Label>
-            <Input value={user?.email || ""} disabled className="bg-muted" />
-          </div>
-          <div className="space-y-2">
-            <Label>الدور</Label>
-            <Input value={role ? roleLabels[role] || role : ""} disabled className="bg-muted" />
-          </div>
-          <Separator />
-          <div className="space-y-2">
-            <Label htmlFor="fullName">الاسم الكامل</Label>
-            <Input
-              id="fullName"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="أدخل اسمك الكامل"
-            />
-          </div>
-          <Button onClick={handleUpdateName} disabled={savingName}>
-            <Save className="w-4 h-4 ml-2" />
-            {savingName ? "جاري الحفظ..." : "حفظ الاسم"}
-          </Button>
-        </CardContent>
-      </Card>
+      {/* Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+        {/* Left Column (Wide) */}
+        <div className="lg:col-span-6 space-y-6">
+          {/* Personal Information */}
+          <Card className="overflow-hidden">
+            <div className="p-5 border-b border-border">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <User className="w-5 h-5 text-primary" />
+                المعلومات الشخصية
+              </h3>
+            </div>
+            <CardContent className="p-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">الاسم الكامل</Label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="أدخل اسمك الكامل"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">البريد الإلكتروني</Label>
+                  <Input value={user?.email || ""} disabled className="bg-muted" dir="ltr" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">الدور</Label>
+                  <Input value={role ? roleLabels[role] || role : ""} disabled className="bg-muted" />
+                </div>
+                <div className="flex items-end">
+                  <Button onClick={handleUpdateName} disabled={savingName} className="w-full">
+                    <Save className="w-4 h-4 ml-2" />
+                    {savingName ? "جاري الحفظ..." : "حفظ الاسم"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Change Password */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Lock className="w-5 h-5" />
-            تغيير كلمة المرور
-          </CardTitle>
-          <CardDescription>تحديث كلمة المرور الخاصة بك</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="newPassword">كلمة المرور الجديدة</Label>
-            <Input
-              id="newPassword"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="أدخل كلمة المرور الجديدة"
-            />
+          {/* Account Status */}
+          <Card className="overflow-hidden">
+            <div className="p-5 border-b border-border">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-primary" />
+                حالة الحساب
+              </h3>
+            </div>
+            <CardContent className="p-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-muted/50 p-4 rounded-xl border border-border">
+                  <p className="text-xs text-muted-foreground font-medium mb-1.5">حالة الأمان</p>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-green-500" />
+                    <span className="font-bold text-green-600 dark:text-green-400 text-sm">نشط وآمن</span>
+                  </div>
+                </div>
+                <div className="bg-muted/50 p-4 rounded-xl border border-border">
+                  <p className="text-xs text-muted-foreground font-medium mb-1.5">تاريخ الانضمام</p>
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-bold text-sm">{joinDate}</span>
+                  </div>
+                </div>
+                <div className="bg-muted/50 p-4 rounded-xl border border-border">
+                  <p className="text-xs text-muted-foreground font-medium mb-1.5">التحقق بخطوتين</p>
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="w-5 h-5 text-muted-foreground" />
+                    {mfaLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : mfaEnabled ? (
+                      <Badge variant="default" className="bg-green-600 text-xs">مفعّل</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs">غير مفعّل</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column (Narrow) */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Security & Password */}
+          <Card className="overflow-hidden">
+            <div className="p-5 border-b border-border">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <Lock className="w-5 h-5 text-primary" />
+                الأمان والخصوصية
+              </h3>
+            </div>
+            <CardContent className="p-5 space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">كلمة المرور الجديدة</Label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  dir="ltr"
+                  minLength={6}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">تأكيد كلمة المرور</Label>
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  dir="ltr"
+                />
+              </div>
+              <Button
+                onClick={handleChangePassword}
+                disabled={savingPassword}
+                className="w-full"
+                variant="secondary"
+              >
+                <Lock className="w-4 h-4 ml-2" />
+                {savingPassword ? "جاري التحديث..." : "تحديث كلمة المرور"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Two-Factor Authentication */}
+          <Card className="overflow-hidden">
+            <div className="p-5 border-b border-border">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-primary" />
+                التحقق بخطوتين (2FA)
+              </h3>
+            </div>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-bold">تفعيل الخاصية</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    أضف طبقة أمان إضافية باستخدام تطبيق Google Authenticator
+                  </p>
+                </div>
+                {mfaLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <Switch
+                    checked={mfaEnabled}
+                    onCheckedChange={handleMfaToggle}
+                    disabled={unenrolling}
+                  />
+                )}
+              </div>
+              {mfaEnabled && (
+                <div className="mt-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <p className="text-xs text-green-700 dark:text-green-400 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4" />
+                    حسابك محمي بالتحقق بخطوتين
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* MFA Enrollment Dialog */}
+      <Dialog open={enrollDialogOpen} onOpenChange={setEnrollDialogOpen}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5 text-primary" />
+              تفعيل التحقق بخطوتين
+            </DialogTitle>
+            <DialogDescription>
+              امسح رمز QR باستخدام تطبيق المصادقة ثم أدخل الرمز المكون من 6 أرقام
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            {/* QR Code */}
+            {qrCode && (
+              <div className="flex justify-center">
+                <div className="p-3 bg-white rounded-xl border border-border shadow-sm">
+                  <img src={qrCode} alt="QR Code" className="w-48 h-48" />
+                </div>
+              </div>
+            )}
+
+            {/* Secret Key */}
+            {secret && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">أو أدخل المفتاح يدوياً:</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={secret}
+                    readOnly
+                    className="font-mono text-xs bg-muted"
+                    dir="ltr"
+                  />
+                  <Button variant="outline" size="icon" onClick={copySecret} className="shrink-0">
+                    {copiedSecret ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* OTP Input */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">رمز التحقق</Label>
+              <div className="flex justify-center" dir="ltr">
+                <InputOTP
+                  maxLength={6}
+                  value={verifyCode}
+                  onChange={(val) => setVerifyCode(val)}
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleVerifyMFA}
+              disabled={verifyCode.length !== 6 || verifying}
+              className="w-full"
+            >
+              {verifying ? (
+                <>
+                  <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                  جاري التحقق...
+                </>
+              ) : (
+                "تفعيل التحقق بخطوتين"
+              )}
+            </Button>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">تأكيد كلمة المرور</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="أعد إدخال كلمة المرور"
-            />
-          </div>
-          <Button onClick={handleChangePassword} disabled={savingPassword}>
-            <Lock className="w-4 h-4 ml-2" />
-            {savingPassword ? "جاري التحديث..." : "تغيير كلمة المرور"}
-          </Button>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
