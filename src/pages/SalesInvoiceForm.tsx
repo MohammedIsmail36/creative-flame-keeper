@@ -516,7 +516,7 @@ export default function SalesInvoiceForm() {
 
   const isDraft = status === "draft";
   const isEditable = editMode && isDraft && canEdit;
-  const colCount = 3 + (showDiscount ? 1 : 0) + (showTax ? 1 : 0) + 1 + (isEditable ? 1 : 0);
+  const colCount = 4 + (showDiscount ? 1 : 0) + (isEditable ? 1 : 0);
 
   const displayNumber = !isNew
     ? formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", postedNumber, invoiceNumber || 0, status)
@@ -710,12 +710,11 @@ export default function SalesInvoiceForm() {
           <table className="w-full text-right border-collapse" style={{ tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: "4%" }} />
-              <col style={{ width: showDiscount && showTax ? "30%" : showDiscount || showTax ? "34%" : "50%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "16%" }} />
-              {showDiscount && <col style={{ width: "13%" }} />}
-              {showTax && <col style={{ width: "9%" }} />}
-              <col style={{ width: "15%" }} />
+              <col style={{ width: showDiscount ? "38%" : "48%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "18%" }} />
+              {showDiscount && <col style={{ width: "14%" }} />}
+              <col style={{ width: "18%" }} />
               {isEditable && <col style={{ width: "4%" }} />}
             </colgroup>
             <thead>
@@ -723,10 +722,11 @@ export default function SalesInvoiceForm() {
                 <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">#</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground text-xs">البند</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الكمية</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">السعر</th>
-                {showDiscount && <th className="py-2 px-3 font-medium text-muted-foreground text-xs">الخصم</th>}
-                {showTax && <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">ضريبة</th>}
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">المجموع</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-left">سعر الوحدة</th>
+                {showDiscount && (
+                  <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-left">الخصم</th>
+                )}
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-left">المجموع</th>
                 {isEditable && <th className="py-2 px-2" />}
               </tr>
             </thead>
@@ -825,14 +825,7 @@ export default function SalesInvoiceForm() {
                       </td>
                     )}
 
-                    {/* Tax */}
-                    {showTax && (
-                      <td className="py-2 px-3 text-center">
-                        <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
-                          {taxRate}%
-                        </span>
-                      </td>
-                    )}
+                    {/* Tax — removed from rows, shown only in summary */}
 
                     {/* Total */}
                     <td className="py-2 px-3">
