@@ -707,19 +707,27 @@ export default function SalesInvoiceForm() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-right border-collapse">
+          <table className="w-full text-right border-collapse" style={{ tableLayout: "fixed" }}>
+            <colgroup>
+              <col style={{ width: "36px" }} />
+              <col />
+              <col style={{ width: "72px" }} />
+              <col style={{ width: "120px" }} />
+              {showDiscount && <col style={{ width: "100px" }} />}
+              {showTax && <col style={{ width: "72px" }} />}
+              <col style={{ width: "120px" }} />
+              {isEditable && <col style={{ width: "36px" }} />}
+            </colgroup>
             <thead>
               <tr className="border-b border-border bg-muted/20">
-                <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-10 text-center">#</th>
-                <th className="py-3 px-4 font-medium text-muted-foreground text-xs">البند</th>
-                <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-24 text-center">الكمية</th>
-                <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-36">السعر</th>
-                {showDiscount && <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-28">الخصم</th>}
-                {showTax && (
-                  <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-24 text-center">الضريبة</th>
-                )}
-                <th className="py-3 px-4 font-medium text-muted-foreground text-xs w-36">المجموع</th>
-                {isEditable && <th className="py-3 px-3 w-10" />}
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">#</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">البند</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الكمية</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">السعر</th>
+                {showDiscount && <th className="py-2 px-3 font-medium text-muted-foreground text-xs">الخصم</th>}
+                {showTax && <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">ضريبة</th>}
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">المجموع</th>
+                {isEditable && <th className="py-2 px-2" />}
               </tr>
             </thead>
             <tbody>
@@ -742,12 +750,12 @@ export default function SalesInvoiceForm() {
                     className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100"
                   >
                     {/* Row number */}
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-2 px-3 text-center">
                       <span className="text-xs font-medium text-muted-foreground/40 tabular-nums">{i + 1}</span>
                     </td>
 
-                    {/* Product */}
-                    <td className="py-3.5 px-4">
+                    {/* Product — takes all remaining width, truncates overflow */}
+                    <td className="py-2 px-3 min-w-0">
                       {isEditable ? (
                         <LookupCombobox
                           items={productsToLookupItems(products, true)}
@@ -756,19 +764,21 @@ export default function SalesInvoiceForm() {
                           placeholder="اختر المنتج"
                         />
                       ) : (
-                        <span className="font-medium text-sm">{item.product_name}</span>
+                        <span className="font-medium text-sm block truncate" title={item.product_name}>
+                          {item.product_name}
+                        </span>
                       )}
                     </td>
 
                     {/* Quantity */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-2 px-3">
                       {isEditable ? (
                         <Input
                           type="number"
                           min="1"
                           value={item.quantity}
                           onChange={(e) => updateItem(i, "quantity", +e.target.value)}
-                          className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9 w-20 mx-auto"
+                          className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
                         <span className="font-mono tabular-nums text-sm block text-center">{item.quantity}</span>
@@ -776,7 +786,7 @@ export default function SalesInvoiceForm() {
                     </td>
 
                     {/* Unit Price */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-2 px-3">
                       {isEditable ? (
                         <Input
                           type="number"
@@ -784,7 +794,7 @@ export default function SalesInvoiceForm() {
                           step="0.01"
                           value={item.unit_price}
                           onChange={(e) => updateItem(i, "unit_price", +e.target.value)}
-                          className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9"
+                          className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
                         <span className="font-mono tabular-nums text-sm text-muted-foreground">
@@ -795,7 +805,7 @@ export default function SalesInvoiceForm() {
 
                     {/* Discount */}
                     {showDiscount && (
-                      <td className="py-3.5 px-4">
+                      <td className="py-2 px-3">
                         {isEditable ? (
                           <Input
                             type="number"
@@ -803,7 +813,7 @@ export default function SalesInvoiceForm() {
                             step="0.01"
                             value={item.discount}
                             onChange={(e) => updateItem(i, "discount", +e.target.value)}
-                            className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9"
+                            className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                           />
                         ) : item.discount > 0 ? (
                           <span className="inline-flex items-center text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-800 font-mono tabular-nums">
@@ -817,7 +827,7 @@ export default function SalesInvoiceForm() {
 
                     {/* Tax */}
                     {showTax && (
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-2 px-3 text-center">
                         <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
                           {taxRate}%
                         </span>
@@ -825,7 +835,7 @@ export default function SalesInvoiceForm() {
                     )}
 
                     {/* Total */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-2 px-3">
                       <span className="font-mono tabular-nums font-semibold text-sm text-foreground">
                         {formatCurrency(item.total)}
                       </span>
@@ -833,13 +843,13 @@ export default function SalesInvoiceForm() {
 
                     {/* Delete button */}
                     {isEditable && (
-                      <td className="py-3.5 px-3">
+                      <td className="py-2 px-2">
                         <button
                           onClick={() => removeItem(i)}
-                          className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100"
+                          className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100"
                           aria-label="حذف البند"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3.5 w-3.5" />
                         </button>
                       </td>
                     )}
