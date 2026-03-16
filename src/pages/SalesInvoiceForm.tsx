@@ -710,7 +710,7 @@ export default function SalesInvoiceForm() {
           <table className="w-full text-right border-collapse" style={{ tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: "4%" }} />
-              <col style={{ width: showDiscount && showTax ? "30%" : showDiscount || showTax ? "34%" : "40%" }} />
+              <col style={{ width: showDiscount && showTax ? "30%" : showDiscount || showTax ? "34%" : "50%" }} />
               <col style={{ width: "10%" }} />
               <col style={{ width: "16%" }} />
               {showDiscount && <col style={{ width: "13%" }} />}
