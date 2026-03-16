@@ -40,6 +40,7 @@ import BalanceSheet from "./pages/BalanceSheet";
 import SettingsPage from "./pages/SettingsPage";
 import UserManagement from "./pages/UserManagement";
 import Auth from "./pages/Auth";
+import MfaVerify from "./pages/MfaVerify";
 import Profile from "./pages/Profile";
 import SystemSetup from "./pages/SystemSetup";
 import CustomerStatement from "./pages/CustomerStatement";
