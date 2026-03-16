@@ -40,6 +40,7 @@ import BalanceSheet from "./pages/BalanceSheet";
 import SettingsPage from "./pages/SettingsPage";
 import UserManagement from "./pages/UserManagement";
 import Auth from "./pages/Auth";
+import MfaVerify from "./pages/MfaVerify";
 import Profile from "./pages/Profile";
 import SystemSetup from "./pages/SystemSetup";
 import CustomerStatement from "./pages/CustomerStatement";
@@ -58,6 +59,7 @@ const App = () => (
           <SettingsProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/mfa" element={<MfaVerify />} />
             <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
             <Route path="/accounts" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Accounts /></AppLayout></ProtectedRoute>} />
             <Route path="/journal" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Journal /></AppLayout></ProtectedRoute>} />

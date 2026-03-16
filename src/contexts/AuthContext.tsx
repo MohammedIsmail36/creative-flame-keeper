@@ -10,6 +10,7 @@ interface AuthContextType {
   role: AppRole | null;
   fullName: string;
   loading: boolean;
+  mfaRequired: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   fullName: "",
   loading: true,
+  mfaRequired: false,
   signOut: async () => {},
 });
 
@@ -30,6 +32,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [mfaRequired, setMfaRequired] = useState(false);
+
+  const checkMfaStatus = async () => {
+    try {
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalData) {
+        // If current level is aal1 but next level requires aal2, MFA verification is needed
+        setMfaRequired(aalData.currentLevel === "aal1" && aalData.nextLevel === "aal2");
+      }
+    } catch (err) {
+      console.error("Error checking MFA status:", err);
+    }
+  };
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -52,10 +67,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (session?.user) {
           // Use setTimeout to avoid Supabase auth deadlock
-          setTimeout(() => fetchUserData(session.user.id), 0);
+          setTimeout(() => {
+            fetchUserData(session.user.id);
+            checkMfaStatus();
+          }, 0);
         } else {
           setRole(null);
           setFullName("");
+          setMfaRequired(false);
         }
         setLoading(false);
       }
@@ -66,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserData(session.user.id);
+        checkMfaStatus();
       }
       setLoading(false);
     });
@@ -79,10 +99,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
     setRole(null);
     setFullName("");
+    setMfaRequired(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, fullName, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, fullName, loading, mfaRequired, signOut }}>
       {children}
     </AuthContext.Provider>
   );
