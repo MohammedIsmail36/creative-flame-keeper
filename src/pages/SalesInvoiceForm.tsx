@@ -720,13 +720,13 @@ export default function SalesInvoiceForm() {
             <thead>
               <tr className="border-b border-border bg-muted/20">
                 <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">#</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">البند</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">البند</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الكمية</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">سعر الوحدة</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-left">سعر الوحدة</th>
                 {showDiscount && (
-                  <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الخصم</th>
+                  <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-left">الخصم</th>
                 )}
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">المجموع</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-left">المجموع</th>
                 {isEditable && <th className="py-2 px-2" />}
               </tr>
             </thead>
@@ -828,7 +828,7 @@ export default function SalesInvoiceForm() {
                     {/* Tax — removed from rows, shown only in summary */}
 
                     {/* Total */}
-                    <td className="py-2 px-3 text-center">
+                    <td className="py-2 px-3">
                       <span className="font-mono tabular-nums font-semibold text-sm text-foreground">
                         {formatCurrency(item.total)}
                       </span>
@@ -869,6 +869,22 @@ export default function SalesInvoiceForm() {
 
           {items.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Product count */}
+              <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
+                <span className="text-xs text-muted-foreground">المنتجات</span>
+                <span className="text-xs font-mono font-semibold tabular-nums text-foreground">
+                  {items.filter((i) => i.product_id).length}
+                </span>
+              </div>
+              {/* Total units */}
+              <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
+                <span className="text-xs text-muted-foreground">الوحدات</span>
+                <span className="text-xs font-mono font-semibold tabular-nums text-foreground">
+                  {items.reduce((s, i) => s + i.quantity, 0)}
+                </span>
+              </div>
+              {/* Separator */}
+              <div className="w-px h-4 bg-border/60" />
               {showDiscount && totalDiscount > 0 && (
                 <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
                   <span className="text-xs text-muted-foreground">إجمالي الخصم</span>
