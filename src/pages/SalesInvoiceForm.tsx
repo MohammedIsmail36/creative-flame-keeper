@@ -722,7 +722,7 @@ export default function SalesInvoiceForm() {
                 <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">#</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">البند</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الكمية</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs ttext-center">سعر الوحدة</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">سعر الوحدة</th>
                 {showDiscount && (
                   <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الخصم</th>
                 )}
@@ -828,7 +828,7 @@ export default function SalesInvoiceForm() {
                     {/* Tax — removed from rows, shown only in summary */}
 
                     {/* Total */}
-                    <td className="py-2 px-3">
+                    <td className="py-2 px-3 text-center">
                       <span className="font-mono tabular-nums font-semibold text-sm text-foreground">
                         {formatCurrency(item.total)}
                       </span>
