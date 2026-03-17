@@ -311,3 +311,67 @@ function KpiCard({ icon, iconBg, label, value }: { icon: React.ReactNode; iconBg
     </div>
   );
 }
+
+function TrialBalanceSectionCard({
+  title,
+  rows,
+  groupDebit,
+  groupCredit,
+  formatNum,
+}: {
+  title: string;
+  rows: TrialBalanceRow[];
+  groupDebit: number;
+  groupCredit: number;
+  formatNum: (val: number) => string;
+}) {
+  return (
+    <div className="bg-card rounded-xl border overflow-hidden shadow-sm min-h-[22rem]">
+      <div className="bg-muted/50 px-6 py-4 border-b flex items-center justify-between">
+        <h4 className="font-bold text-foreground">{title}</h4>
+        <Badge variant="secondary" className="text-xs">{rows.length} حساب</Badge>
+      </div>
+
+      <div className="p-6 flex flex-col h-[calc(100%-4.5rem)]">
+        <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-xs font-medium text-muted-foreground mb-3 pb-2 border-b">
+          <span>الحساب</span>
+          <span className="w-28 text-left">رصيد مدين</span>
+          <span className="w-28 text-left">رصيد دائن</span>
+        </div>
+
+        <div className="flex-1">
+          {rows.length === 0 ? (
+            <div className="h-full min-h-[12rem] rounded-xl border border-dashed bg-muted/30 flex flex-col items-center justify-center text-center px-4">
+              <BookOpen className="h-10 w-10 text-muted-foreground/40 mb-3" />
+              <p className="font-medium text-foreground">لا توجد حسابات في هذا القسم</p>
+              <p className="text-sm text-muted-foreground mt-1">سيبقى هذا القسم ثابتاً هنا حتى عند عدم وجود بيانات.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {rows.map((row) => (
+                <div key={row.account.id} className="grid grid-cols-[1fr_auto_auto] gap-4 text-sm items-center">
+                  <span className="text-muted-foreground">
+                    <span className="font-mono text-xs text-foreground/50 ml-2">{row.account.code}</span>
+                    {row.account.name}
+                  </span>
+                  <span className={cn("w-28 text-left font-mono", row.balanceDebit > 0 ? "text-emerald-600 font-medium" : "text-muted-foreground/40")}>
+                    {row.balanceDebit > 0 ? formatNum(row.balanceDebit) : "—"}
+                  </span>
+                  <span className={cn("w-28 text-left font-mono", row.balanceCredit > 0 ? "text-red-600 font-medium" : "text-muted-foreground/40")}>
+                    {row.balanceCredit > 0 ? formatNum(row.balanceCredit) : "—"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 pt-4 border-t-2 grid grid-cols-[1fr_auto_auto] gap-4 items-center">
+          <span className="font-bold text-foreground">الإجمالي</span>
+          <span className="w-28 text-left font-mono font-black text-foreground">{groupDebit > 0 ? formatNum(groupDebit) : "—"}</span>
+          <span className="w-28 text-left font-mono font-black text-foreground">{groupCredit > 0 ? formatNum(groupCredit) : "—"}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
