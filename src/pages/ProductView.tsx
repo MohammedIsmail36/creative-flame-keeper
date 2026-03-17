@@ -31,6 +31,8 @@ export default function ProductView() {
   const [product, setProduct] = useState<any>(null);
   const [gallery, setGallery] = useState<{ id: string; image_url: string }[]>([]);
   const [movements, setMovements] = useState<any[]>([]);
+  const [avgPurchasePrice, setAvgPurchasePrice] = useState<number>(0);
+  const [avgSellingPrice, setAvgSellingPrice] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const [selectedGalleryIdx, setSelectedGalleryIdx] = useState(0);
@@ -67,6 +69,15 @@ export default function ProductView() {
       .order("movement_date", { ascending: false })
       .limit(5);
     setMovements(mvData || []);
+
+    // Fetch average prices
+    const [{ data: avgPurch }, { data: avgSell }] = await Promise.all([
+      supabase.rpc("get_avg_purchase_price", { _product_id: id! }),
+      supabase.rpc("get_avg_selling_price", { _product_id: id! }),
+    ]);
+    setAvgPurchasePrice(Number(avgPurch) || 0);
+    setAvgSellingPrice(Number(avgSell) || 0);
+
     setLoading(false);
   };
 
@@ -398,7 +409,7 @@ export default function ProductView() {
               <h3 className="font-bold text-foreground">إحصائيات المبيعات</h3>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                 {[
                   {
                     label: "إجمالي المبيعات",
@@ -419,6 +430,18 @@ export default function ProductView() {
                       .reduce((s, m) => s + m.total_cost, 0),
                     suffix: "EGP",
                     icon: <ArrowUp className="h-5 w-5" />,
+                  },
+                  {
+                    label: "متوسط سعر الشراء",
+                    value: avgPurchasePrice,
+                    suffix: "EGP",
+                    icon: <Tag className="h-5 w-5" />,
+                  },
+                  {
+                    label: "متوسط سعر البيع",
+                    value: avgSellingPrice,
+                    suffix: "EGP",
+                    icon: <Barcode className="h-5 w-5" />,
                   },
                 ].map((stat) => (
                   <div
