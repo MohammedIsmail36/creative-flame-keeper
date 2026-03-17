@@ -521,7 +521,7 @@ export default function PurchaseInvoiceForm() {
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
                 <span className="text-xs text-muted-foreground">المنتجات</span>
-                <span className="text-xs font-mono font-semibold tabular-nums text-foreground">{items.filter(i => i.product_id).length}</span>
+                <span className="text-xs font-mono font-semibold tabular-nums text-foreground">{new Set(items.filter(i => i.product_id).map(i => i.product_id)).size}</span>
               </div>
               <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
                 <span className="text-xs text-muted-foreground">الوحدات</span>
