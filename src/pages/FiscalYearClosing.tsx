@@ -205,6 +205,33 @@ export default function FiscalYearClosing() {
     setExecuting(false);
   };
 
+  const reverseClosing = async () => {
+    if (!existingClosing) return;
+    setReversing(true);
+    try {
+      // Delete journal entry lines first, then the entry itself
+      const { error: linesErr } = await supabase
+        .from("journal_entry_lines")
+        .delete()
+        .eq("journal_entry_id", existingClosing.id);
+      if (linesErr) throw linesErr;
+
+      const { error: entryErr } = await supabase
+        .from("journal_entries")
+        .delete()
+        .eq("id", existingClosing.id);
+      if (entryErr) throw entryErr;
+
+      toast.success(`تم عكس قيد إقفال السنة المالية ${fiscalYear.label} وإعادة فتحها بنجاح`);
+      setExistingClosing(null);
+      fetchData();
+    } catch (err: any) {
+      toast.error("خطأ في عكس قيد الإقفال: " + err.message);
+      console.error(err);
+    }
+    setReversing(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
