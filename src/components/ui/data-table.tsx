@@ -279,7 +279,7 @@ export function DataTable<TData, TValue>({
                     <TableHead
                       key={header.id}
                       // ↓ h-9 بدل h-11 — header أكثر إحكاماً
-                      className="text-right font-semibold text-xs text-muted-foreground h-9 px-3 whitespace-nowrap uppercase tracking-wide"
+                      className="text-right font-semibold text-xs text-muted-foreground h-11 px-3 whitespace-nowrap uppercase tracking-wide"
                     >
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
@@ -294,7 +294,7 @@ export function DataTable<TData, TValue>({
                 Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
                   <TableRow key={`skeleton-${i}`} className="hover:bg-transparent">
                     {columns.map((_, j) => (
-                      <TableCell key={j} className="px-3 h-10">
+                      <TableCell key={j} className="px-3 h-11">
                         <Skeleton className="h-4 w-full max-w-[160px]" />
                       </TableCell>
                     ))}
