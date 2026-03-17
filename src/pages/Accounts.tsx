@@ -276,9 +276,17 @@ export default function Accounts() {
             </div>
           </TableCell>
           <TableCell>
-            <span className={`font-medium ${account.is_parent ? "text-foreground" : "text-foreground/80"}`}>
-              {account.name}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`font-medium ${account.is_parent ? "text-foreground" : "text-foreground/80"}`}>
+                {account.name}
+              </span>
+              {account.is_system && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-primary/30 text-primary gap-1">
+                  <Shield className="h-3 w-3" />
+                  نظام
+                </Badge>
+              )}
+            </div>
           </TableCell>
           <TableCell>
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${typeColors[account.account_type]}`}>
