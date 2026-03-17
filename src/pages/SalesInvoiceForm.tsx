@@ -308,8 +308,9 @@ export default function SalesInvoiceForm() {
         }
         const { data: avgPrice } = await supabase.rpc("get_avg_purchase_price", { _product_id: item.product_id });
         const avgCost = Number(avgPrice) || 0;
-        itemAvgCosts[item.product_id] = avgCost > 0 ? avgCost : item.cost_price;
-        totalCost += avgCost * item.quantity;
+        const effectiveCost = avgCost > 0 ? avgCost : item.cost_price;
+        itemAvgCosts[item.product_id] = effectiveCost;
+        totalCost += effectiveCost * item.quantity;
       }
 
       const totalDebit = grandTotal + totalCost;

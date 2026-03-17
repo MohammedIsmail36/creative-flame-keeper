@@ -412,8 +412,8 @@ export default function ProductView() {
               <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                 {[
                   {
-                    label: "إجمالي المبيعات",
-                    value: movements.filter((m) => m.movement_type === "sale").reduce((s, m) => s + m.total_cost, 0),
+                    label: "إجمالي المبيعات (بسعر البيع)",
+                    value: movements.filter((m) => m.movement_type === "sale").reduce((s, m) => s + m.quantity * (avgSellingPrice || m.unit_cost), 0),
                     suffix: "EGP",
                     icon: <BarChart3 className="h-5 w-5" />,
                   },
