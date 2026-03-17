@@ -431,6 +431,18 @@ export default function ProductView() {
                     suffix: "EGP",
                     icon: <ArrowUp className="h-5 w-5" />,
                   },
+                  {
+                    label: "متوسط سعر الشراء",
+                    value: avgPurchasePrice,
+                    suffix: "EGP",
+                    icon: <Tag className="h-5 w-5" />,
+                  },
+                  {
+                    label: "متوسط سعر البيع",
+                    value: avgSellingPrice,
+                    suffix: "EGP",
+                    icon: <Barcode className="h-5 w-5" />,
+                  },
                 ].map((stat) => (
                   <div
                     key={stat.label}
