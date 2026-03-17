@@ -130,19 +130,40 @@ export default function TrialBalance() {
     setExportMenuOpen(false);
   };
 
-  // Fixed sections - always show all account types
+  // Fixed sections - always show all account types in their correct side
   const fixedSections = ["asset", "liability", "equity", "revenue", "expense"] as const;
+  const sectionColumns = [
+    {
+      id: "debit",
+      title: "الجانب المدين",
+      description: "الأصول والمصروفات",
+      sections: ["asset", "expense"] as const,
+    },
+    {
+      id: "credit",
+      title: "الجانب الدائن",
+      description: "الخصوم وحقوق الملكية والإيرادات",
+      sections: ["liability", "equity", "revenue"] as const,
+    },
+  ] as const;
+
+  const normalizeAccountType = (type: string) => {
+    if (type === "assets") return "asset";
+    if (type === "liabilities") return "liability";
+    if (type === "expenses") return "expense";
+    return type;
+  };
 
   const groupedRows = useMemo(() => {
     const groups: Record<string, TrialBalanceRow[]> = {};
     fixedSections.forEach((type) => { groups[type] = []; });
+
     trialBalanceData.forEach((row) => {
-      const type = row.account.account_type;
-      // Normalize plural forms
-      const normalized = type === "assets" ? "asset" : type === "liabilities" ? "liability" : type === "expenses" ? "expense" : type;
+      const normalized = normalizeAccountType(row.account.account_type);
       if (!groups[normalized]) groups[normalized] = [];
       groups[normalized].push(row);
     });
+
     return groups;
   }, [trialBalanceData]);
 
