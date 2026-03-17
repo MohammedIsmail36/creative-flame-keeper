@@ -99,7 +99,7 @@ export default function MfaVerify() {
                 <InputOTPGroup>
                   <InputOTPSlot index={3} className="w-12 h-14 text-2xl font-bold border-2" />
                   <InputOTPSlot index={4} className="w-12 h-14 text-2xl font-bold border-2" />
-                  <InputOTPSlot index={5} className="w-12 h-14 text-2xl font-bold" />
+                  <InputOTPSlot index={5} className="w-12 h-14 text-2xl font-bold border-2" />
                 </InputOTPGroup>
               </InputOTP>
             </div>
