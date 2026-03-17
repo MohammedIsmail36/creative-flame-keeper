@@ -364,48 +364,60 @@ export default function Profile() {
 
       {/* MFA Enrollment Dialog */}
       <Dialog open={enrollDialogOpen} onOpenChange={setEnrollDialogOpen}>
-        <DialogContent className="sm:max-w-md" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <QrCode className="w-5 h-5 text-primary" />
-              تفعيل التحقق بخطوتين
-            </DialogTitle>
-            <DialogDescription>
-              امسح رمز QR باستخدام تطبيق المصادقة ثم أدخل الرمز المكون من 6 أرقام
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden" dir="rtl">
+          {/* Header */}
+          <div className="flex items-center justify-between py-4 px-6 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary/10 p-2 rounded-lg">
+                <ShieldCheck className="w-6 h-6 text-primary" />
+              </div>
+              <DialogTitle className="text-xl font-bold">تفعيل التحقق بخطوتين</DialogTitle>
+            </div>
+          </div>
 
-          <div className="space-y-5">
+          {/* Content */}
+          <div className="p-4 space-y-6">
+            <DialogDescription className="text-center leading-relaxed">
+              امسح رمز QR باستخدام تطبيق المصادقة (مثل Google Authenticator) ثم أدخل الرمز المكون من 6 أرقام.
+            </DialogDescription>
+
             {/* QR Code */}
             {qrCode && (
               <div className="flex justify-center">
-                <div className="p-3 bg-white rounded-xl border border-border shadow-sm">
-                  <img src={qrCode} alt="QR Code" className="w-48 h-48" />
+                <div className="p-4 bg-card border-2 border-border rounded-xl">
+                  <div className="w-48 h-48 bg-muted flex items-center justify-center rounded-lg overflow-hidden relative border border-border">
+                    <img src={qrCode} alt="رمز QR للتحقق بخطوتين" className="w-full h-full object-cover" />
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Secret Key */}
+            {/* Manual Key Section */}
             {secret && (
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">أو أدخل المفتاح يدوياً:</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={secret}
-                    readOnly
-                    className="font-mono text-xs bg-muted"
-                    dir="ltr"
-                  />
-                  <Button variant="outline" size="icon" onClick={copySecret} className="shrink-0">
-                    {copiedSecret ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                  </Button>
+                <Label className="text-sm font-medium text-muted-foreground">
+                  أدخل المفتاح يدوياً إذا لم تتمكن من المسح
+                </Label>
+                <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-border">
+                  <code className="flex-1 font-mono text-sm tracking-widest text-foreground" dir="ltr">
+                    {secret}
+                  </code>
+                  <button
+                    onClick={copySecret}
+                    className="text-primary hover:bg-primary/10 p-1.5 rounded-md transition-colors flex items-center gap-1"
+                  >
+                    {copiedSecret ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    <span className="text-xs font-bold">{copiedSecret ? "تم" : "نسخ"}</span>
+                  </button>
                 </div>
               </div>
             )}
 
-            {/* OTP Input */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">رمز التحقق</Label>
+            {/* 6-Digit Verification Code */}
+            <div className="space-y-4">
+              <Label className="text-sm font-medium text-muted-foreground text-center block">
+                رمز التحقق
+              </Label>
               <div className="flex justify-center" dir="ltr">
                 <InputOTP
                   maxLength={6}
@@ -413,31 +425,46 @@ export default function Profile() {
                   onChange={(val) => setVerifyCode(val)}
                 >
                   <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
+                    <InputOTPSlot index={0} className="w-12 h-14 text-xl font-bold border-2" />
+                    <InputOTPSlot index={1} className="w-12 h-14 text-xl font-bold border-2" />
+                    <InputOTPSlot index={2} className="w-12 h-14 text-xl font-bold border-2" />
+                  </InputOTPGroup>
+                  <InputOTPSeparator />
+                  <InputOTPGroup>
+                    <InputOTPSlot index={3} className="w-12 h-14 text-xl font-bold border-2" />
+                    <InputOTPSlot index={4} className="w-12 h-14 text-xl font-bold border-2" />
+                    <InputOTPSlot index={5} className="w-12 h-14 text-xl font-bold border-2" />
                   </InputOTPGroup>
                 </InputOTP>
               </div>
             </div>
+          </div>
 
-            <Button
+          {/* Footer Actions */}
+          <div className="p-6 bg-muted/30 flex flex-col gap-3">
+            <button
               onClick={handleVerifyMFA}
               disabled={verifyCode.length !== 6 || verifying}
-              className="w-full"
+              className="w-full py-3 px-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {verifying ? (
                 <>
-                  <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                  جاري التحقق...
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>جاري التحقق...</span>
                 </>
               ) : (
-                "تفعيل التحقق بخطوتين"
+                <>
+                  <span>تفعيل التحقق بخطوتين</span>
+                  <Check className="w-5 h-5" />
+                </>
               )}
-            </Button>
+            </button>
+            <button
+              onClick={() => setEnrollDialogOpen(false)}
+              className="w-full py-3 px-4 text-muted-foreground font-medium rounded-xl hover:bg-muted transition-all"
+            >
+              إلغاء العملية
+            </button>
           </div>
         </DialogContent>
       </Dialog>
