@@ -6,7 +6,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { Pencil, Package, Barcode, Tag, Ruler, Factory, Hash, ArrowDown, ArrowUp, ArrowLeftRight, FileText, BarChart3, Images } from "lucide-react";
+import {
+  Pencil,
+  Package,
+  Barcode,
+  Tag,
+  Ruler,
+  Factory,
+  Hash,
+  ArrowDown,
+  ArrowUp,
+  ArrowLeftRight,
+  FileText,
+  BarChart3,
+  Images,
+} from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 export default function ProductView() {
@@ -38,7 +52,10 @@ export default function ProductView() {
       return;
     }
     setProduct(data);
-    const { data: imgs } = await (supabase.from("product_images" as any) as any).select("*").eq("product_id", id!).order("sort_order");
+    const { data: imgs } = await (supabase.from("product_images" as any) as any)
+      .select("*")
+      .eq("product_id", id!)
+      .order("sort_order");
     setGallery(imgs || []);
 
     // Fetch recent movements
@@ -52,7 +69,12 @@ export default function ProductView() {
     setLoading(false);
   };
 
-  if (loading) return <div className="p-12 text-center text-muted-foreground" dir="rtl">جاري التحميل...</div>;
+  if (loading)
+    return (
+      <div className="p-12 text-center text-muted-foreground" dir="rtl">
+        جاري التحميل...
+      </div>
+    );
   if (!product) return null;
 
   const formatCurrency = (val: number) => `${Number(val).toLocaleString("en-US", { minimumFractionDigits: 2 })} EGP`;
@@ -64,16 +86,27 @@ export default function ProductView() {
   const margin = product.selling_price - product.purchase_price;
   const marginPct = product.purchase_price > 0 ? ((margin / product.purchase_price) * 100).toFixed(1) : "0";
 
-  const allImages = [
-    ...(product.main_image_url ? [product.main_image_url] : []),
-    ...gallery.map(g => g.image_url),
-  ];
+  const allImages = [...(product.main_image_url ? [product.main_image_url] : []), ...gallery.map((g) => g.image_url)];
   const activeImage = allImages[selectedGalleryIdx] || null;
 
   const getStockBadge = () => {
-    if (product.quantity_on_hand <= 0) return <Badge variant="destructive" className="px-4 py-1 rounded-full text-xs font-bold">نفذ من المخزون</Badge>;
-    if (product.quantity_on_hand <= product.min_stock_level) return <Badge className="bg-warning/10 text-warning border-warning/20 px-4 py-1 rounded-full text-xs font-bold">مخزون منخفض</Badge>;
-    return <Badge className="bg-success/10 text-success border-success/20 px-4 py-1 rounded-full text-xs font-bold">متوفر</Badge>;
+    if (product.quantity_on_hand <= 0)
+      return (
+        <Badge variant="destructive" className="px-4 py-1 rounded-full text-xs font-bold">
+          نفذ من المخزون
+        </Badge>
+      );
+    if (product.quantity_on_hand <= product.min_stock_level)
+      return (
+        <Badge className="bg-warning/10 text-warning border-warning/20 px-4 py-1 rounded-full text-xs font-bold">
+          مخزون منخفض
+        </Badge>
+      );
+    return (
+      <Badge className="bg-success/10 text-success border-success/20 px-4 py-1 rounded-full text-xs font-bold">
+        متوفر
+      </Badge>
+    );
   };
 
   const getMovementIcon = (type: string) => {
@@ -126,7 +159,9 @@ export default function ProductView() {
           {/* Product Info */}
           <div className="flex-1 text-right">
             <div className="flex items-center justify-start gap-3 mb-4">
-              <Badge className="bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-bold">{catName}</Badge>
+              <Badge className="bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-bold">
+                {catName}
+              </Badge>
               {getStockBadge()}
             </div>
             <h1 className="text-3xl md:text-4xl font-black text-foreground mb-3 leading-tight">{product.name}</h1>
@@ -145,8 +180,18 @@ export default function ProductView() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { label: "إجمالي المخزون", value: product.quantity_on_hand, suffix: "قطعة", highlight: false },
-                { label: "سعر البيع", value: Number(product.selling_price).toLocaleString("en-US"), suffix: "EGP", highlight: true },
-                { label: "سعر الشراء", value: Number(product.purchase_price).toLocaleString("en-US"), suffix: "EGP", highlight: false },
+                {
+                  label: "سعر البيع",
+                  value: Number(product.selling_price).toLocaleString("en-US"),
+                  suffix: "EGP",
+                  highlight: true,
+                },
+                {
+                  label: "سعر الشراء",
+                  value: Number(product.purchase_price).toLocaleString("en-US"),
+                  suffix: "EGP",
+                  highlight: false,
+                },
                 { label: "حد إعادة الطلب", value: product.min_stock_level, suffix: "قطعة", highlight: true },
               ].map((stat) => (
                 <div key={stat.label} className="bg-muted/30 rounded-xl p-4 text-center border border-border/50">
@@ -194,7 +239,11 @@ export default function ProductView() {
                 onClick={() => setSelectedGalleryIdx(i)}
                 onDoubleClick={() => setLightboxImg(img)}
               >
-                <img src={img} alt={`صورة ${i + 1}`} className={`max-h-full object-contain ${i !== selectedGalleryIdx ? "opacity-70 hover:opacity-100" : ""} transition-opacity`} />
+                <img
+                  src={img}
+                  alt={`صورة ${i + 1}`}
+                  className={`max-h-full object-contain ${i !== selectedGalleryIdx ? "opacity-70 hover:opacity-100" : ""} transition-opacity`}
+                />
               </div>
             ))}
           </div>
@@ -202,17 +251,26 @@ export default function ProductView() {
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="specs" className="w-full">
+      <Tabs defaultValue="specs" className="w-full" dir="rtl">
         <TabsList className="bg-transparent border-b border-border rounded-none w-full justify-start gap-8 h-auto p-0">
-          <TabsTrigger value="specs" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none rounded-none pb-4 bg-transparent gap-2 text-sm font-medium">
+          <TabsTrigger
+            value="specs"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none rounded-none pb-4 bg-transparent gap-2 text-sm font-medium"
+          >
             <FileText className="h-4 w-4" />
             المواصفات العامة
           </TabsTrigger>
-          <TabsTrigger value="movements" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none rounded-none pb-4 bg-transparent gap-2 text-sm font-medium">
+          <TabsTrigger
+            value="movements"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none rounded-none pb-4 bg-transparent gap-2 text-sm font-medium"
+          >
             <ArrowLeftRight className="h-4 w-4" />
             حركة المنتج
           </TabsTrigger>
-          <TabsTrigger value="stats" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none rounded-none pb-4 bg-transparent gap-2 text-sm font-medium">
+          <TabsTrigger
+            value="stats"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none rounded-none pb-4 bg-transparent gap-2 text-sm font-medium"
+          >
             <BarChart3 className="h-4 w-4" />
             إحصائيات البيع
           </TabsTrigger>
@@ -257,13 +315,20 @@ export default function ProductView() {
                   )}
                   {movements.map((mv) => (
                     <div key={mv.id} className="flex gap-4">
-                      <div className={`h-9 w-9 shrink-0 rounded-full flex items-center justify-center ${getMovementColor(mv.movement_type)}`}>
+                      <div
+                        className={`h-9 w-9 shrink-0 rounded-full flex items-center justify-center ${getMovementColor(mv.movement_type)}`}
+                      >
                         {getMovementIcon(mv.movement_type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{getMovementLabel(mv.movement_type)}{mv.notes ? ` - ${mv.notes}` : ""}</p>
+                        <p className="text-sm font-semibold text-foreground truncate">
+                          {getMovementLabel(mv.movement_type)}
+                          {mv.notes ? ` - ${mv.notes}` : ""}
+                        </p>
                         <div className="flex justify-between mt-1">
-                          <span className="text-[10px] text-muted-foreground">{new Date(mv.movement_date).toLocaleDateString("ar-EG")}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(mv.movement_date).toLocaleDateString("ar-EG")}
+                          </span>
                           {getMovementQtyDisplay(mv)}
                         </div>
                       </div>
@@ -272,7 +337,10 @@ export default function ProductView() {
                 </div>
                 {movements.length > 0 && (
                   <div className="px-6 py-4 bg-muted/30 text-center border-t border-border">
-                    <button onClick={() => navigate("/inventory/movements")} className="text-xs font-bold text-primary hover:underline">
+                    <button
+                      onClick={() => navigate("/inventory/movements")}
+                      className="text-xs font-bold text-primary hover:underline"
+                    >
                       عرض جميع الحركات
                     </button>
                   </div>
@@ -293,8 +361,13 @@ export default function ProductView() {
               ) : (
                 <div className="space-y-4">
                   {movements.map((mv) => (
-                    <div key={mv.id} className="flex items-center gap-4 p-4 rounded-lg bg-muted/20 border border-border/50">
-                      <div className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center ${getMovementColor(mv.movement_type)}`}>
+                    <div
+                      key={mv.id}
+                      className="flex items-center gap-4 p-4 rounded-lg bg-muted/20 border border-border/50"
+                    >
+                      <div
+                        className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center ${getMovementColor(mv.movement_type)}`}
+                      >
                         {getMovementIcon(mv.movement_type)}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -303,7 +376,9 @@ export default function ProductView() {
                       </div>
                       <div className="text-left">
                         {getMovementQtyDisplay(mv)}
-                        <p className="text-[10px] text-muted-foreground mt-1">{new Date(mv.movement_date).toLocaleDateString("ar-EG")}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {new Date(mv.movement_date).toLocaleDateString("ar-EG")}
+                        </p>
                       </div>
                       <div className="text-left">
                         <p className="text-xs font-mono text-foreground">{formatCurrency(mv.total_cost)}</p>
@@ -324,12 +399,34 @@ export default function ProductView() {
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                  { label: "إجمالي المبيعات", value: movements.filter(m => m.movement_type === "sale").reduce((s, m) => s + m.total_cost, 0), suffix: "EGP", icon: <BarChart3 className="h-5 w-5" /> },
-                  { label: "الوحدات المباعة", value: movements.filter(m => m.movement_type === "sale").reduce((s, m) => s + m.quantity, 0), suffix: "وحدة", icon: <Package className="h-5 w-5" /> },
-                  { label: "إجمالي المشتريات", value: movements.filter(m => m.movement_type === "purchase").reduce((s, m) => s + m.total_cost, 0), suffix: "EGP", icon: <ArrowUp className="h-5 w-5" /> },
+                  {
+                    label: "إجمالي المبيعات",
+                    value: movements.filter((m) => m.movement_type === "sale").reduce((s, m) => s + m.total_cost, 0),
+                    suffix: "EGP",
+                    icon: <BarChart3 className="h-5 w-5" />,
+                  },
+                  {
+                    label: "الوحدات المباعة",
+                    value: movements.filter((m) => m.movement_type === "sale").reduce((s, m) => s + m.quantity, 0),
+                    suffix: "وحدة",
+                    icon: <Package className="h-5 w-5" />,
+                  },
+                  {
+                    label: "إجمالي المشتريات",
+                    value: movements
+                      .filter((m) => m.movement_type === "purchase")
+                      .reduce((s, m) => s + m.total_cost, 0),
+                    suffix: "EGP",
+                    icon: <ArrowUp className="h-5 w-5" />,
+                  },
                 ].map((stat) => (
-                  <div key={stat.label} className="bg-muted/30 p-5 rounded-xl border border-border/50 flex items-center gap-4">
-                    <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center text-primary">{stat.icon}</div>
+                  <div
+                    key={stat.label}
+                    className="bg-muted/30 p-5 rounded-xl border border-border/50 flex items-center gap-4"
+                  >
+                    <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center text-primary">
+                      {stat.icon}
+                    </div>
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
                       <p className="text-xl font-bold font-mono text-foreground">
