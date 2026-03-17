@@ -2,15 +2,12 @@ import React, { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Landmark, Download, CalendarIcon, X, CheckCircle, AlertTriangle } from "lucide-react";
+import { Landmark, Download, CalendarIcon, X, CheckCircle, AlertTriangle, TrendingUp, Shield, Wallet, Scale } from "lucide-react";
 
 interface Account {
   id: string;
@@ -58,7 +55,6 @@ export default function BalanceSheet() {
       const acc = accounts.find(a => a.id === l.account_id);
       if (!acc) return;
       const existing = totals.get(l.account_id) || 0;
-      // Assets & Expenses: debit normal, Liabilities/Equity/Revenue: credit normal
       if (acc.account_type === "asset" || acc.account_type === "expense") {
         totals.set(l.account_id, existing + (Number(l.debit) - Number(l.credit)));
       } else {
@@ -96,22 +92,16 @@ export default function BalanceSheet() {
 
   const handleExportPDF = async () => {
     const { exportReportPdf } = await import("@/lib/pdf-arabic");
-
     const allRows: (string | number)[][] = [];
-    // Assets
     assetRows.forEach((r) => allRows.push([r.account.code, r.account.name, "أصول", formatNum(r.balance)]));
     allRows.push(["", "إجمالي الأصول", "", formatNum(totalAssets)]);
-    // Liabilities
     liabilityRows.forEach((r) => allRows.push([r.account.code, r.account.name, "خصوم", formatNum(r.balance)]));
     allRows.push(["", "إجمالي الخصوم", "", formatNum(totalLiabilities)]);
-    // Equity
     equityRows.forEach((r) => allRows.push([r.account.code, r.account.name, "حقوق ملكية", formatNum(r.balance)]));
     if (netIncome !== 0) allRows.push(["", netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", "", formatNum(netIncome)]);
     allRows.push(["", "إجمالي حقوق الملكية", "", formatNum(totalEquity)]);
-
     await exportReportPdf({
-      title: "الميزانية العمومية",
-      settings,
+      title: "الميزانية العمومية", settings,
       headers: ["الكود", "الحساب", "النوع", `المبلغ (${currency})`],
       rows: allRows,
       summaryCards: [
@@ -121,7 +111,6 @@ export default function BalanceSheet() {
       ],
       filename: "Balance_Sheet",
     });
-    
     toast({ title: "تم التصدير", description: "تم تصدير الميزانية العمومية بصيغة PDF" });
     setExportMenuOpen(false);
   };
@@ -129,245 +118,201 @@ export default function BalanceSheet() {
   const handleExportExcel = async () => {
     const { exportToExcel } = await import("@/lib/excel-export");
     const data: any[] = [];
-    data.push({ "القسم": "الأصول", "الكود": "", "الحساب": "", "المبلغ (EGP)": "" });
-    assetRows.forEach((r) => data.push({ "القسم": "", "الكود": r.account.code, "الحساب": r.account.name, "المبلغ (EGP)": r.balance }));
-    data.push({ "القسم": "", "الكود": "", "الحساب": "إجمالي الأصول", "المبلغ (EGP)": totalAssets });
-    data.push({ "القسم": "", "الكود": "", "الحساب": "", "المبلغ (EGP)": "" });
-    data.push({ "القسم": "الخصوم", "الكود": "", "الحساب": "", "المبلغ (EGP)": "" });
-    liabilityRows.forEach((r) => data.push({ "القسم": "", "الكود": r.account.code, "الحساب": r.account.name, "المبلغ (EGP)": r.balance }));
-    data.push({ "القسم": "", "الكود": "", "الحساب": "إجمالي الخصوم", "المبلغ (EGP)": totalLiabilities });
-    data.push({ "القسم": "", "الكود": "", "الحساب": "", "المبلغ (EGP)": "" });
-    data.push({ "القسم": "حقوق الملكية", "الكود": "", "الحساب": "", "المبلغ (EGP)": "" });
-    equityRows.forEach((r) => data.push({ "القسم": "", "الكود": r.account.code, "الحساب": r.account.name, "المبلغ (EGP)": r.balance }));
-    if (netIncome !== 0) data.push({ "القسم": "", "الكود": "", "الحساب": netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", "المبلغ (EGP)": netIncome });
-    data.push({ "القسم": "", "الكود": "", "الحساب": "إجمالي حقوق الملكية", "المبلغ (EGP)": totalEquity });
-
+    data.push({ "القسم": "الأصول", "الكود": "", "الحساب": "", "المبلغ": "" });
+    assetRows.forEach((r) => data.push({ "القسم": "", "الكود": r.account.code, "الحساب": r.account.name, "المبلغ": r.balance }));
+    data.push({ "القسم": "", "الكود": "", "الحساب": "إجمالي الأصول", "المبلغ": totalAssets });
+    data.push({ "القسم": "", "الكود": "", "الحساب": "", "المبلغ": "" });
+    data.push({ "القسم": "الخصوم", "الكود": "", "الحساب": "", "المبلغ": "" });
+    liabilityRows.forEach((r) => data.push({ "القسم": "", "الكود": r.account.code, "الحساب": r.account.name, "المبلغ": r.balance }));
+    data.push({ "القسم": "", "الكود": "", "الحساب": "إجمالي الخصوم", "المبلغ": totalLiabilities });
+    data.push({ "القسم": "", "الكود": "", "الحساب": "", "المبلغ": "" });
+    data.push({ "القسم": "حقوق الملكية", "الكود": "", "الحساب": "", "المبلغ": "" });
+    equityRows.forEach((r) => data.push({ "القسم": "", "الكود": r.account.code, "الحساب": r.account.name, "المبلغ": r.balance }));
+    if (netIncome !== 0) data.push({ "القسم": "", "الكود": "", "الحساب": netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", "المبلغ": netIncome });
+    data.push({ "القسم": "", "الكود": "", "الحساب": "إجمالي حقوق الملكية", "المبلغ": totalEquity });
     await exportToExcel(data, "Balance Sheet", "Balance_Sheet.xlsx");
     toast({ title: "تم التصدير", description: "تم تصدير الميزانية العمومية بصيغة Excel" });
     setExportMenuOpen(false);
   };
 
-  const SectionTable = ({ title, rows, total, totalLabel, color, icon }: {
-    title: string; rows: BalanceRow[]; total: number; totalLabel: string;
-    color: string; icon: React.ReactNode;
-  }) => (
-    <Card className="overflow-hidden">
-      <CardHeader className={cn("border-b py-4", color)}>
-        <CardTitle className="text-base flex items-center gap-2">
-          {icon}
-          {title}
-          <Badge variant="secondary" className="mr-2">{rows.length} حساب</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        {rows.length === 0 ? (
-          <div className="p-6 text-center text-muted-foreground text-sm">لا توجد حسابات</div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/20">
-                <TableHead className="text-right">الكود</TableHead>
-                <TableHead className="text-right">الحساب</TableHead>
-                <TableHead className="text-right">الرصيد</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.account.id} className="hover:bg-muted/30 transition-colors">
-                  <TableCell className="font-mono text-sm">{row.account.code}</TableCell>
-                  <TableCell className="font-medium">{row.account.name}</TableCell>
-                  <TableCell className="font-mono">{formatCurrency(row.balance)}</TableCell>
-                </TableRow>
-              ))}
-              <TableRow className="bg-muted/40 font-bold border-t-2">
-                <TableCell colSpan={2} className="text-left">{totalLabel}</TableCell>
-                <TableCell className="font-mono">{formatCurrency(total)}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
-  );
-
   return (
-    <div className="space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Landmark className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">الميزانية العمومية</h1>
-            <p className="text-sm text-muted-foreground">Balance Sheet - المركز المالي</p>
-          </div>
+    <div className="space-y-8" dir="rtl">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-foreground">الميزانية العمومية</h1>
+          <p className="text-muted-foreground mt-1">بيان المركز المالي للفترة المنتهية</p>
         </div>
-        <div className="relative">
-          <Button variant="outline" className="gap-2" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
-            <Download className="h-4 w-4" />
-            تصدير
-          </Button>
-          {exportMenuOpen && (
-            <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
-              <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">PDF تصدير</button>
-              <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">Excel تصدير</button>
-            </div>
-          )}
+        <div className="flex items-center gap-2">
+          {/* Date filter */}
+          <div className="flex items-center gap-2 bg-card p-1.5 rounded-xl border shadow-sm">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" className={cn("gap-2 text-sm", !asOfDate && "text-muted-foreground")}>
+                  <CalendarIcon className="h-4 w-4" />
+                  {asOfDate ? format(asOfDate, "yyyy-MM-dd") : "حتى اليوم"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={asOfDate} onSelect={setAsOfDate} initialFocus className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+            {asOfDate && (
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setAsOfDate(undefined)}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+          {/* Export */}
+          <div className="relative">
+            <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
+              <Download className="h-4 w-4" />
+              تصدير
+            </Button>
+            {exportMenuOpen && (
+              <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-xl shadow-lg p-1 min-w-[140px]">
+                <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors">PDF تصدير</button>
+                <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors">Excel تصدير</button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Date + Balance Status */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium",
-              isBalanced ? "bg-green-500/10 text-green-600" : "bg-destructive/10 text-destructive"
-            )}>
-              {isBalanced ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-              {isBalanced
-                ? "الميزانية متوازنة ✓"
-                : `غير متوازنة - الفرق: ${formatCurrency(Math.abs(totalAssets - (totalLiabilities + totalEquity)))}`}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">كما في تاريخ:</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-[160px] justify-start text-left font-normal", !asOfDate && "text-muted-foreground")}>
-                    <CalendarIcon className="ml-2 h-4 w-4" />
-                    {asOfDate ? format(asOfDate, "yyyy-MM-dd") : "حتى اليوم"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={asOfDate} onSelect={setAsOfDate} initialFocus className={cn("p-3 pointer-events-auto")} />
-                </PopoverContent>
-              </Popover>
-              {asOfDate && (
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setAsOfDate(undefined)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <KpiCard icon={<Landmark className="h-5 w-5" />} iconBg="bg-blue-500/10 text-blue-600" label="إجمالي الأصول" value={formatCurrency(totalAssets)} />
+        <KpiCard icon={<Wallet className="h-5 w-5" />} iconBg="bg-amber-500/10 text-amber-600" label="إجمالي الالتزامات" value={formatCurrency(totalLiabilities)} />
+        <KpiCard icon={<Shield className="h-5 w-5" />} iconBg="bg-purple-500/10 text-purple-600" label="إجمالي حقوق الملكية" value={formatCurrency(totalEquity)} />
+        <KpiCard icon={<TrendingUp className="h-5 w-5" />} iconBg="bg-emerald-500/10 text-emerald-600" label="صافي الربح" value={formatCurrency(netIncome)} />
+      </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border border-blue-500/20">
-          <CardContent className="p-5">
-            <p className="text-xs text-muted-foreground mb-1">إجمالي الأصول</p>
-            <p className="text-2xl font-bold font-mono text-blue-600">{formatCurrency(totalAssets)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border border-red-500/20">
-          <CardContent className="p-5">
-            <p className="text-xs text-muted-foreground mb-1">إجمالي الخصوم</p>
-            <p className="text-2xl font-bold font-mono text-red-600">{formatCurrency(totalLiabilities)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border border-green-500/20">
-          <CardContent className="p-5">
-            <p className="text-xs text-muted-foreground mb-1">حقوق الملكية</p>
-            <p className="text-2xl font-bold font-mono text-green-600">{formatCurrency(totalEquity)}</p>
-          </CardContent>
-        </Card>
+      {/* Balance Indicator Bar */}
+      <div className="bg-foreground/95 p-4 rounded-xl flex items-center justify-center gap-8 border-r-4 border-primary">
+        <div className="text-center">
+          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">إجمالي الأصول</p>
+          <p className="text-xl font-bold text-background">{formatCurrency(totalAssets)}</p>
+        </div>
+        <div className="text-primary">
+          <Scale className="h-9 w-9" />
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">الالتزامات + حقوق الملكية</p>
+          <p className="text-xl font-bold text-background">{formatCurrency(totalLiabilities + totalEquity)}</p>
+        </div>
+        <div className={cn(
+          "hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold",
+          isBalanced ? "bg-emerald-500/20 text-emerald-400" : "bg-destructive/20 text-destructive"
+        )}>
+          {isBalanced ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+          {isBalanced ? "متوازنة" : "غير متوازنة"}
+        </div>
       </div>
 
       {loading ? (
         <div className="p-12 text-center text-muted-foreground">جاري التحميل...</div>
       ) : (
-        <>
-          {/* Assets */}
-          <SectionTable
-            title="الأصول"
-            rows={assetRows}
-            total={totalAssets}
-            totalLabel="إجمالي الأصول"
-            color="bg-blue-500/5"
-            icon={<Landmark className="h-4 w-4 text-blue-600" />}
-          />
+        /* Two Column Layout */
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Column 1: Assets */}
+          <div className="bg-card rounded-xl border overflow-hidden shadow-sm">
+            <div className="bg-muted/50 px-6 py-4 border-b">
+              <h4 className="font-bold text-foreground">الأصول (Assets)</h4>
+            </div>
+            <div className="p-6">
+              {assetRows.length === 0 ? (
+                <p className="text-center text-muted-foreground text-sm py-8">لا توجد حسابات أصول</p>
+              ) : (
+                <div className="space-y-4">
+                  {assetRows.map((row) => (
+                    <div key={row.account.id} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{row.account.name}</span>
+                      <span className="font-medium text-foreground font-mono">{formatCurrency(row.balance)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-8 pt-4 border-t-2 flex justify-between items-center">
+                <span className="font-bold text-foreground">إجمالي الأصول</span>
+                <span className="text-lg font-black text-foreground font-mono">{formatCurrency(totalAssets)}</span>
+              </div>
+            </div>
+          </div>
 
-          {/* Liabilities */}
-          <SectionTable
-            title="الخصوم"
-            rows={liabilityRows}
-            total={totalLiabilities}
-            totalLabel="إجمالي الخصوم"
-            color="bg-red-500/5"
-            icon={<Landmark className="h-4 w-4 text-red-600" />}
-          />
+          {/* Column 2: Liabilities & Equity */}
+          <div className="space-y-8">
+            {/* Liabilities Card */}
+            <div className="bg-card rounded-xl border overflow-hidden shadow-sm">
+              <div className="bg-muted/50 px-6 py-4 border-b">
+                <h4 className="font-bold text-foreground">الالتزامات (Liabilities)</h4>
+              </div>
+              <div className="p-6">
+                {liabilityRows.length === 0 ? (
+                  <p className="text-center text-muted-foreground text-sm py-4">لا توجد التزامات</p>
+                ) : (
+                  <div className="space-y-4">
+                    {liabilityRows.map((row) => (
+                      <div key={row.account.id} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{row.account.name}</span>
+                        <span className="font-medium text-foreground font-mono">{formatCurrency(row.balance)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
-          {/* Equity */}
-          <Card className="overflow-hidden">
-            <CardHeader className="border-b py-4 bg-green-500/5">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Landmark className="h-4 w-4 text-green-600" />
-                حقوق الملكية
-                <Badge variant="secondary" className="mr-2">{equityRows.length + (netIncome !== 0 ? 1 : 0)} بند</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/20">
-                    <TableHead className="text-right">الكود</TableHead>
-                    <TableHead className="text-right">الحساب</TableHead>
-                    <TableHead className="text-right">الرصيد</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            {/* Equity Card */}
+            <div className="bg-card rounded-xl border overflow-hidden shadow-sm">
+              <div className="bg-muted/50 px-6 py-4 border-b">
+                <h4 className="font-bold text-foreground">حقوق الملكية (Equity)</h4>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
                   {equityRows.map((row) => (
-                    <TableRow key={row.account.id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="font-mono text-sm">{row.account.code}</TableCell>
-                      <TableCell className="font-medium">{row.account.name}</TableCell>
-                      <TableCell className="font-mono">{formatCurrency(row.balance)}</TableCell>
-                    </TableRow>
+                    <div key={row.account.id} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{row.account.name}</span>
+                      <span className="font-medium text-foreground font-mono">{formatCurrency(row.balance)}</span>
+                    </div>
                   ))}
                   {netIncome !== 0 && (
-                    <TableRow className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="font-mono text-sm">—</TableCell>
-                      <TableCell className={cn("font-medium", netIncome >= 0 ? "text-green-600" : "text-red-600")}>
-                        {netIncome >= 0 ? "صافي ربح الفترة" : "صافي خسارة الفترة"}
-                      </TableCell>
-                      <TableCell className={cn("font-mono", netIncome >= 0 ? "text-green-600" : "text-red-600")}>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{netIncome >= 0 ? "صافي ربح الفترة" : "صافي خسارة الفترة"}</span>
+                      <span className={cn("font-medium font-mono", netIncome >= 0 ? "text-emerald-600" : "text-destructive")}>
                         {formatCurrency(netIncome)}
-                      </TableCell>
-                    </TableRow>
+                      </span>
+                    </div>
                   )}
-                  <TableRow className="bg-muted/40 font-bold border-t-2">
-                    <TableCell colSpan={2} className="text-left">إجمالي حقوق الملكية</TableCell>
-                    <TableCell className="font-mono">{formatCurrency(totalEquity)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          {/* Balance equation */}
-          <Card className={cn("border-2", isBalanced ? "border-green-500/30 bg-green-500/5" : "border-destructive/30 bg-destructive/5")}>
-            <CardContent className="p-6">
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-center">
-                <div>
-                  <p className="text-xs text-muted-foreground">الأصول</p>
-                  <p className="text-xl font-bold font-mono text-blue-600">{formatCurrency(totalAssets)}</p>
                 </div>
-                <span className="text-2xl font-bold text-muted-foreground">=</span>
-                <div>
-                  <p className="text-xs text-muted-foreground">الخصوم</p>
-                  <p className="text-xl font-bold font-mono text-red-600">{formatCurrency(totalLiabilities)}</p>
-                </div>
-                <span className="text-2xl font-bold text-muted-foreground">+</span>
-                <div>
-                  <p className="text-xs text-muted-foreground">حقوق الملكية</p>
-                  <p className="text-xl font-bold font-mono text-green-600">{formatCurrency(totalEquity)}</p>
+                <div className="mt-8 pt-4 border-t-2 flex justify-between items-center">
+                  <span className="font-bold text-foreground">إجمالي الالتزامات وحقوق الملكية</span>
+                  <span className="text-lg font-black text-foreground font-mono">{formatCurrency(totalLiabilities + totalEquity)}</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </>
+            </div>
+          </div>
+        </div>
       )}
+
+      {/* Footer */}
+      <div className="text-center text-muted-foreground text-sm pb-4">
+        <p>تم استخراج هذا التقرير في: {format(new Date(), "yyyy-MM-dd HH:mm")}</p>
+        <div className="flex items-center justify-center gap-4 mt-2">
+          <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> معتمد محاسبياً</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ icon, iconBg, label, value }: { icon: React.ReactNode; iconBg: string; label: string; value: string }) {
+  return (
+    <div className="bg-card p-6 rounded-xl shadow-sm border">
+      <div className="flex justify-between items-start mb-4">
+        <div className={cn("p-2 rounded-lg", iconBg)}>{icon}</div>
+      </div>
+      <p className="text-sm text-muted-foreground font-medium">{label}</p>
+      <h3 className="text-2xl font-black text-foreground mt-1 font-mono">{value}</h3>
     </div>
   );
 }
