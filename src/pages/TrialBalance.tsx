@@ -33,12 +33,29 @@ export default function TrialBalance() {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [lastClosingDate, setLastClosingDate] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
+
+    // Fetch last closing entry date if fiscal year closing is enabled
+    if (settings?.enable_fiscal_year_closing) {
+      const { data: closingEntry } = await supabase
+        .from("journal_entries")
+        .select("entry_date")
+        .eq("description", "قيد إقفال السنة المالية")
+        .in("status", ["posted", "approved"])
+        .order("entry_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setLastClosingDate(closingEntry?.entry_date || null);
+    } else {
+      setLastClosingDate(null);
+    }
+
     const [accountsRes, linesRes] = await Promise.all([
       supabase.from("accounts").select("id, code, name, account_type").eq("is_active", true).eq("is_parent", false).order("code"),
-      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entry_id, journal_entries!inner(entry_date, status)").in("journal_entries.status", ["posted", "approved"]),
+      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entry_id, journal_entries!inner(entry_date, status, description)").in("journal_entries.status", ["posted", "approved"]),
     ]);
 
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
@@ -49,7 +66,7 @@ export default function TrialBalance() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [settings?.enable_fiscal_year_closing]);
 
   const trialBalanceData = useMemo(() => {
     const filteredLines = lines.filter((l: any) => {
