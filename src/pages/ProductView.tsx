@@ -72,13 +72,20 @@ export default function ProductView() {
       .limit(5);
     setMovements(mvData || []);
 
-    // Fetch average prices
-    const [{ data: avgPurch }, { data: avgSell }] = await Promise.all([
+    // Fetch average prices and sales stats
+    const [{ data: avgPurch }, { data: avgSell }, { data: salesItems }] = await Promise.all([
       supabase.rpc("get_avg_purchase_price", { _product_id: id! }),
       supabase.rpc("get_avg_selling_price", { _product_id: id! }),
+      (supabase.from("sales_invoice_items" as any) as any)
+        .select("quantity, total, invoice_id, sales_invoices!inner(status)")
+        .eq("product_id", id!)
+        .eq("sales_invoices.status", "posted"),
     ]);
     setAvgPurchasePrice(Number(avgPurch) || 0);
     setAvgSellingPrice(Number(avgSell) || 0);
+    const salesItemsArr = salesItems || [];
+    setTotalSalesRevenue(salesItemsArr.reduce((s: number, i: any) => s + Number(i.total), 0));
+    setTotalUnitsSold(salesItemsArr.reduce((s: number, i: any) => s + Number(i.quantity), 0));
 
     setLoading(false);
   };
