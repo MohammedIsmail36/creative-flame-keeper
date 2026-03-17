@@ -27,7 +27,7 @@ export default function MfaVerify() {
 
     const loadFactor = async () => {
       const { data } = await supabase.auth.mfa.listFactors();
-      const verified = data?.totp.filter(f => f.status === "verified") || [];
+      const verified = data?.totp.filter((f) => f.status === "verified") || [];
       if (verified.length > 0) {
         setFactorId(verified[0].id);
       }
@@ -83,20 +83,14 @@ export default function MfaVerify() {
               <ShieldCheck className="w-9 h-9 text-primary" />
             </div>
             <h1 className="text-foreground text-xl font-bold mb-2">التحقق بخطوتين</h1>
-            <p className="text-muted-foreground text-sm">
-              أدخل رمز التحقق من تطبيق المصادقة الخاص بك
-            </p>
+            <p className="text-muted-foreground text-sm">أدخل رمز التحقق من تطبيق المصادقة الخاص بك</p>
           </div>
 
           {/* OTP Input */}
           <div className="space-y-8">
             <div className="flex justify-center" dir="ltr">
-              <InputOTP
-                maxLength={6}
-                value={code}
-                onChange={(val) => setCode(val)}
-              >
-                <InputOTPGroup>
+              <InputOTP maxLength={6} value={code} onChange={(val) => setCode(val)}>
+                <InputOTPGroup className="gap-1.5">
                   <InputOTPSlot index={0} className="w-12 h-14 text-2xl font-bold border-2" />
                   <InputOTPSlot index={1} className="w-12 h-14 text-2xl font-bold border-2" />
                   <InputOTPSlot index={2} className="w-12 h-14 text-2xl font-bold border-2" />
