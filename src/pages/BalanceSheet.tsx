@@ -7,7 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Landmark, Download, CalendarIcon, X, CheckCircle, AlertTriangle, TrendingUp, Shield, Wallet, Scale } from "lucide-react";
+import { Landmark, Download, CalendarIcon, X, CheckCircle, AlertTriangle, TrendingUp, TrendingDown, Shield, Wallet, Scale } from "lucide-react";
 
 interface Account {
   id: string;
