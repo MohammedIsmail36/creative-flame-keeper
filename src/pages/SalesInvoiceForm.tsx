@@ -172,6 +172,11 @@ export default function SalesInvoiceForm() {
     }
   }
 
+  async function handleSettlementChanged() {
+    await loadData();
+    setPaymentSectionRefreshKey((current) => current + 1);
+  }
+
   function addItem() {
     setItems((prev) => [
       ...prev,
