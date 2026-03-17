@@ -165,7 +165,7 @@ export default function ProductView() {
               </Badge>
               {getStockBadge()}
             </div>
-            <h1 className="text-3xl md:text-4xl font-black text-foreground mb-3 leading-tight">{product.name}</h1>
+            <h1 className="text-3xl md:text-4xl font-black text-foreground mb-3 leading-tight">{formatProductDisplay(product.name, brandName, product.model_number)}</h1>
             {product.description && (
               <p className="text-muted-foreground text-base leading-relaxed mb-4 max-w-3xl">{product.description}</p>
             )}
