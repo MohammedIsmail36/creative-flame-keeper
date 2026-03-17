@@ -993,6 +993,7 @@ export default function SalesInvoiceForm() {
                 invoiceTotal={grandTotal}
                 invoiceNumber={invoiceNumber}
                 onPaymentAdded={loadData}
+                refreshKey={paymentSectionRefreshKey}
               />
             </div>
             <div className="space-y-4">
@@ -1001,7 +1002,7 @@ export default function SalesInvoiceForm() {
                 invoiceId={id}
                 entityId={customerId}
                 invoiceTotal={grandTotal}
-                onSettlementChanged={loadData}
+                onSettlementChanged={handleSettlementChanged}
               />
             </div>
           </div>

@@ -613,10 +613,10 @@ export default function PurchaseInvoiceForm() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <InvoicePaymentSection type="purchase" invoiceId={id} entityId={supplierId} entityName={supplierName || suppliers.find(s => s.id === supplierId)?.name || ""} invoiceTotal={grandTotal} invoiceNumber={invoiceNumber} onPaymentAdded={loadData} />
+              <InvoicePaymentSection type="purchase" invoiceId={id} entityId={supplierId} entityName={supplierName || suppliers.find(s => s.id === supplierId)?.name || ""} invoiceTotal={grandTotal} invoiceNumber={invoiceNumber} onPaymentAdded={loadData} refreshKey={paymentSectionRefreshKey} />
             </div>
             <div className="space-y-4">
-              <OutstandingCreditsSection type="purchase" invoiceId={id} entityId={supplierId} invoiceTotal={grandTotal} onSettlementChanged={loadData} />
+              <OutstandingCreditsSection type="purchase" invoiceId={id} entityId={supplierId} invoiceTotal={grandTotal} onSettlementChanged={handleSettlementChanged} />
             </div>
           </div>
         </div>
