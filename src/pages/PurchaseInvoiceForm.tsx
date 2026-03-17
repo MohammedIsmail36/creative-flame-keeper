@@ -110,6 +110,11 @@ export default function PurchaseInvoiceForm() {
     }
   }
 
+  async function handleSettlementChanged() {
+    await loadData();
+    setPaymentSectionRefreshKey((current) => current + 1);
+  }
+
   function addItem() {
     setItems(prev => [...prev, { product_id: "", product_name: "", quantity: 1, unit_price: 0, discount: 0, total: 0 }]);
   }
