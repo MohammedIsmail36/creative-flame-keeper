@@ -33,6 +33,8 @@ export default function ProductView() {
   const [movements, setMovements] = useState<any[]>([]);
   const [avgPurchasePrice, setAvgPurchasePrice] = useState<number>(0);
   const [avgSellingPrice, setAvgSellingPrice] = useState<number>(0);
+  const [totalSalesRevenue, setTotalSalesRevenue] = useState<number>(0);
+  const [totalUnitsSold, setTotalUnitsSold] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const [selectedGalleryIdx, setSelectedGalleryIdx] = useState(0);
@@ -70,13 +72,20 @@ export default function ProductView() {
       .limit(5);
     setMovements(mvData || []);
 
-    // Fetch average prices
-    const [{ data: avgPurch }, { data: avgSell }] = await Promise.all([
+    // Fetch average prices and sales stats
+    const [{ data: avgPurch }, { data: avgSell }, { data: salesItems }] = await Promise.all([
       supabase.rpc("get_avg_purchase_price", { _product_id: id! }),
       supabase.rpc("get_avg_selling_price", { _product_id: id! }),
+      (supabase.from("sales_invoice_items" as any) as any)
+        .select("quantity, total, invoice_id, sales_invoices!inner(status)")
+        .eq("product_id", id!)
+        .eq("sales_invoices.status", "posted"),
     ]);
     setAvgPurchasePrice(Number(avgPurch) || 0);
     setAvgSellingPrice(Number(avgSell) || 0);
+    const salesItemsArr = salesItems || [];
+    setTotalSalesRevenue(salesItemsArr.reduce((s: number, i: any) => s + Number(i.total), 0));
+    setTotalUnitsSold(salesItemsArr.reduce((s: number, i: any) => s + Number(i.quantity), 0));
 
     setLoading(false);
   };
@@ -413,13 +422,13 @@ export default function ProductView() {
                 {[
                   {
                     label: "إجمالي المبيعات",
-                    value: movements.filter((m) => m.movement_type === "sale").reduce((s, m) => s + m.total_cost, 0),
+                    value: totalSalesRevenue,
                     suffix: "EGP",
                     icon: <BarChart3 className="h-5 w-5" />,
                   },
                   {
                     label: "الوحدات المباعة",
-                    value: movements.filter((m) => m.movement_type === "sale").reduce((s, m) => s + m.quantity, 0),
+                    value: totalUnitsSold,
                     suffix: "وحدة",
                     icon: <Package className="h-5 w-5" />,
                   },
