@@ -29,14 +29,32 @@ export default function BalanceSheet() {
   const [asOfDate, setAsOfDate] = useState<Date | undefined>(undefined);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
+  const [lastClosingDate, setLastClosingDate] = useState<string | null>(null);
+
   const fetchData = async () => {
     setLoading(true);
     const [accountsRes, linesRes] = await Promise.all([
       supabase.from("accounts").select("id, code, name, account_type").eq("is_active", true).eq("is_parent", false).order("code"),
-      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entries!inner(entry_date, status)").in("journal_entries.status", ["posted", "approved"]),
+      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entries!inner(entry_date, status, description)").in("journal_entries.status", ["posted", "approved"]),
     ]);
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
     if (linesRes.data) setLines(linesRes.data);
+
+    // Find last closing entry date if fiscal year closing is enabled
+    if (settings?.enable_fiscal_year_closing) {
+      const { data: closingEntries } = await supabase
+        .from("journal_entries")
+        .select("entry_date")
+        .like("description", "%قيد إقفال السنة المالية%")
+        .in("status", ["posted", "approved"])
+        .order("entry_date", { ascending: false })
+        .limit(1);
+      if (closingEntries && closingEntries.length > 0) {
+        setLastClosingDate(closingEntries[0].entry_date);
+      } else {
+        setLastClosingDate(null);
+      }
+    }
     setLoading(false);
   };
 
@@ -62,6 +80,30 @@ export default function BalanceSheet() {
       }
     });
 
+    // For net income: if fiscal year closing is enabled and there's a closing entry,
+    // only compute revenue/expense from entries AFTER the last closing date
+    const incomeFiltered = (settings?.enable_fiscal_year_closing && lastClosingDate)
+      ? filtered.filter((l: any) => {
+          const d = (l.journal_entries as any)?.entry_date;
+          const desc = (l.journal_entries as any)?.description || "";
+          // Exclude the closing entry itself and only include entries after closing date
+          if (desc.includes("قيد إقفال السنة المالية")) return false;
+          return d > lastClosingDate;
+        })
+      : filtered;
+
+    const incomeTotals = new Map<string, number>();
+    incomeFiltered.forEach((l: any) => {
+      const acc = accounts.find(a => a.id === l.account_id);
+      if (!acc || (acc.account_type !== "revenue" && acc.account_type !== "expense")) return;
+      const existing = incomeTotals.get(l.account_id) || 0;
+      if (acc.account_type === "expense") {
+        incomeTotals.set(l.account_id, existing + (Number(l.debit) - Number(l.credit)));
+      } else {
+        incomeTotals.set(l.account_id, existing + (Number(l.credit) - Number(l.debit)));
+      }
+    });
+
     const assetRows: BalanceRow[] = [];
     const liabilityRows: BalanceRow[] = [];
     const equityRows: BalanceRow[] = [];
@@ -70,12 +112,18 @@ export default function BalanceSheet() {
 
     accounts.forEach((acc) => {
       const balance = totals.get(acc.id);
+      if (acc.account_type === "revenue") {
+        revenueTotal += incomeTotals.get(acc.id) || 0;
+        return;
+      }
+      if (acc.account_type === "expense") {
+        expenseTotal += incomeTotals.get(acc.id) || 0;
+        return;
+      }
       if (balance === undefined || balance === 0) return;
       if (acc.account_type === "asset") assetRows.push({ account: acc, balance });
       else if (acc.account_type === "liability") liabilityRows.push({ account: acc, balance });
       else if (acc.account_type === "equity") equityRows.push({ account: acc, balance });
-      else if (acc.account_type === "revenue") revenueTotal += balance;
-      else if (acc.account_type === "expense") expenseTotal += balance;
     });
 
     const netIncome = revenueTotal - expenseTotal;
@@ -84,7 +132,7 @@ export default function BalanceSheet() {
     const totalEquity = equityRows.reduce((s, r) => s + r.balance, 0) + netIncome;
 
     return { assetRows, liabilityRows, equityRows, totalAssets, totalLiabilities, totalEquity, netIncome };
-  }, [accounts, lines, asOfDate]);
+  }, [accounts, lines, asOfDate, settings?.enable_fiscal_year_closing, lastClosingDate]);
 
   const isBalanced = Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 0.01;
   const formatNum = (val: number) => Math.abs(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
