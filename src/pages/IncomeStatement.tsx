@@ -7,7 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Download, CalendarIcon, X, ArrowUpRight, ArrowDownRight, Scale, CheckCircle, AlertTriangle, Shield } from "lucide-react";
+import { TrendingUp, TrendingDown, Download, CalendarIcon, X, ArrowUpRight, ArrowDownRight, Scale, CheckCircle, AlertTriangle, Shield, FileBarChart } from "lucide-react";
 
 interface Account {
   id: string;
@@ -131,9 +131,14 @@ export default function IncomeStatement() {
     <div className="space-y-8" dir="rtl">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-foreground">قائمة الدخل</h1>
-          <p className="text-muted-foreground mt-1">بيان الإيرادات والمصروفات للفترة المحددة</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10">
+            <FileBarChart className="h-7 w-7 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-extrabold text-foreground">قائمة الدخل</h1>
+            <p className="text-muted-foreground mt-1">بيان الإيرادات والمصروفات للفترة المحددة</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {/* Date filter */}
@@ -192,30 +197,30 @@ export default function IncomeStatement() {
       </div>
 
       {/* Net Income Indicator Bar */}
-      <div className="bg-foreground/95 p-4 rounded-xl flex items-center justify-center gap-8 border-r-4 border-primary">
+      <div className="bg-card p-4 rounded-xl flex items-center justify-center gap-8 border shadow-sm">
         <div className="text-center">
-          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">إجمالي الإيرادات</p>
-          <p className="text-xl font-bold text-background">{formatCurrency(totalRevenue)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">إجمالي الإيرادات</p>
+          <p className="text-xl font-bold text-foreground">{formatCurrency(totalRevenue)}</p>
         </div>
         <div className="text-center px-4">
-          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">−</p>
-          <p className="text-xl font-bold text-background">−</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">−</p>
+          <p className="text-xl font-bold text-foreground">−</p>
         </div>
         <div className="text-center">
-          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">إجمالي المصروفات</p>
-          <p className="text-xl font-bold text-background">{formatCurrency(totalExpenses)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">إجمالي المصروفات</p>
+          <p className="text-xl font-bold text-foreground">{formatCurrency(totalExpenses)}</p>
         </div>
         <div className="text-center px-4">
-          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">=</p>
-          <p className="text-xl font-bold text-background">=</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">=</p>
+          <p className="text-xl font-bold text-foreground">=</p>
         </div>
         <div className="text-center">
-          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">{netIncome >= 0 ? "صافي الربح" : "صافي الخسارة"}</p>
-          <p className={cn("text-xl font-bold", netIncome >= 0 ? "text-emerald-400" : "text-red-400")}>{formatCurrency(netIncome)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">{netIncome >= 0 ? "صافي الربح" : "صافي الخسارة"}</p>
+          <p className={cn("text-xl font-bold", netIncome >= 0 ? "text-emerald-600" : "text-destructive")}>{formatCurrency(netIncome)}</p>
         </div>
         <div className={cn(
           "hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold",
-          netIncome >= 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+          netIncome >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive"
         )}>
           {netIncome >= 0 ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
           {netIncome >= 0 ? "ربح" : "خسارة"}

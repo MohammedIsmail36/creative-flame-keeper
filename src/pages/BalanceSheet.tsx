@@ -139,9 +139,14 @@ export default function BalanceSheet() {
     <div className="space-y-8" dir="rtl">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-foreground">الميزانية العمومية</h1>
-          <p className="text-muted-foreground mt-1">بيان المركز المالي للفترة المنتهية</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10">
+            <Landmark className="h-7 w-7 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-extrabold text-foreground">الميزانية العمومية</h1>
+            <p className="text-muted-foreground mt-1">بيان المركز المالي للفترة المنتهية</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {/* Date filter */}
@@ -188,21 +193,21 @@ export default function BalanceSheet() {
       </div>
 
       {/* Balance Indicator Bar */}
-      <div className="bg-foreground/95 p-4 rounded-xl flex items-center justify-center gap-8 border-r-4 border-primary">
+      <div className="bg-card p-4 rounded-xl flex items-center justify-center gap-8 border shadow-sm">
         <div className="text-center">
-          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">إجمالي الأصول</p>
-          <p className="text-xl font-bold text-background">{formatCurrency(totalAssets)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">إجمالي الأصول</p>
+          <p className="text-xl font-bold text-foreground">{formatCurrency(totalAssets)}</p>
         </div>
         <div className="text-primary">
           <Scale className="h-9 w-9" />
         </div>
         <div className="text-center">
-          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">الالتزامات + حقوق الملكية</p>
-          <p className="text-xl font-bold text-background">{formatCurrency(totalLiabilities + totalEquity)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">الالتزامات + حقوق الملكية</p>
+          <p className="text-xl font-bold text-foreground">{formatCurrency(totalLiabilities + totalEquity)}</p>
         </div>
         <div className={cn(
           "hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold",
-          isBalanced ? "bg-emerald-500/20 text-emerald-400" : "bg-destructive/20 text-destructive"
+          isBalanced ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive"
         )}>
           {isBalanced ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
           {isBalanced ? "متوازنة" : "غير متوازنة"}
