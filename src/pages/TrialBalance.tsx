@@ -130,23 +130,21 @@ export default function TrialBalance() {
     setExportMenuOpen(false);
   };
 
-  // Group rows by account type
+  // Fixed sections - always show all account types
+  const fixedSections = ["asset", "liability", "equity", "revenue", "expense"] as const;
+
   const groupedRows = useMemo(() => {
     const groups: Record<string, TrialBalanceRow[]> = {};
+    fixedSections.forEach((type) => { groups[type] = []; });
     trialBalanceData.forEach((row) => {
       const type = row.account.account_type;
-      if (!groups[type]) groups[type] = [];
-      groups[type].push(row);
+      // Normalize plural forms
+      const normalized = type === "assets" ? "asset" : type === "liabilities" ? "liability" : type === "expenses" ? "expense" : type;
+      if (!groups[normalized]) groups[normalized] = [];
+      groups[normalized].push(row);
     });
     return groups;
   }, [trialBalanceData]);
-
-  const typeOrder = ["asset", "assets", "liability", "liabilities", "equity", "revenue", "expense", "expenses"];
-  const sortedTypes = Object.keys(groupedRows).sort((a, b) => {
-    const ia = typeOrder.indexOf(a);
-    const ib = typeOrder.indexOf(b);
-    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-  });
 
   return (
     <div className="space-y-8" dir="rtl">
@@ -243,7 +241,7 @@ export default function TrialBalance() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {sortedTypes.map((type) => {
+          {fixedSections.map((type) => {
             const rows = groupedRows[type];
             const groupDebit = rows.reduce((s, r) => s + r.balanceDebit, 0);
             const groupCredit = rows.reduce((s, r) => s + r.balanceCredit, 0);
