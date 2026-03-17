@@ -8,7 +8,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Scale, Download, CalendarIcon, X, CheckCircle, AlertTriangle, TrendingUp, TrendingDown, BookOpen, Layers } from "lucide-react";
+import { Scale, Download, CalendarIcon, X, CheckCircle, AlertTriangle, TrendingUp, TrendingDown, BookOpen, Layers, Info } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Account {
   id: string;
