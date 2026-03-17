@@ -5,13 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, X, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Upload, Ruler, Tag, Factory, CheckCircle2, XCircle } from "lucide-react";
 import { LookupImportDialog } from "@/components/LookupImportDialog";
 
 interface LookupConfig {
@@ -19,6 +18,8 @@ interface LookupConfig {
   fkColumn: string;
   title: string;
   singularTitle: string;
+  description: string;
+  icon: React.ElementType;
   extraFields?: { key: string; label: string; placeholder: string }[];
 }
 
@@ -28,6 +29,8 @@ const configs: Record<string, LookupConfig> = {
     fkColumn: "category_id",
     title: "التصنيفات",
     singularTitle: "تصنيف",
+    description: "إدارة تصنيفات المنتجات وتنظيمها في مجموعات.",
+    icon: Tag,
     extraFields: [{ key: "description", label: "الوصف", placeholder: "وصف التصنيف (اختياري)" }],
   },
   units: {
@@ -35,6 +38,8 @@ const configs: Record<string, LookupConfig> = {
     fkColumn: "unit_id",
     title: "وحدات القياس",
     singularTitle: "وحدة قياس",
+    description: "إدارة وحدات القياس المستخدمة في المنتجات والفواتير.",
+    icon: Ruler,
     extraFields: [{ key: "symbol", label: "الرمز", placeholder: "مثل: كجم، م، قطعة" }],
   },
   brands: {
@@ -42,6 +47,8 @@ const configs: Record<string, LookupConfig> = {
     fkColumn: "brand_id",
     title: "الماركات / المصنعين",
     singularTitle: "ماركة",
+    description: "إدارة الماركات والمصنعين المرتبطين بالمنتجات.",
+    icon: Factory,
     extraFields: [{ key: "country", label: "بلد المنشأ", placeholder: "مثل: مصر، الصين" }],
   },
 };
@@ -68,6 +75,8 @@ export default function LookupManagement() {
   }, [type]);
 
   if (!config) return <div className="p-12 text-center text-muted-foreground" dir="rtl">صفحة غير موجودة</div>;
+
+  const PageIcon = config.icon;
 
   async function fetchItems() {
     setLoading(true);
@@ -149,23 +158,78 @@ export default function LookupManagement() {
     return items.filter(i => statusFilter === "active" ? i.is_active : !i.is_active);
   }, [items, statusFilter]);
 
+  const stats = useMemo(() => {
+    const total = items.length;
+    const active = items.filter(i => i.is_active).length;
+    const inactive = items.filter(i => !i.is_active).length;
+    return { total, active, inactive };
+  }, [items]);
+
   const hasFilters = statusFilter !== "all";
   const clearFilters = () => setStatusFilter("all");
+
+  const statCards = [
+    {
+      label: `إجمالي ${config.title}`,
+      value: stats.total,
+      icon: PageIcon,
+      iconBg: "bg-blue-100 dark:bg-blue-500/20",
+      iconColor: "text-blue-600 dark:text-blue-400",
+    },
+    {
+      label: "نشط",
+      value: stats.active,
+      icon: CheckCircle2,
+      iconBg: "bg-green-100 dark:bg-green-500/20",
+      iconColor: "text-green-600 dark:text-green-400",
+    },
+    {
+      label: "معطل",
+      value: stats.inactive,
+      icon: XCircle,
+      iconBg: "bg-red-100 dark:bg-red-500/20",
+      iconColor: "text-red-600 dark:text-red-400",
+    },
+  ];
 
   const columns: ColumnDef<any, any>[] = [
     {
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="الاسم" />,
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      cell: ({ row }) => (
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center border border-border">
+            <PageIcon className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <span className="font-bold text-sm text-foreground">{row.original.name}</span>
+        </div>
+      ),
     },
     ...(config.extraFields?.map(f => ({
       accessorKey: f.key,
       header: f.label,
-      cell: ({ row }: any) => <span className="text-muted-foreground">{row.original[f.key] || "—"}</span>,
+      cell: ({ row }: any) => <span className="text-sm text-muted-foreground">{row.original[f.key] || "—"}</span>,
     })) || []) as ColumnDef<any, any>[],
     {
       id: "status",
       header: "الحالة",
+      cell: ({ row }) => (
+        <div onClick={e => e.stopPropagation()}>
+          {row.original.is_active ? (
+            <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">
+              نشط
+            </span>
+          ) : (
+            <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-destructive/10 text-destructive">
+              معطل
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "toggle",
+      header: "تفعيل",
       cell: ({ row }) => (
         <div onClick={e => e.stopPropagation()}>
           <Switch checked={row.original.is_active} onCheckedChange={() => toggleActive(row.original)} />
@@ -174,14 +238,14 @@ export default function LookupManagement() {
     },
     {
       id: "actions",
-      header: "إجراءات",
+      header: "الإجراءات",
       enableHiding: false,
       cell: ({ row }) => (
         <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(row.original)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={() => openEdit(row.original)}>
             <Pencil className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setDeleteTarget(row.original); setDeleteDialogOpen(true); }}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5" onClick={() => { setDeleteTarget(row.original); setDeleteDialogOpen(true); }}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -191,21 +255,47 @@ export default function LookupManagement() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-foreground">{config.title}</h1>
-          <Badge variant="secondary">{items.length} عنصر</Badge>
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-foreground flex items-center">
+            <div className="bg-primary/10 p-2 rounded-lg ml-3">
+              <PageIcon className="h-5 w-5 text-primary" />
+            </div>
+            {config.title}
+          </h2>
+          <p className="text-muted-foreground text-sm mt-1">{config.description}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
           {(type === "categories" || type === "brands") && (
-            <Button variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
-              <Upload className="h-4 w-4" />استيراد Excel
+            <Button variant="outline" className="gap-2 shadow-sm" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4" />
+              استيراد Excel
             </Button>
           )}
-          <Button onClick={openAdd} className="gap-2"><Plus className="h-4 w-4" />إضافة {config.singularTitle}</Button>
+          <Button onClick={openAdd} className="gap-2 shadow-md shadow-primary/20 font-bold">
+            <Plus className="h-4 w-4" />
+            إضافة {config.singularTitle}
+          </Button>
         </div>
       </div>
 
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {statCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
+          <div key={label} className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4">
+            <div className={`p-3 rounded-full ${iconBg}`}>
+              <Icon className={`h-5 w-5 ${iconColor}`} />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-xl font-black text-foreground">{value.toLocaleString()}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Data Table */}
       <DataTable
         columns={columns}
         data={filteredItems}
@@ -215,13 +305,13 @@ export default function LookupManagement() {
         toolbarContent={
           <div className="flex items-center gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32 h-9 text-sm">
+              <SelectTrigger className="w-40 bg-card border-border">
                 <SelectValue placeholder="الحالة" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">الكل ({items.length})</SelectItem>
-                <SelectItem value="active">نشط ({items.filter(i => i.is_active).length})</SelectItem>
-                <SelectItem value="inactive">معطل ({items.filter(i => !i.is_active).length})</SelectItem>
+                <SelectItem value="active">نشط ({stats.active})</SelectItem>
+                <SelectItem value="inactive">معطل ({stats.inactive})</SelectItem>
               </SelectContent>
             </Select>
             {hasFilters && (
