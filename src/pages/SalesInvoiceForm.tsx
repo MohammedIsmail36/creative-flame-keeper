@@ -722,11 +722,11 @@ export default function SalesInvoiceForm() {
                 <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">#</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground text-xs">البند</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الكمية</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-left">سعر الوحدة</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">سعر الوحدة</th>
                 {showDiscount && (
-                  <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-left">الخصم</th>
+                  <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الخصم</th>
                 )}
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-left">المجموع</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">المجموع</th>
                 {isEditable && <th className="py-2 px-2" />}
               </tr>
             </thead>
