@@ -149,6 +149,7 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
   async function removeSettlement(settlement: ExistingSettlement) {
     try {
       await (supabase.from(settlementTable as any) as any).delete().eq("id", settlement.id);
+      await recalculateInvoicePaidAmount(type, invoiceId);
       toast({ title: "تم إلغاء التسوية" });
       fetchData();
       onSettlementChanged();
