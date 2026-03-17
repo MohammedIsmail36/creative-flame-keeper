@@ -7,7 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Download, CalendarIcon, X, ArrowUpRight, ArrowDownRight, Scale, CheckCircle, AlertTriangle, Shield } from "lucide-react";
+import { TrendingUp, TrendingDown, Download, CalendarIcon, X, ArrowUpRight, ArrowDownRight, Scale, CheckCircle, AlertTriangle, Shield, FileBarChart } from "lucide-react";
 
 interface Account {
   id: string;
