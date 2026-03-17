@@ -399,7 +399,7 @@ export default function ProductForm() {
                 <Button
                   variant="destructive"
                   size="icon"
-                  className="absolute -top-1 -left-1 h-5 w-5 rounded-full"
+                  className="absolute top-0 left-0 h-5 w-5 rounded-full"
                   onClick={() => removeGalleryImage(i)}
                 >
                   <X className="h-3 w-3" />
