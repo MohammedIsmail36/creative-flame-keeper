@@ -828,8 +828,8 @@ export default function SalesInvoiceForm() {
                     {/* Tax — removed from rows, shown only in summary */}
 
                     {/* Total */}
-                    <td className="py-2 px-3 text-center">
-                      <span className="font-mono tabular-nums font-semibold text-sm text-foreground">
+                    <td className="py-2 px-3 text-center w-full">
+                      <span className="font-mono tabular-nums font-semibold text-sm text-foreground bg-muted/30 py-1.5">
                         {formatCurrency(item.total)}
                       </span>
                     </td>
