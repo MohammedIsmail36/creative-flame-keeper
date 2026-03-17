@@ -4,7 +4,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, Lock, TrendingUp, TrendingDown, DollarSign, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Loader2, Lock, TrendingUp, TrendingDown, DollarSign, AlertTriangle, CheckCircle2, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -35,6 +35,7 @@ export default function FiscalYearClosing() {
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [executing, setExecuting] = useState(false);
+  const [reversing, setReversing] = useState(false);
   const [existingClosing, setExistingClosing] = useState<any>(null);
 
   // Calculate fiscal year dates
@@ -204,6 +205,33 @@ export default function FiscalYearClosing() {
     setExecuting(false);
   };
 
+  const reverseClosing = async () => {
+    if (!existingClosing) return;
+    setReversing(true);
+    try {
+      // Delete journal entry lines first, then the entry itself
+      const { error: linesErr } = await supabase
+        .from("journal_entry_lines")
+        .delete()
+        .eq("journal_entry_id", existingClosing.id);
+      if (linesErr) throw linesErr;
+
+      const { error: entryErr } = await supabase
+        .from("journal_entries")
+        .delete()
+        .eq("id", existingClosing.id);
+      if (entryErr) throw entryErr;
+
+      toast.success(`تم عكس قيد إقفال السنة المالية ${fiscalYear.label} وإعادة فتحها بنجاح`);
+      setExistingClosing(null);
+      fetchData();
+    } catch (err: any) {
+      toast.error("خطأ في عكس قيد الإقفال: " + err.message);
+      console.error(err);
+    }
+    setReversing(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -227,12 +255,38 @@ export default function FiscalYearClosing() {
 
       {/* Warning if already closed */}
       {existingClosing && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-          <div>
-            <p className="font-bold text-amber-700">تم إقفال هذه السنة المالية مسبقاً</p>
-            <p className="text-sm text-amber-600 mt-1">{existingClosing.description}</p>
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-bold text-amber-700">تم إقفال هذه السنة المالية مسبقاً</p>
+              <p className="text-sm text-amber-600 mt-1">{existingClosing.description}</p>
+            </div>
           </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 shrink-0" disabled={reversing}>
+                {reversing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+                عكس الإقفال
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent dir="rtl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>تأكيد عكس قيد الإقفال</AlertDialogTitle>
+                <AlertDialogDescription>
+                  سيتم حذف قيد إقفال السنة المالية نهائياً وإعادة أرصدة حسابات الإيرادات والمصروفات إلى وضعها السابق.
+                  <br /><br />
+                  سيتم أيضاً عكس المبلغ المرحّل إلى حساب الأرباح المحتجزة (3102).
+                  <br /><br />
+                  <strong>هل أنت متأكد من إعادة فتح السنة المالية؟</strong>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="flex-row-reverse gap-2">
+                <AlertDialogAction onClick={reverseClosing} className="bg-destructive hover:bg-destructive/90">تأكيد العكس</AlertDialogAction>
+                <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
 
