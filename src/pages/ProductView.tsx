@@ -33,6 +33,8 @@ export default function ProductView() {
   const [movements, setMovements] = useState<any[]>([]);
   const [avgPurchasePrice, setAvgPurchasePrice] = useState<number>(0);
   const [avgSellingPrice, setAvgSellingPrice] = useState<number>(0);
+  const [totalSalesRevenue, setTotalSalesRevenue] = useState<number>(0);
+  const [totalUnitsSold, setTotalUnitsSold] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const [selectedGalleryIdx, setSelectedGalleryIdx] = useState(0);
