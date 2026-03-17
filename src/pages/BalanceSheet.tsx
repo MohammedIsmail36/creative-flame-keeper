@@ -294,13 +294,6 @@ export default function BalanceSheet() {
         </div>
       )}
 
-      {/* Footer */}
-      <div className="text-center text-muted-foreground text-sm pb-4">
-        <p>تم استخراج هذا التقرير في: {format(new Date(), "yyyy-MM-dd HH:mm")}</p>
-        <div className="flex items-center justify-center gap-4 mt-2">
-          <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> معتمد محاسبياً</span>
-        </div>
-      </div>
     </div>
   );
 }
