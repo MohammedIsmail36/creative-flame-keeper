@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +10,7 @@ import { LookupCombobox } from "@/components/LookupCombobox";
 import { CategoryTreeSelect } from "@/components/CategoryTreeSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Save, Plus, ImagePlus, X, Trash2 } from "lucide-react";
+import { Save, Plus, ImagePlus, X, Image as ImageIcon } from "lucide-react";
 
 interface LookupItem { id: string; name: string; }
 interface CategoryItem { id: string; name: string; parent_id?: string | null; }
@@ -91,7 +90,6 @@ export default function ProductForm() {
     setMinStock(data.min_stock_level);
     setMainImageUrl(data.main_image_url || null);
 
-    // Fetch gallery
     const { data: imgs } = await (supabase.from("product_images" as any) as any).select("*").eq("product_id", id!).order("sort_order");
     setGalleryImages((imgs || []).map((i: any) => ({ id: i.id, image_url: i.image_url })));
     setLoading(false);
@@ -164,18 +162,14 @@ export default function ProductForm() {
         if (error) throw error;
         productId = data.id;
 
-        // إنشاء قيد افتتاحي وحركة مخزون عند إضافة كمية أولية
         if (quantity > 0 && purchasePrice > 0 && productId) {
           const totalCost = quantity * purchasePrice;
-
-          // جلب حسابات المخزون ورأس المال
           const { data: accounts } = await supabase.from("accounts").select("id, code")
-            .in("code", ["1104", "3101"]); // 1104=مخزون، 3101=رأس المال
+            .in("code", ["1104", "3101"]);
           const inventoryAcc = accounts?.find(a => a.code === "1104");
           const capitalAcc = accounts?.find(a => a.code === "3101");
 
           if (inventoryAcc && capitalAcc) {
-            // إنشاء قيد يومية
             const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
               description: `رصيد افتتاحي - منتج ${name.trim()}`,
               entry_date: new Date().toISOString().split("T")[0],
@@ -192,7 +186,6 @@ export default function ProductForm() {
             }
           }
 
-          // تسجيل حركة مخزون افتتاحية
           await (supabase.from("inventory_movements" as any) as any).insert({
             product_id: productId,
             movement_type: "opening_balance",
@@ -205,9 +198,7 @@ export default function ProductForm() {
         }
       }
 
-      // Save gallery images
       if (productId) {
-        // Delete old gallery images if editing
         if (isEdit) {
           await (supabase.from("product_images" as any) as any).delete().eq("product_id", productId);
         }
@@ -269,162 +260,219 @@ export default function ProductForm() {
   if (loading) return <div className="p-12 text-center text-muted-foreground" dir="rtl">جاري التحميل...</div>;
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center gap-3">
+    <div className="space-y-6 max-w-7xl mx-auto" dir="rtl">
+      {/* Header with actions */}
+      <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-foreground">{isEdit ? "تعديل منتج" : "إضافة منتج جديد"}</h1>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => navigate("/products")} className="border-primary text-primary hover:bg-primary/5 rounded-xl px-6">
+            إلغاء
+          </Button>
+          <Button onClick={handleSave} disabled={saving} className="gap-2 rounded-xl px-6 shadow-lg shadow-primary/20">
+            <Save className="h-4 w-4" />
+            {saving ? "جاري الحفظ..." : isEdit ? "تحديث المنتج" : "حفظ المنتج"}
+          </Button>
+        </div>
       </div>
 
-      {/* Basic Info */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">المعلومات الأساسية</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>كود المنتج *</Label>
-              <Input value={code} onChange={e => setCode(e.target.value)} placeholder="P001" className="font-mono" />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label>اسم المنتج *</Label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="اسم المنتج" />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>الوصف</Label>
-            <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="وصف المنتج (اختياري)" rows={2} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>الباركود</Label>
-              <Input value={barcode} onChange={e => setBarcode(e.target.value)} placeholder="رقم الباركود" className="font-mono" />
-            </div>
-            <div className="space-y-2">
-              <Label>رقم موديل المصنع</Label>
-              <Input value={modelNumber} onChange={e => setModelNumber(e.target.value)} placeholder="رقم الموديل" className="font-mono" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Main Form Card - Two Column Layout */}
+      <div className="bg-card rounded-xl shadow-sm border border-border p-6 lg:p-8 flex flex-col lg:flex-row gap-8 lg:gap-10">
+        
+        {/* RIGHT COLUMN: Images */}
+        <div className="lg:w-1/3 flex flex-col gap-5">
+          <h3 className="text-lg font-bold text-foreground border-b border-border pb-3 flex items-center gap-2">
+            <ImageIcon className="h-5 w-5 text-primary" />
+            صور المنتج
+          </h3>
 
-      {/* Classification */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">التصنيف</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>التصنيف</Label>
-              <div className="flex gap-2">
-                <CategoryTreeSelect categories={categories} value={categoryId} onValueChange={setCategoryId} placeholder="اختر التصنيف" className="flex-1" />
-                <Button variant="outline" size="icon" onClick={() => { setNewItemName(""); setAddCategoryOpen(true); }}><Plus className="h-4 w-4" /></Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>وحدة القياس</Label>
-              <div className="flex gap-2">
-                <LookupCombobox items={units} value={unitId} onValueChange={setUnitId} placeholder="اختر الوحدة" className="flex-1" />
-                <Button variant="outline" size="icon" onClick={() => { setNewItemName(""); setAddUnitOpen(true); }}><Plus className="h-4 w-4" /></Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>الماركة / المصنع</Label>
-              <div className="flex gap-2">
-                <LookupCombobox items={brands} value={brandId} onValueChange={setBrandId} placeholder="اختر الماركة" className="flex-1" />
-                <Button variant="outline" size="icon" onClick={() => { setNewItemName(""); setAddBrandOpen(true); }}><Plus className="h-4 w-4" /></Button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Pricing & Stock */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">الأسعار والمخزون</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>سعر الشراء</Label>
-              <Input type="number" min="0" step="0.01" value={purchasePrice || ""} onChange={e => setPurchasePrice(parseFloat(e.target.value) || 0)} className="font-mono" />
-            </div>
-            <div className="space-y-2">
-              <Label>سعر البيع</Label>
-              <Input type="number" min="0" step="0.01" value={sellingPrice || ""} onChange={e => setSellingPrice(parseFloat(e.target.value) || 0)} className="font-mono" />
-            </div>
-            <div className="space-y-2">
-              <Label>الكمية المتاحة</Label>
-              <Input type="number" min="0" value={quantity || ""} onChange={e => setQuantity(parseFloat(e.target.value) || 0)} className="font-mono" disabled={isEdit} />
-              {isEdit && <p className="text-xs text-muted-foreground">يتم تحديث الكمية تلقائياً من العمليات</p>}
-            </div>
-            <div className="space-y-2">
-              <Label>الحد الأدنى</Label>
-              <Input type="number" min="0" value={minStock || ""} onChange={e => setMinStock(parseFloat(e.target.value) || 0)} className="font-mono" />
-            </div>
-          </div>
-          {sellingPrice > 0 && purchasePrice > 0 && (
-            <div className="text-sm text-muted-foreground bg-muted/30 rounded-lg p-3">
-              هامش الربح: <strong className="text-foreground">{(sellingPrice - purchasePrice).toLocaleString("en-US", { minimumFractionDigits: 2 })} EGP</strong>
-              {" "}({((sellingPrice - purchasePrice) / purchasePrice * 100).toFixed(1)}%)
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Images */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">الصور</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
           {/* Main Image */}
-          <div className="space-y-2">
-            <Label>الصورة الرئيسية</Label>
-            <div className="flex items-start gap-4">
-              {mainImageUrl ? (
-                <div className="relative">
-                  <img src={mainImageUrl} alt="Main" className="h-32 w-32 rounded-lg object-cover border" />
-                  <Button variant="destructive" size="icon" className="absolute -top-2 -left-2 h-6 w-6" onClick={() => setMainImageUrl(null)}>
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
+          {mainImageUrl ? (
+            <div className="relative w-full aspect-square rounded-xl overflow-hidden border border-border">
+              <img src={mainImageUrl} alt="Main" className="w-full h-full object-cover" />
+              <Button
+                variant="destructive"
+                size="icon"
+                className="absolute top-2 left-2 h-8 w-8 rounded-full"
+                onClick={() => setMainImageUrl(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <label className="w-full aspect-square bg-muted/30 border-2 border-dashed border-muted-foreground/30 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-all group">
+              <div className="text-center p-6 group-hover:scale-105 transition-transform">
+                <ImagePlus className="h-12 w-12 text-muted-foreground/40 group-hover:text-primary mx-auto mb-3" />
+                <p className="text-muted-foreground font-medium text-sm">
+                  {uploadingMain ? "جاري الرفع..." : "اسحب الصورة الرئيسية هنا"}
+                </p>
+                <p className="text-xs text-muted-foreground/60 mt-2">أو انقر لاختيار ملف</p>
+              </div>
+              <input type="file" accept="image/*" className="hidden" onChange={handleMainImage} disabled={uploadingMain} />
+            </label>
+          )}
+
+          {/* Gallery Thumbnails */}
+          <div className="grid grid-cols-4 gap-3">
+            {galleryImages.map((img, i) => (
+              <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-border">
+                <img src={img.image_url} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute -top-1 -left-1 h-5 w-5 rounded-full"
+                  onClick={() => removeGalleryImage(i)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+            {/* Add gallery slot */}
+            <label className="aspect-square bg-muted/30 border border-border rounded-lg flex items-center justify-center cursor-pointer hover:border-primary transition-colors">
+              {uploadingGallery ? (
+                <span className="text-[10px] text-muted-foreground">جاري...</span>
               ) : (
-                <label className="h-32 w-32 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
-                  <ImagePlus className="h-6 w-6 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground mt-1">{uploadingMain ? "جاري الرفع..." : "رفع صورة"}</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleMainImage} disabled={uploadingMain} />
-                </label>
+                <Plus className="h-5 w-5 text-muted-foreground" />
               )}
+              <input type="file" accept="image/*" multiple className="hidden" onChange={handleGalleryImages} disabled={uploadingGallery} />
+            </label>
+          </div>
+
+          <p className="text-xs text-muted-foreground/60">
+            توصية: استخدم صوراً مربعة بخلفية بيضاء بدقة لا تقل عن 800×800 بكسل.
+          </p>
+        </div>
+
+        {/* LEFT COLUMN: Form Fields */}
+        <div className="flex-1 space-y-8">
+
+          {/* SECTION: Basic Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">
+              المعلومات الأساسية
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">
+                  اسم المنتج <span className="text-destructive">*</span>
+                </Label>
+                <Input value={name} onChange={e => setName(e.target.value)} placeholder="مثال: سماعات سوني اللاسلكية WH-1000XM5" className="bg-muted/30" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">رقم موديل المصنع</Label>
+                <Input value={modelNumber} onChange={e => setModelNumber(e.target.value)} placeholder="مثال: SNY-XM5-BLK" className="font-mono bg-muted/30" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">الباركود</Label>
+                <Input value={barcode} onChange={e => setBarcode(e.target.value)} placeholder="000000000000" className="font-mono bg-muted/30" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">
+                  رمز التخزين (SKU) <span className="text-destructive">*</span>
+                </Label>
+                <Input value={code} onChange={e => setCode(e.target.value)} placeholder="PRD-2024-X1" className="font-mono bg-muted/30" />
+              </div>
+              <div className="md:col-span-2">
+                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">وصف المنتج</Label>
+                <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="اكتب تفاصيل ومواصفات المنتج هنا..." rows={4} className="bg-muted/30" />
+              </div>
             </div>
           </div>
 
-          {/* Gallery */}
-          <div className="space-y-2">
-            <Label>معرض الصور</Label>
-            <div className="flex flex-wrap gap-3">
-              {galleryImages.map((img, i) => (
-                <div key={i} className="relative">
-                  <img src={img.image_url} alt={`Gallery ${i}`} className="h-24 w-24 rounded-lg object-cover border" />
-                  <Button variant="destructive" size="icon" className="absolute -top-2 -left-2 h-6 w-6" onClick={() => removeGalleryImage(i)}>
-                    <X className="h-3 w-3" />
+          {/* SECTION: Classification */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">
+              التصنيف والتفاصيل
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">التصنيف</Label>
+                <div className="flex gap-2">
+                  <CategoryTreeSelect categories={categories} value={categoryId} onValueChange={setCategoryId} placeholder="اختر التصنيف" className="flex-1" />
+                  <Button size="icon" onClick={() => { setNewItemName(""); setAddCategoryOpen(true); }} className="shrink-0 rounded-lg">
+                    <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-              ))}
-              <label className="h-24 w-24 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
-                <ImagePlus className="h-5 w-5 text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground mt-1">{uploadingGallery ? "جاري..." : "إضافة"}</span>
-                <input type="file" accept="image/*" multiple className="hidden" onChange={handleGalleryImages} disabled={uploadingGallery} />
-              </label>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">وحدة القياس</Label>
+                <div className="flex gap-2">
+                  <LookupCombobox items={units} value={unitId} onValueChange={setUnitId} placeholder="اختر الوحدة" className="flex-1" />
+                  <Button size="icon" onClick={() => { setNewItemName(""); setAddUnitOpen(true); }} className="shrink-0 rounded-lg">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">الماركة المصنعة</Label>
+                <div className="flex gap-2">
+                  <LookupCombobox items={brands} value={brandId} onValueChange={setBrandId} placeholder="اختر الماركة" className="flex-1" />
+                  <Button size="icon" onClick={() => { setNewItemName(""); setAddBrandOpen(true); }} className="shrink-0 rounded-lg">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Actions */}
-      <div className="flex justify-end gap-3 pb-6">
-        <Button variant="outline" onClick={() => navigate("/products")}>إلغاء</Button>
-        <Button onClick={handleSave} disabled={saving} className="gap-2">
-          <Save className="h-4 w-4" />
-          {saving ? "جاري الحفظ..." : isEdit ? "تحديث" : "إضافة"}
+          {/* SECTION: Pricing & Inventory */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">
+              التسعير والمخزون
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">سعر الشراء</Label>
+                <div className="relative">
+                  <Input type="number" min="0" step="0.01" value={purchasePrice || ""} onChange={e => setPurchasePrice(parseFloat(e.target.value) || 0)} className="font-mono bg-muted/30 pl-10" />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">EGP</span>
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-bold text-primary mb-1.5 block">سعر البيع</Label>
+                <div className="relative">
+                  <Input type="number" min="0" step="0.01" value={sellingPrice || ""} onChange={e => setSellingPrice(parseFloat(e.target.value) || 0)} className="font-mono border-primary/30 bg-primary/5 pl-10" />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-primary/60 font-bold">EGP</span>
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">الكمية الافتتاحية</Label>
+                <Input type="number" min="0" value={quantity || ""} onChange={e => setQuantity(parseFloat(e.target.value) || 0)} className="font-mono bg-muted/30" disabled={isEdit} />
+                {isEdit && <p className="text-[11px] text-muted-foreground mt-1">تُحدّث تلقائياً من العمليات</p>}
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">حد إعادة الطلب</Label>
+                <Input type="number" min="0" value={minStock || ""} onChange={e => setMinStock(parseFloat(e.target.value) || 0)} className="font-mono bg-muted/30" />
+              </div>
+            </div>
+
+            {/* Profit Margin Bar */}
+            {sellingPrice > 0 && purchasePrice > 0 && (
+              <div className="flex items-center gap-3 bg-accent/50 rounded-xl p-3 mt-2">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <span className="text-primary font-bold text-sm">%</span>
+                </div>
+                <div className="text-sm text-foreground">
+                  هامش الربح:{" "}
+                  <strong className="text-primary">{(sellingPrice - purchasePrice).toLocaleString("en-US", { minimumFractionDigits: 2 })} EGP</strong>
+                  <span className="text-muted-foreground mr-2">({((sellingPrice - purchasePrice) / purchasePrice * 100).toFixed(1)}%)</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Action Bar */}
+      <div className="flex lg:hidden gap-3 pb-6">
+        <Button variant="outline" onClick={() => navigate("/products")} className="flex-1 py-6 border-primary text-primary rounded-xl font-bold">
+          إلغاء
+        </Button>
+        <Button onClick={handleSave} disabled={saving} className="flex-1 py-6 rounded-xl font-bold shadow-lg shadow-primary/30">
+          {saving ? "جاري الحفظ..." : isEdit ? "تحديث المنتج" : "حفظ المنتج"}
         </Button>
       </div>
 
-      {/* Quick-add category dialog with parent selection */}
+      {/* Quick-add category dialog */}
       <Dialog open={addCategoryOpen} onOpenChange={setAddCategoryOpen}>
         <DialogContent dir="rtl" className="max-w-sm">
           <DialogHeader>
