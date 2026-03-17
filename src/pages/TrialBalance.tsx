@@ -262,48 +262,38 @@ export default function TrialBalance() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {fixedSections.map((type) => {
-            const rows = groupedRows[type];
-            const groupDebit = rows.reduce((s, r) => s + r.balanceDebit, 0);
-            const groupCredit = rows.reduce((s, r) => s + r.balanceCredit, 0);
-            return (
-              <div key={type} className="bg-card rounded-xl border overflow-hidden shadow-sm">
-                <div className="bg-muted/50 px-6 py-4 border-b flex items-center justify-between">
-                  <h4 className="font-bold text-foreground">{getAccountTypeLabel(type)}</h4>
-                  <Badge variant="secondary" className="text-xs">{rows.length} حساب</Badge>
-                </div>
-                <div className="p-6">
-                  {/* Table header */}
-                  <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-xs font-medium text-muted-foreground mb-3 pb-2 border-b">
-                    <span>الحساب</span>
-                    <span className="w-28 text-left">رصيد مدين</span>
-                    <span className="w-28 text-left">رصيد دائن</span>
+          {sectionColumns.map((column) => (
+            <div key={column.id} className="space-y-6">
+              <div className="rounded-xl border bg-card px-5 py-4 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-black text-foreground">{column.title}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{column.description}</p>
                   </div>
-                  <div className="space-y-3">
-                    {rows.map((row) => (
-                      <div key={row.account.id} className="grid grid-cols-[1fr_auto_auto] gap-4 text-sm items-center">
-                        <span className="text-muted-foreground">
-                          <span className="font-mono text-xs text-foreground/50 ml-2">{row.account.code}</span>
-                          {row.account.name}
-                        </span>
-                        <span className={cn("w-28 text-left font-mono", row.balanceDebit > 0 ? "text-emerald-600 font-medium" : "text-muted-foreground/40")}>
-                          {row.balanceDebit > 0 ? formatNum(row.balanceDebit) : "—"}
-                        </span>
-                        <span className={cn("w-28 text-left font-mono", row.balanceCredit > 0 ? "text-red-600 font-medium" : "text-muted-foreground/40")}>
-                          {row.balanceCredit > 0 ? formatNum(row.balanceCredit) : "—"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-6 pt-4 border-t-2 grid grid-cols-[1fr_auto_auto] gap-4 items-center">
-                    <span className="font-bold text-foreground">الإجمالي</span>
-                    <span className="w-28 text-left font-mono font-black text-foreground">{groupDebit > 0 ? formatNum(groupDebit) : "—"}</span>
-                    <span className="w-28 text-left font-mono font-black text-foreground">{groupCredit > 0 ? formatNum(groupCredit) : "—"}</span>
-                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {column.sections.reduce((count, type) => count + groupedRows[type].length, 0)} حساب
+                  </Badge>
                 </div>
               </div>
-            );
-          })}
+
+              {column.sections.map((type) => {
+                const rows = groupedRows[type] || [];
+                const groupDebit = rows.reduce((s, r) => s + r.balanceDebit, 0);
+                const groupCredit = rows.reduce((s, r) => s + r.balanceCredit, 0);
+
+                return (
+                  <TrialBalanceSectionCard
+                    key={type}
+                    title={getAccountTypeLabel(type)}
+                    rows={rows}
+                    groupDebit={groupDebit}
+                    groupCredit={groupCredit}
+                    formatNum={formatNum}
+                  />
+                );
+              })}
+            </div>
+          ))}
         </div>
       )}
     </div>
