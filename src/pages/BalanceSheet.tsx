@@ -7,7 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Landmark, Download, CalendarIcon, X, CheckCircle, AlertTriangle, TrendingUp, Shield, Wallet, Scale } from "lucide-react";
+import { Landmark, Download, CalendarIcon, X, CheckCircle, AlertTriangle, TrendingUp, TrendingDown, Shield, Wallet, Scale } from "lucide-react";
 
 interface Account {
   id: string;
@@ -184,7 +184,7 @@ export default function BalanceSheet() {
         <KpiCard icon={<Landmark className="h-5 w-5" />} iconBg="bg-blue-500/10 text-blue-600" label="إجمالي الأصول" value={formatCurrency(totalAssets)} />
         <KpiCard icon={<Wallet className="h-5 w-5" />} iconBg="bg-amber-500/10 text-amber-600" label="إجمالي الالتزامات" value={formatCurrency(totalLiabilities)} />
         <KpiCard icon={<Shield className="h-5 w-5" />} iconBg="bg-purple-500/10 text-purple-600" label="إجمالي حقوق الملكية" value={formatCurrency(totalEquity)} />
-        <KpiCard icon={<TrendingUp className="h-5 w-5" />} iconBg={netIncome >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive"} label={netIncome >= 0 ? "صافي الربح" : "صافي الخسارة"} value={formatCurrency(netIncome)} />
+        <KpiCard icon={netIncome >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />} iconBg={netIncome >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive"} label={netIncome >= 0 ? "صافي الربح" : "صافي الخسارة"} value={formatCurrency(netIncome)} />
       </div>
 
       {/* Balance Indicator Bar */}
