@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,10 +26,11 @@ import {
   Trash2,
   AlertTriangle,
   Archive,
-  DollarSign,
   Eye,
   Upload,
   ChevronLeft,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -67,7 +67,6 @@ interface CategoryNode {
   children: CategoryNode[];
 }
 
-/** Build a tree from flat categories */
 function buildCategoryTree(
   flat: { id: string; name: string; parent_id: string | null; is_active: boolean }[],
 ): CategoryNode[] {
@@ -84,15 +83,11 @@ function buildCategoryTree(
   return roots;
 }
 
-/** Get all descendant IDs of a category (inclusive) */
 function getDescendantIds(tree: CategoryNode[], targetId: string): string[] {
   const ids: string[] = [];
   function collect(nodes: CategoryNode[]) {
     for (const n of nodes) {
-      if (n.id === targetId) {
-        collectAll(n);
-        return true;
-      }
+      if (n.id === targetId) { collectAll(n); return true; }
       if (collect(n.children)) return true;
     }
     return false;
@@ -105,7 +100,6 @@ function getDescendantIds(tree: CategoryNode[], targetId: string): string[] {
   return ids;
 }
 
-/** Render tree options for select with indentation */
 function renderCategoryOptions(nodes: CategoryNode[], depth = 0): React.ReactNode[] {
   const result: React.ReactNode[] = [];
   for (const node of nodes) {
@@ -114,8 +108,7 @@ function renderCategoryOptions(nodes: CategoryNode[], depth = 0): React.ReactNod
       <SelectItem key={node.id} value={node.id}>
         <span className="flex items-center gap-1">
           {depth > 0 && <ChevronLeft className="h-3 w-3 text-muted-foreground inline" />}
-          {prefix}
-          {node.name}
+          {prefix}{node.name}
         </span>
       </SelectItem>,
     );
@@ -124,7 +117,6 @@ function renderCategoryOptions(nodes: CategoryNode[], depth = 0): React.ReactNod
   return result;
 }
 
-// Custom global filter that searches across name, code, barcode, brand, category, model_number
 const productGlobalFilter: FilterFn<ProductRow> = (row, _columnId, filterValue) => {
   const search = (filterValue as string).toLowerCase();
   const p = row.original;
@@ -181,13 +173,13 @@ export default function Products() {
 
   const stats = useMemo(() => {
     const total = products.length;
+    const available = products.filter((p) => p.quantity_on_hand > p.min_stock_level).length;
     const lowStock = products.filter((p) => p.quantity_on_hand > 0 && p.quantity_on_hand <= p.min_stock_level).length;
     const outOfStock = products.filter((p) => p.quantity_on_hand <= 0).length;
     const totalValue = products.reduce((s, p) => s + p.quantity_on_hand * p.purchase_price, 0);
-    return { total, lowStock, outOfStock, totalValue };
+    return { total, available, lowStock, outOfStock, totalValue };
   }, [products]);
 
-  // Get descendant category IDs for hierarchical filtering
   const matchingCategoryIds = useMemo(() => {
     if (categoryFilter === "all") return null;
     return getDescendantIds(categoryTree, categoryFilter);
@@ -224,13 +216,21 @@ export default function Products() {
   const getStockBadge = (product: ProductRow) => {
     if (product.quantity_on_hand <= 0)
       return (
-        <Badge variant="destructive" className="text-xs">
-          نفذ
-        </Badge>
+        <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-destructive/10 text-destructive">
+          نفذت الكمية
+        </span>
       );
     if (product.quantity_on_hand <= product.min_stock_level)
-      return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs">منخفض</Badge>;
-    return <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">متوفر</Badge>;
+      return (
+        <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
+          مخزون منخفض
+        </span>
+      );
+    return (
+      <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">
+        متوفر
+      </span>
+    );
   };
 
   const exportConfig = useMemo(
@@ -239,28 +239,13 @@ export default function Products() {
       sheetName: "المنتجات",
       pdfTitle: "قائمة المنتجات",
       headers: [
-        "الكود",
-        "الاسم",
-        "الماركة",
-        "رقم الموديل",
-        "الباركود",
-        "التصنيف",
-        "سعر الشراء",
-        "سعر البيع",
-        "الكمية",
-        "الحد الأدنى",
+        "الكود", "الاسم", "الماركة", "رقم الموديل", "الباركود",
+        "التصنيف", "سعر الشراء", "سعر البيع", "الكمية", "الحد الأدنى",
       ],
       rows: filteredProducts.map((p) => [
-        p.code,
-        p.name,
-        getBrandName(p),
-        p.model_number || "",
-        p.barcode || "",
-        getCategoryName(p),
-        formatNum(p.purchase_price),
-        formatNum(p.selling_price),
-        Number(p.quantity_on_hand),
-        Number(p.min_stock_level),
+        p.code, p.name, getBrandName(p), p.model_number || "", p.barcode || "",
+        getCategoryName(p), formatNum(p.purchase_price), formatNum(p.selling_price),
+        Number(p.quantity_on_hand), Number(p.min_stock_level),
       ]),
       settings,
       pdfOrientation: "landscape" as const,
@@ -270,69 +255,52 @@ export default function Products() {
 
   const columns: ColumnDef<ProductRow, any>[] = [
     {
-      id: "image",
-      header: "",
-      enableHiding: false,
-      cell: ({ row }) =>
-        row.original.main_image_url ? (
-          <img
-            src={row.original.main_image_url}
-            alt={row.original.name}
-            className="h-10 w-10 rounded-lg object-cover border"
-          />
-        ) : (
-          <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </div>
-        ),
-    },
-    {
-      accessorKey: "code",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="الكود" />,
-      cell: ({ row }) => <span className="font-mono font-medium">{row.original.code}</span>,
-    },
-    {
-      accessorKey: "name",
+      id: "product_info",
       header: ({ column }) => <DataTableColumnHeader column={column} title="المنتج" />,
+      accessorKey: "name",
       cell: ({ row }) => (
-        <div>
-          <p className="font-medium">{row.original.name}</p>
+        <div className="flex items-center gap-3">
+          {row.original.main_image_url ? (
+            <img
+              src={row.original.main_image_url}
+              alt={row.original.name}
+              className="h-10 w-10 rounded-lg object-cover border border-border"
+            />
+          ) : (
+            <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center border border-border">
+              <Package className="h-5 w-5 text-muted-foreground" />
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-bold text-foreground">{row.original.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {getBrandName(row.original) !== "-" ? getBrandName(row.original) : ""}
+              {row.original.model_number && getBrandName(row.original) !== "-" ? " - " : ""}
+              {row.original.model_number || ""}
+            </p>
+          </div>
         </div>
       ),
     },
     {
-      id: "brand",
-      header: "الماركة",
-      cell: ({ row }) => <span className="text-muted-foreground">{getBrandName(row.original)}</span>,
-    },
-    {
-      accessorKey: "model_number",
-      header: "رقم الموديل",
-      cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.original.model_number || "-"}</span>,
+      accessorKey: "code",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="كود الصنف" />,
+      cell: ({ row }) => <span className="font-mono text-sm text-foreground">{row.original.code}</span>,
     },
     {
       id: "category",
       header: "التصنيف",
-      cell: ({ row }) => (
-        <Badge variant="outline" className="text-xs">
-          {getCategoryName(row.original)}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: "purchase_price",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="سعر الشراء" />,
-      cell: ({ row }) => <span className="font-mono">{formatCurrency(row.original.purchase_price)}</span>,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{getCategoryName(row.original)}</span>,
     },
     {
       accessorKey: "selling_price",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="سعر البيع" />,
-      cell: ({ row }) => <span className="font-mono">{formatCurrency(row.original.selling_price)}</span>,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="سعر الوحدة" />,
+      cell: ({ row }) => <span className="text-sm font-bold text-foreground">{formatCurrency(row.original.selling_price)}</span>,
     },
     {
       accessorKey: "quantity_on_hand",
       header: ({ column }) => <DataTableColumnHeader column={column} title="الكمية" />,
-      cell: ({ row }) => <span className="font-mono font-medium">{row.original.quantity_on_hand}</span>,
+      cell: ({ row }) => <span className="text-sm text-foreground">{row.original.quantity_on_hand} وحدة</span>,
     },
     {
       id: "stock_status",
@@ -341,14 +309,14 @@ export default function Products() {
     },
     {
       id: "actions",
-      header: "إجراءات",
+      header: "الإجراءات",
       enableHiding: false,
       cell: ({ row }) => (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
             onClick={() => navigate(`/products/${row.original.id}`)}
           >
             <Eye className="h-4 w-4" />
@@ -357,7 +325,7 @@ export default function Products() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
               onClick={() => navigate(`/products/${row.original.id}/edit`)}
             >
               <Pencil className="h-4 w-4" />
@@ -366,7 +334,7 @@ export default function Products() {
           {canDelete && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </AlertDialogTrigger>
@@ -392,138 +360,128 @@ export default function Products() {
     },
   ];
 
+  const statCards = [
+    {
+      label: "إجمالي الأصناف",
+      value: stats.total,
+      icon: Package,
+      iconBg: "bg-blue-100 dark:bg-blue-500/20",
+      iconColor: "text-blue-600 dark:text-blue-400",
+    },
+    {
+      label: "متوفر بالمخزن",
+      value: stats.available,
+      icon: CheckCircle2,
+      iconBg: "bg-green-100 dark:bg-green-500/20",
+      iconColor: "text-green-600 dark:text-green-400",
+    },
+    {
+      label: "أصناف منخفضة",
+      value: stats.lowStock,
+      icon: AlertTriangle,
+      iconBg: "bg-amber-100 dark:bg-amber-500/20",
+      iconColor: "text-amber-600 dark:text-amber-400",
+    },
+    {
+      label: "أصناف منتهية",
+      value: stats.outOfStock,
+      icon: XCircle,
+      iconBg: "bg-red-100 dark:bg-red-500/20",
+      iconColor: "text-red-600 dark:text-red-400",
+    },
+  ];
+
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Package className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">المنتجات والمخزون</h1>
-            <p className="text-sm text-muted-foreground">{products.length} منتج</p>
-          </div>
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-foreground flex items-center">
+            <div className="bg-primary/10 p-2 rounded-lg ml-3">
+              <Package className="h-5 w-5 text-primary" />
+            </div>
+            إدارة المخزون والمنتجات
+          </h2>
+          <p className="text-muted-foreground text-sm mt-1">
+            عرض وتتبع كافة الأصناف المتوفرة في المستودعات والخدمات المقدمة.
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
           {canEdit && (
             <>
-              <Button variant="outline" className="gap-2" onClick={() => navigate("/products/import")}>
+              <Button
+                variant="outline"
+                className="gap-2 shadow-sm"
+                onClick={() => navigate("/products/import")}
+              >
                 <Upload className="h-4 w-4" />
-                استيراد
+                استيراد البيانات
               </Button>
-              <Button className="gap-2" onClick={() => navigate("/products/new")}>
+              <ExportMenu config={exportConfig} disabled={loading} />
+              <Button
+                className="gap-2 shadow-md shadow-primary/20 font-bold"
+                onClick={() => navigate("/products/new")}
+              >
                 <Plus className="h-4 w-4" />
-                منتج جديد
+                إضافة منتج جديد
               </Button>
             </>
           )}
+          {!canEdit && <ExportMenu config={exportConfig} disabled={loading} />}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "إجمالي المنتجات", value: stats.total, icon: Package, color: "bg-foreground/5 text-foreground" },
-          { label: "مخزون منخفض", value: stats.lowStock, icon: AlertTriangle, color: "bg-amber-500/10 text-amber-600" },
-          {
-            label: "نفذ من المخزون",
-            value: stats.outOfStock,
-            icon: Archive,
-            color: "bg-destructive/10 text-destructive",
-          },
-          {
-            label: "قيمة المخزون",
-            value: formatCurrency(stats.totalValue),
-            icon: DollarSign,
-            color: "bg-blue-500/10 text-blue-600",
-          },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <Card key={label} className="border">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-1">
-                <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${color}`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <span className="text-xl font-bold text-foreground">{value}</span>
-              </div>
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        {statCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
+          <div
+            key={label}
+            className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4"
+          >
+            <div className={`p-3 rounded-full ${iconBg}`}>
+              <Icon className={`h-5 w-5 ${iconColor}`} />
+            </div>
+            <div>
               <p className="text-xs text-muted-foreground">{label}</p>
-            </CardContent>
-          </Card>
+              <p className="text-xl font-black text-foreground">{value.toLocaleString()}</p>
+            </div>
+          </div>
         ))}
       </div>
 
+      {/* Data Table with filters */}
       <DataTable
         columns={columns}
         data={filteredProducts}
-        searchPlaceholder="البحث بالاسم، الكود، الباركود، الماركة، التصنيف، رقم الموديل..."
+        searchPlaceholder="البحث بواسطة اسم المنتج، الكود، أو الباركود..."
         isLoading={loading}
         emptyMessage="لا توجد منتجات"
         onRowClick={(p) => navigate(`/products/${p.id}`)}
         globalFilterFn={productGlobalFilter}
         toolbarContent={
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-3 flex-wrap items-center">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="التصنيف" />
+              <SelectTrigger className="w-48 bg-card border-border">
+                <SelectValue placeholder="كافة التصنيفات" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">كل التصنيفات</SelectItem>
+                <SelectItem value="all">كافة التصنيفات</SelectItem>
                 {renderCategoryOptions(categoryTree)}
               </SelectContent>
             </Select>
             <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as any)}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40 bg-card border-border">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">كل المخزون</SelectItem>
+                <SelectItem value="all">حالة المخزون</SelectItem>
                 <SelectItem value="low">مخزون منخفض</SelectItem>
-                <SelectItem value="out">نفذ</SelectItem>
+                <SelectItem value="out">نفذت الكمية</SelectItem>
               </SelectContent>
             </Select>
-            <ExportMenu config={exportConfig} disabled={loading} />
           </div>
         }
       />
-
-      {/* Summary Footer */}
-      {filteredProducts.length > 0 && (
-        <Card className="border-t-2 border-primary/20">
-          <CardContent className="p-4">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-              <div className="text-center">
-                <p className="text-muted-foreground">عدد المنتجات</p>
-                <p className="text-lg font-bold">{filteredProducts.length}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-muted-foreground">إجمالي الكميات</p>
-                <p className="text-lg font-bold font-mono">
-                  {filteredProducts.reduce((s, p) => s + p.quantity_on_hand, 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-muted-foreground">قيمة المخزون (شراء)</p>
-                <p className="text-lg font-bold font-mono">
-                  {formatCurrency(filteredProducts.reduce((s, p) => s + p.quantity_on_hand * p.purchase_price, 0))}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-muted-foreground">قيمة المخزون (بيع)</p>
-                <p className="text-lg font-bold font-mono">
-                  {formatCurrency(filteredProducts.reduce((s, p) => s + p.quantity_on_hand * p.selling_price, 0))}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-muted-foreground">الربح المتوقع</p>
-                <p className="text-lg font-bold font-mono text-green-600">
-                  {formatCurrency(
-                    filteredProducts.reduce((s, p) => s + p.quantity_on_hand * (p.selling_price - p.purchase_price), 0),
-                  )}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
