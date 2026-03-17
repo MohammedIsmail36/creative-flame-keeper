@@ -130,19 +130,40 @@ export default function TrialBalance() {
     setExportMenuOpen(false);
   };
 
-  // Fixed sections - always show all account types
+  // Fixed sections - always show all account types in their correct side
   const fixedSections = ["asset", "liability", "equity", "revenue", "expense"] as const;
+  const sectionColumns = [
+    {
+      id: "debit",
+      title: "الجانب المدين",
+      description: "الأصول والمصروفات",
+      sections: ["asset", "expense"] as const,
+    },
+    {
+      id: "credit",
+      title: "الجانب الدائن",
+      description: "الخصوم وحقوق الملكية والإيرادات",
+      sections: ["liability", "equity", "revenue"] as const,
+    },
+  ] as const;
+
+  const normalizeAccountType = (type: string) => {
+    if (type === "assets") return "asset";
+    if (type === "liabilities") return "liability";
+    if (type === "expenses") return "expense";
+    return type;
+  };
 
   const groupedRows = useMemo(() => {
     const groups: Record<string, TrialBalanceRow[]> = {};
     fixedSections.forEach((type) => { groups[type] = []; });
+
     trialBalanceData.forEach((row) => {
-      const type = row.account.account_type;
-      // Normalize plural forms
-      const normalized = type === "assets" ? "asset" : type === "liabilities" ? "liability" : type === "expenses" ? "expense" : type;
+      const normalized = normalizeAccountType(row.account.account_type);
       if (!groups[normalized]) groups[normalized] = [];
       groups[normalized].push(row);
     });
+
     return groups;
   }, [trialBalanceData]);
 
@@ -241,48 +262,38 @@ export default function TrialBalance() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {fixedSections.map((type) => {
-            const rows = groupedRows[type];
-            const groupDebit = rows.reduce((s, r) => s + r.balanceDebit, 0);
-            const groupCredit = rows.reduce((s, r) => s + r.balanceCredit, 0);
-            return (
-              <div key={type} className="bg-card rounded-xl border overflow-hidden shadow-sm">
-                <div className="bg-muted/50 px-6 py-4 border-b flex items-center justify-between">
-                  <h4 className="font-bold text-foreground">{getAccountTypeLabel(type)}</h4>
-                  <Badge variant="secondary" className="text-xs">{rows.length} حساب</Badge>
-                </div>
-                <div className="p-6">
-                  {/* Table header */}
-                  <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-xs font-medium text-muted-foreground mb-3 pb-2 border-b">
-                    <span>الحساب</span>
-                    <span className="w-28 text-left">رصيد مدين</span>
-                    <span className="w-28 text-left">رصيد دائن</span>
+          {sectionColumns.map((column) => (
+            <div key={column.id} className="space-y-6">
+              <div className="rounded-xl border bg-card px-5 py-4 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-black text-foreground">{column.title}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{column.description}</p>
                   </div>
-                  <div className="space-y-3">
-                    {rows.map((row) => (
-                      <div key={row.account.id} className="grid grid-cols-[1fr_auto_auto] gap-4 text-sm items-center">
-                        <span className="text-muted-foreground">
-                          <span className="font-mono text-xs text-foreground/50 ml-2">{row.account.code}</span>
-                          {row.account.name}
-                        </span>
-                        <span className={cn("w-28 text-left font-mono", row.balanceDebit > 0 ? "text-emerald-600 font-medium" : "text-muted-foreground/40")}>
-                          {row.balanceDebit > 0 ? formatNum(row.balanceDebit) : "—"}
-                        </span>
-                        <span className={cn("w-28 text-left font-mono", row.balanceCredit > 0 ? "text-red-600 font-medium" : "text-muted-foreground/40")}>
-                          {row.balanceCredit > 0 ? formatNum(row.balanceCredit) : "—"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-6 pt-4 border-t-2 grid grid-cols-[1fr_auto_auto] gap-4 items-center">
-                    <span className="font-bold text-foreground">الإجمالي</span>
-                    <span className="w-28 text-left font-mono font-black text-foreground">{groupDebit > 0 ? formatNum(groupDebit) : "—"}</span>
-                    <span className="w-28 text-left font-mono font-black text-foreground">{groupCredit > 0 ? formatNum(groupCredit) : "—"}</span>
-                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {column.sections.reduce((count, type) => count + groupedRows[type].length, 0)} حساب
+                  </Badge>
                 </div>
               </div>
-            );
-          })}
+
+              {column.sections.map((type) => {
+                const rows = groupedRows[type] || [];
+                const groupDebit = rows.reduce((s, r) => s + r.balanceDebit, 0);
+                const groupCredit = rows.reduce((s, r) => s + r.balanceCredit, 0);
+
+                return (
+                  <TrialBalanceSectionCard
+                    key={type}
+                    title={getAccountTypeLabel(type)}
+                    rows={rows}
+                    groupDebit={groupDebit}
+                    groupCredit={groupCredit}
+                    formatNum={formatNum}
+                  />
+                );
+              })}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -297,6 +308,70 @@ function KpiCard({ icon, iconBg, label, value }: { icon: React.ReactNode; iconBg
       </div>
       <p className="text-sm text-muted-foreground font-medium">{label}</p>
       <h3 className="text-2xl font-black text-foreground mt-1 font-mono">{value}</h3>
+    </div>
+  );
+}
+
+function TrialBalanceSectionCard({
+  title,
+  rows,
+  groupDebit,
+  groupCredit,
+  formatNum,
+}: {
+  title: string;
+  rows: TrialBalanceRow[];
+  groupDebit: number;
+  groupCredit: number;
+  formatNum: (val: number) => string;
+}) {
+  return (
+    <div className="bg-card rounded-xl border overflow-hidden shadow-sm min-h-[22rem]">
+      <div className="bg-muted/50 px-6 py-4 border-b flex items-center justify-between">
+        <h4 className="font-bold text-foreground">{title}</h4>
+        <Badge variant="secondary" className="text-xs">{rows.length} حساب</Badge>
+      </div>
+
+      <div className="p-6 flex flex-col h-[calc(100%-4.5rem)]">
+        <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-xs font-medium text-muted-foreground mb-3 pb-2 border-b">
+          <span>الحساب</span>
+          <span className="w-28 text-left">رصيد مدين</span>
+          <span className="w-28 text-left">رصيد دائن</span>
+        </div>
+
+        <div className="flex-1">
+          {rows.length === 0 ? (
+            <div className="h-full min-h-[12rem] rounded-xl border border-dashed bg-muted/30 flex flex-col items-center justify-center text-center px-4">
+              <BookOpen className="h-10 w-10 text-muted-foreground/40 mb-3" />
+              <p className="font-medium text-foreground">لا توجد حسابات في هذا القسم</p>
+              <p className="text-sm text-muted-foreground mt-1">سيبقى هذا القسم ثابتاً هنا حتى عند عدم وجود بيانات.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {rows.map((row) => (
+                <div key={row.account.id} className="grid grid-cols-[1fr_auto_auto] gap-4 text-sm items-center">
+                  <span className="text-muted-foreground">
+                    <span className="font-mono text-xs text-foreground/50 ml-2">{row.account.code}</span>
+                    {row.account.name}
+                  </span>
+                  <span className={cn("w-28 text-left font-mono", row.balanceDebit > 0 ? "text-emerald-600 font-medium" : "text-muted-foreground/40")}>
+                    {row.balanceDebit > 0 ? formatNum(row.balanceDebit) : "—"}
+                  </span>
+                  <span className={cn("w-28 text-left font-mono", row.balanceCredit > 0 ? "text-red-600 font-medium" : "text-muted-foreground/40")}>
+                    {row.balanceCredit > 0 ? formatNum(row.balanceCredit) : "—"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 pt-4 border-t-2 grid grid-cols-[1fr_auto_auto] gap-4 items-center">
+          <span className="font-bold text-foreground">الإجمالي</span>
+          <span className="w-28 text-left font-mono font-black text-foreground">{groupDebit > 0 ? formatNum(groupDebit) : "—"}</span>
+          <span className="w-28 text-left font-mono font-black text-foreground">{groupCredit > 0 ? formatNum(groupCredit) : "—"}</span>
+        </div>
+      </div>
     </div>
   );
 }
