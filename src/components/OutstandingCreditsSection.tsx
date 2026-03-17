@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { recalculateInvoicePaidAmount } from "@/lib/entity-balance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -135,6 +136,7 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
     }
     try {
       await (supabase.from(settlementTable as any) as any).insert({ invoice_id: invoiceId, return_id: ret.id, settled_amount: amount });
+      await recalculateInvoicePaidAmount(type, invoiceId);
       toast({ title: "تم التسوية", description: `تم تطبيق ${amount.toFixed(2)} من المرتجع #${ret.posted_number || ret.return_number}` });
       setApplyAmounts({});
       fetchData();
@@ -147,6 +149,7 @@ export default function OutstandingCreditsSection({ type, invoiceId, entityId, i
   async function removeSettlement(settlement: ExistingSettlement) {
     try {
       await (supabase.from(settlementTable as any) as any).delete().eq("id", settlement.id);
+      await recalculateInvoicePaidAmount(type, invoiceId);
       toast({ title: "تم إلغاء التسوية" });
       fetchData();
       onSettlementChanged();
