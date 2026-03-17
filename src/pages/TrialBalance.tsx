@@ -241,7 +241,7 @@ export default function TrialBalance() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {sortedTypes.map((type) => {
+          {fixedSections.map((type) => {
             const rows = groupedRows[type];
             const groupDebit = rows.reduce((s, r) => s + r.balanceDebit, 0);
             const groupCredit = rows.reduce((s, r) => s + r.balanceCredit, 0);
