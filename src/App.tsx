@@ -46,6 +46,7 @@ import SystemSetup from "./pages/SystemSetup";
 import CustomerStatement from "./pages/CustomerStatement";
 import SupplierStatement from "./pages/SupplierStatement";
 import NotFound from "./pages/NotFound";
+import FiscalYearClosing from "./pages/FiscalYearClosing";
 
 const queryClient = new QueryClient();
 
@@ -103,6 +104,7 @@ const App = () => (
             <Route path="/users" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout><UserManagement /></AppLayout></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>} />
             <Route path="/system-setup" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout><SystemSetup /></AppLayout></ProtectedRoute>} />
+            <Route path="/fiscal-year-closing" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><FiscalYearClosing /></AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </SettingsProvider>

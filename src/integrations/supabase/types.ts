@@ -72,6 +72,7 @@ export type Database = {
           customer_payment_prefix: string
           default_currency: string
           email: string | null
+          enable_fiscal_year_closing: boolean
           fiscal_year_start: string
           id: string
           invoice_footer: string | null
@@ -103,6 +104,7 @@ export type Database = {
           customer_payment_prefix?: string
           default_currency?: string
           email?: string | null
+          enable_fiscal_year_closing?: boolean
           fiscal_year_start?: string
           id?: string
           invoice_footer?: string | null
@@ -134,6 +136,7 @@ export type Database = {
           customer_payment_prefix?: string
           default_currency?: string
           email?: string | null
+          enable_fiscal_year_closing?: boolean
           fiscal_year_start?: string
           id?: string
           invoice_footer?: string | null

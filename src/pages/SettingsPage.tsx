@@ -318,6 +318,18 @@ export default function SettingsPage() {
                 <p className="text-xs text-muted-foreground">الحد الأقصى لعدد الأيام المسموح بها لإرجاع المبيعات</p>
               </div>
             </div>
+
+            <hr className="border-border my-2" />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-bold">تفعيل إقفال السنة المالية</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  يتيح إنشاء قيد إقفال تلقائي لتصفير حسابات الإيرادات والمصروفات وترحيل صافي الربح/الخسارة إلى حساب الأرباح المحتجزة (3102)
+                </p>
+              </div>
+              <Switch checked={settings.enable_fiscal_year_closing} onCheckedChange={(v) => updateField("enable_fiscal_year_closing", v)} />
+            </div>
           </SectionCard>
         </TabsContent>
 

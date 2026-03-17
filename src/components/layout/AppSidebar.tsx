@@ -18,6 +18,7 @@ import {
   ReceiptText,
   Boxes,
   ChartPie,
+  Lock,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
@@ -238,6 +239,35 @@ export function AppSidebar() {
         {sections.map((section) => (
           <CollapsibleSection key={section.label} section={section} />
         ))}
+
+        {/* Fiscal Year Closing - conditional */}
+        {settings?.enable_fiscal_year_closing && (
+          <SidebarGroup className="py-0">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <RoleGuard allowedRoles={["admin", "accountant"]}>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild className="h-9">
+                      <NavLink
+                        to="/fiscal-year-closing"
+                        className="text-foreground/80 hover:bg-muted/50 font-medium"
+                        activeClassName="text-primary bg-accent font-semibold"
+                      >
+                        <div
+                          className="w-7 h-7 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: `hsl(var(--primary) / 0.12)` }}
+                        >
+                          <Lock className="w-4 h-4 text-primary" />
+                        </div>
+                        <span>إقفال السنة المالية</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </RoleGuard>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Settings */}
         <SidebarGroup className="py-0 mt-2 border-t border-border/40 pt-2">
