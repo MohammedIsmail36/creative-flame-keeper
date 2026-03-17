@@ -68,17 +68,38 @@ export default function TrialBalance() {
 
   useEffect(() => { fetchData(); }, [settings?.enable_fiscal_year_closing]);
 
+  const revenueExpenseTypes = ["revenue", "expense", "expenses"];
+
   const trialBalanceData = useMemo(() => {
     const filteredLines = lines.filter((l: any) => {
-      const entryDate = (l.journal_entries as any)?.entry_date;
+      const je = l.journal_entries as any;
+      const entryDate = je?.entry_date;
+      const entryDesc = je?.description || "";
       if (!entryDate) return false;
+
+      // Exclude closing entries themselves
+      if (entryDesc === "قيد إقفال السنة المالية") return false;
+
       if (dateFrom && entryDate < format(dateFrom, "yyyy-MM-dd")) return false;
       if (dateTo && entryDate > format(dateTo, "yyyy-MM-dd")) return false;
       return true;
     });
 
+    // Build account type lookup
+    const accountTypeMap = new Map<string, string>();
+    accounts.forEach((acc) => accountTypeMap.set(acc.id, acc.account_type));
+
     const accountTotals = new Map<string, { totalDebit: number; totalCredit: number }>();
     filteredLines.forEach((l: any) => {
+      const accType = accountTypeMap.get(l.account_id) || "";
+      const isRevenueExpense = revenueExpenseTypes.includes(accType);
+      const entryDate = (l.journal_entries as any)?.entry_date;
+
+      // For revenue/expense accounts, skip entries before last closing (if no manual dateFrom set)
+      if (isRevenueExpense && lastClosingDate && !dateFrom && entryDate <= lastClosingDate) {
+        return;
+      }
+
       const existing = accountTotals.get(l.account_id) || { totalDebit: 0, totalCredit: 0 };
       existing.totalDebit += Number(l.debit) || 0;
       existing.totalCredit += Number(l.credit) || 0;
@@ -100,7 +121,7 @@ export default function TrialBalance() {
     });
 
     return rows;
-  }, [accounts, lines, dateFrom, dateTo]);
+  }, [accounts, lines, dateFrom, dateTo, lastClosingDate]);
 
   const grandTotalDebit = trialBalanceData.reduce((s, r) => s + r.totalDebit, 0);
   const grandTotalCredit = trialBalanceData.reduce((s, r) => s + r.totalCredit, 0);
