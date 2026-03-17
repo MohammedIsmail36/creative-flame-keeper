@@ -8,12 +8,26 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { CategoryTreeSelect } from "@/components/CategoryTreeSelect";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Save, Plus, ImagePlus, X, Image as ImageIcon } from "lucide-react";
 
-interface LookupItem { id: string; name: string; }
-interface CategoryItem { id: string; name: string; parent_id?: string | null; }
+interface LookupItem {
+  id: string;
+  name: string;
+}
+interface CategoryItem {
+  id: string;
+  name: string;
+  parent_id?: string | null;
+}
 
 export default function ProductForm() {
   const { role } = useAuth();
@@ -59,7 +73,10 @@ export default function ProductForm() {
 
   const fetchLookups = async () => {
     const [catRes, unitRes, brandRes] = await Promise.all([
-      (supabase.from("product_categories" as any) as any).select("id, name, parent_id").eq("is_active", true).order("name"),
+      (supabase.from("product_categories" as any) as any)
+        .select("id, name, parent_id")
+        .eq("is_active", true)
+        .order("name"),
       (supabase.from("product_units" as any) as any).select("id, name").eq("is_active", true).order("name"),
       (supabase.from("product_brands" as any) as any).select("id, name").eq("is_active", true).order("name"),
     ]);
@@ -90,7 +107,10 @@ export default function ProductForm() {
     setMinStock(data.min_stock_level);
     setMainImageUrl(data.main_image_url || null);
 
-    const { data: imgs } = await (supabase.from("product_images" as any) as any).select("*").eq("product_id", id!).order("sort_order");
+    const { data: imgs } = await (supabase.from("product_images" as any) as any)
+      .select("*")
+      .eq("product_id", id!)
+      .order("sort_order");
     setGalleryImages((imgs || []).map((i: any) => ({ id: i.id, image_url: i.image_url })));
     setLoading(false);
   };
@@ -99,7 +119,10 @@ export default function ProductForm() {
     const ext = file.name.split(".").pop();
     const filePath = `${path}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("product-images").upload(filePath, file);
-    if (error) { toast({ title: "خطأ", description: "فشل رفع الصورة", variant: "destructive" }); return null; }
+    if (error) {
+      toast({ title: "خطأ", description: "فشل رفع الصورة", variant: "destructive" });
+      return null;
+    }
     const { data } = supabase.storage.from("product-images").getPublicUrl(filePath);
     return data.publicUrl;
   };
@@ -122,12 +145,12 @@ export default function ProductForm() {
       const url = await uploadImage(file, "gallery");
       if (url) newImages.push({ image_url: url });
     }
-    setGalleryImages(prev => [...prev, ...newImages]);
+    setGalleryImages((prev) => [...prev, ...newImages]);
     setUploadingGallery(false);
   };
 
   const removeGalleryImage = (index: number) => {
-    setGalleryImages(prev => prev.filter((_, i) => i !== index));
+    setGalleryImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
@@ -155,33 +178,55 @@ export default function ProductForm() {
     try {
       let productId = id;
       if (isEdit) {
-        const { error } = await supabase.from("products").update(payload as any).eq("id", id!);
+        const { error } = await supabase
+          .from("products")
+          .update(payload as any)
+          .eq("id", id!);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from("products").insert(payload as any).select("id").single();
+        const { data, error } = await supabase
+          .from("products")
+          .insert(payload as any)
+          .select("id")
+          .single();
         if (error) throw error;
         productId = data.id;
 
         if (quantity > 0 && purchasePrice > 0 && productId) {
           const totalCost = quantity * purchasePrice;
-          const { data: accounts } = await supabase.from("accounts").select("id, code")
-            .in("code", ["1104", "3101"]);
-          const inventoryAcc = accounts?.find(a => a.code === "1104");
-          const capitalAcc = accounts?.find(a => a.code === "3101");
+          const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", ["1104", "3101"]);
+          const inventoryAcc = accounts?.find((a) => a.code === "1104");
+          const capitalAcc = accounts?.find((a) => a.code === "3101");
 
           if (inventoryAcc && capitalAcc) {
-            const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
-              description: `رصيد افتتاحي - منتج ${name.trim()}`,
-              entry_date: new Date().toISOString().split("T")[0],
-              total_debit: totalCost,
-              total_credit: totalCost,
-              status: "posted",
-            } as any).select("id").single();
+            const { data: je, error: jeError } = await supabase
+              .from("journal_entries")
+              .insert({
+                description: `رصيد افتتاحي - منتج ${name.trim()}`,
+                entry_date: new Date().toISOString().split("T")[0],
+                total_debit: totalCost,
+                total_credit: totalCost,
+                status: "posted",
+              } as any)
+              .select("id")
+              .single();
 
             if (!jeError && je) {
               await supabase.from("journal_entry_lines").insert([
-                { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: totalCost, credit: 0, description: `رصيد افتتاحي مخزون - ${name.trim()}` },
-                { journal_entry_id: je.id, account_id: capitalAcc.id, debit: 0, credit: totalCost, description: `رصيد افتتاحي مخزون - ${name.trim()}` },
+                {
+                  journal_entry_id: je.id,
+                  account_id: inventoryAcc.id,
+                  debit: totalCost,
+                  credit: 0,
+                  description: `رصيد افتتاحي مخزون - ${name.trim()}`,
+                },
+                {
+                  journal_entry_id: je.id,
+                  account_id: capitalAcc.id,
+                  debit: 0,
+                  credit: totalCost,
+                  description: `رصيد افتتاحي مخزون - ${name.trim()}`,
+                },
               ] as any);
             }
           }
@@ -212,7 +257,10 @@ export default function ProductForm() {
         }
       }
 
-      toast({ title: isEdit ? "تم التحديث" : "تمت الإضافة", description: isEdit ? "تم تعديل المنتج بنجاح" : "تم إضافة المنتج بنجاح" });
+      toast({
+        title: isEdit ? "تم التحديث" : "تمت الإضافة",
+        description: isEdit ? "تم تعديل المنتج بنجاح" : "تم إضافة المنتج بنجاح",
+      });
       navigate("/products");
     } catch (error: any) {
       let msg = error.message;
@@ -226,15 +274,26 @@ export default function ProductForm() {
     setSaving(false);
   };
 
-  const handleQuickAdd = async (table: string, setter: React.Dispatch<React.SetStateAction<LookupItem[]>>, setSelected: (id: string) => void) => {
+  const handleQuickAdd = async (
+    table: string,
+    setter: React.Dispatch<React.SetStateAction<LookupItem[]>>,
+    setSelected: (id: string) => void,
+  ) => {
     if (!newItemName.trim()) return;
-    const { data, error } = await (supabase.from(table as any) as any).insert({ name: newItemName.trim() }).select("id, name").single();
+    const { data, error } = await (supabase.from(table as any) as any)
+      .insert({ name: newItemName.trim() })
+      .select("id, name")
+      .single();
     if (error) {
-      toast({ title: "خطأ", description: error.message.includes("duplicate") ? "الاسم موجود مسبقاً" : error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message.includes("duplicate") ? "الاسم موجود مسبقاً" : error.message,
+        variant: "destructive",
+      });
       return;
     }
     const item = data as LookupItem;
-    setter(prev => [...prev, item].sort((a, b) => a.name.localeCompare(b.name)));
+    setter((prev) => [...prev, item].sort((a, b) => a.name.localeCompare(b.name)));
     setSelected(item.id);
     setNewItemName("");
     setAddUnitOpen(false);
@@ -244,20 +303,32 @@ export default function ProductForm() {
   const handleQuickAddCategory = async () => {
     if (!newItemName.trim()) return;
     const payload: any = { name: newItemName.trim(), parent_id: newCategoryParentId || null };
-    const { data, error } = await (supabase.from("product_categories" as any) as any).insert(payload).select("id, name, parent_id").single();
+    const { data, error } = await (supabase.from("product_categories" as any) as any)
+      .insert(payload)
+      .select("id, name, parent_id")
+      .single();
     if (error) {
-      toast({ title: "خطأ", description: error.message.includes("duplicate") ? "الاسم موجود مسبقاً" : error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message.includes("duplicate") ? "الاسم موجود مسبقاً" : error.message,
+        variant: "destructive",
+      });
       return;
     }
     const item = data as CategoryItem;
-    setCategories(prev => [...prev, item]);
+    setCategories((prev) => [...prev, item]);
     setCategoryId(item.id);
     setNewItemName("");
     setNewCategoryParentId("");
     setAddCategoryOpen(false);
   };
 
-  if (loading) return <div className="p-12 text-center text-muted-foreground" dir="rtl">جاري التحميل...</div>;
+  if (loading)
+    return (
+      <div className="p-12 text-center text-muted-foreground" dir="rtl">
+        جاري التحميل...
+      </div>
+    );
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto" dir="rtl">
@@ -265,7 +336,11 @@ export default function ProductForm() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-foreground">{isEdit ? "تعديل منتج" : "إضافة منتج جديد"}</h1>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => navigate("/products")} className="border-primary text-primary hover:bg-primary/5 rounded-xl px-6">
+          <Button
+            variant="outline"
+            onClick={() => navigate("/products")}
+            className="border-primary text-primary hover:bg-primary/5 rounded-xl px-6"
+          >
             إلغاء
           </Button>
           <Button onClick={handleSave} disabled={saving} className="gap-2 rounded-xl px-6 shadow-lg shadow-primary/20">
@@ -277,7 +352,6 @@ export default function ProductForm() {
 
       {/* Main Form Card - Two Column Layout */}
       <div className="bg-card rounded-xl shadow-sm border border-border p-6 lg:p-8 flex flex-col lg:flex-row gap-8 lg:gap-10">
-        
         {/* RIGHT COLUMN: Images */}
         <div className="lg:w-1/3 flex flex-col gap-5">
           <h3 className="text-lg font-bold text-foreground border-b border-border pb-3 flex items-center gap-2">
@@ -307,7 +381,13 @@ export default function ProductForm() {
                 </p>
                 <p className="text-xs text-muted-foreground/60 mt-2">أو انقر لاختيار ملف</p>
               </div>
-              <input type="file" accept="image/*" className="hidden" onChange={handleMainImage} disabled={uploadingMain} />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleMainImage}
+                disabled={uploadingMain}
+              />
             </label>
           )}
 
@@ -333,7 +413,14 @@ export default function ProductForm() {
               ) : (
                 <Plus className="h-5 w-5 text-muted-foreground" />
               )}
-              <input type="file" accept="image/*" multiple className="hidden" onChange={handleGalleryImages} disabled={uploadingGallery} />
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleGalleryImages}
+                disabled={uploadingGallery}
+              />
             </label>
           </div>
 
@@ -344,51 +431,85 @@ export default function ProductForm() {
 
         {/* LEFT COLUMN: Form Fields */}
         <div className="flex-1 space-y-8">
-
           {/* SECTION: Basic Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">
-              المعلومات الأساسية
-            </h3>
+            <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">المعلومات الأساسية</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">
                   اسم المنتج <span className="text-destructive">*</span>
                 </Label>
-                <Input value={name} onChange={e => setName(e.target.value)} placeholder="مثال: سماعات سوني اللاسلكية WH-1000XM5" className="bg-muted/30" />
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="مثال: سماعات سوني اللاسلكية WH-1000XM5"
+                  className="bg-muted/30"
+                />
               </div>
               <div>
                 <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">رقم موديل المصنع</Label>
-                <Input value={modelNumber} onChange={e => setModelNumber(e.target.value)} placeholder="مثال: SNY-XM5-BLK" className="font-mono bg-muted/30" />
+                <Input
+                  value={modelNumber}
+                  onChange={(e) => setModelNumber(e.target.value)}
+                  placeholder="مثال: SNY-XM5-BLK"
+                  className="font-mono bg-muted/30"
+                />
               </div>
               <div>
                 <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">الباركود</Label>
-                <Input value={barcode} onChange={e => setBarcode(e.target.value)} placeholder="000000000000" className="font-mono bg-muted/30" />
+                <Input
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value)}
+                  placeholder="000000000000"
+                  className="font-mono bg-muted/30"
+                />
               </div>
               <div>
                 <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">
                   رمز التخزين (SKU) <span className="text-destructive">*</span>
                 </Label>
-                <Input value={code} onChange={e => setCode(e.target.value)} placeholder="PRD-2024-X1" className="font-mono bg-muted/30" />
+                <Input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="PRD-2024-X1"
+                  className="font-mono bg-muted/30"
+                />
               </div>
               <div className="md:col-span-2">
                 <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">وصف المنتج</Label>
-                <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="اكتب تفاصيل ومواصفات المنتج هنا..." rows={4} className="bg-muted/30" />
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="اكتب تفاصيل ومواصفات المنتج هنا..."
+                  rows={4}
+                  className="bg-muted/30"
+                />
               </div>
             </div>
           </div>
 
           {/* SECTION: Classification */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">
-              التصنيف والتفاصيل
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">التصنيف والتفاصيل</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">التصنيف</Label>
                 <div className="flex gap-2">
-                  <CategoryTreeSelect categories={categories} value={categoryId} onValueChange={setCategoryId} placeholder="اختر التصنيف" className="flex-1" />
-                  <Button size="icon" onClick={() => { setNewItemName(""); setAddCategoryOpen(true); }} className="shrink-0 rounded-lg">
+                  <CategoryTreeSelect
+                    categories={categories}
+                    value={categoryId}
+                    onValueChange={setCategoryId}
+                    placeholder="اختر التصنيف"
+                    className="flex-1"
+                  />
+                  <Button
+                    size="icon"
+                    onClick={() => {
+                      setNewItemName("");
+                      setAddCategoryOpen(true);
+                    }}
+                    className="shrink-0 rounded-lg"
+                  >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -396,8 +517,21 @@ export default function ProductForm() {
               <div>
                 <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">وحدة القياس</Label>
                 <div className="flex gap-2">
-                  <LookupCombobox items={units} value={unitId} onValueChange={setUnitId} placeholder="اختر الوحدة" className="flex-1" />
-                  <Button size="icon" onClick={() => { setNewItemName(""); setAddUnitOpen(true); }} className="shrink-0 rounded-lg">
+                  <LookupCombobox
+                    items={units}
+                    value={unitId}
+                    onValueChange={setUnitId}
+                    placeholder="اختر الوحدة"
+                    className="flex-1"
+                  />
+                  <Button
+                    size="icon"
+                    onClick={() => {
+                      setNewItemName("");
+                      setAddUnitOpen(true);
+                    }}
+                    className="shrink-0 rounded-lg"
+                  >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -405,8 +539,21 @@ export default function ProductForm() {
               <div>
                 <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">الماركة المصنعة</Label>
                 <div className="flex gap-2">
-                  <LookupCombobox items={brands} value={brandId} onValueChange={setBrandId} placeholder="اختر الماركة" className="flex-1" />
-                  <Button size="icon" onClick={() => { setNewItemName(""); setAddBrandOpen(true); }} className="shrink-0 rounded-lg">
+                  <LookupCombobox
+                    items={brands}
+                    value={brandId}
+                    onValueChange={setBrandId}
+                    placeholder="اختر الماركة"
+                    className="flex-1"
+                  />
+                  <Button
+                    size="icon"
+                    onClick={() => {
+                      setNewItemName("");
+                      setAddBrandOpen(true);
+                    }}
+                    className="shrink-0 rounded-lg"
+                  >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -416,32 +563,59 @@ export default function ProductForm() {
 
           {/* SECTION: Pricing & Inventory */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">
-              التسعير والمخزون
-            </h3>
+            <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">التسعير والمخزون</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">سعر الشراء</Label>
                 <div className="relative">
-                  <Input type="number" min="0" step="0.01" value={purchasePrice || ""} onChange={e => setPurchasePrice(parseFloat(e.target.value) || 0)} className="font-mono bg-muted/30 pl-10" />
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={purchasePrice || ""}
+                    onChange={(e) => setPurchasePrice(parseFloat(e.target.value) || 0)}
+                    className="font-mono bg-muted/30 pl-10"
+                  />
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">EGP</span>
                 </div>
               </div>
               <div>
                 <Label className="text-sm font-bold text-primary mb-1.5 block">سعر البيع</Label>
                 <div className="relative">
-                  <Input type="number" min="0" step="0.01" value={sellingPrice || ""} onChange={e => setSellingPrice(parseFloat(e.target.value) || 0)} className="font-mono border-primary/30 bg-primary/5 pl-10" />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-primary/60 font-bold">EGP</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={sellingPrice || ""}
+                    onChange={(e) => setSellingPrice(parseFloat(e.target.value) || 0)}
+                    className="font-mono border-primary/30 bg-primary/5 pl-10"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-primary/60 font-bold">
+                    EGP
+                  </span>
                 </div>
               </div>
               <div>
                 <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">الكمية الافتتاحية</Label>
-                <Input type="number" min="0" value={quantity || ""} onChange={e => setQuantity(parseFloat(e.target.value) || 0)} className="font-mono bg-muted/30" disabled={isEdit} />
+                <Input
+                  type="number"
+                  min="0"
+                  value={quantity || ""}
+                  onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
+                  className="font-mono bg-muted/30"
+                  disabled={isEdit}
+                />
                 {isEdit && <p className="text-[11px] text-muted-foreground mt-1">تُحدّث تلقائياً من العمليات</p>}
               </div>
               <div>
                 <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">حد إعادة الطلب</Label>
-                <Input type="number" min="0" value={minStock || ""} onChange={e => setMinStock(parseFloat(e.target.value) || 0)} className="font-mono bg-muted/30" />
+                <Input
+                  type="number"
+                  min="0"
+                  value={minStock || ""}
+                  onChange={(e) => setMinStock(parseFloat(e.target.value) || 0)}
+                  className="font-mono bg-muted/30"
+                />
               </div>
             </div>
 
@@ -453,8 +627,12 @@ export default function ProductForm() {
                 </div>
                 <div className="text-sm text-foreground">
                   هامش الربح:{" "}
-                  <strong className="text-primary">{(sellingPrice - purchasePrice).toLocaleString("en-US", { minimumFractionDigits: 2 })} EGP</strong>
-                  <span className="text-muted-foreground mr-2">({((sellingPrice - purchasePrice) / purchasePrice * 100).toFixed(1)}%)</span>
+                  <strong className="text-primary">
+                    {(sellingPrice - purchasePrice).toLocaleString("en-US", { minimumFractionDigits: 2 })} EGP
+                  </strong>
+                  <span className="text-muted-foreground mr-2">
+                    ({(((sellingPrice - purchasePrice) / purchasePrice) * 100).toFixed(1)}%)
+                  </span>
                 </div>
               </div>
             )}
@@ -464,10 +642,18 @@ export default function ProductForm() {
 
       {/* Mobile Action Bar */}
       <div className="flex lg:hidden gap-3 pb-6">
-        <Button variant="outline" onClick={() => navigate("/products")} className="flex-1 py-6 border-primary text-primary rounded-xl font-bold">
+        <Button
+          variant="outline"
+          onClick={() => navigate("/products")}
+          className="flex-1 py-6 border-primary text-primary rounded-xl font-bold"
+        >
           إلغاء
         </Button>
-        <Button onClick={handleSave} disabled={saving} className="flex-1 py-6 rounded-xl font-bold shadow-lg shadow-primary/30">
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 py-6 rounded-xl font-bold shadow-lg shadow-primary/30"
+        >
           {saving ? "جاري الحفظ..." : isEdit ? "تحديث المنتج" : "حفظ المنتج"}
         </Button>
       </div>
@@ -482,24 +668,51 @@ export default function ProductForm() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label className="text-sm">اسم التصنيف *</Label>
-              <Input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="اسم التصنيف" onKeyDown={e => e.key === "Enter" && handleQuickAddCategory()} />
+              <Input
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                placeholder="اسم التصنيف"
+                onKeyDown={(e) => e.key === "Enter" && handleQuickAddCategory()}
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm">التصنيف الأب (اختياري)</Label>
-              <CategoryTreeSelect categories={categories} value={newCategoryParentId} onValueChange={setNewCategoryParentId} placeholder="بدون - تصنيف رئيسي" className="w-full" />
+              <CategoryTreeSelect
+                categories={categories}
+                value={newCategoryParentId}
+                onValueChange={setNewCategoryParentId}
+                placeholder="بدون - تصنيف رئيسي"
+                className="w-full"
+              />
             </div>
           </div>
           <DialogFooter className="flex-row-reverse gap-2">
             <Button onClick={handleQuickAddCategory}>إضافة</Button>
-            <Button variant="outline" onClick={() => setAddCategoryOpen(false)}>إلغاء</Button>
+            <Button variant="outline" onClick={() => setAddCategoryOpen(false)}>
+              إلغاء
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Quick-add unit & brand dialogs */}
       {[
-        { open: addUnitOpen, setOpen: setAddUnitOpen, title: "إضافة وحدة قياس جديدة", table: "product_units", setter: setUnits, setSelected: setUnitId },
-        { open: addBrandOpen, setOpen: setAddBrandOpen, title: "إضافة ماركة جديدة", table: "product_brands", setter: setBrands, setSelected: setBrandId },
+        {
+          open: addUnitOpen,
+          setOpen: setAddUnitOpen,
+          title: "إضافة وحدة قياس جديدة",
+          table: "product_units",
+          setter: setUnits,
+          setSelected: setUnitId,
+        },
+        {
+          open: addBrandOpen,
+          setOpen: setAddBrandOpen,
+          title: "إضافة ماركة جديدة",
+          table: "product_brands",
+          setter: setBrands,
+          setSelected: setBrandId,
+        },
       ].map(({ open, setOpen, title, table, setter, setSelected }) => (
         <Dialog key={table} open={open} onOpenChange={setOpen}>
           <DialogContent dir="rtl" className="max-w-sm">
@@ -507,10 +720,17 @@ export default function ProductForm() {
               <DialogTitle>{title}</DialogTitle>
               <DialogDescription>أدخل الاسم ثم اضغط إضافة</DialogDescription>
             </DialogHeader>
-            <Input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="الاسم" onKeyDown={e => e.key === "Enter" && handleQuickAdd(table, setter, setSelected)} />
+            <Input
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              placeholder="الاسم"
+              onKeyDown={(e) => e.key === "Enter" && handleQuickAdd(table, setter, setSelected)}
+            />
             <DialogFooter className="flex-row-reverse gap-2">
               <Button onClick={() => handleQuickAdd(table, setter, setSelected)}>إضافة</Button>
-              <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                إلغاء
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
