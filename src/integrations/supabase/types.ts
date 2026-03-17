@@ -23,6 +23,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_parent: boolean
+          is_system: boolean
           name: string
           parent_id: string | null
           updated_at: string
@@ -35,6 +36,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_parent?: boolean
+          is_system?: boolean
           name: string
           parent_id?: string | null
           updated_at?: string
@@ -47,6 +49,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_parent?: boolean
+          is_system?: boolean
           name?: string
           parent_id?: string | null
           updated_at?: string

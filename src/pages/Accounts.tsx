@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { BookOpen, Plus, Pencil, Trash2, Search, Filter, ChevronLeft, ChevronDown, FolderOpen, FileText, TrendingUp, TrendingDown, Wallet, DollarSign, Receipt, X } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, Search, Filter, ChevronLeft, ChevronDown, FolderOpen, FileText, TrendingUp, TrendingDown, Wallet, DollarSign, Receipt, X, Shield } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -27,6 +27,7 @@ interface Account {
   is_parent: boolean;
   description: string | null;
   is_active: boolean;
+  is_system: boolean;
   created_at: string;
 }
 
@@ -195,6 +196,10 @@ export default function Accounts() {
   };
 
   const handleDelete = async (account: Account) => {
+    if (account.is_system) {
+      toast({ title: "تنبيه", description: "هذا حساب نظام أساسي ولا يمكن حذفه", variant: "destructive" });
+      return;
+    }
     const children = accountTree.get(account.id);
     if (children && children.length > 0) {
       // Check if any child has journal entries
@@ -271,9 +276,17 @@ export default function Accounts() {
             </div>
           </TableCell>
           <TableCell>
-            <span className={`font-medium ${account.is_parent ? "text-foreground" : "text-foreground/80"}`}>
-              {account.name}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`font-medium ${account.is_parent ? "text-foreground" : "text-foreground/80"}`}>
+                {account.name}
+              </span>
+              {account.is_system && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-primary/30 text-primary gap-1">
+                  <Shield className="h-3 w-3" />
+                  نظام
+                </Badge>
+              )}
+            </div>
           </TableCell>
           <TableCell>
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${typeColors[account.account_type]}`}>
@@ -307,7 +320,7 @@ export default function Accounts() {
                   <Plus className="h-4 w-4" />
                 </Button>
               )}
-              {canDelete && !hasChildren && (
+              {canDelete && !hasChildren && !account.is_system && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10">

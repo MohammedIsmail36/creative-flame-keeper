@@ -7,7 +7,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Download, CalendarIcon, X, ArrowUpRight, ArrowDownRight, Scale, CheckCircle, AlertTriangle, Shield, FileBarChart } from "lucide-react";
+import { TrendingUp, TrendingDown, Download, CalendarIcon, X, ArrowUpRight, ArrowDownRight, Scale, CheckCircle, AlertTriangle, Shield, FileBarChart, Info } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Account {
   id: string;
@@ -255,6 +256,16 @@ export default function IncomeStatement() {
           {netIncome >= 0 ? "ربح" : "خسارة"}
         </div>
       </div>
+
+      {/* Current Period Alert */}
+      {settings?.enable_fiscal_year_closing && lastClosingDate && !dateFrom && (
+        <Alert className="border-blue-500/30 bg-blue-500/5">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-sm text-blue-700 dark:text-blue-400">
+            البيانات المعروضة للفترة الجارية فقط بعد آخر إقفال بتاريخ <span className="font-bold">{lastClosingDate}</span>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {loading ? (
         <div className="p-12 text-center text-muted-foreground">جاري التحميل...</div>
