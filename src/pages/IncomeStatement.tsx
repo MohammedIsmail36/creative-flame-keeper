@@ -131,9 +131,14 @@ export default function IncomeStatement() {
     <div className="space-y-8" dir="rtl">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-foreground">قائمة الدخل</h1>
-          <p className="text-muted-foreground mt-1">بيان الإيرادات والمصروفات للفترة المحددة</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10">
+            <FileBarChart className="h-7 w-7 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-extrabold text-foreground">قائمة الدخل</h1>
+            <p className="text-muted-foreground mt-1">بيان الإيرادات والمصروفات للفترة المحددة</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {/* Date filter */}
