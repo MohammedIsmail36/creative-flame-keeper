@@ -4,7 +4,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, Lock, TrendingUp, TrendingDown, DollarSign, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Loader2, Lock, TrendingUp, TrendingDown, DollarSign, AlertTriangle, CheckCircle2, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
