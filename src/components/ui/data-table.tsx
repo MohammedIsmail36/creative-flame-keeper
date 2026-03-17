@@ -294,7 +294,7 @@ export function DataTable<TData, TValue>({
                 Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
                   <TableRow key={`skeleton-${i}`} className="hover:bg-transparent">
                     {columns.map((_, j) => (
-                      <TableCell key={j} className="px-3 h-14">
+                      <TableCell key={j} className="px-3 h-11">
                         <Skeleton className="h-4 w-full max-w-[160px]" />
                       </TableCell>
                     ))}
@@ -307,7 +307,7 @@ export function DataTable<TData, TValue>({
                     data-state={row.getIsSelected() && "selected"}
                     className={cn(
                       // ↓ h-11 ثابت (44px) — موحّد ومحكم
-                      "h-11 border-b border-border/50 transition-colors",
+                      "h-14 border-b border-border/50 transition-colors",
                       // ↓ zebra بقيمة /25 مرئية لكن غير ثقيلة
                       idx % 2 === 1 && "bg-muted/25",
                       // ↓ hover فقط إذا الصف قابل للنقر
@@ -319,7 +319,7 @@ export function DataTable<TData, TValue>({
                       <TableCell
                         key={cell.id}
                         // ↓ py-0 لأن الارتفاع محكوم بـ h-10 على الـ row
-                        className="px-3 py-0 text-sm"
+                        className="px-3 py-1 text-sm"
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
