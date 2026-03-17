@@ -387,24 +387,24 @@ export default function SalesReturnForm() {
   const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
 
   return (
-    <div className="space-y-8" dir="rtl">
+    <div className="space-y-6" dir="rtl">
       {/* ── Page Header ── */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <div className="flex items-center gap-4 flex-wrap">
-            <h1 className="text-3xl font-black text-foreground tracking-tight">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-black text-foreground tracking-tight">
               {isNew ? "مرتجع بيع جديد" : "مرتجع بيع"}
             </h1>
             {displayNumber && (
-              <span className="text-base font-semibold text-muted-foreground border border-border px-3 py-1 rounded-lg bg-muted/50 font-mono tabular-nums">
+              <span className="text-sm font-semibold text-muted-foreground border border-border px-3 py-1 rounded-lg bg-muted/50 font-mono tabular-nums">
                 {displayNumber}
               </span>
             )}
             {!isNew && <Badge variant={statusColors[status] as any} className="text-xs px-3 py-1">{statusLabels[status]}</Badge>}
           </div>
-          <p className="text-muted-foreground mt-2 font-medium">إدارة وتوثيق مرتجعات المبيعات بدقة وسهولة</p>
+          <p className="text-muted-foreground mt-1.5 text-sm">إدارة وتوثيق مرتجعات المبيعات بدقة وسهولة</p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {!isNew && isDraft && canEdit && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -434,19 +434,21 @@ export default function SalesReturnForm() {
             </Button>
           )}
           {!isNew && isDraft && canEdit && (
-            <Button size="sm" onClick={postReturn} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 px-6">
+            <Button size="sm" onClick={postReturn} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5">
               <CheckCircle className="h-4 w-4" />ترحيل المرتجع
             </Button>
           )}
         </div>
       </div>
 
-      {/* ── Entity Details Card (single row) ── */}
+      {/* ── Entity Details Card ── */}
       <div className="bg-card p-6 rounded-2xl border shadow-sm">
-        <SectionHeader icon={User} title="بيانات المرتجع" />
+        <div className="mb-5">
+          <SectionHeader icon={User} title="بيانات المرتجع" />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium text-muted-foreground">اسم العميل</Label>
+            <Label className="text-xs font-medium text-muted-foreground">اسم العميل</Label>
             {isEditable ? (
               <LookupCombobox items={customers} value={customerId} onValueChange={setCustomerId} placeholder="اختر العميل" />
             ) : (
@@ -456,7 +458,7 @@ export default function SalesReturnForm() {
             )}
           </div>
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium text-muted-foreground">تاريخ المرتجع</Label>
+            <Label className="text-xs font-medium text-muted-foreground">تاريخ المرتجع</Label>
             {isEditable ? (
               <DatePickerInput value={returnDate} onChange={setReturnDate} placeholder="اختر التاريخ" />
             ) : (
@@ -464,7 +466,7 @@ export default function SalesReturnForm() {
             )}
           </div>
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium text-muted-foreground">رقم المرجع</Label>
+            <Label className="text-xs font-medium text-muted-foreground">رقم المرجع</Label>
             {isEditable ? (
               <Input value={reference} onChange={e => setReference(e.target.value)} placeholder="رقم مرجعي (اختياري)" className="rounded-xl" />
             ) : (
@@ -476,65 +478,100 @@ export default function SalesReturnForm() {
 
       {/* ── Items Table Card ── */}
       <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between p-6 pb-4">
-          <SectionHeader icon={ListChecks} title="بنود المرتجع" />
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <SectionHeader icon={ListChecks} title="بنود المرتجع" />
+            {items.length > 0 && (
+              <span className="text-xs font-medium text-muted-foreground bg-muted border border-border/60 px-2.5 py-0.5 rounded-full tabular-nums">
+                {items.length} {items.length === 1 ? "بند" : "بنود"}
+              </span>
+            )}
+          </div>
         </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-right border-collapse">
+          <table className="w-full text-right border-collapse" style={{ tableLayout: "fixed" }}>
+            <colgroup>
+              <col style={{ width: "4%" }} />
+              <col style={{ width: showDiscount ? "38%" : "48%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "18%" }} />
+              {showDiscount && <col style={{ width: "14%" }} />}
+              <col style={{ width: "18%" }} />
+              {isEditable && <col style={{ width: "4%" }} />}
+            </colgroup>
             <thead>
-              <tr className="border-b border-border">
-                <th className="pb-4 px-6 font-bold text-muted-foreground text-sm">البند</th>
-                <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-20">الكمية</th>
-                <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-32">السعر</th>
-                {showDiscount && <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-24">خصم</th>}
-                <th className="pb-4 px-3 font-bold text-muted-foreground text-sm w-32">المجموع</th>
-                {isEditable && <th className="pb-4 px-3 w-12"></th>}
+              <tr className="border-b border-border bg-muted/20">
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">#</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">البند</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الكمية</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">سعر الوحدة</th>
+                {showDiscount && <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الخصم</th>}
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">المجموع</th>
+                {isEditable && <th className="py-2 px-2" />}
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/50">
+            <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={colCount} className="text-center py-12 text-muted-foreground">لا توجد أصناف بعد</td>
+                  <td colSpan={colCount}>
+                    <div className="flex flex-col items-center justify-center py-16 gap-3">
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                        <ListChecks className="h-5 w-5 text-muted-foreground/40" />
+                      </div>
+                      <p className="text-sm font-medium text-muted-foreground">لا توجد بنود بعد</p>
+                      {isEditable && <p className="text-xs text-muted-foreground/50">اضغط «إضافة بند جديد» للبدء</p>}
+                    </div>
+                  </td>
                 </tr>
               ) : items.map((item, i) => (
-                <tr key={i} className="group hover:bg-muted/30 transition-colors">
-                  <td className="py-4 px-6">
+                <tr key={i} className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100">
+                  <td className="py-2 px-3 text-center">
+                    <span className="text-xs font-medium text-muted-foreground/40 tabular-nums">{i + 1}</span>
+                  </td>
+                  <td className="py-2 px-3 min-w-0">
                     {isEditable ? (
                       <LookupCombobox items={productsToLookupItems(products)} value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)} placeholder="اختر المنتج" />
                     ) : (
-                      <span className="font-medium text-sm">{item.product_name}</span>
+                      <span className="font-medium text-sm block truncate" title={item.product_name}>{item.product_name}</span>
                     )}
                   </td>
-                  <td className="py-4 px-3">
+                  <td className="py-2 px-3">
                     {isEditable ? (
-                      <Input type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9" />
+                      <Input type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full" />
                     ) : (
-                      <span className="font-mono tabular-nums">{item.quantity}</span>
+                      <span className="font-mono tabular-nums text-sm block text-center">{item.quantity}</span>
                     )}
                   </td>
-                  <td className="py-4 px-3">
+                  <td className="py-2 px-3">
                     {isEditable ? (
-                      <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9" />
+                      <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full" />
                     ) : (
-                      <span className="font-mono tabular-nums">{item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                      <span className="font-mono tabular-nums text-sm text-muted-foreground">{item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                     )}
                   </td>
                   {showDiscount && (
-                    <td className="py-4 px-3">
+                    <td className="py-2 px-3">
                       {isEditable ? (
-                        <Input type="number" min="0" step="0.01" value={item.discount} onChange={e => updateItem(i, "discount", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-lg h-9" />
+                        <Input type="number" min="0" step="0.01" value={item.discount} onChange={e => updateItem(i, "discount", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full" />
+                      ) : item.discount > 0 ? (
+                        <span className="inline-flex items-center text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-800 font-mono tabular-nums">
+                          -{item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </span>
                       ) : (
-                        <span className="font-mono tabular-nums">{item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                        <span className="text-muted-foreground/30 text-sm">—</span>
                       )}
                     </td>
                   )}
-                  <td className="py-4 px-3">
-                    <span className="font-mono tabular-nums font-bold text-foreground">{formatCurrency(item.total)}</span>
+                  <td className="py-2 px-3 text-center w-full">
+                    <span className="font-mono tabular-nums font-semibold text-sm text-foreground bg-muted/30 block rounded-md py-1.5 border border-border">
+                      {formatCurrency(item.total)}
+                    </span>
                   </td>
                   {isEditable && (
-                    <td className="py-4 px-3">
-                      <button className="p-1 text-muted-foreground/40 hover:text-destructive transition-colors" onClick={() => removeItem(i)}>
-                        <X className="h-5 w-5" />
+                    <td className="py-2 px-2">
+                      <button onClick={() => removeItem(i)} className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100" aria-label="حذف البند">
+                        <X className="h-3.5 w-3.5" />
                       </button>
                     </td>
                   )}
@@ -543,20 +580,54 @@ export default function SalesReturnForm() {
             </tbody>
           </table>
         </div>
-        {isEditable && (
-          <div className="p-4 border-t">
-            <button onClick={addItem} className="flex items-center gap-2 text-sm font-bold text-primary hover:bg-primary/5 px-4 py-2 rounded-xl transition-all">
+
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/10 flex-wrap gap-3">
+          {isEditable ? (
+            <button onClick={addItem} className="flex items-center gap-2 text-sm font-semibold text-primary hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-all">
               <Plus className="h-4 w-4" />
               إضافة بند جديد
             </button>
-          </div>
-        )}
+          ) : (
+            <div />
+          )}
+          {items.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
+                <span className="text-xs text-muted-foreground">المنتجات</span>
+                <span className="text-xs font-mono font-semibold tabular-nums text-foreground">{items.filter(i => i.product_id).length}</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
+                <span className="text-xs text-muted-foreground">الوحدات</span>
+                <span className="text-xs font-mono font-semibold tabular-nums text-foreground">{items.reduce((s, i) => s + i.quantity, 0)}</span>
+              </div>
+              <div className="w-px h-4 bg-border/60" />
+              {showDiscount && totalDiscount > 0 && (
+                <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
+                  <span className="text-xs text-muted-foreground">إجمالي الخصم</span>
+                  <span className="text-xs font-mono font-semibold tabular-nums text-green-600 dark:text-green-400">-{formatCurrency(totalDiscount)}</span>
+                </div>
+              )}
+              {showTax && (
+                <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
+                  <span className="text-xs text-muted-foreground">الضريبة {taxRate}%</span>
+                  <span className="text-xs font-mono font-semibold tabular-nums text-foreground">{formatCurrency(taxAmount)}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-1.5 bg-primary/5 border border-primary/20 px-3 py-1.5 rounded-lg">
+                <span className="text-xs text-primary/70 font-medium">الإجمالي</span>
+                <span className="text-xs font-mono font-bold tabular-nums text-primary">{formatCurrency(grandTotal)}</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── Notes + Summary: Side by side ── */}
+      {/* ── Notes + Summary ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col">
-          <SectionHeader icon={StickyNote} title="ملاحظات داخلية" />
+          <div className="mb-4">
+            <SectionHeader icon={StickyNote} title="ملاحظات داخلية" />
+          </div>
           <div className="flex-1 space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">ملاحظات داخلية (لا تظهر في الطباعة)</Label>
             {isEditable ? (
@@ -567,30 +638,35 @@ export default function SalesReturnForm() {
                 placeholder="أدخل أي ملاحظات إضافية هنا..."
               />
             ) : (
-              <div className="h-32 px-4 py-3 bg-muted/30 border rounded-xl text-sm">{notes || "لا توجد ملاحظات"}</div>
+              <div className="h-32 px-4 py-3 bg-muted/30 border rounded-xl text-sm text-muted-foreground">{notes || "لا توجد ملاحظات"}</div>
             )}
           </div>
         </div>
 
-        <div className="bg-muted/50 p-8 rounded-2xl border shadow-sm">
-          <SectionHeader icon={CreditCard} title="ملخص المرتجع" />
-          <div className="space-y-4">
-            <div className="flex justify-between text-base">
-              <span className="font-medium font-mono tabular-nums">{formatCurrency(subtotal)}</span>
-              <span className="text-muted-foreground">الإجمالي الفرعي</span>
+        <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col justify-between">
+          <div className="mb-4">
+            <SectionHeader icon={CreditCard} title="ملخص المرتجع" />
+          </div>
+          <div className="space-y-1 mt-2">
+            <div className="flex justify-between items-center py-2.5 border-b border-border/50">
+              <span className="font-mono tabular-nums text-sm font-medium">{formatCurrency(subtotal)}</span>
+              <span className="text-sm text-muted-foreground">المجموع قبل الضريبة</span>
             </div>
-            {showTax && (
-              <div className="flex justify-between text-base">
-                <span className="font-medium font-mono tabular-nums">{formatCurrency(taxAmount)}</span>
-                <span className="text-muted-foreground">إجمالي الضريبة ({taxRate}%)</span>
+            {showDiscount && totalDiscount > 0 && (
+              <div className="flex justify-between items-center py-2.5 border-b border-border/50">
+                <span className="font-mono tabular-nums text-sm font-medium text-green-600 dark:text-green-400">-{formatCurrency(totalDiscount)}</span>
+                <span className="text-sm text-muted-foreground">إجمالي الخصومات</span>
               </div>
             )}
-            <div className="h-px bg-border my-4"></div>
-            <div className="flex justify-between items-center">
-              <div className="text-right">
-                <span className="text-3xl font-black text-primary font-mono tabular-nums">{formatCurrency(grandTotal)}</span>
+            {showTax && (
+              <div className="flex justify-between items-center py-2.5 border-b border-border/50">
+                <span className="font-mono tabular-nums text-sm font-medium">{formatCurrency(taxAmount)}</span>
+                <span className="text-sm text-muted-foreground">ضريبة القيمة المضافة ({taxRate}%)</span>
               </div>
-              <span className="text-lg font-bold text-foreground">الإجمالي الكلي</span>
+            )}
+            <div className="flex justify-between items-center pt-4">
+              <span className="text-2xl font-black text-primary font-mono tabular-nums">{formatCurrency(grandTotal)}</span>
+              <span className="text-base font-bold text-foreground">الإجمالي الكلي</span>
             </div>
           </div>
         </div>
@@ -599,7 +675,9 @@ export default function SalesReturnForm() {
       {/* ── Related Operations ── */}
       {!isNew && status === "posted" && id && (
         <div className="bg-card p-6 rounded-2xl border shadow-sm">
-          <SectionHeader icon={ArrowLeftRight} title="العمليات المرتبطة" />
+          <div className="mb-5">
+            <SectionHeader icon={ArrowLeftRight} title="العمليات المرتبطة" />
+          </div>
           <div className="space-y-4">
             <ReturnSettlementsView type="sales" returnId={id} returnTotal={grandTotal} />
             <InvoicePaymentSection
