@@ -90,8 +90,8 @@ export default function MfaVerify() {
           <div className="space-y-8">
             <div className="flex justify-center" dir="ltr">
               <InputOTP maxLength={6} value={code} onChange={(val) => setCode(val)}>
-                <InputOTPGroup className="gap-1.5">
-                  <InputOTPSlot index={0} className="w-12 h-14 text-2xl font-bold border-2" />
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} className="w-12 h-14 text-2xl font-bold" />
                   <InputOTPSlot index={1} className="w-12 h-14 text-2xl font-bold border-2" />
                   <InputOTPSlot index={2} className="w-12 h-14 text-2xl font-bold border-2" />
                 </InputOTPGroup>
@@ -99,7 +99,7 @@ export default function MfaVerify() {
                 <InputOTPGroup>
                   <InputOTPSlot index={3} className="w-12 h-14 text-2xl font-bold border-2" />
                   <InputOTPSlot index={4} className="w-12 h-14 text-2xl font-bold border-2" />
-                  <InputOTPSlot index={5} className="w-12 h-14 text-2xl font-bold border-2" />
+                  <InputOTPSlot index={5} className="w-12 h-14 text-2xl font-bold" />
                 </InputOTPGroup>
               </InputOTP>
             </div>
