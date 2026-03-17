@@ -35,6 +35,7 @@ export default function FiscalYearClosing() {
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [executing, setExecuting] = useState(false);
+  const [reversing, setReversing] = useState(false);
   const [existingClosing, setExistingClosing] = useState<any>(null);
 
   // Calculate fiscal year dates
