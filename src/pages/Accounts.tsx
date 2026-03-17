@@ -196,6 +196,10 @@ export default function Accounts() {
   };
 
   const handleDelete = async (account: Account) => {
+    if (account.is_system) {
+      toast({ title: "تنبيه", description: "هذا حساب نظام أساسي ولا يمكن حذفه", variant: "destructive" });
+      return;
+    }
     const children = accountTree.get(account.id);
     if (children && children.length > 0) {
       // Check if any child has journal entries
