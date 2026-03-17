@@ -4,11 +4,8 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { AccountCombobox } from "@/components/AccountCombobox";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Save, CheckCircle, Trash2, Pencil, CalendarIcon, Plus, X, Ban } from "lucide-react";
+import { Save, CheckCircle, Trash2, Pencil, CalendarIcon, Plus, X, Ban, BookOpen, Check } from "lucide-react";
 import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 
 interface Account {
@@ -83,7 +80,6 @@ export default function JournalEntryForm() {
           })));
         }
 
-        // Check if linked to operations
         const queries = [
           (supabase.from("sales_invoices") as any).select("id").eq("journal_entry_id", id).limit(1),
           (supabase.from("purchase_invoices") as any).select("id").eq("journal_entry_id", id).limit(1),
@@ -110,6 +106,7 @@ export default function JournalEntryForm() {
 
   const totalDebit = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
   const totalCredit = lines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
+  const difference = Math.abs(totalDebit - totalCredit);
   const isBalanced = totalDebit > 0 && totalDebit === totalCredit;
 
   function addLine() {
@@ -238,14 +235,26 @@ export default function JournalEntryForm() {
   const isEditable = editMode && isDraft && canEdit;
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-8" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {isNew ? "قيد محاسبي جديد" : `قيد ${displayNumber}`}
-          </h1>
-          {!isNew && <Badge variant={statusColors[status] as any} className="mt-1">{statusLabels[status]}</Badge>}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+            <BookOpen className="h-7 w-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                {isNew ? "إنشاء قيد محاسبي جديد" : `قيد ${displayNumber}`}
+              </h1>
+              {!isNew && (
+                <Badge variant={statusColors[status] as any} className="text-xs">{statusLabels[status]}</Badge>
+              )}
+            </div>
+            <p className="text-muted-foreground mt-1">
+              {isNew ? "تسجيل المعاملات المالية يدوياً في دفتر الأستاذ العام." : `تفاصيل القيد المحاسبي ${displayNumber}`}
+            </p>
+          </div>
         </div>
         <div className="flex gap-2 flex-wrap">
           {!isNew && isDraft && canDelete && (
@@ -310,123 +319,181 @@ export default function JournalEntryForm() {
         </div>
       </div>
 
-      {/* Entry Info */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>التاريخ</Label>
-              {isEditable || isNew ? (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !entryDate && "text-muted-foreground")}>
-                      <CalendarIcon className="ml-2 h-4 w-4" />
-                      {entryDate || "اختر التاريخ"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={entryDate ? new Date(entryDate + "T00:00:00") : undefined} onSelect={(date) => date && setEntryDate(format(date, "yyyy-MM-dd"))} initialFocus className="p-3 pointer-events-auto" />
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                <p className="text-sm font-medium p-2 bg-muted/30 rounded">{entryDate}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>وصف القيد</Label>
-              {isEditable || isNew ? (
-                <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="مثال: تسجيل فاتورة مبيعات" />
-              ) : (
-                <p className="text-sm font-medium p-2 bg-muted/30 rounded">{description}</p>
-              )}
-            </div>
+      {/* Entry Details Card */}
+      <div className="bg-card rounded-2xl border border-border shadow-sm p-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {/* Entry Number (read-only) */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">رقم القيد</label>
+            <Input
+              readOnly
+              value={displayNumber}
+              className="bg-muted/50 border-none font-mono text-muted-foreground"
+            />
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Lines */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">بنود القيد</CardTitle>
-            {(isEditable || isNew) && (
-              <Button variant="outline" size="sm" onClick={addLine} className="gap-1">
-                <Plus className="h-3 w-3" />سطر جديد
-              </Button>
+          {/* Date */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">تاريخ القيد</label>
+            {isEditable || isNew ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-right font-normal h-10 rounded-xl", !entryDate && "text-muted-foreground")}>
+                    <CalendarIcon className="ml-2 h-4 w-4 text-muted-foreground" />
+                    {entryDate || "اختر التاريخ"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={entryDate ? new Date(entryDate + "T00:00:00") : undefined} onSelect={(date) => date && setEntryDate(format(date, "yyyy-MM-dd"))} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <Input readOnly value={entryDate} className="bg-muted/30 border-none" />
             )}
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="border rounded-lg overflow-hidden mx-4 mb-4">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30">
-                  <TableHead className="text-right min-w-[200px]">الحساب</TableHead>
-                  <TableHead className="text-right">البيان</TableHead>
-                  <TableHead className="text-right w-[120px]">مدين</TableHead>
-                  <TableHead className="text-right w-[120px]">دائن</TableHead>
-                  {(isEditable || isNew) && <TableHead className="w-[40px]"></TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lines.map((line, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="p-2">
-                      {isEditable || isNew ? (
-                        <AccountCombobox accounts={accounts} value={line.account_id} onValueChange={v => updateLine(index, "account_id", v)} />
-                      ) : (
-                        <span className="font-medium">{accountMap.get(line.account_id) ? `${accountMap.get(line.account_id)!.code} - ${accountMap.get(line.account_id)!.name}` : line.account_id}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="p-2">
-                      {isEditable || isNew ? (
-                        <Input className="h-9" value={line.description} onChange={e => updateLine(index, "description", e.target.value)} placeholder="بيان" />
-                      ) : (
-                        <span className="text-muted-foreground">{line.description || "—"}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="p-2">
-                      {isEditable || isNew ? (
-                        <Input className="h-9 font-mono" type="number" min="0" step="0.01" value={line.debit || ""} onChange={e => updateLine(index, "debit", parseFloat(e.target.value) || 0)} placeholder="0.00" />
-                      ) : (
-                        <span className="font-mono">{line.debit > 0 ? formatCurrency(line.debit) : "—"}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="p-2">
-                      {isEditable || isNew ? (
-                        <Input className="h-9 font-mono" type="number" min="0" step="0.01" value={line.credit || ""} onChange={e => updateLine(index, "credit", parseFloat(e.target.value) || 0)} placeholder="0.00" />
-                      ) : (
-                        <span className="font-mono">{line.credit > 0 ? formatCurrency(line.credit) : "—"}</span>
-                      )}
-                    </TableCell>
-                    {(isEditable || isNew) && (
-                      <TableCell className="p-2">
-                        {lines.length > 2 && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeLine(index)}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-                <TableRow className="bg-muted/20 font-bold">
-                  <TableCell colSpan={2} className="text-left p-2">الإجمالي</TableCell>
-                  <TableCell className={`p-2 font-mono ${isBalanced ? "text-green-600" : "text-destructive"}`}>{formatCurrency(totalDebit)}</TableCell>
-                  <TableCell className={`p-2 font-mono ${isBalanced ? "text-green-600" : "text-destructive"}`}>{formatCurrency(totalCredit)}</TableCell>
-                  {(isEditable || isNew) && <TableCell></TableCell>}
-                </TableRow>
-              </TableBody>
-            </Table>
+          {/* Description */}
+          <div className="md:col-span-2 space-y-2">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">الوصف العام للقيد</label>
+            {isEditable || isNew ? (
+              <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="أدخل تفاصيل عامة عن هذا القيد المحاسبي..." className="rounded-xl" />
+            ) : (
+              <Input readOnly value={description} className="bg-muted/30 border-none" />
+            )}
           </div>
+        </div>
+      </div>
 
-          {!isBalanced && totalDebit > 0 && (
-            <p className="text-sm text-destructive flex items-center gap-1 px-4 pb-4">
-              ⚠️ القيد غير متوازن - الفرق: {formatCurrency(Math.abs(totalDebit - totalCredit))}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Journal Lines Table */}
+      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
+        <div className="overflow-x-auto">
+          <table className="w-full text-right border-collapse">
+            <thead>
+              <tr className="bg-muted/30 border-b border-border">
+                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wider w-12">#</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wider w-1/4">اسم الحساب</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">البيان / الوصف</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wider w-36 text-center">مدين (Debit)</th>
+                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wider w-36 text-center">دائن (Credit)</th>
+                {(isEditable || isNew) && <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wider w-16 text-center">إجراءات</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {lines.map((line, index) => (
+                <tr key={index} className="group hover:bg-muted/20 transition-colors">
+                  <td className="px-6 py-2 text-sm text-muted-foreground font-medium">{index + 1}</td>
+                  <td className="px-6 py-2">
+                    {isEditable || isNew ? (
+                      <AccountCombobox accounts={accounts} value={line.account_id} onValueChange={v => updateLine(index, "account_id", v)} />
+                    ) : (
+                      <span className="font-medium text-sm">{accountMap.get(line.account_id) ? `${accountMap.get(line.account_id)!.code} - ${accountMap.get(line.account_id)!.name}` : line.account_id}</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-2">
+                    {isEditable || isNew ? (
+                      <Input className="h-10 rounded-xl" value={line.description} onChange={e => updateLine(index, "description", e.target.value)} placeholder="بيان السطر..." />
+                    ) : (
+                      <span className="text-sm text-muted-foreground">{line.description || "—"}</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-2">
+                    {isEditable || isNew ? (
+                      <Input
+                        className="h-10 rounded-xl text-center font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:bg-primary/5"
+                        type="number" min="0" step="0.01"
+                        value={line.debit || ""}
+                        onChange={e => updateLine(index, "debit", parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
+                      />
+                    ) : (
+                      <span className="font-mono text-sm block text-center">{line.debit > 0 ? formatCurrency(line.debit) : "—"}</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-2">
+                    {isEditable || isNew ? (
+                      <Input
+                        className="h-10 rounded-xl text-center font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:bg-primary/5"
+                        type="number" min="0" step="0.01"
+                        value={line.credit || ""}
+                        onChange={e => updateLine(index, "credit", parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
+                      />
+                    ) : (
+                      <span className="font-mono text-sm block text-center">{line.credit > 0 ? formatCurrency(line.credit) : "—"}</span>
+                    )}
+                  </td>
+                  {(isEditable || isNew) && (
+                    <td className="px-6 py-2 text-center">
+                      {lines.length > 2 && (
+                        <button
+                          onClick={() => removeLine(index)}
+                          className="w-8 h-8 flex items-center justify-center text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all mx-auto"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Add line button */}
+        {(isEditable || isNew) && (
+          <div className="p-6 bg-muted/10 border-t border-border">
+            <button
+              onClick={addLine}
+              className="inline-flex items-center gap-2 text-primary font-bold hover:bg-primary/5 px-6 py-2.5 rounded-xl transition-all border border-dashed border-primary/40"
+            >
+              <Plus className="h-5 w-5" />
+              <span className="text-sm">إضافة سطر جديد</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Totals & Balance Bar */}
+      <div className="bg-card rounded-2xl border border-border shadow-sm p-8 flex flex-col md:flex-row justify-between items-center gap-8">
+        <div className="flex flex-wrap items-center gap-12">
+          <div className="space-y-1">
+            <p className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">إجمالي المدين</p>
+            <p className="text-2xl font-black text-foreground">{formatCurrency(totalDebit)}</p>
+          </div>
+          <div className="h-12 w-px bg-border hidden md:block" />
+          <div className="space-y-1">
+            <p className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">إجمالي الدائن</p>
+            <p className="text-2xl font-black text-foreground">{formatCurrency(totalCredit)}</p>
+          </div>
+          <div className="h-12 w-px bg-border hidden md:block" />
+          <div className="space-y-1">
+            <p className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">الفرق (التوازن)</p>
+            <p className={cn("text-2xl font-black", isBalanced ? "text-green-600" : "text-destructive")}>{formatCurrency(difference)}</p>
+          </div>
+        </div>
+        {/* Balance Indicator */}
+        {totalDebit > 0 && (
+          isBalanced ? (
+            <div className="flex items-center gap-3 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 px-6 py-3 rounded-2xl border border-green-200 dark:border-green-800 ring-4 ring-green-50/30 dark:ring-green-950/20">
+              <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white">
+                <Check className="h-4 w-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-black uppercase tracking-tight">قيد متوازن</span>
+                <span className="text-[11px] opacity-80">جاهز للترحيل للحسابات</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 px-6 py-3 rounded-2xl border border-red-200 dark:border-red-800 ring-4 ring-red-50/30 dark:ring-red-950/20">
+              <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white">
+                <X className="h-4 w-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-black uppercase tracking-tight">قيد غير متوازن</span>
+                <span className="text-[11px] opacity-80">الفرق: {formatCurrency(difference)}</span>
+              </div>
+            </div>
+          )
+        )}
+      </div>
     </div>
   );
 }
