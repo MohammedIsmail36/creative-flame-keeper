@@ -48,6 +48,7 @@ interface Props {
   invoiceTotal: number;
   invoiceNumber: number | null;
   onPaymentAdded: () => void;
+  refreshKey?: number;
 }
 
 const ACCOUNT_CODES = {
@@ -59,7 +60,16 @@ const ACCOUNT_CODES = {
 
 const methodLabels: Record<string, string> = { cash: "نقدي", bank: "تحويل بنكي", check: "شيك" };
 
-export default function InvoicePaymentSection({ type, invoiceId, entityId, entityName, invoiceTotal, invoiceNumber, onPaymentAdded }: Props) {
+export default function InvoicePaymentSection({
+  type,
+  invoiceId,
+  entityId,
+  entityName,
+  invoiceTotal,
+  invoiceNumber,
+  onPaymentAdded,
+  refreshKey = 0,
+}: Props) {
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [availablePayments, setAvailablePayments] = useState<AvailablePayment[]>([]);
   const [paidAmount, setPaidAmount] = useState(0);
@@ -87,7 +97,7 @@ export default function InvoicePaymentSection({ type, invoiceId, entityId, entit
   const invoiceTable = type === "sales" ? "sales_invoices" : type === "purchase" ? "purchase_invoices" : type === "sales_return" ? "sales_returns" : "purchase_returns";
   const entityIdCol = isCustomerSide ? "customer_id" : "supplier_id";
 
-  useEffect(() => { fetchData(); }, [invoiceId, entityId]);
+  useEffect(() => { fetchData(); }, [invoiceId, entityId, refreshKey]);
 
   async function fetchData() {
     setLoading(true);

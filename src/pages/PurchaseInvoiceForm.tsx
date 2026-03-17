@@ -59,6 +59,7 @@ export default function PurchaseInvoiceForm() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [paymentSectionRefreshKey, setPaymentSectionRefreshKey] = useState(0);
 
   const [invoiceNumber, setInvoiceNumber] = useState<number | null>(null);
   const [postedNumber, setPostedNumber] = useState<number | null>(null);
@@ -107,6 +108,11 @@ export default function PurchaseInvoiceForm() {
       setEditMode(true);
       setLoading(false);
     }
+  }
+
+  async function handleSettlementChanged() {
+    await loadData();
+    setPaymentSectionRefreshKey((current) => current + 1);
   }
 
   function addItem() {
@@ -607,10 +613,10 @@ export default function PurchaseInvoiceForm() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <InvoicePaymentSection type="purchase" invoiceId={id} entityId={supplierId} entityName={supplierName || suppliers.find(s => s.id === supplierId)?.name || ""} invoiceTotal={grandTotal} invoiceNumber={invoiceNumber} onPaymentAdded={loadData} />
+              <InvoicePaymentSection type="purchase" invoiceId={id} entityId={supplierId} entityName={supplierName || suppliers.find(s => s.id === supplierId)?.name || ""} invoiceTotal={grandTotal} invoiceNumber={invoiceNumber} onPaymentAdded={loadData} refreshKey={paymentSectionRefreshKey} />
             </div>
             <div className="space-y-4">
-              <OutstandingCreditsSection type="purchase" invoiceId={id} entityId={supplierId} invoiceTotal={grandTotal} onSettlementChanged={loadData} />
+              <OutstandingCreditsSection type="purchase" invoiceId={id} entityId={supplierId} invoiceTotal={grandTotal} onSettlementChanged={handleSettlementChanged} />
             </div>
           </div>
         </div>
