@@ -48,6 +48,7 @@ interface Props {
   invoiceTotal: number;
   invoiceNumber: number | null;
   onPaymentAdded: () => void;
+  refreshKey?: number;
 }
 
 const ACCOUNT_CODES = {
