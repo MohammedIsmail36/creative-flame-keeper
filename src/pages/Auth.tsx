@@ -60,14 +60,10 @@ export default function Auth() {
               <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
                 <Calculator className="w-7 h-7 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-extrabold text-foreground tracking-tight">
-                النظام المحاسبي
-              </span>
+              <span className="text-2xl font-extrabold text-foreground tracking-tight">النظام المحاسبي</span>
             </div>
             <h2 className="text-2xl font-bold text-foreground mb-2">تسجيل الدخول</h2>
-            <p className="text-muted-foreground">
-              مرحباً بك مجدداً! يرجى إدخال بياناتك للدخول
-            </p>
+            <p className="text-muted-foreground">مرحباً بك مجدداً! يرجى إدخال بياناتك للدخول</p>
           </div>
 
           {/* Login Form */}
@@ -109,7 +105,7 @@ export default function Auth() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute inset-y-0 right-0 mr-4 pl-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -145,9 +141,7 @@ export default function Auth() {
         </div>
 
         <div className="relative z-10 text-center max-w-md">
-          <h1 className="text-4xl font-extrabold mb-6 leading-tight">
-            نظام محاسبي متطور لإدارة أعمالك
-          </h1>
+          <h1 className="text-4xl font-extrabold mb-6 leading-tight">نظام محاسبي متطور لإدارة أعمالك</h1>
           <p className="text-xl text-blue-100 font-light mb-12">
             نحن نوفر لك حلولاً مالية ذكية وموثوقة تساعدك على التركيز على نمو أعمالك بينما نتولى نحن الأرقام.
           </p>
