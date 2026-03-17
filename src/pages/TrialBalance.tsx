@@ -237,21 +237,21 @@ export default function TrialBalance() {
       </div>
 
       {/* Balance Indicator Bar */}
-      <div className="bg-foreground/95 p-4 rounded-xl flex items-center justify-center gap-8 border-r-4 border-primary">
+      <div className="bg-card p-4 rounded-xl flex items-center justify-center gap-8 border shadow-sm">
         <div className="text-center">
-          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">رصيد مدين</p>
-          <p className="text-xl font-bold text-background">{formatCurrency(grandBalanceDebit)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">رصيد مدين</p>
+          <p className="text-xl font-bold text-foreground">{formatCurrency(grandBalanceDebit)}</p>
         </div>
         <div className="text-primary">
           <Scale className="h-9 w-9" />
         </div>
         <div className="text-center">
-          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">رصيد دائن</p>
-          <p className="text-xl font-bold text-background">{formatCurrency(grandBalanceCredit)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">رصيد دائن</p>
+          <p className="text-xl font-bold text-foreground">{formatCurrency(grandBalanceCredit)}</p>
         </div>
         <div className={cn(
           "hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold",
-          isBalanced ? "bg-emerald-500/20 text-emerald-400" : "bg-destructive/20 text-destructive"
+          isBalanced ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive"
         )}>
           {isBalanced ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
           {isBalanced ? "متوازن" : "غير متوازن"}
