@@ -134,7 +134,7 @@ export default function Auth() {
       </section>
 
       {/* Branding Section */}
-      <section className="hidden lg:flex lg:w-1/2 bg-[hsl(213,65%,16%)] relative overflow-hidden flex-col items-center justify-center p-12 text-white">
+      <section className="hidden lg:flex lg:w-1/2 bg-[hsl(213,65%,16%)] relative overflow-hidden flex-col items-center justify-center p-12 text-primary-foreground">
         {/* Decorative background */}
         <div className="absolute inset-0 opacity-10 pointer-events-none">
           <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
