@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, FolderTree, Folder, FolderOpen, Upload, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, FolderTree, Folder, FolderOpen, Upload, Tag, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LookupImportDialog } from "@/components/LookupImportDialog";
 import { ExportMenu } from "@/components/ExportMenu";
@@ -87,7 +87,6 @@ function CategoryTreeNode({
           !node.is_active && "opacity-40"
         )}
       >
-        {/* Expand toggle */}
         <button
           onClick={() => hasChildren && setExpanded(!expanded)}
           className={cn(
@@ -98,14 +97,12 @@ function CategoryTreeNode({
           {hasChildren && (expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
         </button>
 
-        {/* Icon */}
         {hasChildren && expanded ? (
           <FolderOpen className="h-4 w-4 text-primary shrink-0" />
         ) : (
           <Folder className="h-4 w-4 text-muted-foreground shrink-0" />
         )}
 
-        {/* Name & desc */}
         <div className="flex-1 min-w-0">
           <span className="text-sm font-medium text-foreground">{node.name}</span>
           {node.description && (
@@ -113,14 +110,24 @@ function CategoryTreeNode({
           )}
         </div>
 
-        {/* Count badge */}
         {hasChildren && (
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal">
             {descendantCount}
           </Badge>
         )}
 
-        {/* Toggle */}
+        <div onClick={e => e.stopPropagation()}>
+          {node.is_active ? (
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">
+              نشط
+            </span>
+          ) : (
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-destructive/10 text-destructive">
+              معطل
+            </span>
+          )}
+        </div>
+
         <Switch
           checked={node.is_active}
           onCheckedChange={() => onToggleActive(node)}
@@ -128,21 +135,19 @@ function CategoryTreeNode({
           onClick={e => e.stopPropagation()}
         />
 
-        {/* Actions */}
         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => onAddChild(node.id)} title="إضافة فرعي">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={() => onAddChild(node.id)} title="إضافة فرعي">
             <Plus className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => onEdit(node)}>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={() => onEdit(node)}>
             <Pencil className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => onDelete(node)}>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/5" onClick={() => onDelete(node)}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
-      {/* Children */}
       {expanded && hasChildren && (
         <div className="mr-2">
           {node.children.map(child => (
@@ -188,6 +193,14 @@ export default function CategoryManagement() {
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
   const tree = buildTree(items);
+
+  const stats = useMemo(() => {
+    const total = items.length;
+    const active = items.filter(i => i.is_active).length;
+    const inactive = items.filter(i => !i.is_active).length;
+    const roots = items.filter(i => !i.parent_id).length;
+    return { total, active, inactive, roots };
+  }, [items]);
 
   function openAdd(pId: string | null = null) {
     setEditItem(null); setParentId(pId); setFormName(""); setFormDesc(""); setDialogOpen(true);
@@ -254,17 +267,52 @@ export default function CategoryManagement() {
 
   const parentOptions = items.filter(i => (editItem ? i.id !== editItem.id : true));
 
+  const statCards = [
+    {
+      label: "إجمالي التصنيفات",
+      value: stats.total,
+      icon: Tag,
+      iconBg: "bg-blue-100 dark:bg-blue-500/20",
+      iconColor: "text-blue-600 dark:text-blue-400",
+    },
+    {
+      label: "تصنيفات نشطة",
+      value: stats.active,
+      icon: CheckCircle2,
+      iconBg: "bg-green-100 dark:bg-green-500/20",
+      iconColor: "text-green-600 dark:text-green-400",
+    },
+    {
+      label: "تصنيفات معطلة",
+      value: stats.inactive,
+      icon: XCircle,
+      iconBg: "bg-red-100 dark:bg-red-500/20",
+      iconColor: "text-red-600 dark:text-red-400",
+    },
+    {
+      label: "تصنيفات رئيسية",
+      value: stats.roots,
+      icon: FolderTree,
+      iconBg: "bg-purple-100 dark:bg-purple-500/20",
+      iconColor: "text-purple-600 dark:text-purple-400",
+    },
+  ];
+
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div>
-            <h1 className="text-xl font-bold text-foreground">إدارة التصنيفات</h1>
-            <p className="text-xs text-muted-foreground">{items.length} تصنيف</p>
-          </div>
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-foreground flex items-center">
+            <div className="bg-primary/10 p-2 rounded-lg ml-3">
+              <Tag className="h-5 w-5 text-primary" />
+            </div>
+            إدارة التصنيفات
+          </h2>
+          <p className="text-muted-foreground text-sm mt-1">تنظيم المنتجات في تصنيفات هرمية متعددة المستويات.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="gap-2 shadow-sm" onClick={() => setImportOpen(true)}>
             <Upload className="h-4 w-4" />
             استيراد Excel
           </Button>
@@ -279,14 +327,30 @@ export default function CategoryManagement() {
             }}
             disabled={loading}
           />
-          <Button onClick={() => openAdd(null)} size="sm" className="gap-1.5">
+          <Button onClick={() => openAdd(null)} className="gap-2 shadow-md shadow-primary/20 font-bold">
             <Plus className="h-4 w-4" />
             تصنيف جديد
           </Button>
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card">
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        {statCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
+          <div key={label} className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4">
+            <div className={`p-3 rounded-full ${iconBg}`}>
+              <Icon className={`h-5 w-5 ${iconColor}`} />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-xl font-black text-foreground">{value.toLocaleString()}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tree View */}
+      <div className="rounded-xl border border-border bg-card shadow-sm">
         {loading ? (
           <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">جاري التحميل...</div>
         ) : tree.length === 0 ? (
@@ -299,7 +363,7 @@ export default function CategoryManagement() {
             </Button>
           </div>
         ) : (
-          <div className="p-2">
+          <div className="p-3">
             {tree.map(node => (
               <CategoryTreeNode
                 key={node.id}
@@ -349,8 +413,8 @@ export default function CategoryManagement() {
             </div>
           </div>
           <DialogFooter className="flex-row-reverse gap-2">
-            <Button onClick={handleSave} disabled={saving} size="sm">{saving ? "جاري الحفظ..." : "حفظ"}</Button>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} size="sm">إلغاء</Button>
+            <Button onClick={handleSave} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>إلغاء</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -363,8 +427,8 @@ export default function CategoryManagement() {
             <DialogDescription>سيتم حذف "{deleteTarget?.name}" نهائياً.</DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-row-reverse gap-2">
-            <Button variant="destructive" onClick={handleDelete} size="sm">حذف</Button>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} size="sm">تراجع</Button>
+            <Button variant="destructive" onClick={handleDelete}>حذف نهائي</Button>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>تراجع</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
