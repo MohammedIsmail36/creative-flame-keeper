@@ -46,6 +46,7 @@ import SystemSetup from "./pages/SystemSetup";
 import CustomerStatement from "./pages/CustomerStatement";
 import SupplierStatement from "./pages/SupplierStatement";
 import NotFound from "./pages/NotFound";
+import FiscalYearClosing from "./pages/FiscalYearClosing";
 
 const queryClient = new QueryClient();
 
