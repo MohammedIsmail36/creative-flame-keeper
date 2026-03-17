@@ -30,16 +30,34 @@ export default function IncomeStatement() {
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
+  const [lastClosingDate, setLastClosingDate] = useState<string | null>(null);
+
   const fetchData = async () => {
     setLoading(true);
     const [accountsRes, linesRes] = await Promise.all([
       supabase.from("accounts").select("id, code, name, account_type").eq("is_active", true).eq("is_parent", false).order("code"),
-      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entries!inner(entry_date, status)").in("journal_entries.status", ["posted", "approved"]),
+      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entries!inner(entry_date, status, description)").in("journal_entries.status", ["posted", "approved"]),
     ]);
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
     if (linesRes.data) setLines(linesRes.data);
     if (accountsRes.error || linesRes.error) {
       toast({ title: "خطأ", description: "فشل في جلب البيانات", variant: "destructive" });
+    }
+
+    // Find last closing entry date if fiscal year closing is enabled
+    if (settings?.enable_fiscal_year_closing) {
+      const { data: closingEntries } = await supabase
+        .from("journal_entries")
+        .select("entry_date")
+        .like("description", "%قيد إقفال السنة المالية%")
+        .in("status", ["posted", "approved"])
+        .order("entry_date", { ascending: false })
+        .limit(1);
+      if (closingEntries && closingEntries.length > 0) {
+        setLastClosingDate(closingEntries[0].entry_date);
+      } else {
+        setLastClosingDate(null);
+      }
     }
     setLoading(false);
   };
@@ -47,13 +65,24 @@ export default function IncomeStatement() {
   useEffect(() => { fetchData(); }, []);
 
   const { revenueRows, expenseRows, totalRevenue, totalExpenses, netIncome } = useMemo(() => {
-    const filtered = lines.filter((l: any) => {
+    let filtered = lines.filter((l: any) => {
       const d = (l.journal_entries as any)?.entry_date;
       if (!d) return false;
       if (dateFrom && d < format(dateFrom, "yyyy-MM-dd")) return false;
       if (dateTo && d > format(dateTo, "yyyy-MM-dd")) return false;
       return true;
     });
+
+    // If fiscal year closing is enabled and there's a closing entry,
+    // only show entries after the last closing date (exclude closing entry itself)
+    if (settings?.enable_fiscal_year_closing && lastClosingDate && !dateFrom) {
+      filtered = filtered.filter((l: any) => {
+        const d = (l.journal_entries as any)?.entry_date;
+        const desc = (l.journal_entries as any)?.description || "";
+        if (desc.includes("قيد إقفال السنة المالية")) return false;
+        return d > lastClosingDate;
+      });
+    }
 
     const totals = new Map<string, number>();
     filtered.forEach((l: any) => {
@@ -81,7 +110,7 @@ export default function IncomeStatement() {
     const totalExpenses = expenseRows.reduce((s, r) => s + r.amount, 0);
 
     return { revenueRows, expenseRows, totalRevenue, totalExpenses, netIncome: totalRevenue - totalExpenses };
-  }, [accounts, lines, dateFrom, dateTo]);
+  }, [accounts, lines, dateFrom, dateTo, settings?.enable_fiscal_year_closing, lastClosingDate]);
 
   const profitMargin = totalRevenue > 0 ? (netIncome / totalRevenue) * 100 : 0;
   const formatNum = (val: number) => Math.abs(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
