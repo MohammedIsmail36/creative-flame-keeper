@@ -310,9 +310,11 @@ export default function PurchaseReturnForm() {
 
   const isDraft = status === "draft";
   const isEditable = editMode && isDraft && canEdit;
-  const colCount = 3 + (showDiscount ? 1 : 0) + 1 + (isEditable ? 1 : 0);
+  const colCount = 4 + (showDiscount ? 1 : 0) + (isEditable ? 1 : 0);
 
   const displayNumber = !isNew ? formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", postedNumber, returnNumber || 0, status) : null;
+
+  const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
 
   return (
     <div className="space-y-8" dir="rtl">
