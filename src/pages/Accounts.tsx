@@ -27,6 +27,7 @@ interface Account {
   is_parent: boolean;
   description: string | null;
   is_active: boolean;
+  is_system: boolean;
   created_at: string;
 }
 
