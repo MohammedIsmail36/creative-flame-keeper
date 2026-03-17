@@ -2,14 +2,12 @@ import React, { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Download, CalendarIcon, X, DollarSign, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Download, CalendarIcon, X, ArrowUpRight, ArrowDownRight, Scale, CheckCircle, AlertTriangle, Shield } from "lucide-react";
 
 interface Account {
   id: string;
@@ -60,7 +58,6 @@ export default function IncomeStatement() {
     const totals = new Map<string, number>();
     filtered.forEach((l: any) => {
       const existing = totals.get(l.account_id) || 0;
-      // Revenue: credit - debit (credit normal), Expense: debit - credit (debit normal)
       const acc = accounts.find(a => a.id === l.account_id);
       if (!acc) return;
       if (acc.account_type === "revenue") {
@@ -86,22 +83,20 @@ export default function IncomeStatement() {
     return { revenueRows, expenseRows, totalRevenue, totalExpenses, netIncome: totalRevenue - totalExpenses };
   }, [accounts, lines, dateFrom, dateTo]);
 
+  const profitMargin = totalRevenue > 0 ? (netIncome / totalRevenue) * 100 : 0;
   const formatNum = (val: number) => Math.abs(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const formatCurrency = (val: number) => `${formatNum(val)} ${currency}`;
 
   const handleExportPDF = async () => {
     const { exportReportPdf } = await import("@/lib/pdf-arabic");
-
     const allRows: (string | number)[][] = [];
     revenueRows.forEach((r) => allRows.push([r.account.code, r.account.name, "إيرادات", formatNum(r.amount)]));
     allRows.push(["", "إجمالي الإيرادات", "", formatNum(totalRevenue)]);
     expenseRows.forEach((r) => allRows.push([r.account.code, r.account.name, "مصروفات", formatNum(r.amount)]));
     allRows.push(["", "إجمالي المصروفات", "", formatNum(totalExpenses)]);
     allRows.push(["", netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", "", formatNum(netIncome)]);
-
     await exportReportPdf({
-      title: "قائمة الدخل",
-      settings,
+      title: "قائمة الدخل", settings,
       headers: ["الكود", "الحساب", "النوع", `المبلغ (${currency})`],
       rows: allRows,
       summaryCards: [
@@ -111,7 +106,6 @@ export default function IncomeStatement() {
       ],
       filename: "Income_Statement",
     });
-    
     toast({ title: "تم التصدير", description: "تم تصدير قائمة الدخل بصيغة PDF" });
     setExportMenuOpen(false);
   };
@@ -119,218 +113,197 @@ export default function IncomeStatement() {
   const handleExportExcel = async () => {
     const { exportToExcel } = await import("@/lib/excel-export");
     const data: any[] = [];
-    data.push({ "Section": "Revenue", "Code": "", "Account": "", [`Amount (${currency})`]: "" });
-    revenueRows.forEach((r) => data.push({ "Section": "", "Code": r.account.code, "Account": r.account.name, [`Amount (${currency})`]: r.amount }));
-    data.push({ "Section": "", "Code": "", "Account": "Total Revenue", [`Amount (${currency})`]: totalRevenue });
-    data.push({ "Section": "", "Code": "", "Account": "", [`Amount (${currency})`]: "" });
-    data.push({ "Section": "Expenses", "Code": "", "Account": "", [`Amount (${currency})`]: "" });
-    expenseRows.forEach((r) => data.push({ "Section": "", "Code": r.account.code, "Account": r.account.name, [`Amount (${currency})`]: r.amount }));
-    data.push({ "Section": "", "Code": "", "Account": "Total Expenses", [`Amount (${currency})`]: totalExpenses });
-    data.push({ "Section": "", "Code": "", "Account": "", [`Amount (${currency})`]: "" });
-    data.push({ "Section": "", "Code": "", "Account": "Net Income", [`Amount (${currency})`]: netIncome });
-
+    data.push({ "القسم": "الإيرادات", "الكود": "", "الحساب": "", "المبلغ": "" });
+    revenueRows.forEach((r) => data.push({ "القسم": "", "الكود": r.account.code, "الحساب": r.account.name, "المبلغ": r.amount }));
+    data.push({ "القسم": "", "الكود": "", "الحساب": "إجمالي الإيرادات", "المبلغ": totalRevenue });
+    data.push({ "القسم": "", "الكود": "", "الحساب": "", "المبلغ": "" });
+    data.push({ "القسم": "المصروفات", "الكود": "", "الحساب": "", "المبلغ": "" });
+    expenseRows.forEach((r) => data.push({ "القسم": "", "الكود": r.account.code, "الحساب": r.account.name, "المبلغ": r.amount }));
+    data.push({ "القسم": "", "الكود": "", "الحساب": "إجمالي المصروفات", "المبلغ": totalExpenses });
+    data.push({ "القسم": "", "الكود": "", "الحساب": "", "المبلغ": "" });
+    data.push({ "القسم": "", "الكود": "", "الحساب": netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", "المبلغ": netIncome });
     await exportToExcel(data, "Income Statement", "Income_Statement.xlsx");
     toast({ title: "تم التصدير", description: "تم تصدير قائمة الدخل بصيغة Excel" });
     setExportMenuOpen(false);
   };
 
   return (
-    <div className="space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <DollarSign className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">قائمة الدخل</h1>
-            <p className="text-sm text-muted-foreground">Income Statement - الإيرادات والمصروفات</p>
-          </div>
+    <div className="space-y-8" dir="rtl">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-foreground">قائمة الدخل</h1>
+          <p className="text-muted-foreground mt-1">بيان الإيرادات والمصروفات للفترة المحددة</p>
         </div>
-        <div className="relative">
-          <Button variant="outline" className="gap-2" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
-            <Download className="h-4 w-4" />
-            تصدير
-          </Button>
-          {exportMenuOpen && (
-            <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
-              <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">PDF تصدير</button>
-              <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">Excel تصدير</button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Date Filter */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-muted-foreground">الفترة:</span>
+        <div className="flex items-center gap-2">
+          {/* Date filter */}
+          <div className="flex items-center gap-2 bg-card p-1.5 rounded-xl border shadow-sm">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
-                  <CalendarIcon className="ml-2 h-4 w-4" />
+                <Button variant="ghost" className={cn("gap-2 text-sm", !dateFrom && "text-muted-foreground")}>
+                  <CalendarIcon className="h-4 w-4" />
                   {dateFrom ? format(dateFrom, "yyyy-MM-dd") : "من تاريخ"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
               </PopoverContent>
             </Popover>
-            <span className="text-sm text-muted-foreground">إلى</span>
+            <span className="text-xs text-muted-foreground">إلى</span>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-[150px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
-                  <CalendarIcon className="ml-2 h-4 w-4" />
+                <Button variant="ghost" className={cn("gap-2 text-sm", !dateTo && "text-muted-foreground")}>
+                  <CalendarIcon className="h-4 w-4" />
                   {dateTo ? format(dateTo, "yyyy-MM-dd") : "إلى تاريخ"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+                <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
               </PopoverContent>
             </Popover>
             {(dateFrom || dateTo) && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
-                <X className="h-4 w-4" />
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+                <X className="h-3.5 w-3.5" />
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
+          {/* Export */}
+          <div className="relative">
+            <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
+              <Download className="h-4 w-4" />
+              تصدير
+            </Button>
+            {exportMenuOpen && (
+              <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-xl shadow-lg p-1 min-w-[140px]">
+                <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors">PDF تصدير</button>
+                <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors">Excel تصدير</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border border-green-500/20">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-2">
-              <div className="h-9 w-9 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <ArrowUpRight className="h-5 w-5 text-green-600" />
-              </div>
-              <p className="text-xs text-muted-foreground">إجمالي الإيرادات</p>
-            </div>
-            <p className="text-2xl font-bold font-mono text-green-600">{formatCurrency(totalRevenue)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border border-red-500/20">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-2">
-              <div className="h-9 w-9 rounded-lg bg-red-500/10 flex items-center justify-center">
-                <ArrowDownRight className="h-5 w-5 text-red-600" />
-              </div>
-              <p className="text-xs text-muted-foreground">إجمالي المصروفات</p>
-            </div>
-            <p className="text-2xl font-bold font-mono text-red-600">{formatCurrency(totalExpenses)}</p>
-          </CardContent>
-        </Card>
-        <Card className={cn("border", netIncome >= 0 ? "border-green-500/20" : "border-red-500/20")}>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-2">
-              <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center", netIncome >= 0 ? "bg-green-500/10" : "bg-red-500/10")}>
-                {netIncome >= 0 ? <TrendingUp className="h-5 w-5 text-green-600" /> : <TrendingDown className="h-5 w-5 text-red-600" />}
-              </div>
-              <p className="text-xs text-muted-foreground">{netIncome >= 0 ? "صافي الربح" : "صافي الخسارة"}</p>
-            </div>
-            <p className={cn("text-2xl font-bold font-mono", netIncome >= 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(netIncome)}</p>
-          </CardContent>
-        </Card>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <KpiCard icon={<ArrowUpRight className="h-5 w-5" />} iconBg="bg-emerald-500/10 text-emerald-600" label="إجمالي الإيرادات" value={formatCurrency(totalRevenue)} />
+        <KpiCard icon={<ArrowDownRight className="h-5 w-5" />} iconBg="bg-red-500/10 text-red-600" label="إجمالي المصروفات" value={formatCurrency(totalExpenses)} />
+        <KpiCard icon={netIncome >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />} iconBg={cn(netIncome >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600")} label={netIncome >= 0 ? "صافي الربح" : "صافي الخسارة"} value={formatCurrency(netIncome)} />
+        <KpiCard icon={<Scale className="h-5 w-5" />} iconBg="bg-blue-500/10 text-blue-600" label="هامش الربح" value={`${profitMargin.toFixed(1)}%`} />
+      </div>
+
+      {/* Net Income Indicator Bar */}
+      <div className="bg-foreground/95 p-4 rounded-xl flex items-center justify-center gap-8 border-r-4 border-primary">
+        <div className="text-center">
+          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">إجمالي الإيرادات</p>
+          <p className="text-xl font-bold text-background">{formatCurrency(totalRevenue)}</p>
+        </div>
+        <div className="text-center px-4">
+          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">−</p>
+          <p className="text-xl font-bold text-background">−</p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">إجمالي المصروفات</p>
+          <p className="text-xl font-bold text-background">{formatCurrency(totalExpenses)}</p>
+        </div>
+        <div className="text-center px-4">
+          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">=</p>
+          <p className="text-xl font-bold text-background">=</p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">{netIncome >= 0 ? "صافي الربح" : "صافي الخسارة"}</p>
+          <p className={cn("text-xl font-bold", netIncome >= 0 ? "text-emerald-400" : "text-red-400")}>{formatCurrency(netIncome)}</p>
+        </div>
+        <div className={cn(
+          "hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold",
+          netIncome >= 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+        )}>
+          {netIncome >= 0 ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+          {netIncome >= 0 ? "ربح" : "خسارة"}
+        </div>
       </div>
 
       {loading ? (
         <div className="p-12 text-center text-muted-foreground">جاري التحميل...</div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Revenue Table */}
-          <Card className="overflow-hidden">
-            <CardHeader className="border-b bg-green-500/5 py-4">
-              <CardTitle className="text-base flex items-center gap-2 text-green-700">
-                <ArrowUpRight className="h-4 w-4" />
-                الإيرادات
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
+        /* Two Column Layout */
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Column 1: Revenue */}
+          <div className="bg-card rounded-xl border overflow-hidden shadow-sm">
+            <div className="bg-muted/50 px-6 py-4 border-b">
+              <h4 className="font-bold text-foreground flex items-center gap-2">
+                <ArrowUpRight className="h-4 w-4 text-emerald-600" />
+                الإيرادات (Revenue)
+              </h4>
+            </div>
+            <div className="p-6">
               {revenueRows.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground text-sm">لا توجد إيرادات</div>
+                <p className="text-center text-muted-foreground text-sm py-8">لا توجد إيرادات</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/20">
-                      <TableHead className="text-right">الكود</TableHead>
-                      <TableHead className="text-right">الحساب</TableHead>
-                      <TableHead className="text-right">المبلغ</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {revenueRows.map((row) => (
-                      <TableRow key={row.account.id} className="hover:bg-muted/30 transition-colors">
-                        <TableCell className="font-mono text-sm">{row.account.code}</TableCell>
-                        <TableCell className="font-medium">{row.account.name}</TableCell>
-                        <TableCell className="font-mono text-green-600">{formatCurrency(row.amount)}</TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow className="bg-green-500/5 font-bold border-t-2">
-                      <TableCell colSpan={2} className="text-left">إجمالي الإيرادات</TableCell>
-                      <TableCell className="font-mono text-green-700">{formatCurrency(totalRevenue)}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                <div className="space-y-4">
+                  {revenueRows.map((row) => (
+                    <div key={row.account.id} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{row.account.name}</span>
+                      <span className="font-medium text-emerald-600 font-mono">{formatCurrency(row.amount)}</span>
+                    </div>
+                  ))}
+                </div>
               )}
-            </CardContent>
-          </Card>
+              <div className="mt-8 pt-4 border-t-2 flex justify-between items-center">
+                <span className="font-bold text-foreground">إجمالي الإيرادات</span>
+                <span className="text-lg font-black text-emerald-600 font-mono">{formatCurrency(totalRevenue)}</span>
+              </div>
+            </div>
+          </div>
 
-          {/* Expenses Table */}
-          <Card className="overflow-hidden">
-            <CardHeader className="border-b bg-red-500/5 py-4">
-              <CardTitle className="text-base flex items-center gap-2 text-red-700">
-                <ArrowDownRight className="h-4 w-4" />
-                المصروفات
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
+          {/* Column 2: Expenses */}
+          <div className="bg-card rounded-xl border overflow-hidden shadow-sm">
+            <div className="bg-muted/50 px-6 py-4 border-b">
+              <h4 className="font-bold text-foreground flex items-center gap-2">
+                <ArrowDownRight className="h-4 w-4 text-red-600" />
+                المصروفات (Expenses)
+              </h4>
+            </div>
+            <div className="p-6">
               {expenseRows.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground text-sm">لا توجد مصروفات</div>
+                <p className="text-center text-muted-foreground text-sm py-8">لا توجد مصروفات</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/20">
-                      <TableHead className="text-right">الكود</TableHead>
-                      <TableHead className="text-right">الحساب</TableHead>
-                      <TableHead className="text-right">المبلغ</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {expenseRows.map((row) => (
-                      <TableRow key={row.account.id} className="hover:bg-muted/30 transition-colors">
-                        <TableCell className="font-mono text-sm">{row.account.code}</TableCell>
-                        <TableCell className="font-medium">{row.account.name}</TableCell>
-                        <TableCell className="font-mono text-red-600">{formatCurrency(row.amount)}</TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow className="bg-red-500/5 font-bold border-t-2">
-                      <TableCell colSpan={2} className="text-left">إجمالي المصروفات</TableCell>
-                      <TableCell className="font-mono text-red-700">{formatCurrency(totalExpenses)}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                <div className="space-y-4">
+                  {expenseRows.map((row) => (
+                    <div key={row.account.id} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{row.account.name}</span>
+                      <span className="font-medium text-red-600 font-mono">{formatCurrency(row.amount)}</span>
+                    </div>
+                  ))}
+                </div>
               )}
-            </CardContent>
-          </Card>
+              <div className="mt-8 pt-4 border-t-2 flex justify-between items-center">
+                <span className="font-bold text-foreground">إجمالي المصروفات</span>
+                <span className="text-lg font-black text-red-600 font-mono">{formatCurrency(totalExpenses)}</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Net Income Banner */}
-      {!loading && (
-        <Card className={cn("border-2", netIncome >= 0 ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5")}>
-          <CardContent className="p-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {netIncome >= 0 ? <TrendingUp className="h-6 w-6 text-green-600" /> : <TrendingDown className="h-6 w-6 text-red-600" />}
-              <span className="text-lg font-bold text-foreground">{netIncome >= 0 ? "صافي الربح" : "صافي الخسارة"}</span>
-            </div>
-            <span className={cn("text-2xl font-bold font-mono", netIncome >= 0 ? "text-green-600" : "text-red-600")}>
-              {formatCurrency(netIncome)}
-            </span>
-          </CardContent>
-        </Card>
-      )}
+      {/* Footer */}
+      <div className="text-center text-muted-foreground text-sm pb-4">
+        <p>تم استخراج هذا التقرير في: {format(new Date(), "yyyy-MM-dd HH:mm")}</p>
+        <div className="flex items-center justify-center gap-4 mt-2">
+          <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> معتمد محاسبياً</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ icon, iconBg, label, value }: { icon: React.ReactNode; iconBg: string; label: string; value: string }) {
+  return (
+    <div className="bg-card p-6 rounded-xl shadow-sm border">
+      <div className="flex justify-between items-start mb-4">
+        <div className={cn("p-2 rounded-lg", iconBg)}>{icon}</div>
+      </div>
+      <p className="text-sm text-muted-foreground font-medium">{label}</p>
+      <h3 className="text-2xl font-black text-foreground mt-1 font-mono">{value}</h3>
     </div>
   );
 }
