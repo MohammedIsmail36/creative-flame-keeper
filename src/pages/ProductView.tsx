@@ -69,6 +69,15 @@ export default function ProductView() {
       .order("movement_date", { ascending: false })
       .limit(5);
     setMovements(mvData || []);
+
+    // Fetch average prices
+    const [{ data: avgPurch }, { data: avgSell }] = await Promise.all([
+      supabase.rpc("get_avg_purchase_price", { _product_id: id! }),
+      supabase.rpc("get_avg_selling_price", { _product_id: id! }),
+    ]);
+    setAvgPurchasePrice(Number(avgPurch) || 0);
+    setAvgSellingPrice(Number(avgSell) || 0);
+
     setLoading(false);
   };
 
