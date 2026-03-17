@@ -392,7 +392,7 @@ export default function ProductForm() {
           )}
 
           {/* Gallery Thumbnails */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {galleryImages.map((img, i) => (
               <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-border">
                 <img src={img.image_url} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
