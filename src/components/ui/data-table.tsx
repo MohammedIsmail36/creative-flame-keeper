@@ -294,7 +294,7 @@ export function DataTable<TData, TValue>({
                 Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
                   <TableRow key={`skeleton-${i}`} className="hover:bg-transparent">
                     {columns.map((_, j) => (
-                      <TableCell key={j} className="px-3 h-11">
+                      <TableCell key={j} className="px-3 h-14">
                         <Skeleton className="h-4 w-full max-w-[160px]" />
                       </TableCell>
                     ))}
