@@ -302,9 +302,11 @@ export default function PurchaseInvoiceForm() {
 
   const isDraft = status === "draft";
   const isEditable = editMode && isDraft && canEdit;
-  const colCount = 3 + (showDiscount ? 1 : 0) + (showTax ? 1 : 0) + 1 + (isEditable ? 1 : 0);
+  const colCount = 4 + (showDiscount ? 1 : 0) + (isEditable ? 1 : 0);
 
   const displayNumber = !isNew ? formatDisplayNumber(settings?.purchase_invoice_prefix || "PUR-", postedNumber, invoiceNumber || 0, status) : null;
+
+  const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
 
   return (
     <div className="space-y-8" dir="rtl">
