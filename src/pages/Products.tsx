@@ -87,7 +87,10 @@ function getDescendantIds(tree: CategoryNode[], targetId: string): string[] {
   const ids: string[] = [];
   function collect(nodes: CategoryNode[]) {
     for (const n of nodes) {
-      if (n.id === targetId) { collectAll(n); return true; }
+      if (n.id === targetId) {
+        collectAll(n);
+        return true;
+      }
       if (collect(n.children)) return true;
     }
     return false;
@@ -108,7 +111,8 @@ function renderCategoryOptions(nodes: CategoryNode[], depth = 0): React.ReactNod
       <SelectItem key={node.id} value={node.id}>
         <span className="flex items-center gap-1">
           {depth > 0 && <ChevronLeft className="h-3 w-3 text-muted-foreground inline" />}
-          {prefix}{node.name}
+          {prefix}
+          {node.name}
         </span>
       </SelectItem>,
     );
@@ -239,13 +243,28 @@ export default function Products() {
       sheetName: "المنتجات",
       pdfTitle: "قائمة المنتجات",
       headers: [
-        "الكود", "الاسم", "الماركة", "رقم الموديل", "الباركود",
-        "التصنيف", "سعر الشراء", "سعر البيع", "الكمية", "الحد الأدنى",
+        "الكود",
+        "الاسم",
+        "الماركة",
+        "رقم الموديل",
+        "الباركود",
+        "التصنيف",
+        "سعر الشراء",
+        "سعر البيع",
+        "الكمية",
+        "الحد الأدنى",
       ],
       rows: filteredProducts.map((p) => [
-        p.code, p.name, getBrandName(p), p.model_number || "", p.barcode || "",
-        getCategoryName(p), formatNum(p.purchase_price), formatNum(p.selling_price),
-        Number(p.quantity_on_hand), Number(p.min_stock_level),
+        p.code,
+        p.name,
+        getBrandName(p),
+        p.model_number || "",
+        p.barcode || "",
+        getCategoryName(p),
+        formatNum(p.purchase_price),
+        formatNum(p.selling_price),
+        Number(p.quantity_on_hand),
+        Number(p.min_stock_level),
       ]),
       settings,
       pdfOrientation: "landscape" as const,
@@ -295,7 +314,9 @@ export default function Products() {
     {
       accessorKey: "selling_price",
       header: ({ column }) => <DataTableColumnHeader column={column} title="سعر الوحدة" />,
-      cell: ({ row }) => <span className="text-sm font-bold text-foreground">{formatCurrency(row.original.selling_price)}</span>,
+      cell: ({ row }) => (
+        <span className="text-sm font-bold text-foreground">{formatCurrency(row.original.selling_price)}</span>
+      ),
     },
     {
       accessorKey: "quantity_on_hand",
@@ -334,7 +355,11 @@ export default function Products() {
           {canDelete && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </AlertDialogTrigger>
@@ -402,26 +427,17 @@ export default function Products() {
             </div>
             إدارة المخزون والمنتجات
           </h2>
-          <p className="text-muted-foreground text-sm mt-1">
-            عرض وتتبع كافة الأصناف المتوفرة في المستودعات والخدمات المقدمة.
-          </p>
+          <p className="text-muted-foreground text-sm mt-1">عرض وتتبع كافة الأصناف المتوفرة في المخازن.</p>
         </div>
         <div className="flex items-center gap-3">
           {canEdit && (
             <>
-              <Button
-                variant="outline"
-                className="gap-2 shadow-sm"
-                onClick={() => navigate("/products/import")}
-              >
+              <Button variant="outline" className="gap-2 shadow-sm" onClick={() => navigate("/products/import")}>
                 <Upload className="h-4 w-4" />
                 استيراد البيانات
               </Button>
               <ExportMenu config={exportConfig} disabled={loading} />
-              <Button
-                className="gap-2 shadow-md shadow-primary/20 font-bold"
-                onClick={() => navigate("/products/new")}
-              >
+              <Button className="gap-2 shadow-md shadow-primary/20 font-bold" onClick={() => navigate("/products/new")}>
                 <Plus className="h-4 w-4" />
                 إضافة منتج جديد
               </Button>
@@ -434,10 +450,7 @@ export default function Products() {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {statCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
-          <div
-            key={label}
-            className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4"
-          >
+          <div key={label} className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4">
             <div className={`p-3 rounded-full ${iconBg}`}>
               <Icon className={`h-5 w-5 ${iconColor}`} />
             </div>
