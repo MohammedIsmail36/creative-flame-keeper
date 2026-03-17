@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { ShieldCheck, Loader2, CheckCircle, HeadsetIcon } from "lucide-react";
+import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "@/components/ui/input-otp";
 
 export default function MfaVerify() {
   const [factorId, setFactorId] = useState("");
@@ -27,7 +25,6 @@ export default function MfaVerify() {
       return;
     }
 
-    // Get the TOTP factor
     const loadFactor = async () => {
       const { data } = await supabase.auth.mfa.listFactors();
       const verified = data?.totp.filter(f => f.status === "verified") || [];
@@ -53,10 +50,7 @@ export default function MfaVerify() {
       });
       if (verifyError) throw verifyError;
 
-      // After successful MFA verify, the session is now aal2
-      // Force a session refresh to update AuthContext
       navigate("/", { replace: true });
-      // Trigger a page reload to reset auth state
       window.location.reload();
     } catch (error: any) {
       toast({
@@ -72,65 +66,84 @@ export default function MfaVerify() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-14 h-14 rounded-xl bg-primary flex items-center justify-center">
-            <ShieldCheck className="w-8 h-8 text-primary-foreground" />
+    <div className="min-h-screen flex items-center justify-center bg-muted p-4 font-tajawal" dir="rtl">
+      <div className="w-full max-w-md">
+        {/* Card */}
+        <div className="bg-card shadow-xl rounded-xl p-8 border border-border">
+          {/* Header */}
+          <div className="flex flex-col items-center mb-8 text-center">
+            <div className="bg-primary/10 p-3 rounded-full mb-4">
+              <ShieldCheck className="w-9 h-9 text-primary" />
+            </div>
+            <h1 className="text-foreground text-xl font-bold mb-2">التحقق بخطوتين</h1>
+            <p className="text-muted-foreground text-sm">
+              أدخل رمز التحقق من تطبيق المصادقة الخاص بك
+            </p>
           </div>
-          <CardTitle className="text-2xl">التحقق بخطوتين</CardTitle>
-          <CardDescription>أدخل رمز التحقق من تطبيق المصادقة</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex justify-center" dir="ltr">
-            <InputOTP
-              maxLength={6}
-              value={code}
-              onChange={(val) => setCode(val)}
+
+          {/* OTP Input */}
+          <div className="space-y-8">
+            <div className="flex justify-center" dir="ltr">
+              <InputOTP
+                maxLength={6}
+                value={code}
+                onChange={(val) => setCode(val)}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} className="w-12 h-14 text-2xl font-bold border-2" />
+                  <InputOTPSlot index={1} className="w-12 h-14 text-2xl font-bold border-2" />
+                  <InputOTPSlot index={2} className="w-12 h-14 text-2xl font-bold border-2" />
+                </InputOTPGroup>
+                <InputOTPSeparator />
+                <InputOTPGroup>
+                  <InputOTPSlot index={3} className="w-12 h-14 text-2xl font-bold border-2" />
+                  <InputOTPSlot index={4} className="w-12 h-14 text-2xl font-bold border-2" />
+                  <InputOTPSlot index={5} className="w-12 h-14 text-2xl font-bold border-2" />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+
+            {/* Primary Action */}
+            <button
+              onClick={handleVerify}
+              disabled={code.length !== 6 || verifying}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-                <InputOTPSlot index={4} />
-                <InputOTPSlot index={5} />
-              </InputOTPGroup>
-            </InputOTP>
+              {verifying ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>جاري التحقق...</span>
+                </>
+              ) : (
+                <>
+                  <span>تأكيد</span>
+                  <CheckCircle className="w-5 h-5" />
+                </>
+              )}
+            </button>
           </div>
-          <Button
-            onClick={handleVerify}
-            className="w-full"
-            disabled={code.length !== 6 || verifying}
-          >
-            {verifying ? (
-              <>
-                <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                جاري التحقق...
-              </>
-            ) : (
-              "تأكيد"
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full"
-            onClick={() => {
-              supabase.auth.signOut();
-              navigate("/auth", { replace: true });
-            }}
-          >
-            العودة لتسجيل الدخول
-          </Button>
-        </CardContent>
-      </Card>
+
+          {/* Footer Links */}
+          <div className="mt-8 text-center flex flex-col gap-4">
+            <button
+              onClick={() => {
+                supabase.auth.signOut();
+                navigate("/auth", { replace: true });
+              }}
+              className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors underline decoration-border underline-offset-4"
+            >
+              العودة لتسجيل الدخول
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
