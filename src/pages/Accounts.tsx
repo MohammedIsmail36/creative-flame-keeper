@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { BookOpen, Plus, Pencil, Trash2, Search, Filter, ChevronLeft, ChevronDown, FolderOpen, FileText, TrendingUp, TrendingDown, Wallet, DollarSign, Receipt, X } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, Search, Filter, ChevronLeft, ChevronDown, FolderOpen, FileText, TrendingUp, TrendingDown, Wallet, DollarSign, Receipt, X, Shield } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 

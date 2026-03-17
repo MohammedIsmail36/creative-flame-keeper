@@ -297,6 +297,16 @@ export default function TrialBalance() {
         </div>
       </div>
 
+      {/* Current Period Alert */}
+      {settings?.enable_fiscal_year_closing && lastClosingDate && !dateFrom && (
+        <Alert className="border-blue-500/30 bg-blue-500/5">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-sm text-blue-700 dark:text-blue-400">
+            البيانات المعروضة للفترة الجارية فقط بعد آخر إقفال بتاريخ <span className="font-bold">{lastClosingDate}</span>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {loading ? (
         <div className="p-12 text-center text-muted-foreground">جاري التحميل...</div>
       ) : trialBalanceData.length === 0 ? (
