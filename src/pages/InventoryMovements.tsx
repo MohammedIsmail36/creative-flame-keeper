@@ -115,8 +115,13 @@ export default function InventoryMovements() {
     return movements.map((m: any) => {
       const pid = m.product_id;
       if (!(pid in balances)) balances[pid] = 0;
-      const isIn = inTypes.includes(m.movement_type);
-      balances[pid] += isIn ? Number(m.quantity) : -Number(m.quantity);
+      if (m.movement_type === "adjustment") {
+        // Adjustments store signed quantity: positive = gain, negative = loss
+        balances[pid] += Number(m.quantity);
+      } else {
+        const isIn = inTypes.includes(m.movement_type);
+        balances[pid] += isIn ? Number(m.quantity) : -Number(m.quantity);
+      }
       return { ...m, cumulativeBalance: balances[pid] };
     });
   }, [movements]);
