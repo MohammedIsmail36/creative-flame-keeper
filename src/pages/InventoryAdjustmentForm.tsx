@@ -468,6 +468,34 @@ export default function InventoryAdjustmentForm() {
               </AlertDialogContent>
             </AlertDialog>
           )}
+          {!isNew && isApproved && role === "admin" && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={saving}
+                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+                >
+                  <Ban className="h-4 w-4" />
+                  إلغاء التسوية
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent dir="rtl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>إلغاء التسوية المعتمدة</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    سيتم استعادة كميات المخزون إلى ما قبل التسوية وإلغاء القيود المحاسبية المرتبطة. هل أنت متأكد؟
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel>تراجع</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleCancelApproved} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    إلغاء التسوية
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
         </div>
       </div>
 
