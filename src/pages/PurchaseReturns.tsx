@@ -108,33 +108,33 @@ export default function PurchaseReturns() {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <RotateCcw className="h-5 w-5 text-primary" />
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            <RotateCcw className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">مرتجعات المشتريات</h1>
+            <h1 className="text-3xl font-extrabold text-foreground">مرتجعات المشتريات</h1>
             <p className="text-sm text-muted-foreground">{returns.length} مرتجع</p>
           </div>
         </div>
-        {canEdit && <Button onClick={() => navigate("/purchase-returns/new")} className="gap-2"><Plus className="h-4 w-4" />مرتجع جديد</Button>}
+        {canEdit && <Button onClick={() => navigate("/purchase-returns/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />مرتجع جديد</Button>}
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          { label: "إجمالي المرتجعات", value: stats.total, icon: RotateCcw, color: "bg-foreground/5 text-foreground", filter: "all" },
+          { label: "إجمالي المرتجعات", value: stats.total, icon: RotateCcw, color: "bg-primary/10 text-primary", filter: "all" },
           { label: "مسودات", value: stats.draft, icon: Clock, color: "bg-amber-500/10 text-amber-600", filter: "draft" },
-          { label: "مُرحّلة", value: stats.posted, icon: CheckCircle, color: "bg-green-500/10 text-green-600", filter: "posted" },
+          { label: "مُرحّلة", value: stats.posted, icon: CheckCircle, color: "bg-emerald-500/10 text-emerald-600", filter: "posted" },
           { label: "ملغاة", value: stats.cancelled, icon: Ban, color: "bg-destructive/10 text-destructive", filter: "cancelled" },
           { label: "إجمالي المبالغ", value: formatCurrency(stats.totalAmount), icon: DollarSign, color: "bg-blue-500/10 text-blue-600", filter: "" },
         ].map(({ label, value, icon: Icon, color, filter }) => (
           <button key={label} onClick={() => filter && setStatusFilter(filter)}
-            className={`rounded-xl border p-3 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}>
-            <div className="flex items-center justify-between mb-1">
-              <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${color}`}>
+            className={`rounded-xl border p-4 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xl font-bold text-foreground">{value}</span>
+              <span className="text-2xl font-black text-foreground font-mono">{value}</span>
             </div>
             <p className="text-xs text-muted-foreground">{label}</p>
           </button>
