@@ -166,29 +166,35 @@ export default function CustomerPayments() {
     const cashBankAcc = accounts?.find(a => a.code === accountCode);
     if (!customersAcc || !cashBankAcc) throw new Error("تأكد من وجود حسابات العملاء والصندوق/البنك");
 
+    const paymentPostedNum = existingPaymentId
+      ? (await getNextPostedNumber("customer_payments"))
+      : (await getNextPostedNumber("customer_payments"));
+    const cpPrefix = settings?.customer_payment_prefix || "CPY-";
+    const displayPayNum = `${cpPrefix}${String(paymentPostedNum).padStart(4, "0")}`;
+    const customerName = customers.find(c => c.id === custId)?.name || "";
+    const desc = `تحصيل من عميل ${customerName} - سند ${displayPayNum}`;
+
     const jePostedNum = await getNextPostedNumber("journal_entries");
     const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
-      description: `تحصيل من عميل`, entry_date: date,
+      description: desc, entry_date: date,
       total_debit: amt, total_credit: amt, status: "posted", posted_number: jePostedNum,
     } as any).select("id").single();
     if (jeError) throw jeError;
 
     await supabase.from("journal_entry_lines").insert([
-      { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: amt, credit: 0, description: `تحصيل من عميل` },
-      { journal_entry_id: je.id, account_id: customersAcc.id, debit: 0, credit: amt, description: `سداد ذمم عملاء` },
+      { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: amt, credit: 0, description: desc },
+      { journal_entry_id: je.id, account_id: customersAcc.id, debit: 0, credit: amt, description: desc },
     ] as any);
 
     if (existingPaymentId) {
-      const nextPostedNum = await getNextPostedNumber("customer_payments");
       await (supabase.from("customer_payments" as any) as any)
-        .update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum })
+        .update({ status: "posted", journal_entry_id: je.id, posted_number: paymentPostedNum })
         .eq("id", existingPaymentId);
     } else {
-      const nextPostedNum = await getNextPostedNumber("customer_payments");
       await (supabase.from("customer_payments" as any) as any).insert({
         customer_id: custId, payment_date: date, amount: amt,
         payment_method: method, reference: ref, notes: note,
-        journal_entry_id: je.id, status: "posted", posted_number: nextPostedNum,
+        journal_entry_id: je.id, status: "posted", posted_number: paymentPostedNum,
       });
     }
 

@@ -163,29 +163,35 @@ export default function SupplierPayments() {
     const cashBankAcc = accounts?.find(a => a.code === accountCode);
     if (!suppliersAcc || !cashBankAcc) throw new Error("تأكد من وجود حسابات الموردين والصندوق/البنك");
 
+    const paymentPostedNum = existingPaymentId
+      ? (await getNextPostedNumber("supplier_payments"))
+      : (await getNextPostedNumber("supplier_payments"));
+    const spPrefix = settings?.supplier_payment_prefix || "SPY-";
+    const displayPayNum = `${spPrefix}${String(paymentPostedNum).padStart(4, "0")}`;
+    const supplierName = suppliers.find(s => s.id === supId)?.name || "";
+    const desc = `سداد لمورد ${supplierName} - سند ${displayPayNum}`;
+
     const jePostedNum = await getNextPostedNumber("journal_entries");
     const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
-      description: `سداد لمورد`, entry_date: date,
+      description: desc, entry_date: date,
       total_debit: amt, total_credit: amt, status: "posted", posted_number: jePostedNum,
     } as any).select("id").single();
     if (jeError) throw jeError;
 
     await supabase.from("journal_entry_lines").insert([
-      { journal_entry_id: je.id, account_id: suppliersAcc.id, debit: amt, credit: 0, description: `سداد ذمم موردين` },
-      { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: 0, credit: amt, description: `سداد من الصندوق/البنك` },
+      { journal_entry_id: je.id, account_id: suppliersAcc.id, debit: amt, credit: 0, description: desc },
+      { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: 0, credit: amt, description: desc },
     ] as any);
 
     if (existingPaymentId) {
-      const nextPostedNum = await getNextPostedNumber("supplier_payments");
       await (supabase.from("supplier_payments" as any) as any)
-        .update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum })
+        .update({ status: "posted", journal_entry_id: je.id, posted_number: paymentPostedNum })
         .eq("id", existingPaymentId);
     } else {
-      const nextPostedNum = await getNextPostedNumber("supplier_payments");
       await (supabase.from("supplier_payments" as any) as any).insert({
         supplier_id: supId, payment_date: date, amount: amt,
         payment_method: method, reference: ref, notes: note,
-        journal_entry_id: je.id, status: "posted", posted_number: nextPostedNum,
+        journal_entry_id: je.id, status: "posted", posted_number: paymentPostedNum,
       });
     }
 

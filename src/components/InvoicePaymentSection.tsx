@@ -194,7 +194,9 @@ export default function InvoicePaymentSection({
       const cashBankAcc = accounts?.find(a => a.code === cashBankCode);
       if (!entityAcc || !cashBankAcc) { toast({ title: "خطأ", description: "تأكد من وجود الحسابات المطلوبة في شجرة الحسابات", variant: "destructive" }); setSaving(false); return; }
 
-      const desc = type === "sales" ? `تحصيل من عميل - فاتورة ${invoiceNumber}` : type === "purchase" ? `سداد لمورد - فاتورة ${invoiceNumber}` : type === "sales_return" ? `رد مبلغ لعميل - مرتجع ${invoiceNumber}` : `استلام مبلغ من مورد - مرتجع ${invoiceNumber}`;
+      const invPrefix = type === "sales" ? "INV-" : type === "purchase" ? "PUR-" : type === "sales_return" ? "SRN-" : "PRN-";
+      const formattedInvNum = invoiceNumber ? `${invPrefix}${String(invoiceNumber).padStart(4, "0")}` : `#${invoiceId.slice(0,8)}`;
+      const desc = type === "sales" ? `تحصيل من عميل - فاتورة ${formattedInvNum}` : type === "purchase" ? `سداد لمورد - فاتورة ${formattedInvNum}` : type === "sales_return" ? `رد مبلغ لعميل - مرتجع ${formattedInvNum}` : `استلام مبلغ من مورد - مرتجع ${formattedInvNum}`;
       const jePostedNum = await getNextPostedNumber("journal_entries");
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
         description: desc, entry_date: paymentDate,
