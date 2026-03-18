@@ -31,6 +31,7 @@ export interface CompanySettings {
   expense_prefix: string;
   return_days_limit: number;
   enable_fiscal_year_closing: boolean;
+  monthly_sales_target: number;
 }
 
 interface SettingsContextType {

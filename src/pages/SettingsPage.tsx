@@ -317,6 +317,11 @@ export default function SettingsPage() {
                 <Input type="number" min={1} max={365} value={settings.return_days_limit || 30} onChange={(e) => updateField("return_days_limit", Number(e.target.value))} className="rounded-lg" />
                 <p className="text-xs text-muted-foreground">الحد الأقصى لعدد الأيام المسموح بها لإرجاع المبيعات</p>
               </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-bold">هدف المبيعات الشهري</Label>
+                <Input type="number" min={0} value={(settings as any).monthly_sales_target || 0} onChange={(e) => updateField("monthly_sales_target" as any, Number(e.target.value))} className="rounded-lg" />
+                <p className="text-xs text-muted-foreground">المبلغ المستهدف تحقيقه من المبيعات شهرياً — يظهر في لوحة التحكم</p>
+              </div>
             </div>
 
             <hr className="border-border my-2" />

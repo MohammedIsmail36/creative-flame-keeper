@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatProductDisplay } from "@/lib/product-utils";
 import { useSettings } from "@/contexts/SettingsContext";
+import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,8 @@ import {
   Banknote,
   BarChart3,
   Award,
+  Target,
+  PackageX,
 } from "lucide-react";
 import {
   BarChart,
@@ -48,10 +51,11 @@ interface LowStockItem { name: string; brandName: string | null; modelNumber: st
 interface ExpenseByType { name: string; amount: number; }
 interface RecentActivity { id: string; title: string; subtitle: string; amount: number; type: "sale" | "purchase" | "expense"; date: string; }
 interface TopCategory { name: string; totalSales: number; totalProfit: number; }
+interface StagnantItem { name: string; brandName: string | null; modelNumber: string | null; quantity_on_hand: number; lastMovement: string | null; }
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, settings } = useSettings();
   const [loading, setLoading] = useState(true);
 
   // KPI state
@@ -85,6 +89,8 @@ export default function Dashboard() {
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
   const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
   const [topCategories, setTopCategories] = useState<TopCategory[]>([]);
+  const [currentMonthSales, setCurrentMonthSales] = useState(0);
+  const [stagnantItems, setStagnantItems] = useState<StagnantItem[]>([]);
 
   useEffect(() => {
     fetchAll();
@@ -104,6 +110,7 @@ export default function Dashboard() {
       fetchLowStock(),
       fetchBalances(),
       fetchTopCategories(),
+      fetchStagnantStock(),
     ]);
     setLoading(false);
   };
@@ -132,6 +139,10 @@ export default function Dashboard() {
     setTotalExpenses(sumTotal(expenses));
     setTotalSalesReturns(sumTotal(salesReturnsRes.data || []));
     setTotalPurchaseReturns(sumTotal(purchaseReturnsRes.data || []));
+
+    // Current month sales
+    const currMonthSales = sales.filter(i => { const d = new Date(i.invoice_date); return d.getMonth() === currMonth && d.getFullYear() === currYear; }).reduce((s, i) => s + Number(i.total || 0), 0);
+    setCurrentMonthSales(currMonthSales);
 
     // Monthly change calculations
     const calcChange = (items: any[], dateField: string) => {
@@ -440,6 +451,54 @@ export default function Dashboard() {
     );
   };
 
+  const fetchStagnantStock = async () => {
+    // Get products with stock > 0
+    const { data: products } = await (supabase.from("products") as any)
+      .select("id, name, quantity_on_hand, model_number, product_brands(name)")
+      .eq("is_active", true)
+      .gt("quantity_on_hand", 0);
+
+    if (!products?.length) { setStagnantItems([]); return; }
+
+    // Get last movement date per product
+    const productIds = products.map((p: any) => p.id);
+    const { data: movements } = await supabase
+      .from("inventory_movements")
+      .select("product_id, movement_date")
+      .in("product_id", productIds)
+      .order("movement_date", { ascending: false });
+
+    const lastMoveMap = new Map<string, string>();
+    (movements || []).forEach((m: any) => {
+      if (!lastMoveMap.has(m.product_id)) lastMoveMap.set(m.product_id, m.movement_date);
+    });
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const stagnant = products
+      .filter((p: any) => {
+        const lastMove = lastMoveMap.get(p.id);
+        if (!lastMove) return true; // no movement ever
+        return new Date(lastMove) < thirtyDaysAgo;
+      })
+      .map((p: any) => ({
+        name: p.name,
+        brandName: p.product_brands?.name || null,
+        modelNumber: p.model_number || null,
+        quantity_on_hand: Number(p.quantity_on_hand),
+        lastMovement: lastMoveMap.get(p.id) || null,
+      }))
+      .sort((a: StagnantItem, b: StagnantItem) => {
+        if (!a.lastMovement) return -1;
+        if (!b.lastMovement) return 1;
+        return new Date(a.lastMovement).getTime() - new Date(b.lastMovement).getTime();
+      })
+      .slice(0, 10);
+
+    setStagnantItems(stagnant);
+  };
+
   const netProfit = totalSales - totalPurchases - totalExpenses - totalSalesReturns + totalPurchaseReturns;
   const profitMargin = totalSales > 0 ? ((netProfit / totalSales) * 100).toFixed(1) : "0";
 
@@ -647,6 +706,40 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
+          {/* Sales Target Progress */}
+          {(() => {
+            const target = Number((settings as any)?.monthly_sales_target || 0);
+            if (target <= 0) return null;
+            const progress = Math.min((currentMonthSales / target) * 100, 100);
+            const exceeded = currentMonthSales > target;
+            return (
+              <Card className="border-border/60 shadow-none">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" /> هدف المبيعات الشهري
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">المحقق</span>
+                    <span className={`font-bold ${exceeded ? "text-success" : "text-foreground"}`}>{formatCurrency(currentMonthSales)}</span>
+                  </div>
+                  <Progress value={progress} className="h-3" />
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>الهدف: {formatCurrency(target)}</span>
+                    <span className={`font-bold ${exceeded ? "text-success" : progress >= 70 ? "text-primary" : "text-destructive"}`}>
+                      {progress.toFixed(0)}%
+                    </span>
+                  </div>
+                  {exceeded && (
+                    <div className="bg-success/10 text-success text-xs font-medium rounded-lg p-2 text-center flex items-center justify-center gap-1">
+                      <TrendingUp className="w-3 h-3" /> تم تجاوز الهدف بـ {formatCurrency(currentMonthSales - target)}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
           {/* Expenses by Type */}
           {expensesByType.length > 0 && (
             <Card className="border-border/60 shadow-none">
@@ -827,6 +920,41 @@ export default function Dashboard() {
                       <TableCell className="text-sm font-medium">{cat.name}</TableCell>
                       <TableCell className="text-sm">{formatCurrency(cat.totalSales)}</TableCell>
                       <TableCell className={`text-sm font-bold ${cat.totalProfit >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(cat.totalProfit)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Stagnant Stock */}
+        <Card className={`shadow-none ${stagnantItems.length > 0 ? "border-warning/40 bg-warning/5" : "border-border/60"}`}>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <PackageX className="w-4 h-4 text-warning" /> مخزون راكد
+              {stagnantItems.length > 0 && <Badge variant="outline" className="text-[10px] border-warning/40 text-warning">{stagnantItems.length} صنف</Badge>}
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground">أصناف لم تتحرك منذ أكثر من 30 يوماً</p>
+          </CardHeader>
+          <CardContent className="p-0">
+            {stagnantItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">لا توجد أصناف راكدة</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-xs">الصنف</TableHead>
+                    <TableHead className="text-xs">الكمية</TableHead>
+                    <TableHead className="text-xs">آخر حركة</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stagnantItems.map(item => (
+                    <TableRow key={item.name}>
+                      <TableCell className="text-sm font-medium">{formatProductDisplay(item.name, item.brandName, item.modelNumber)}</TableCell>
+                      <TableCell className="text-sm">{item.quantity_on_hand}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{item.lastMovement || "لا توجد حركة"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -83,6 +83,7 @@ export type Database = {
           invoice_notes: string | null
           journal_entry_prefix: string
           logo_url: string | null
+          monthly_sales_target: number
           payment_terms_days: number
           phone: string | null
           purchase_invoice_prefix: string
@@ -116,6 +117,7 @@ export type Database = {
           invoice_notes?: string | null
           journal_entry_prefix?: string
           logo_url?: string | null
+          monthly_sales_target?: number
           payment_terms_days?: number
           phone?: string | null
           purchase_invoice_prefix?: string
@@ -149,6 +151,7 @@ export type Database = {
           invoice_notes?: string | null
           journal_entry_prefix?: string
           logo_url?: string | null
+          monthly_sales_target?: number
           payment_terms_days?: number
           phone?: string | null
           purchase_invoice_prefix?: string
