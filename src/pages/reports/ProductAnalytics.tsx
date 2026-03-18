@@ -83,6 +83,29 @@ interface ProductMetrics {
   purchasePrice: number;
 }
 
+interface CategoryMetrics {
+  name: string;
+  productCount: number;
+  netQty: number;
+  netRevenue: number;
+  netCogs: number;
+  profit: number;
+}
+
+type TurnoverRating = "excellent" | "medium" | "slow" | "dead";
+
+interface TurnoverMetrics {
+  name: string;
+  code: string;
+  category: string;
+  cogs: number;
+  avgInventory: number;
+  turnover: number;
+  currentStock: number;
+  minStockLevel: number;
+  rating: TurnoverRating;
+}
+
 export default function ProductAnalytics() {
   const { settings } = useSettings();
   const [dateFrom, setDateFrom] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
