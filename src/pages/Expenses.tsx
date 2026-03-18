@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Receipt, CheckCircle, XCircle, Trash2, Pencil, Filter, X } from "lucide-react";
+import { Plus, Receipt, CheckCircle, XCircle, Trash2, Pencil, X, Clock, Ban, Wallet } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useNavigate } from "react-router-dom";
 
@@ -25,7 +25,6 @@ interface Expense {
 const ACCOUNT_CODES = { CASH: "1101", BANK: "1102" };
 const methodLabels: Record<string, string> = { cash: "نقدي", bank: "تحويل بنكي" };
 const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مرحّل", cancelled: "ملغي" };
-const statusVariants: Record<string, "secondary" | "default" | "destructive"> = { draft: "secondary", posted: "default", cancelled: "destructive" };
 
 export default function Expenses() {
   const { role } = useAuth();
@@ -74,8 +73,8 @@ export default function Expenses() {
   }, [expenses, statusFilter, typeFilter, dateFrom, dateTo]);
 
   const clearFilters = () => { setStatusFilter("all"); setTypeFilter("all"); setDateFrom(""); setDateTo(""); };
+  const hasFilters = statusFilter !== "all" || typeFilter !== "all" || dateFrom || dateTo;
 
-  // Post expense - create journal entry
   async function handlePost() {
     if (!postTarget) return;
     setSaving(true);
@@ -90,11 +89,10 @@ export default function Expenses() {
 
       const expPostedNum = await getNextPostedNumber("expenses" as any);
       const jePostedNum = await getNextPostedNumber("journal_entries");
-      const prefix = (settings as any)?.expense_prefix || "EXP-";
-      const displayNum = `${prefix}${String(expPostedNum).padStart(4, "0")}`;
+      const expPrefix = (settings as any)?.expense_prefix || "EXP-";
+      const displayNum = `${expPrefix}${String(expPostedNum).padStart(4, "0")}`;
       const desc = `مصروف ${postTarget.expense_type_name} - ${displayNum}${postTarget.description ? ` - ${postTarget.description}` : ""}`;
 
-      // Create journal entry
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
         description: desc, entry_date: postTarget.expense_date,
         total_debit: postTarget.amount, total_credit: postTarget.amount,
@@ -102,13 +100,11 @@ export default function Expenses() {
       } as any).select("id").single();
       if (jeError) throw jeError;
 
-      // Debit: expense account, Credit: cash/bank
       await supabase.from("journal_entry_lines").insert([
         { journal_entry_id: je.id, account_id: expType.account_id, debit: postTarget.amount, credit: 0, description: desc },
         { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: 0, credit: postTarget.amount, description: desc },
       ] as any);
 
-      // Update expense
       await (supabase.from("expenses" as any) as any)
         .update({ status: "posted", journal_entry_id: je.id, posted_number: expPostedNum })
         .eq("id", postTarget.id);
@@ -122,20 +118,17 @@ export default function Expenses() {
     setSaving(false);
   }
 
-  // Cancel posted expense - reverse journal
   async function handleCancel() {
     if (!cancelTarget || !cancelTarget.journal_entry_id) return;
     setSaving(true);
     try {
-      // Get original journal lines
       const { data: lines } = await supabase.from("journal_entry_lines")
         .select("account_id, debit, credit, description")
         .eq("journal_entry_id", cancelTarget.journal_entry_id);
 
-      // Create reverse journal entry
       const jePostedNum = await getNextPostedNumber("journal_entries");
-      const prefix = (settings as any)?.expense_prefix || "EXP-";
-      const displayNum = formatDisplayNumber(prefix, cancelTarget.posted_number, cancelTarget.expense_number, cancelTarget.status);
+      const expPrefix = (settings as any)?.expense_prefix || "EXP-";
+      const displayNum = formatDisplayNumber(expPrefix, cancelTarget.posted_number, cancelTarget.expense_number, cancelTarget.status);
       const desc = `عكس مصروف ${displayNum}`;
 
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
@@ -145,7 +138,6 @@ export default function Expenses() {
       } as any).select("id").single();
       if (jeError) throw jeError;
 
-      // Reverse lines
       if (lines) {
         const reversed = lines.map(l => ({
           journal_entry_id: je.id, account_id: l.account_id,
@@ -154,10 +146,8 @@ export default function Expenses() {
         await supabase.from("journal_entry_lines").insert(reversed as any);
       }
 
-      // Update original journal entry
       await supabase.from("journal_entries").update({ status: "cancelled" } as any).eq("id", cancelTarget.journal_entry_id);
 
-      // Update expense
       await (supabase.from("expenses" as any) as any)
         .update({ status: "cancelled" })
         .eq("id", cancelTarget.id);
@@ -186,70 +176,96 @@ export default function Expenses() {
 
   const prefix = (settings as any)?.expense_prefix || "EXP-";
 
+  const statusCounts = useMemo(() => {
+    const counts = { all: expenses.length, draft: 0, posted: 0, cancelled: 0 };
+    expenses.forEach(e => {
+      if (e.status === "draft") counts.draft++;
+      else if (e.status === "cancelled") counts.cancelled++;
+      else counts.posted++;
+    });
+    return counts;
+  }, [expenses]);
+
+  const totalPosted = useMemo(() => expenses.filter(e => e.status === "posted").reduce((s, e) => s + e.amount, 0), [expenses]);
+
+  const statCards = [
+    { label: "إجمالي المصروفات", value: expenses.length, icon: Receipt, iconBg: "bg-blue-100 dark:bg-blue-500/20", iconColor: "text-blue-600 dark:text-blue-400", filter: "all" },
+    { label: "مسودات", value: statusCounts.draft, icon: Clock, iconBg: "bg-amber-100 dark:bg-amber-500/20", iconColor: "text-amber-600 dark:text-amber-400", filter: "draft" },
+    { label: "مرحّلة", value: statusCounts.posted, icon: CheckCircle, iconBg: "bg-green-100 dark:bg-green-500/20", iconColor: "text-green-600 dark:text-green-400", filter: "posted" },
+    { label: "إجمالي المرحّل", value: formatCurrency(totalPosted), icon: Wallet, iconBg: "bg-purple-100 dark:bg-purple-500/20", iconColor: "text-purple-600 dark:text-purple-400", filter: "" },
+  ];
+
   const columns: ColumnDef<Expense>[] = [
     {
       accessorKey: "expense_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="الرقم" />,
       cell: ({ row }) => {
         const e = row.original;
-        return <span className="font-mono text-sm">{formatDisplayNumber(prefix, e.posted_number, e.expense_number, e.status)}</span>;
+        return <span className="font-mono text-sm text-foreground">{formatDisplayNumber(prefix, e.posted_number, e.expense_number, e.status)}</span>;
       },
     },
     {
       accessorKey: "expense_date",
       header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.expense_date}</span>,
     },
     {
       accessorKey: "expense_type_name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="نوع المصروف" />,
-      cell: ({ row }) => <span className="font-medium">{row.original.expense_type_name}</span>,
+      cell: ({ row }) => <span className="text-sm font-bold text-foreground">{row.original.expense_type_name}</span>,
     },
     {
       accessorKey: "amount",
       header: ({ column }) => <DataTableColumnHeader column={column} title="المبلغ" />,
-      cell: ({ row }) => <span className="font-semibold">{formatCurrency(row.original.amount)}</span>,
+      cell: ({ row }) => <span className="text-sm font-bold text-foreground font-mono">{formatCurrency(row.original.amount)}</span>,
     },
     {
       accessorKey: "payment_method",
       header: ({ column }) => <DataTableColumnHeader column={column} title="طريقة الدفع" />,
-      cell: ({ row }) => methodLabels[row.original.payment_method] || row.original.payment_method,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{methodLabels[row.original.payment_method] || row.original.payment_method}</span>,
     },
     {
       accessorKey: "description",
       header: ({ column }) => <DataTableColumnHeader column={column} title="البيان" />,
-      cell: ({ row }) => <span className="text-muted-foreground text-sm truncate max-w-[200px] inline-block">{row.original.description || "-"}</span>,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground truncate max-w-[200px] block">{row.original.description || "-"}</span>,
     },
     {
       accessorKey: "status",
       header: ({ column }) => <DataTableColumnHeader column={column} title="الحالة" />,
-      cell: ({ row }) => (
-        <Badge variant={statusVariants[row.original.status] || "secondary"}>
-          {statusLabels[row.original.status] || row.original.status}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const s = row.original.status;
+        const statusConfig: Record<string, { label: string; className: string }> = {
+          posted: { label: "مرحّل", className: "bg-green-500/10 text-green-600 border-green-500/20" },
+          draft: { label: "مسودة", className: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+          cancelled: { label: "ملغي", className: "bg-destructive/10 text-destructive border-destructive/20" },
+        };
+        const cfg = statusConfig[s] || statusConfig.draft;
+        return <Badge variant="secondary" className={cfg.className}>{cfg.label}</Badge>;
+      },
     },
     {
       id: "actions",
       header: "إجراءات",
+      enableHiding: false,
       cell: ({ row }) => {
         const e = row.original;
         return (
           <div className="flex gap-1">
             {e.status === "draft" && (
               <>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/expenses/${e.id}`)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(ev) => { ev.stopPropagation(); navigate(`/expenses/${e.id}`); }}>
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={() => setPostTarget(e)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={(ev) => { ev.stopPropagation(); setPostTarget(e); }}>
                   <CheckCircle className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(e)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(ev) => { ev.stopPropagation(); setDeleteTarget(e); }}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </>
             )}
             {e.status === "posted" && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-600" onClick={() => setCancelTarget(e)}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-600" onClick={(ev) => { ev.stopPropagation(); setCancelTarget(e); }}>
                 <XCircle className="h-4 w-4" />
               </Button>
             )}
@@ -258,8 +274,6 @@ export default function Expenses() {
       },
     },
   ];
-
-  const totalPosted = filtered.filter(e => e.status === "posted").reduce((s, e) => s + e.amount, 0);
 
   const exportHeaders = ["الرقم", "التاريخ", "نوع المصروف", "المبلغ", "طريقة الدفع", "البيان", "الحالة"];
   const exportRows = filtered.map(e => [
@@ -282,81 +296,88 @@ export default function Expenses() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Receipt className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">المصروفات</h1>
-            <p className="text-sm text-muted-foreground">إدارة وتسجيل المصروفات اليومية</p>
-          </div>
+    <div className="space-y-6" dir="rtl">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-extrabold text-foreground flex items-center">
+            <div className="bg-primary/10 p-2 rounded-lg ml-3">
+              <Receipt className="h-5 w-5 text-primary" />
+            </div>
+            المصروفات
+          </h2>
+          <p className="text-muted-foreground text-sm mt-1">إدارة وتسجيل المصروفات اليومية</p>
         </div>
-        <div className="flex gap-2">
-          <ExportMenu config={exportConfig} />
-          <Button onClick={() => navigate("/expenses/new")}>
-            <Plus className="h-4 w-4 ml-2" /> مصروف جديد
+        <div className="flex items-center gap-3">
+          <ExportMenu config={exportConfig} disabled={loading} />
+          <Button className="gap-2 shadow-md shadow-primary/20 font-bold" onClick={() => navigate("/expenses/new")}>
+            <Plus className="h-4 w-4" />
+            مصروف جديد
           </Button>
         </div>
       </div>
 
-      {/* KPI */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">إجمالي المصروفات</p>
-          <p className="text-2xl font-bold">{filtered.length}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">المرحّلة</p>
-          <p className="text-2xl font-bold text-green-600">{filtered.filter(e => e.status === "posted").length}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">المسودات</p>
-          <p className="text-2xl font-bold text-muted-foreground">{filtered.filter(e => e.status === "draft").length}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">إجمالي المرحّل</p>
-          <p className="text-2xl font-bold">{formatCurrency(totalPosted)}</p>
-        </div>
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        {statCards.map(({ label, value, icon: Icon, iconBg, iconColor, filter }) => (
+          <button
+            key={label}
+            onClick={() => filter && setStatusFilter(filter)}
+            className={`bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4 text-right transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}
+          >
+            <div className={`p-3 rounded-full ${iconBg}`}>
+              <Icon className={`h-5 w-5 ${iconColor}`} />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-xl font-black text-foreground">{typeof value === "number" ? value.toLocaleString() : value}</p>
+            </div>
+          </button>
+        ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-end">
-        <div className="w-40">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger><SelectValue placeholder="الحالة" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">الكل</SelectItem>
-              <SelectItem value="draft">مسودة</SelectItem>
-              <SelectItem value="posted">مرحّل</SelectItem>
-              <SelectItem value="cancelled">ملغي</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="w-48">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger><SelectValue placeholder="نوع المصروف" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">الكل</SelectItem>
-              {expenseTypes.map(t => (
-                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" />
-        <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" />
-        {(statusFilter !== "all" || typeFilter !== "all" || dateFrom || dateTo) && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}><X className="h-4 w-4 ml-1" /> مسح</Button>
-        )}
-      </div>
-
-      {/* Table */}
-      <div className="rounded-xl border bg-card shadow-sm">
-        <DataTable columns={columns} data={filtered} showSearch searchPlaceholder="بحث..." />
-      </div>
+      {/* Data Table */}
+      <DataTable
+        columns={columns}
+        data={filtered}
+        searchPlaceholder="البحث في المصروفات..."
+        isLoading={loading}
+        emptyMessage="لا توجد مصروفات"
+        toolbarContent={
+          <div className="flex gap-3 flex-wrap items-center">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-36 h-9 text-sm bg-card border-border">
+                <SelectValue placeholder="الحالة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الحالات ({statusCounts.all})</SelectItem>
+                <SelectItem value="draft">مسودة ({statusCounts.draft})</SelectItem>
+                <SelectItem value="posted">مرحّل ({statusCounts.posted})</SelectItem>
+                <SelectItem value="cancelled">ملغي ({statusCounts.cancelled})</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-48 h-9 text-sm bg-card border-border">
+                <SelectValue placeholder="نوع المصروف" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الأنواع</SelectItem>
+                {expenseTypes.map(t => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-[150px] h-9 text-sm" />
+            <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-[150px] h-9 text-sm" />
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1 text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+                مسح الفلاتر
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {/* Post Alert */}
       <AlertDialog open={!!postTarget} onOpenChange={() => setPostTarget(null)}>
