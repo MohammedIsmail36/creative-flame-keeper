@@ -37,6 +37,7 @@ import DebtAgingReportPage from "./pages/reports/DebtAgingReportPage";
 import GrowthAnalyticsPage from "./pages/reports/GrowthAnalyticsPage";
 import ProductAnalyticsPage from "./pages/reports/ProductAnalyticsPage";
 import AccountBalancesPage from "./pages/reports/AccountBalancesPage";
+import ProfitLossPage from "./pages/reports/ProfitLossPage";
 import InventoryMovements from "./pages/InventoryMovements";
 import InventoryAdjustments from "./pages/InventoryAdjustments";
 import InventoryAdjustmentForm from "./pages/InventoryAdjustmentForm";
