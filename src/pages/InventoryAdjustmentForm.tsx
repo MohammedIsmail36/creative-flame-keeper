@@ -3,21 +3,24 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
 import { toast } from "@/hooks/use-toast";
-import { Plus, X, Save, CheckCircle, Pencil } from "lucide-react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  Plus, X, Save, CheckCircle, Pencil, Trash2, ClipboardCheck,
+  ListChecks, StickyNote, CreditCard,
+} from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-type Product = ProductWithBrand & { quantity_on_hand: number; };
+type Product = ProductWithBrand & { quantity_on_hand: number };
 
 interface AdjustmentItem {
   id?: string;
@@ -36,6 +39,18 @@ const ACCOUNT_CODES = {
   INVENTORY_ADJUSTMENT_LOSS: "5201",
   INVENTORY_ADJUSTMENT_GAIN: "4201",
 };
+
+// ── Section Header Component ──
+function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+        <Icon className="h-4 w-4 text-primary" />
+      </div>
+      <h2 className="text-base font-bold text-foreground">{title}</h2>
+    </div>
+  );
+}
 
 export default function InventoryAdjustmentForm() {
   const { id } = useParams();
@@ -94,6 +109,8 @@ export default function InventoryAdjustmentForm() {
         }
       }
       setLoading(false);
+    } else {
+      setLoading(false);
     }
   }
 
@@ -108,7 +125,6 @@ export default function InventoryAdjustmentForm() {
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
-    // جلب متوسط سعر الشراء مع الرجوع لسعر الشراء على المنتج إذا لم يوجد متوسط
     const { data: avgPrice } = await supabase.rpc("get_avg_purchase_price", { _product_id: productId });
     const avgCost = Number(avgPrice) || 0;
     const cost = avgCost > 0 ? avgCost : (product as any).purchase_price || 0;
@@ -142,6 +158,7 @@ export default function InventoryAdjustmentForm() {
 
   const totalGain = items.filter(i => i.difference > 0).reduce((s, i) => s + i.total_cost, 0);
   const totalLoss = items.filter(i => i.difference < 0).reduce((s, i) => s + i.total_cost, 0);
+  const netDifference = totalGain - totalLoss;
 
   async function handleSave() {
     if (items.length === 0) return toast({ title: "أضف منتج واحد على الأقل", variant: "destructive" });
@@ -186,20 +203,29 @@ export default function InventoryAdjustmentForm() {
     }
   }
 
+  async function handleDeleteDraft() {
+    if (!id) return;
+    try {
+      await (supabase.from("inventory_adjustment_items" as any) as any).delete().eq("adjustment_id", id);
+      await (supabase.from("inventory_adjustments" as any) as any).delete().eq("id", id);
+      toast({ title: "تم حذف التسوية بنجاح" });
+      navigate("/inventory-adjustments");
+    } catch {
+      toast({ title: "خطأ في الحذف", variant: "destructive" });
+    }
+  }
+
   async function handleApprove() {
     if (!id) return;
     setSaving(true);
     try {
-      // 1. إنشاء القيد المحاسبي
       const { data: invAccount } = await supabase.from("accounts").select("id").eq("code", ACCOUNT_CODES.INVENTORY).single();
-      
-      // حساب العجز (مصروف)
+
       let lossAccount: { id: string } | null = null;
       if (totalLoss > 0) {
         const { data } = await supabase.from("accounts").select("id").eq("code", ACCOUNT_CODES.INVENTORY_ADJUSTMENT_LOSS).single();
         lossAccount = data;
         if (!lossAccount) {
-          // إنشاء حساب العجز إذا لم يكن موجوداً
           const { data: created } = await supabase.from("accounts").insert({
             code: ACCOUNT_CODES.INVENTORY_ADJUSTMENT_LOSS,
             name: "عجز المخزون",
@@ -210,7 +236,6 @@ export default function InventoryAdjustmentForm() {
         }
       }
 
-      // حساب الزيادة (إيراد)
       let gainAccount: { id: string } | null = null;
       if (totalGain > 0) {
         const { data } = await supabase.from("accounts").select("id").eq("code", ACCOUNT_CODES.INVENTORY_ADJUSTMENT_GAIN).single();
@@ -230,13 +255,11 @@ export default function InventoryAdjustmentForm() {
 
       const lines: { account_id: string; debit: number; credit: number; description: string }[] = [];
 
-      // عجز: مدين مصروف، دائن مخزون
       if (totalLoss > 0 && lossAccount) {
         lines.push({ account_id: lossAccount.id, debit: totalLoss, credit: 0, description: "عجز مخزون - تسوية جرد" });
         lines.push({ account_id: invAccount.id, debit: 0, credit: totalLoss, description: "تخفيض مخزون - عجز جرد" });
       }
 
-      // فائض: مدين مخزون، دائن إيراد
       if (totalGain > 0 && gainAccount) {
         lines.push({ account_id: invAccount.id, debit: totalGain, credit: 0, description: "زيادة مخزون - فائض جرد" });
         lines.push({ account_id: gainAccount.id, debit: 0, credit: totalGain, description: "فائض مخزون - تسوية جرد" });
@@ -264,11 +287,9 @@ export default function InventoryAdjustmentForm() {
         if (linesErr) throw linesErr;
       }
 
-      // 2. تسجيل حركات المخزون وتحديث الكميات
       for (const item of items) {
         if (item.difference === 0) continue;
 
-        // تسجيل حركة مخزون
         await (supabase.from("inventory_movements" as any) as any).insert({
           product_id: item.product_id,
           movement_type: "adjustment",
@@ -280,13 +301,11 @@ export default function InventoryAdjustmentForm() {
           created_by: user?.id,
         });
 
-        // تحديث كمية المنتج
         await supabase.from("products")
           .update({ quantity_on_hand: item.actual_quantity })
           .eq("id", item.product_id);
       }
 
-      // 3. تحديث حالة التسوية
       await (supabase.from("inventory_adjustments" as any) as any)
         .update({ status: "approved", journal_entry_id: journalEntryId })
         .eq("id", id);
@@ -301,181 +320,397 @@ export default function InventoryAdjustmentForm() {
     }
   }
 
-  if (loading) return <div className="text-center py-12">جاري التحميل...</div>;
+  if (loading) return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
+
+  const isDraft = status === "draft";
+  const isEditable = editMode && isDraft && canEdit;
+  const statusLabels: Record<string, string> = { draft: "مسودة", approved: "معتمد" };
+  const statusVariants: Record<string, "secondary" | "default"> = { draft: "secondary", approved: "default" };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">
-            {isNew ? "تسوية جديدة" : `تسوية رقم ADJ-${adjustmentNumber}`}
-          </h1>
+    <div className="space-y-6" dir="rtl">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-black text-foreground tracking-tight">
+              {isNew ? "إنشاء تسوية مخزون" : "تسوية مخزون"}
+            </h1>
+            {!isNew && adjustmentNumber && (
+              <span className="text-sm font-semibold text-muted-foreground border border-border px-3 py-1 rounded-lg bg-muted/50 font-mono tabular-nums">
+                ADJ-{adjustmentNumber}
+              </span>
+            )}
+            {!isNew && (
+              <Badge variant={statusVariants[status] || "secondary"} className="text-xs px-3 py-1">
+                {statusLabels[status] || status}
+              </Badge>
+            )}
+          </div>
+          <p className="text-muted-foreground mt-1.5 text-sm">مقارنة الكميات الفعلية بكميات النظام وتسجيل الفروقات</p>
         </div>
-        {!isNew && (
-          <Badge variant="secondary" className={status === "approved" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}>
-            {status === "approved" ? "معتمد" : "مسودة"}
-          </Badge>
-        )}
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {!isNew && isDraft && canEdit && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  حذف
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent dir="rtl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>حذف التسوية</AlertDialogTitle>
+                  <AlertDialogDescription>هل أنت متأكد من حذف هذه التسوية؟ لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteDraft} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    حذف
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {!isNew && isDraft && canEdit && !editMode && (
+            <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="gap-1.5">
+              <Pencil className="h-4 w-4" />
+              تعديل
+            </Button>
+          )}
+          {isEditable && (
+            <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+              <Save className="h-4 w-4" />
+              {saving ? "جاري الحفظ..." : "حفظ مسودة"}
+            </Button>
+          )}
+          {!isNew && isDraft && canEdit && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  size="sm"
+                  disabled={saving || items.length === 0}
+                  className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  اعتماد التسوية
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent dir="rtl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>اعتماد التسوية</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    سيتم تسجيل القيود المحاسبية وتحديث كميات المخزون. لا يمكن التراجع عن هذه العملية.
+                    {totalLoss > 0 && <div className="text-destructive mt-2 font-semibold">عجز: {formatCurrency(totalLoss)}</div>}
+                    {totalGain > 0 && <div className="text-green-600 mt-1 font-semibold">فائض: {formatCurrency(totalGain)}</div>}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleApprove}>اعتماد</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle>بيانات التسوية</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label>التاريخ</Label>
-            <DatePickerInput value={adjustmentDate} onChange={setAdjustmentDate} placeholder="اختر التاريخ" disabled={!editMode} />
+      {/* ── Adjustment Details Card ── */}
+      <div className="bg-card p-6 rounded-2xl border shadow-sm">
+        <div className="mb-5">
+          <SectionHeader icon={ClipboardCheck} title="بيانات التسوية" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">تاريخ التسوية</Label>
+            {isEditable ? (
+              <DatePickerInput value={adjustmentDate} onChange={setAdjustmentDate} placeholder="اختر التاريخ" />
+            ) : (
+              <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-mono tabular-nums">
+                {adjustmentDate}
+              </div>
+            )}
           </div>
-          <div className="md:col-span-2">
-            <Label>الوصف</Label>
-            <Textarea value={description} onChange={e => setDescription(e.target.value)} disabled={!editMode} placeholder="وصف عملية الجرد..." />
+          <div className="md:col-span-2 space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">وصف عملية الجرد</Label>
+            {isEditable ? (
+              <Input
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="مثال: جرد شهر مارس 2026"
+                className="rounded-xl"
+              />
+            ) : (
+              <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm">
+                {description || "—"}
+              </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>بنود التسوية</CardTitle>
-          {editMode && (
-            <Button size="sm" onClick={addItem}><Plus className="w-4 h-4 ml-1" />إضافة منتج</Button>
-          )}
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8">#</TableHead>
-                  <TableHead className="min-w-[200px]">المنتج</TableHead>
-                  <TableHead>الكمية بالنظام</TableHead>
-                  <TableHead>الكمية الفعلية</TableHead>
-                  <TableHead>الفرق</TableHead>
-                  <TableHead>متوسط سعر الشراء</TableHead>
-                  <TableHead>إجمالي الفرق</TableHead>
-                  <TableHead>ملاحظات</TableHead>
-                  {editMode && <TableHead className="w-10"></TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell>{idx + 1}</TableCell>
-                    <TableCell>
-                      {editMode ? (
+      {/* ── Items Table Card ── */}
+      <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+        {/* Card Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <SectionHeader icon={ListChecks} title="بنود التسوية" />
+            {items.length > 0 && (
+              <span className="text-xs font-medium text-muted-foreground bg-muted border border-border/60 px-2.5 py-0.5 rounded-full tabular-nums">
+                {items.length} {items.length === 1 ? "بند" : "بنود"}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-right border-collapse" style={{ tableLayout: "fixed" }}>
+            <colgroup>
+              <col style={{ width: "3%" }} />
+              <col style={{ width: "28%" }} />
+              <col style={{ width: "11%" }} />
+              <col style={{ width: "11%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "13%" }} />
+              {isEditable && <col style={{ width: "3%" }} />}
+            </colgroup>
+            <thead>
+              <tr className="border-b border-border bg-muted/20">
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">#</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">المنتج</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">كمية النظام</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الكمية الفعلية</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الفرق</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">متوسط التكلفة</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">إجمالي الفرق</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">ملاحظات</th>
+                {isEditable && <th className="py-2 px-2" />}
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={isEditable ? 9 : 8}>
+                    <div className="flex flex-col items-center justify-center py-16 gap-3">
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                        <ListChecks className="h-5 w-5 text-muted-foreground/40" />
+                      </div>
+                      <p className="text-sm font-medium text-muted-foreground">لا توجد بنود بعد</p>
+                      {isEditable && <p className="text-xs text-muted-foreground/50">اضغط «إضافة منتج» للبدء</p>}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                items.map((item, i) => (
+                  <tr
+                    key={i}
+                    className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100"
+                  >
+                    <td className="py-2 px-3 text-center">
+                      <span className="text-xs font-medium text-muted-foreground/40 tabular-nums">{i + 1}</span>
+                    </td>
+
+                    <td className="py-2 px-3 min-w-0">
+                      {isEditable ? (
                         <LookupCombobox
                           value={item.product_id}
-                          onValueChange={(val) => handleProductSelect(idx, val)}
+                          onValueChange={(val) => handleProductSelect(i, val)}
                           items={productsToLookupItems(products)}
                           placeholder="اختر المنتج"
                         />
                       ) : (
-                        <span>{item.product_name}</span>
+                        <span className="font-medium text-sm block truncate" title={item.product_name}>
+                          {item.product_name}
+                        </span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium">{item.system_quantity.toLocaleString()}</span>
-                    </TableCell>
-                    <TableCell>
-                      {editMode ? (
+                    </td>
+
+                    <td className="py-2 px-3 text-center">
+                      <span className="font-mono tabular-nums text-sm">{item.system_quantity.toLocaleString()}</span>
+                    </td>
+
+                    <td className="py-2 px-3">
+                      {isEditable ? (
                         <Input
                           type="number"
                           min={0}
                           value={item.actual_quantity}
-                          onChange={e => handleActualQtyChange(idx, Number(e.target.value))}
-                          className="w-24"
+                          onChange={e => handleActualQtyChange(i, Number(e.target.value))}
+                          className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
-                        <span>{item.actual_quantity.toLocaleString()}</span>
+                        <span className="font-mono tabular-nums text-sm block text-center">{item.actual_quantity.toLocaleString()}</span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`font-bold ${item.difference > 0 ? "text-green-700" : item.difference < 0 ? "text-red-700" : ""}`}>
+                    </td>
+
+                    <td className="py-2 px-3 text-center">
+                      <span className={`font-mono tabular-nums text-sm font-bold ${
+                        item.difference > 0 ? "text-green-700 dark:text-green-400" :
+                        item.difference < 0 ? "text-destructive" : "text-muted-foreground"
+                      }`}>
                         {item.difference > 0 ? "+" : ""}{item.difference.toLocaleString()}
                       </span>
-                    </TableCell>
-                    <TableCell>{formatCurrency(item.unit_cost)}</TableCell>
-                    <TableCell>{formatCurrency(item.total_cost)}</TableCell>
-                    <TableCell>
-                      {editMode ? (
-                        <Input value={item.notes} onChange={e => {
-                          const u = [...items]; u[idx].notes = e.target.value; setItems(u);
-                        }} className="w-32" />
+                    </td>
+
+                    <td className="py-2 px-3 text-center">
+                      <span className="font-mono tabular-nums text-sm text-muted-foreground">
+                        {formatCurrency(item.unit_cost)}
+                      </span>
+                    </td>
+
+                    <td className="py-2 px-3 text-center">
+                      <span className={`font-mono tabular-nums text-sm font-semibold ${
+                        item.difference !== 0 ? (item.difference > 0 ? "text-green-700 dark:text-green-400" : "text-destructive") : ""
+                      }`}>
+                        {formatCurrency(item.total_cost)}
+                      </span>
+                    </td>
+
+                    <td className="py-2 px-3">
+                      {isEditable ? (
+                        <Input
+                          value={item.notes}
+                          onChange={e => {
+                            const u = [...items]; u[i].notes = e.target.value; setItems(u);
+                          }}
+                          className="text-xs bg-muted/30 border-border rounded-md h-8 w-full"
+                          placeholder="ملاحظة..."
+                        />
                       ) : (
-                        <span className="text-xs text-muted-foreground">{item.notes || "-"}</span>
+                        <span className="text-xs text-muted-foreground truncate block">{item.notes || "—"}</span>
                       )}
-                    </TableCell>
-                    {editMode && (
-                      <TableCell>
-                        <Button size="icon" variant="ghost" onClick={() => removeItem(idx)}>
-                          <X className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </TableCell>
+                    </td>
+
+                    {isEditable && (
+                      <td className="py-2 px-2">
+                        <button
+                          onClick={() => removeItem(i)}
+                          className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100"
+                          aria-label="حذف البند"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
                     )}
-                  </TableRow>
-                ))}
-                {items.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                      أضف منتجات للجرد
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Table Footer */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/10 flex-wrap gap-3">
+          {isEditable ? (
+            <button
+              onClick={addItem}
+              className="flex items-center gap-2 text-sm font-semibold text-primary hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              إضافة منتج
+            </button>
+          ) : (
+            <div />
+          )}
 
           {items.length > 0 && (
-            <div className="mt-4 flex gap-6 justify-end text-sm">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
+                <span className="text-xs text-muted-foreground">المنتجات</span>
+                <span className="text-xs font-mono font-semibold tabular-nums text-foreground">
+                  {new Set(items.filter(i => i.product_id).map(i => i.product_id)).size}
+                </span>
+              </div>
+              <div className="w-px h-4 bg-border/60" />
               {totalLoss > 0 && (
-                <div className="text-red-700 font-bold">
-                  إجمالي العجز: {formatCurrency(totalLoss)}
+                <div className="flex items-center gap-1.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-1.5 rounded-lg">
+                  <span className="text-xs text-destructive">عجز</span>
+                  <span className="text-xs font-mono font-semibold tabular-nums text-destructive">
+                    {formatCurrency(totalLoss)}
+                  </span>
                 </div>
               )}
               {totalGain > 0 && (
-                <div className="text-green-700 font-bold">
-                  إجمالي الفائض: {formatCurrency(totalGain)}
+                <div className="flex items-center gap-1.5 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 px-3 py-1.5 rounded-lg">
+                  <span className="text-xs text-green-700 dark:text-green-400">فائض</span>
+                  <span className="text-xs font-mono font-semibold tabular-nums text-green-700 dark:text-green-400">
+                    {formatCurrency(totalGain)}
+                  </span>
                 </div>
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="flex gap-3 justify-end">
-        {editMode && (
-          <>
-            <Button onClick={handleSave} disabled={saving}>
-              <Save className="w-4 h-4 ml-1" />{isNew ? "حفظ" : "تحديث"}
-            </Button>
-            {!isNew && status === "draft" && canEdit && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="default" className="bg-green-600 hover:bg-green-700" disabled={saving || items.length === 0}>
-                    <CheckCircle className="w-4 h-4 ml-1" />اعتماد التسوية
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>اعتماد التسوية</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      سيتم تسجيل القيود المحاسبية وتحديث كميات المخزون. لا يمكن التراجع عن هذه العملية.
-                      {totalLoss > 0 && <div className="text-red-600 mt-2">عجز: {formatCurrency(totalLoss)}</div>}
-                      {totalGain > 0 && <div className="text-green-600 mt-1">فائض: {formatCurrency(totalGain)}</div>}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleApprove}>اعتماد</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+      {/* ── Notes + Summary: Side by side ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Notes */}
+        <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col">
+          <div className="mb-4">
+            <SectionHeader icon={StickyNote} title="ملاحظات" />
+          </div>
+          <div className="flex-1 space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground">ملاحظات حول عملية الجرد</Label>
+            {isEditable ? (
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                className="w-full h-32 px-4 py-3 bg-muted/30 border border-border rounded-xl text-sm transition-all resize-none focus:ring-2 focus:ring-ring focus:border-ring"
+                placeholder="أدخل أي ملاحظات إضافية هنا..."
+              />
+            ) : (
+              <div className="h-32 px-4 py-3 bg-muted/30 border rounded-xl text-sm text-muted-foreground">
+                {description || "لا توجد ملاحظات"}
+              </div>
             )}
-          </>
-        )}
-        {!editMode && status === "draft" && canEdit && (
-          <Button variant="outline" onClick={() => setEditMode(true)}>
-            <Pencil className="w-4 h-4 ml-1" />تعديل
-          </Button>
-        )}
+          </div>
+        </div>
+
+        {/* Summary */}
+        <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col justify-between">
+          <div className="mb-4">
+            <SectionHeader icon={CreditCard} title="ملخص التسوية" />
+          </div>
+          <div className="space-y-1 mt-2">
+            {totalLoss > 0 && (
+              <div className="flex justify-between items-center py-2.5 border-b border-border/50">
+                <span className="font-mono tabular-nums text-sm font-medium text-destructive">
+                  {formatCurrency(totalLoss)}
+                </span>
+                <span className="text-sm text-muted-foreground">إجمالي العجز</span>
+              </div>
+            )}
+            {totalGain > 0 && (
+              <div className="flex justify-between items-center py-2.5 border-b border-border/50">
+                <span className="font-mono tabular-nums text-sm font-medium text-green-700 dark:text-green-400">
+                  {formatCurrency(totalGain)}
+                </span>
+                <span className="text-sm text-muted-foreground">إجمالي الفائض</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-4">
+              <span className={`text-2xl font-black font-mono tabular-nums ${
+                netDifference > 0 ? "text-green-700 dark:text-green-400" :
+                netDifference < 0 ? "text-destructive" : "text-primary"
+              }`}>
+                {netDifference > 0 ? "+" : ""}{formatCurrency(Math.abs(netDifference))}
+              </span>
+              <span className="text-base font-bold text-foreground">
+                {netDifference > 0 ? "صافي فائض" : netDifference < 0 ? "صافي عجز" : "متوازن"}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
