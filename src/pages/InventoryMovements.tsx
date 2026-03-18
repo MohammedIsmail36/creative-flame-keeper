@@ -53,6 +53,7 @@ const referenceRouteMap: Record<string, string> = {
   purchase_return: "/purchase-returns",
   sales_return: "/sales-returns",
   inventory_adjustment: "/inventory-adjustments",
+  adjustment: "/inventory-adjustments",
 };
 
 interface MovementRow {
