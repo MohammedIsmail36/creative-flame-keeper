@@ -184,16 +184,14 @@ export default function SupplierPayments() {
     ] as any);
 
     if (existingPaymentId) {
-      const nextPostedNum = await getNextPostedNumber("supplier_payments");
       await (supabase.from("supplier_payments" as any) as any)
-        .update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum })
+        .update({ status: "posted", journal_entry_id: je.id, posted_number: paymentPostedNum })
         .eq("id", existingPaymentId);
     } else {
-      const nextPostedNum = await getNextPostedNumber("supplier_payments");
       await (supabase.from("supplier_payments" as any) as any).insert({
         supplier_id: supId, payment_date: date, amount: amt,
         payment_method: method, reference: ref, notes: note,
-        journal_entry_id: je.id, status: "posted", posted_number: nextPostedNum,
+        journal_entry_id: je.id, status: "posted", posted_number: paymentPostedNum,
       });
     }
 
