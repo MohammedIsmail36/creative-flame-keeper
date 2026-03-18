@@ -63,6 +63,8 @@ const ALL_TABLES_TRUNCATE = [
   "company_settings",
 ];
 
+const SYSTEM_CODES = ["1101", "1102", "1103", "1104", "2101", "3101", "3102", "4101", "5101"];
+
 const DEFAULT_ACCOUNTS = [
   { code: "1", name: "الأصول", account_type: "asset", is_parent: true, parent_code: null },
   { code: "11", name: "الأصول المتداولة", account_type: "asset", is_parent: true, parent_code: "1" },
