@@ -327,8 +327,8 @@ export default function GrowthAnalytics() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-full" />
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-          {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32" />)}
         </div>
         <div className="grid md:grid-cols-2 gap-4">
           <Skeleton className="h-[300px]" />
