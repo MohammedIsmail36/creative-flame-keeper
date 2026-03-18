@@ -927,6 +927,41 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+
+        {/* Stagnant Stock */}
+        <Card className={`shadow-none ${stagnantItems.length > 0 ? "border-warning/40 bg-warning/5" : "border-border/60"}`}>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <PackageX className="w-4 h-4 text-warning" /> مخزون راكد
+              {stagnantItems.length > 0 && <Badge variant="outline" className="text-[10px] border-warning/40 text-warning">{stagnantItems.length} صنف</Badge>}
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground">أصناف لم تتحرك منذ أكثر من 30 يوماً</p>
+          </CardHeader>
+          <CardContent className="p-0">
+            {stagnantItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">لا توجد أصناف راكدة</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-xs">الصنف</TableHead>
+                    <TableHead className="text-xs">الكمية</TableHead>
+                    <TableHead className="text-xs">آخر حركة</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stagnantItems.map(item => (
+                    <TableRow key={item.name}>
+                      <TableCell className="text-sm font-medium">{formatProductDisplay(item.name, item.brandName, item.modelNumber)}</TableCell>
+                      <TableCell className="text-sm">{item.quantity_on_hand}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{item.lastMovement || "لا توجد حركة"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Account Balances Summary */}
