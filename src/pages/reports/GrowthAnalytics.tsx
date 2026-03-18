@@ -303,6 +303,7 @@ export default function GrowthAnalytics() {
       icon: BarChart3,
       color: grossProfit >= 0 ? "text-success" : "text-destructive",
       bgColor: grossProfit >= 0 ? "bg-success/10" : "bg-destructive/10",
+      subtitle: `هامش: ${grossMargin.toFixed(1)}%`,
     },
     {
       label: "صافي الربح",
@@ -318,14 +319,6 @@ export default function GrowthAnalytics() {
       icon: Percent,
       color: netMargin >= 0 ? "text-success" : "text-destructive",
       bgColor: netMargin >= 0 ? "bg-success/10" : "bg-destructive/10",
-      noGrowth: true,
-    },
-    {
-      label: "متوسط الفاتورة",
-      value: fmt(avgInvoice),
-      icon: DollarSign,
-      color: "text-cat-accounting",
-      bgColor: "bg-cat-accounting/10",
       noGrowth: true,
     },
   ];
