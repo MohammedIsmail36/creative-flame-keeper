@@ -67,6 +67,7 @@ export default function InventoryMovements() {
   const [selectedType, setSelectedType] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [productComboOpen, setProductComboOpen] = useState(false);
 
   const { data: products = [] } = useQuery({
     queryKey: ["products-list"],
