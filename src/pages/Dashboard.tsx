@@ -763,8 +763,9 @@ export default function Dashboard() {
     </div>
   );
 
-  const thCls = "bg-muted/40 hover:bg-muted/40";
-  const tableRowCls = "hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0";
+  // ── Shorthand classes ─────────────────────────────────────────────────────
+  const th = "bg-muted/40 hover:bg-muted/40";
+  const tr = "hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0";
 
   const todayLabel = new Intl.DateTimeFormat("ar-SA", {
     weekday: "long",
@@ -814,14 +815,8 @@ export default function Dashboard() {
   ];
 
   const secondaryCards = [
-    { label: "المستحقات (مدين)", icon: Users, iconBg: "bg-primary/10", iconColor: "text-primary", value: receivables },
-    {
-      label: "المطلوبات (دائن)",
-      icon: Landmark,
-      iconBg: "bg-amber-500/10",
-      iconColor: "text-amber-500",
-      value: payables,
-    },
+    { label: "المستحقات", icon: Users, iconBg: "bg-primary/10", iconColor: "text-primary", value: receivables },
+    { label: "المطلوبات", icon: Landmark, iconBg: "bg-amber-500/10", iconColor: "text-amber-500", value: payables },
     {
       label: "قيمة المخزون",
       icon: Boxes,
@@ -840,9 +835,11 @@ export default function Dashboard() {
 
   // ════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="max-w-[1400px] mx-auto space-y-10 pb-12">
-      {/* ══ PAGE HEADER ══════════════════════════════════════════════════════ */}
-      <div className="flex items-center justify-between gap-4 pt-1">
+    <div className="max-w-[1400px] mx-auto pb-12">
+      {/* ═══════════════════════════════════════════════════════════════════════
+          PAGE HEADER
+         ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="flex items-center justify-between gap-4 pb-6 pt-1 border-b border-border/40 mb-8">
         <div>
           <h1 className="text-xl font-extrabold tracking-tight">لوحة التحكم</h1>
           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
@@ -851,32 +848,46 @@ export default function Dashboard() {
           </p>
         </div>
         {!loadingKPIs && (
-          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-            <div
-              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border ${netProfit >= 0 ? "bg-emerald-500/8 border-emerald-400/30 text-emerald-700 dark:text-emerald-400" : "bg-destructive/8 border-destructive/30 text-destructive"}`}
+          <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
+            <span
+              className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border ${
+                netProfit >= 0
+                  ? "bg-emerald-500/8 border-emerald-400/30 text-emerald-700 dark:text-emerald-400"
+                  : "bg-destructive/8 border-destructive/30 text-destructive"
+              }`}
             >
-              {netProfit >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+              {netProfit >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               {netProfit >= 0 ? "الأعمال في نمو" : "راجع المصروفات"}
-            </div>
+            </span>
             {lowStockCount > 0 && (
-              <div className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border bg-destructive/8 border-destructive/30 text-destructive">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                {lowStockCount} صنف بنقص مخزون
-              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border bg-destructive/8 border-destructive/30 text-destructive">
+                <AlertTriangle className="w-3 h-3" />
+                {lowStockCount} صنف بنقص
+              </span>
             )}
           </div>
         )}
       </div>
 
-      {/* ══ ZONE 1 — الملخص المالي ══════════════════════════════════════════ */}
-      <section>
-        <ZoneHeader
-          icon={BarChart3}
-          title="الملخص المالي"
-          subtitle="نظرة شاملة على الإيرادات والمشتريات والربحية خلال السنة الحالية"
-        />
+      {/* ─── Zone divider helper (inline) ────────────────────────────────── */}
+      {/* We use a local pattern: label over a rule */}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      {/* ═══════════════════════════════════════════════════════════════════════
+          ZONE 1 — الملخص المالي
+         ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="mb-10 space-y-4">
+        {/* Zone label */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-5 rounded-full bg-primary" />
+            <h2 className="text-sm font-bold text-foreground">الملخص المالي</h2>
+          </div>
+          <div className="flex-1 h-px bg-border/50" />
+          <p className="text-[11px] text-muted-foreground shrink-0">السنة الحالية</p>
+        </div>
+
+        {/* Primary KPIs — 4 cols */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {loadingKPIs
             ? [1, 2, 3, 4].map((i) => <KpiSkeleton key={i} />)
             : kpiCards.map((card, idx) => {
@@ -884,15 +895,15 @@ export default function Dashboard() {
                 return (
                   <Card
                     key={idx}
-                    className="border-border/60 shadow-sm hover:shadow-md transition-all overflow-hidden relative"
+                    className="border-border/60 shadow-sm hover:shadow-md transition-all overflow-hidden relative group"
                   >
                     <div className={`absolute top-0 inset-x-0 h-0.5 ${card.accent}`} />
                     <CardContent className="p-5">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1.5 min-w-0">
                           <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
                           <p
-                            className={`text-2xl font-extrabold tracking-tight tabular-nums ${(card as any).valueColor || ""}`}
+                            className={`text-2xl font-extrabold tracking-tight tabular-nums truncate ${(card as any).valueColor || ""}`}
                           >
                             {formatCurrency(card.value)}
                           </p>
@@ -914,15 +925,16 @@ export default function Dashboard() {
               })}
         </div>
 
+        {/* Secondary KPIs — 4 cols */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {loadingSecondary
             ? [1, 2, 3, 4].map((i) => (
                 <Card key={i} className="border-border/60 shadow-sm">
                   <CardContent className="p-4 flex items-center gap-3">
                     <Skeleton className="w-10 h-10 rounded-xl shrink-0" />
-                    <div className="space-y-1.5">
-                      <Skeleton className="h-3 w-20" />
-                      <Skeleton className="h-5 w-24" />
+                    <div className="space-y-1.5 flex-1">
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-5 w-3/4" />
                     </div>
                   </CardContent>
                 </Card>
@@ -937,12 +949,12 @@ export default function Dashboard() {
                       >
                         <Icon className={`w-5 h-5 ${card.iconColor}`} />
                       </div>
-                      <div>
-                        <p className="text-[11px] font-medium text-muted-foreground">{card.label}</p>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-medium text-muted-foreground truncate">{card.label}</p>
                         {card.value !== null ? (
-                          <p className="text-lg font-bold tabular-nums">{formatCurrency(card.value)}</p>
+                          <p className="text-base font-bold tabular-nums truncate">{formatCurrency(card.value)}</p>
                         ) : (
-                          <p className="text-lg font-bold">
+                          <p className="text-base font-bold">
                             {lowStockCount} <span className="text-xs font-normal text-muted-foreground">صنف</span>
                           </p>
                         )}
@@ -952,18 +964,24 @@ export default function Dashboard() {
                 );
               })}
         </div>
-      </section>
+      </div>
 
-      {/* ══ ZONE 2 — الاتجاهات والتحليل ════════════════════════════════════ */}
-      <section>
-        <ZoneHeader
-          icon={TrendingUp}
-          title="الاتجاهات والتحليل"
-          subtitle="أداء المبيعات والمصروفات شهراً بشهر مع السيولة وأحدث الحركات"
-        />
+      {/* ═══════════════════════════════════════════════════════════════════════
+          ZONE 2 — الاتجاهات والتحليل
+          Layout: charts 2/3 · sidebar 1/3
+         ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="mb-10">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-5 rounded-full bg-blue-500" />
+            <h2 className="text-sm font-bold text-foreground">الاتجاهات والتحليل</h2>
+          </div>
+          <div className="flex-1 h-px bg-border/50" />
+          <p className="text-[11px] text-muted-foreground shrink-0">أداء الأشهر الماضية</p>
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Charts 2/3 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Charts — 2 columns */}
           <div className="lg:col-span-2 space-y-4">
             <Card className="border-border/60 shadow-sm">
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -971,7 +989,7 @@ export default function Dashboard() {
                   <CardTitle className="text-sm font-semibold">المبيعات مقابل المشتريات</CardTitle>
                   <p className="text-xs text-muted-foreground mt-0.5">آخر 6 أشهر</p>
                 </div>
-                <Badge variant="outline" className="text-xs border-border/60 text-muted-foreground">
+                <Badge variant="outline" className="text-xs border-border/60 text-muted-foreground shrink-0">
                   <BarChart3 className="w-3 h-3 ml-1" />
                   {new Date().getFullYear()}
                 </Badge>
@@ -981,15 +999,15 @@ export default function Dashboard() {
                   <Skeleton className="h-[240px] w-full" />
                 ) : (
                   <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={monthlyData.slice(-6)} barSize={30}>
+                    <BarChart data={monthlyData.slice(-6)} barSize={28}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} opacity={0.5} />
                       <XAxis dataKey="name" fontSize={11} axisLine={false} tickLine={false} />
                       <YAxis fontSize={10} axisLine={false} tickLine={false} />
                       <Tooltip
                         contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", fontSize: "12px" }}
                       />
-                      <Bar dataKey="مبيعات" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="مشتريات" fill="hsl(var(--primary) / 0.22)" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="مبيعات" fill="hsl(var(--primary))" radius={[5, 5, 0, 0]} />
+                      <Bar dataKey="مشتريات" fill="hsl(var(--primary) / 0.22)" radius={[5, 5, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -1002,9 +1020,9 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 {loadingCharts ? (
-                  <Skeleton className="h-[200px] w-full" />
+                  <Skeleton className="h-[180px] w-full" />
                 ) : (
-                  <ResponsiveContainer width="100%" height={200}>
+                  <ResponsiveContainer width="100%" height={180}>
                     <LineChart data={monthlyExpenses.slice(-6)}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} opacity={0.5} />
                       <XAxis dataKey="name" fontSize={11} axisLine={false} tickLine={false} />
@@ -1026,8 +1044,9 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {/* Right sidebar 1/3 */}
+          {/* Sidebar — 1 column */}
           <div className="space-y-4">
+            {/* Liquidity */}
             <Card className="border-border/60 shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -1039,20 +1058,20 @@ export default function Dashboard() {
                   <Skeleton className="h-24 w-full" />
                 ) : (
                   <>
-                    <div className="text-center py-1">
-                      <p className="text-xs text-muted-foreground mb-0.5">الإجمالي</p>
-                      <p className="text-2xl font-extrabold text-primary tabular-nums">
+                    <div className="text-center py-2 bg-muted/30 rounded-xl">
+                      <p className="text-[11px] text-muted-foreground">الإجمالي</p>
+                      <p className="text-xl font-extrabold text-primary tabular-nums mt-0.5">
                         {formatCurrency(liquidity.total)}
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-muted/50 rounded-xl p-3 text-center">
-                        <p className="text-[11px] text-muted-foreground mb-0.5">البنوك</p>
-                        <p className="text-sm font-bold tabular-nums">{formatCurrency(liquidity.bank)}</p>
+                      <div className="bg-muted/40 rounded-xl p-3 text-center">
+                        <p className="text-[11px] text-muted-foreground">البنوك</p>
+                        <p className="text-sm font-bold tabular-nums mt-0.5">{formatCurrency(liquidity.bank)}</p>
                       </div>
-                      <div className="bg-muted/50 rounded-xl p-3 text-center">
-                        <p className="text-[11px] text-muted-foreground mb-0.5">الصندوق</p>
-                        <p className="text-sm font-bold tabular-nums">{formatCurrency(liquidity.cash)}</p>
+                      <div className="bg-muted/40 rounded-xl p-3 text-center">
+                        <p className="text-[11px] text-muted-foreground">الصندوق</p>
+                        <p className="text-sm font-bold tabular-nums mt-0.5">{formatCurrency(liquidity.cash)}</p>
                       </div>
                     </div>
                   </>
@@ -1060,6 +1079,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
+            {/* Sales Target */}
             {(() => {
               const target = Number((settings as any)?.monthly_sales_target || 0);
               if (target <= 0) return null;
@@ -1077,15 +1097,15 @@ export default function Dashboard() {
                       <Skeleton className="h-16 w-full" />
                     ) : (
                       <>
-                        <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground">المحقق</span>
                           <span
-                            className={`font-bold tabular-nums ${exceeded ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+                            className={`text-sm font-bold tabular-nums ${exceeded ? "text-emerald-600 dark:text-emerald-400" : ""}`}
                           >
                             {formatCurrency(currentMonthSales)}
                           </span>
                         </div>
-                        <Progress value={progress} className="h-2.5" />
+                        <Progress value={progress} className="h-2" />
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>الهدف: {formatCurrency(target)}</span>
                           <span
@@ -1095,10 +1115,10 @@ export default function Dashboard() {
                           </span>
                         </div>
                         {exceeded && (
-                          <div className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-medium rounded-lg p-2 text-center flex items-center justify-center gap-1">
+                          <p className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-medium rounded-lg p-2 text-center flex items-center justify-center gap-1">
                             <TrendingUp className="w-3 h-3" /> تجاوز الهدف بـ{" "}
                             {formatCurrency(currentMonthSales - target)}
-                          </div>
+                          </p>
                         )}
                       </>
                     )}
@@ -1107,12 +1127,19 @@ export default function Dashboard() {
               );
             })()}
 
+            {/* Recent Activities */}
             <Card className="border-border/60 shadow-sm">
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm font-semibold">أحدث الحركات</CardTitle>
-                <SectionLink label="عرض الكل" to="/sales" />
+                <button
+                  onClick={() => navigate("/sales")}
+                  className="text-xs text-primary/80 hover:text-primary font-medium flex items-center gap-0.5 transition-colors"
+                >
+                  عرض الكل
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </CardHeader>
-              <CardContent className="space-y-0.5 px-3 pb-3">
+              <CardContent className="px-3 pb-3 space-y-0.5">
                 {loadingRight ? (
                   <TableSkeleton rows={3} />
                 ) : recentActivities.length === 0 ? (
@@ -1155,19 +1182,27 @@ export default function Dashboard() {
             </Card>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* ══ ZONE 3 — التنبيهات والمتابعة ════════════════════════════════════ */}
-      <section>
-        <ZoneHeader
-          icon={AlertTriangle}
-          title="التنبيهات والمتابعة"
-          subtitle="بنود تستوجب إجراءً — فواتير غير مسددة ومخزون يحتاج انتباهاً"
-        />
+      {/* ═══════════════════════════════════════════════════════════════════════
+          ZONE 3 — التنبيهات والمتابعة
+          Layout: 2 cols (unpaid · low stock) then stagnant full-width
+         ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="mb-10">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-5 rounded-full bg-destructive" />
+            <h2 className="text-sm font-bold text-foreground">التنبيهات والمتابعة</h2>
+          </div>
+          <div className="flex-1 h-px bg-border/50" />
+          <p className="text-[11px] text-muted-foreground shrink-0">تستوجب إجراءً</p>
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        {/* Row 1 — Unpaid + Low Stock */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+          {/* Unpaid Invoices */}
           <Card
-            className={`shadow-sm ${unpaidInvoices.length > 0 ? "border-destructive/40 bg-destructive/[0.03]" : "border-border/60"}`}
+            className={`shadow-sm ${unpaidInvoices.length > 0 ? "border-destructive/40 bg-destructive/[0.025]" : "border-border/60"}`}
           >
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -1180,7 +1215,7 @@ export default function Dashboard() {
                 {unpaidInvoices.length} فاتورة
               </Badge>
             </CardHeader>
-            <CardContent className="p-0 max-h-[300px] overflow-auto">
+            <CardContent className="p-0 max-h-[340px] overflow-auto">
               {loadingTables ? (
                 <TableSkeleton />
               ) : unpaidInvoices.length === 0 ? (
@@ -1188,9 +1223,10 @@ export default function Dashboard() {
               ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow className={thCls}>
+                    <TableRow className={th}>
                       <TableHead className="text-xs">رقم الفاتورة</TableHead>
                       <TableHead className="text-xs">العميل</TableHead>
+                      <TableHead className="text-xs text-end">الإجمالي</TableHead>
                       <TableHead className="text-xs text-end">المتبقي</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1198,11 +1234,14 @@ export default function Dashboard() {
                     {unpaidInvoices.map((inv) => (
                       <TableRow
                         key={inv.id}
-                        className={`${tableRowCls} cursor-pointer`}
+                        className={`${tr} cursor-pointer`}
                         onClick={() => navigate(`/sales/${inv.id}`)}
                       >
                         <TableCell className="font-mono text-xs text-muted-foreground">#{inv.invoice_number}</TableCell>
                         <TableCell className="text-sm font-medium">{inv.customer_name}</TableCell>
+                        <TableCell className="text-sm text-end tabular-nums text-muted-foreground">
+                          {formatCurrency(inv.total)}
+                        </TableCell>
                         <TableCell className="text-sm text-end font-bold tabular-nums text-destructive">
                           {formatCurrency(inv.remaining)}
                         </TableCell>
@@ -1214,8 +1253,9 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
+          {/* Low Stock */}
           <Card
-            className={`shadow-sm ${lowStockItems.length > 0 ? "border-destructive/40 bg-destructive/[0.03]" : "border-border/60"}`}
+            className={`shadow-sm ${lowStockItems.length > 0 ? "border-destructive/40 bg-destructive/[0.025]" : "border-border/60"}`}
           >
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -1230,7 +1270,7 @@ export default function Dashboard() {
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0 max-h-[300px] overflow-auto">
+            <CardContent className="p-0 max-h-[340px] overflow-auto">
               {loadingTables ? (
                 <TableSkeleton />
               ) : lowStockItems.length === 0 ? (
@@ -1238,15 +1278,15 @@ export default function Dashboard() {
               ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow className={thCls}>
+                    <TableRow className={th}>
                       <TableHead className="text-xs">الصنف</TableHead>
-                      <TableHead className="text-xs text-center">الحالي</TableHead>
-                      <TableHead className="text-xs text-center">الأدنى</TableHead>
+                      <TableHead className="text-xs text-center">الكمية الحالية</TableHead>
+                      <TableHead className="text-xs text-center">الحد الأدنى</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {lowStockItems.map((item) => (
-                      <TableRow key={item.name} className={tableRowCls}>
+                      <TableRow key={item.name} className={tr}>
                         <TableCell className="text-sm font-medium">
                           {formatProductDisplay(item.name, item.brandName, item.modelNumber)}
                         </TableCell>
@@ -1263,42 +1303,45 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
 
+        {/* Row 2 — Stagnant Stock (full width, less urgent but needs readable table) */}
+        {(loadingTables || stagnantItems.length > 0) && (
           <Card
-            className={`shadow-sm ${stagnantItems.length > 0 ? "border-amber-400/40 bg-amber-50/30 dark:bg-amber-950/10" : "border-border/60"}`}
+            className={`shadow-sm ${stagnantItems.length > 0 ? "border-amber-400/40 bg-amber-50/20 dark:bg-amber-950/10" : "border-border/60"}`}
           >
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <PackageX className="w-4 h-4 text-amber-500" />
-                مخزون راكد
-                {stagnantItems.length > 0 && (
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] border-amber-400/50 text-amber-600 dark:text-amber-400"
-                  >
-                    {stagnantItems.length} صنف
-                  </Badge>
-                )}
-              </CardTitle>
-              <p className="text-[11px] text-muted-foreground mt-0.5">لم تتحرك منذ أكثر من 30 يوماً</p>
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <PackageX className="w-4 h-4 text-amber-500" />
+                  مخزون راكد
+                  {stagnantItems.length > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] border-amber-400/50 text-amber-600 dark:text-amber-400"
+                    >
+                      {stagnantItems.length} صنف
+                    </Badge>
+                  )}
+                </CardTitle>
+                <p className="text-[11px] text-muted-foreground mt-0.5">أصناف لم تتحرك منذ أكثر من 30 يوماً</p>
+              </div>
             </CardHeader>
-            <CardContent className="p-0 max-h-[300px] overflow-auto">
+            <CardContent className="p-0">
               {loadingTables ? (
                 <TableSkeleton />
-              ) : stagnantItems.length === 0 ? (
-                <EmptyState message="لا توجد أصناف راكدة ✓" />
               ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow className={thCls}>
+                    <TableRow className={th}>
                       <TableHead className="text-xs">الصنف</TableHead>
-                      <TableHead className="text-xs text-center">الكمية</TableHead>
+                      <TableHead className="text-xs text-center">الكمية المتوفرة</TableHead>
                       <TableHead className="text-xs">آخر حركة</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {stagnantItems.map((item) => (
-                      <TableRow key={item.name} className={tableRowCls}>
+                      <TableRow key={item.name} className={tr}>
                         <TableCell className="text-sm font-medium">
                           {formatProductDisplay(item.name, item.brandName, item.modelNumber)}
                         </TableCell>
@@ -1307,7 +1350,7 @@ export default function Dashboard() {
                           {item.lastMovement ? (
                             formatDistanceToNow(new Date(item.lastMovement), { addSuffix: true, locale: ar })
                           ) : (
-                            <span className="text-destructive/70 text-xs font-medium">لا توجد حركة</span>
+                            <span className="text-destructive/70 text-xs font-medium">لا توجد حركة مسجلة</span>
                           )}
                         </TableCell>
                       </TableRow>
@@ -1317,39 +1360,57 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+        )}
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          ZONE 4 — أداء المبيعات
+          Layout: last-7-days full-width · then products + categories 2-col
+         ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="mb-10">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-5 rounded-full bg-emerald-500" />
+            <h2 className="text-sm font-bold text-foreground">أداء المبيعات</h2>
+          </div>
+          <div className="flex-1 h-px bg-border/50" />
+          <button
+            onClick={() => navigate("/reports/sales")}
+            className="text-xs text-primary/80 hover:text-primary font-medium flex items-center gap-0.5 transition-colors shrink-0"
+          >
+            تقرير المبيعات
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
-      </section>
 
-      {/* ══ ZONE 4 — أداء المبيعات ══════════════════════════════════════════ */}
-      <section>
-        <ZoneHeader
-          icon={Award}
-          title="أداء المبيعات"
-          subtitle="نشاط آخر 7 أيام وأبرز المنتجات والفئات الأعلى مبيعاً وربحية"
-          to="/reports/sales"
-          linkLabel="تقرير المبيعات"
-        />
+        {/* Last 7 days — full width */}
+        <Card className="border-border/60 shadow-sm mb-5">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-primary" /> مبيعات آخر 7 أيام
+            </CardTitle>
+            <button
+              onClick={() => navigate("/reports/sales")}
+              className="text-xs text-primary/80 hover:text-primary font-medium flex items-center gap-0.5 transition-colors"
+            >
+              التفاصيل
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Last7DaysSalesTable formatCurrency={formatCurrency} />
+          </CardContent>
+        </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-primary" /> مبيعات آخر 7 أيام
-              </CardTitle>
-              <SectionLink label="التفاصيل" to="/reports/sales" />
-            </CardHeader>
-            <CardContent className="p-0 max-h-[320px] overflow-auto">
-              <Last7DaysSalesTable formatCurrency={formatCurrency} />
-            </CardContent>
-          </Card>
-
+        {/* Top Products + Top Categories — 2 cols */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Award className="w-4 h-4 text-primary" /> الأصناف الأكثر مبيعاً
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0 max-h-[320px] overflow-auto">
+            <CardContent className="p-0 max-h-[360px] overflow-auto">
               {loadingTables ? (
                 <TableSkeleton />
               ) : topProducts.length === 0 ? (
@@ -1357,8 +1418,8 @@ export default function Dashboard() {
               ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow className={thCls}>
-                      <TableHead className="text-xs w-8">#</TableHead>
+                    <TableRow className={th}>
+                      <TableHead className="text-xs w-8 text-center">#</TableHead>
                       <TableHead className="text-xs">الصنف</TableHead>
                       <TableHead className="text-xs text-center">الكمية</TableHead>
                       <TableHead className="text-xs text-end">الإجمالي</TableHead>
@@ -1366,8 +1427,10 @@ export default function Dashboard() {
                   </TableHeader>
                   <TableBody>
                     {topProducts.map((p, idx) => (
-                      <TableRow key={p.product_id} className={tableRowCls}>
-                        <TableCell className="text-xs text-muted-foreground/60 tabular-nums">{idx + 1}</TableCell>
+                      <TableRow key={p.product_id} className={tr}>
+                        <TableCell className="text-xs text-muted-foreground/50 text-center tabular-nums">
+                          {idx + 1}
+                        </TableCell>
                         <TableCell className="text-sm font-medium">{p.name}</TableCell>
                         <TableCell className="text-sm text-center tabular-nums">{p.totalQty}</TableCell>
                         <TableCell className="text-sm font-bold text-end tabular-nums">
@@ -1387,7 +1450,7 @@ export default function Dashboard() {
                 <Package className="w-4 h-4 text-primary" /> الفئات الأكثر ربحية
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0 max-h-[320px] overflow-auto">
+            <CardContent className="p-0 max-h-[360px] overflow-auto">
               {loadingTables ? (
                 <TableSkeleton />
               ) : topCategories.length === 0 ? (
@@ -1395,52 +1458,75 @@ export default function Dashboard() {
               ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow className={thCls}>
+                    <TableRow className={th}>
                       <TableHead className="text-xs">الفئة</TableHead>
                       <TableHead className="text-xs text-end">المبيعات</TableHead>
                       <TableHead className="text-xs text-end">الربح</TableHead>
+                      <TableHead className="text-xs text-center">الهامش</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {topCategories.map((cat) => (
-                      <TableRow key={cat.name} className={tableRowCls}>
-                        <TableCell className="text-sm font-medium">{cat.name}</TableCell>
-                        <TableCell className="text-sm text-end tabular-nums">
-                          {formatCurrency(cat.totalSales)}
-                        </TableCell>
-                        <TableCell
-                          className={`text-sm font-bold text-end tabular-nums ${cat.totalProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}
-                        >
-                          {formatCurrency(cat.totalProfit)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {topCategories.map((cat) => {
+                      const margin = cat.totalSales > 0 ? ((cat.totalProfit / cat.totalSales) * 100).toFixed(0) : "0";
+                      return (
+                        <TableRow key={cat.name} className={tr}>
+                          <TableCell className="text-sm font-medium">{cat.name}</TableCell>
+                          <TableCell className="text-sm text-end tabular-nums">
+                            {formatCurrency(cat.totalSales)}
+                          </TableCell>
+                          <TableCell
+                            className={`text-sm font-bold text-end tabular-nums ${cat.totalProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}
+                          >
+                            {formatCurrency(cat.totalProfit)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge
+                              variant={Number(margin) > 30 ? "default" : "secondary"}
+                              className="text-[10px] tabular-nums"
+                            >
+                              {margin}%
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
             </CardContent>
           </Card>
         </div>
-      </section>
+      </div>
 
-      {/* ══ ZONE 5 — التفاصيل المالية ════════════════════════════════════════ */}
-      <section>
-        <ZoneHeader
-          icon={Calculator}
-          title="التفاصيل المالية"
-          subtitle="تفصيل المصروفات حسب النوع وملخص أرصدة الحسابات"
-          to="/reports"
-          linkLabel="التقارير المالية"
-        />
+      {/* ═══════════════════════════════════════════════════════════════════════
+          ZONE 5 — التفاصيل المالية
+          Layout: expenses 1/3 · account balances 2/3
+         ═══════════════════════════════════════════════════════════════════════ */}
+      <div>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-5 rounded-full bg-amber-500" />
+            <h2 className="text-sm font-bold text-foreground">التفاصيل المالية</h2>
+          </div>
+          <div className="flex-1 h-px bg-border/50" />
+          <button
+            onClick={() => navigate("/reports")}
+            className="text-xs text-primary/80 hover:text-primary font-medium flex items-center gap-0.5 transition-colors shrink-0"
+          >
+            التقارير المالية
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+          {/* Expenses breakdown — 1 col */}
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Banknote className="w-4 h-4 text-destructive" /> تفصيل المصروفات
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0 max-h-[280px] overflow-auto">
+            <CardContent className="p-0">
               {loadingRight ? (
                 <TableSkeleton rows={5} />
               ) : expensesByType.length === 0 ? (
@@ -1448,14 +1534,14 @@ export default function Dashboard() {
               ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow className={thCls}>
+                    <TableRow className={th}>
                       <TableHead className="text-xs">النوع</TableHead>
                       <TableHead className="text-xs text-end">المبلغ</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {expensesByType.map((et) => (
-                      <TableRow key={et.name} className={tableRowCls}>
+                      <TableRow key={et.name} className={tr}>
                         <TableCell className="text-sm font-medium">{et.name}</TableCell>
                         <TableCell className="text-sm font-bold text-end tabular-nums">
                           {formatCurrency(et.amount)}
@@ -1467,50 +1553,57 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
-        </div>
 
-        {loadingTables ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-xl" />
-            ))}
+          {/* Account balances — 2 cols */}
+          <div className="lg:col-span-2">
+            <div className="flex items-center gap-2 mb-3">
+              <Calculator className="w-4 h-4 text-primary" />
+              <p className="text-xs font-semibold text-foreground">ملخص الحسابات</p>
+            </div>
+            {loadingTables ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : accountBalances.length === 0 ? (
+              <EmptyState message="لا توجد بيانات حسابات" />
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {(() => {
+                  const groups: Record<string, { label: string; total: number; accent: string }> = {};
+                  const meta: Record<string, { label: string; accent: string }> = {
+                    asset: { label: "الأصول", accent: "bg-primary/8 border-primary/20" },
+                    liability: { label: "الخصوم", accent: "bg-amber-500/8 border-amber-400/20" },
+                    equity: { label: "حقوق الملكية", accent: "bg-emerald-500/8 border-emerald-400/20" },
+                    revenue: { label: "الإيرادات", accent: "bg-emerald-500/8 border-emerald-400/20" },
+                    expense: { label: "المصروفات", accent: "bg-destructive/8 border-destructive/20" },
+                  };
+                  accountBalances.forEach((acc) => {
+                    const k = acc.account_type;
+                    const m = meta[k] || { label: k, accent: "bg-muted border-border/60" };
+                    if (!groups[k]) groups[k] = { label: m.label, total: 0, accent: m.accent };
+                    groups[k].total += acc.balance;
+                  });
+                  return Object.entries(groups).map(([key, g]) => (
+                    <Card key={key} className={`shadow-sm border ${g.accent}`}>
+                      <CardContent className="p-4 text-center">
+                        <p className="text-[11px] font-medium text-muted-foreground mb-1.5">{g.label}</p>
+                        <p
+                          className={`text-lg font-extrabold tabular-nums ${g.total >= 0 ? "text-foreground" : "text-destructive"}`}
+                        >
+                          {formatCurrency(Math.abs(g.total))}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-0.5">{g.total >= 0 ? "مدين" : "دائن"}</p>
+                      </CardContent>
+                    </Card>
+                  ));
+                })()}
+              </div>
+            )}
           </div>
-        ) : accountBalances.length === 0 ? (
-          <EmptyState message="لا توجد بيانات حسابات" />
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {(() => {
-              const groups: Record<string, { label: string; total: number; accent: string }> = {};
-              const meta: Record<string, { label: string; accent: string }> = {
-                asset: { label: "الأصول", accent: "bg-primary/10 border-primary/20" },
-                liability: { label: "الخصوم", accent: "bg-amber-500/10 border-amber-400/20" },
-                equity: { label: "حقوق الملكية", accent: "bg-emerald-500/10 border-emerald-400/20" },
-                revenue: { label: "الإيرادات", accent: "bg-emerald-500/10 border-emerald-400/20" },
-                expense: { label: "المصروفات", accent: "bg-destructive/10 border-destructive/20" },
-              };
-              accountBalances.forEach((acc) => {
-                const k = acc.account_type;
-                const m = meta[k] || { label: k, accent: "bg-muted border-border/60" };
-                if (!groups[k]) groups[k] = { label: m.label, total: 0, accent: m.accent };
-                groups[k].total += acc.balance;
-              });
-              return Object.entries(groups).map(([key, g]) => (
-                <Card key={key} className={`shadow-sm border ${g.accent}`}>
-                  <CardContent className="p-4 text-center space-y-1">
-                    <p className="text-[11px] font-medium text-muted-foreground">{g.label}</p>
-                    <p
-                      className={`text-lg font-extrabold tabular-nums ${g.total >= 0 ? "text-foreground" : "text-destructive"}`}
-                    >
-                      {formatCurrency(Math.abs(g.total))}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/60">{g.total >= 0 ? "مدين" : "دائن"}</p>
-                  </CardContent>
-                </Card>
-              ));
-            })()}
-          </div>
-        )}
-      </section>
+        </div>
+      </div>
     </div>
   );
 }
