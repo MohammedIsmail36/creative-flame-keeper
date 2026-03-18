@@ -9,6 +9,7 @@ import { Plus, ClipboardCheck, ClipboardList, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { ExportMenu } from "@/components/ExportMenu";
 import { toast } from "@/hooks/use-toast";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -30,6 +31,7 @@ const statusVariants: Record<string, "secondary" | "default"> = { draft: "second
 export default function InventoryAdjustments() {
   const navigate = useNavigate();
   const { role } = useAuth();
+  const { settings } = useSettings();
   const queryClient = useQueryClient();
 
   const { data: adjustments = [], isLoading } = useQuery({
@@ -142,13 +144,31 @@ export default function InventoryAdjustments() {
             <p className="text-muted-foreground text-sm mt-0.5">إدارة عمليات الجرد وتسوية الفروقات</p>
           </div>
         </div>
-        <Button
-          onClick={() => navigate("/inventory-adjustments/new")}
-          className="shadow-md shadow-primary/20 gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          تسوية جديدة
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportMenu
+            config={{
+              filenamePrefix: "inventory-adjustments",
+              sheetName: "تسويات المخزون",
+              pdfTitle: "تقرير تسويات المخزون",
+              headers: ["رقم التسوية", "التاريخ", "الوصف", "الحالة"],
+              rows: adjustments.map(a => [
+                `ADJ-${a.adjustment_number}`,
+                a.adjustment_date,
+                a.description || "—",
+                statusLabels[a.status] || a.status,
+              ]),
+              settings,
+            }}
+            disabled={adjustments.length === 0}
+          />
+          <Button
+            onClick={() => navigate("/inventory-adjustments/new")}
+            className="shadow-md shadow-primary/20 gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            تسوية جديدة
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
