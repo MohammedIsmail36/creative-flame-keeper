@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
   TrendingUp, TrendingDown, Minus, DollarSign, ShoppingCart,
-  Receipt, BarChart3, Percent, FileSpreadsheet, FileText, Users, Package
+  Receipt, BarChart3, Percent, FileSpreadsheet, FileText, Users, Package, RotateCcw
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
