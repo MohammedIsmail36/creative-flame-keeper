@@ -555,7 +555,7 @@ export default function Dashboard() {
     }
 
     activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    setRecentActivities(activities.slice(0, 4));
+    setRecentActivities(activities.slice(0, 3));
   };
 
   const fetchUnpaidInvoices = async () => {
