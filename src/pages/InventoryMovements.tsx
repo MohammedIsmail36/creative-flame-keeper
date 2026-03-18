@@ -10,9 +10,12 @@ import { DatePickerInput } from "@/components/DatePickerInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { Package, TrendingUp, TrendingDown, Activity, Coins, ExternalLink } from "lucide-react";
+import { Package, TrendingUp, TrendingDown, Activity, Coins, ExternalLink, Check, ChevronsUpDown, Search } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 const movementTypeLabels: Record<string, string> = {
   opening_balance: "رصيد افتتاحي",
