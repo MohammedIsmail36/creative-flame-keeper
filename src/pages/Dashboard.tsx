@@ -1054,7 +1054,7 @@ export default function Dashboard() {
                 <Wallet className="w-4 h-4 text-primary" /> السيولة النقدية
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 p-4">
+            <CardContent className="space-y-3">
               {loadingRight ? (
                 <Skeleton className="h-24 w-full" />
               ) : (
