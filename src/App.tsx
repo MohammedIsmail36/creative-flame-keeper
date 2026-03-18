@@ -47,6 +47,9 @@ import CustomerStatement from "./pages/CustomerStatement";
 import SupplierStatement from "./pages/SupplierStatement";
 import NotFound from "./pages/NotFound";
 import FiscalYearClosing from "./pages/FiscalYearClosing";
+import ExpenseTypes from "./pages/ExpenseTypes";
+import Expenses from "./pages/Expenses";
+import ExpenseForm from "./pages/ExpenseForm";
 
 const queryClient = new QueryClient();
 
