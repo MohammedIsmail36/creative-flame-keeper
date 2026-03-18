@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Receipt } from "lucide-react";
+import { Plus, Pencil, Trash2, Receipt, CheckCircle2, XCircle, Tags } from "lucide-react";
 
 interface Account { id: string; code: string; name: string; account_type: string; }
 interface ExpenseType {
@@ -91,7 +91,6 @@ export default function ExpenseTypes() {
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
-      // Check if type is used
       const { count } = await (supabase.from("expenses" as any) as any)
         .select("id", { count: "exact", head: true })
         .eq("expense_type_id", deleteTarget.id);
@@ -110,17 +109,25 @@ export default function ExpenseTypes() {
     }
   }
 
+  const activeCount = types.filter(t => t.is_active).length;
+
+  const statCards = [
+    { label: "إجمالي الأنواع", value: types.length, icon: Tags, iconBg: "bg-blue-100 dark:bg-blue-500/20", iconColor: "text-blue-600 dark:text-blue-400" },
+    { label: "أنواع نشطة", value: activeCount, icon: CheckCircle2, iconBg: "bg-green-100 dark:bg-green-500/20", iconColor: "text-green-600 dark:text-green-400" },
+    { label: "أنواع غير نشطة", value: types.length - activeCount, icon: XCircle, iconBg: "bg-red-100 dark:bg-red-500/20", iconColor: "text-red-600 dark:text-red-400" },
+  ];
+
   const columns: ColumnDef<ExpenseType>[] = [
     {
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="نوع المصروف" />,
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      cell: ({ row }) => <span className="text-sm font-bold text-foreground">{row.original.name}</span>,
     },
     {
       accessorKey: "account_code",
       header: ({ column }) => <DataTableColumnHeader column={column} title="الحساب المرتبط" />,
       cell: ({ row }) => (
-        <span className="text-muted-foreground text-sm">
+        <span className="text-sm text-muted-foreground font-mono">
           {row.original.account_code} - {row.original.account_name}
         </span>
       ),
@@ -128,15 +135,19 @@ export default function ExpenseTypes() {
     {
       accessorKey: "is_active",
       header: ({ column }) => <DataTableColumnHeader column={column} title="الحالة" />,
-      cell: ({ row }) => (
-        <Badge variant={row.original.is_active ? "default" : "secondary"}>
-          {row.original.is_active ? "نشط" : "غير نشط"}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const active = row.original.is_active;
+        return (
+          <Badge variant="secondary" className={active ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-muted text-muted-foreground"}>
+            {active ? "نشط" : "غير نشط"}
+          </Badge>
+        );
+      },
     },
     {
       id: "actions",
       header: "إجراءات",
+      enableHiding: false,
       cell: ({ row }) => (
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(row.original)}>
@@ -150,46 +161,48 @@ export default function ExpenseTypes() {
     },
   ];
 
-  const activeCount = types.filter(t => t.is_active).length;
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Receipt className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">أنواع المصروفات</h1>
-            <p className="text-sm text-muted-foreground">إدارة أنواع المصروفات وربطها بالحسابات</p>
-          </div>
+    <div className="space-y-6" dir="rtl">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-extrabold text-foreground flex items-center">
+            <div className="bg-primary/10 p-2 rounded-lg ml-3">
+              <Receipt className="h-5 w-5 text-primary" />
+            </div>
+            أنواع المصروفات
+          </h2>
+          <p className="text-muted-foreground text-sm mt-1">إدارة أنواع المصروفات وربطها بالحسابات</p>
         </div>
-        <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
-          <Plus className="h-4 w-4 ml-2" /> إضافة نوع
+        <Button className="gap-2 shadow-md shadow-primary/20 font-bold" onClick={() => { resetForm(); setDialogOpen(true); }}>
+          <Plus className="h-4 w-4" />
+          إضافة نوع
         </Button>
       </div>
 
-      {/* KPI Cards */}
+      {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">إجمالي الأنواع</p>
-          <p className="text-2xl font-bold">{types.length}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">أنواع نشطة</p>
-          <p className="text-2xl font-bold text-green-600">{activeCount}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">أنواع غير نشطة</p>
-          <p className="text-2xl font-bold text-muted-foreground">{types.length - activeCount}</p>
-        </div>
+        {statCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
+          <div key={label} className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4">
+            <div className={`p-3 rounded-full ${iconBg}`}>
+              <Icon className={`h-5 w-5 ${iconColor}`} />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-xl font-black text-foreground">{value.toLocaleString()}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border bg-card shadow-sm">
-        <DataTable columns={columns} data={types} showSearch searchPlaceholder="بحث بنوع المصروف..." />
-      </div>
+      {/* Data Table */}
+      <DataTable
+        columns={columns}
+        data={types}
+        searchPlaceholder="بحث بنوع المصروف..."
+        isLoading={loading}
+        emptyMessage="لا توجد أنواع مصروفات"
+      />
 
       {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
