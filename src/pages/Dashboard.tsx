@@ -496,9 +496,9 @@ export default function Dashboard() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">صافي الربح</p>
-                <p className={`text-2xl font-bold tracking-tight ${netProfit >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(netProfit)}</p>
-                <span className="text-xs text-muted-foreground">هامش الربح {profitMargin}%</span>
+                <p className="text-xs text-muted-foreground">{netProfit >= 0 ? "صافي الربح" : "صافي الخسارة"}</p>
+                <p className={`text-2xl font-bold tracking-tight ${netProfit >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(Math.abs(netProfit))}</p>
+                <span className="text-xs text-muted-foreground">{netProfit >= 0 ? "هامش الربح" : "هامش الخسارة"} {profitMargin}%</span>
               </div>
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${netProfit >= 0 ? "bg-success/10" : "bg-destructive/10"}`}>
                 {netProfit >= 0 ? <TrendingUp className="w-5 h-5 text-success" /> : <TrendingDown className="w-5 h-5 text-destructive" />}
