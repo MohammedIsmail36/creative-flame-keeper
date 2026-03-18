@@ -395,6 +395,7 @@ export default function GrowthAnalytics() {
                 <XAxis dataKey="month" fontSize={10} tick={{ fill: "hsl(220, 8%, 46%)" }} />
                 <YAxis fontSize={10} tick={{ fill: "hsl(220, 8%, 46%)" }} />
                 <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ direction: "rtl", fontSize: 12 }} />
+                <Legend />
                 <Bar dataKey="sales" name="المبيعات" fill="hsl(152, 60%, 42%)" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="purchases" name="المشتريات" fill="hsl(24, 95%, 53%)" radius={[4, 4, 0, 0]} />
               </BarChart>
