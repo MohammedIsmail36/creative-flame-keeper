@@ -362,25 +362,28 @@ export default function GrowthAnalytics() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
         {kpiCards.map((kpi) => (
           <Card key={kpi.label} className="border-border/60 shadow-none">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`w-8 h-8 rounded-lg ${kpi.bgColor} flex items-center justify-center`}>
-                  <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`w-10 h-10 rounded-xl ${kpi.bgColor} flex items-center justify-center`}>
+                  <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-tight">{kpi.label}</p>
+                <p className="text-sm font-medium text-muted-foreground">{kpi.label}</p>
               </div>
-              <p className={`text-lg font-bold ${kpi.color}`}>{kpi.value}</p>
-              <div className="flex items-center justify-between mt-1">
+              <p className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
+              {'subtitle' in kpi && kpi.subtitle && (
+                <p className="text-xs text-muted-foreground mt-0.5">{kpi.subtitle}</p>
+              )}
+              <div className="flex items-center justify-between mt-2">
                 {!kpi.noGrowth ? (
                   <TrendBadge value={kpi.growth!} inverted={kpi.inverted} />
                 ) : (
-                  <span className="text-[11px] text-muted-foreground">من إجمالي المبيعات</span>
+                  <span className="text-xs text-muted-foreground">من إجمالي المبيعات</span>
                 )}
                 {kpi.count !== undefined && (
-                  <span className="text-[10px] text-muted-foreground">{kpi.count} {kpi.countLabel}</span>
+                  <span className="text-xs text-muted-foreground">{kpi.count} {kpi.countLabel}</span>
                 )}
               </div>
             </CardContent>
