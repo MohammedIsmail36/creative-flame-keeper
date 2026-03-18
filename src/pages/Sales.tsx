@@ -108,17 +108,22 @@ export default function Sales() {
         <Button onClick={() => navigate("/sales/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />فاتورة جديدة</Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "الكل", value: invoices.length, filter: "all" },
-          { label: "مسودة", value: invoices.filter(i => i.status === "draft").length, filter: "draft" },
-          { label: "مُرحّل", value: invoices.filter(i => i.status === "posted").length, filter: "posted" },
-          { label: "إجمالي المبيعات", value: formatCurrency(invoices.filter(i => i.status === "posted").reduce((s, i) => s + i.total, 0)), filter: "" },
-        ].map(({ label, value, filter }) => (
+          { label: "الكل", value: invoices.length, filter: "all", icon: FileText, color: "bg-primary/10 text-primary" },
+          { label: "مسودة", value: invoices.filter(i => i.status === "draft").length, filter: "draft", icon: Clock, color: "bg-amber-500/10 text-amber-600" },
+          { label: "مُرحّل", value: invoices.filter(i => i.status === "posted").length, filter: "posted", icon: CheckCircle, color: "bg-emerald-500/10 text-emerald-600" },
+          { label: "إجمالي المبيعات", value: formatCurrency(invoices.filter(i => i.status === "posted").reduce((s, i) => s + i.total, 0)), filter: "", icon: DollarSign, color: "bg-blue-500/10 text-blue-600" },
+        ].map(({ label, value, filter, icon: Icon, color }) => (
           <button key={label} onClick={() => filter && setStatusFilter(filter)}
-            className={`rounded-xl border p-3 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}>
+            className={`rounded-xl border p-4 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-2xl font-black text-foreground font-mono">{value}</span>
+            </div>
             <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="text-lg font-bold text-foreground mt-1">{value}</p>
           </button>
         ))}
       </div>
