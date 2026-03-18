@@ -991,44 +991,41 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* صف 4: ملخص الحسابات */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        <Card className="border-border/60 shadow-none">
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2 font-bold">
-              <Calculator className="h-4 w-4 text-primary" /> ملخص الحسابات
-            </CardTitle>
-            <button onClick={() => navigate("/reports")} className="text-xs text-primary hover:underline font-medium">التفاصيل ←</button>
-          </CardHeader>
-          <CardContent>
-            {accountBalances.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">لا توجد بيانات</p>
-            ) : (
-              <div className="space-y-2">
-                {(() => {
-                  const typeGroups: Record<string, { label: string; total: number }> = {};
-                  const typeLabels: Record<string, string> = { asset: "الأصول", liability: "الخصوم", equity: "حقوق الملكية", revenue: "الإيرادات", expense: "المصروفات" };
-                  accountBalances.forEach(acc => {
-                    const key = acc.account_type;
-                    if (!typeGroups[key]) typeGroups[key] = { label: typeLabels[key] || key, total: 0 };
-                    typeGroups[key].total += acc.balance;
-                  });
-                  return Object.entries(typeGroups).map(([key, g]) => (
-                    <div key={key} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
-                      <span className="text-sm">{g.label}</span>
-                      <div className="text-left">
-                        <span className={`text-sm font-bold font-mono ${g.total >= 0 ? "text-foreground" : "text-destructive"}`}>
-                          {formatCurrency(Math.abs(g.total))}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground mr-1">{g.total >= 0 ? "مدين" : "دائن"}</span>
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* صف 4: ملخص الحسابات — كروت بكامل العرض */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-bold flex items-center gap-2">
+            <Calculator className="h-4 w-4 text-primary" /> ملخص الحسابات
+          </h3>
+          <button onClick={() => navigate("/reports")} className="text-xs text-primary hover:underline font-medium">التفاصيل ←</button>
+        </div>
+        {accountBalances.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">لا توجد بيانات</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {(() => {
+              const typeGroups: Record<string, { label: string; total: number }> = {};
+              const typeLabels: Record<string, string> = { asset: "الأصول", liability: "الخصوم", equity: "حقوق الملكية", revenue: "الإيرادات", expense: "المصروفات" };
+              const typeIcons: Record<string, string> = { asset: "bg-primary/10", liability: "bg-warning/10", equity: "bg-success/10", revenue: "bg-success/10", expense: "bg-destructive/10" };
+              accountBalances.forEach(acc => {
+                const key = acc.account_type;
+                if (!typeGroups[key]) typeGroups[key] = { label: typeLabels[key] || key, total: 0 };
+                typeGroups[key].total += acc.balance;
+              });
+              return Object.entries(typeGroups).map(([key, g]) => (
+                <Card key={key} className="border-border/60 shadow-none">
+                  <CardContent className="p-4 text-center space-y-1">
+                    <p className="text-[11px] text-muted-foreground">{g.label}</p>
+                    <p className={`text-lg font-bold font-mono ${g.total >= 0 ? "text-foreground" : "text-destructive"}`}>
+                      {formatCurrency(Math.abs(g.total))}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{g.total >= 0 ? "مدين" : "دائن"}</p>
+                  </CardContent>
+                </Card>
+              ));
+            })()}
+          </div>
+        )}
       </div>
     </div>
   );
