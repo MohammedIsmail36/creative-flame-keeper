@@ -110,6 +110,7 @@ export default function Dashboard() {
       fetchLowStock(),
       fetchBalances(),
       fetchTopCategories(),
+      fetchStagnantStock(),
     ]);
     setLoading(false);
   };
