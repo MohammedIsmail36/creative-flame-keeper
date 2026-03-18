@@ -140,6 +140,10 @@ export default function Dashboard() {
     setTotalSalesReturns(sumTotal(salesReturnsRes.data || []));
     setTotalPurchaseReturns(sumTotal(purchaseReturnsRes.data || []));
 
+    // Current month sales
+    const currMonthSales = sales.filter(i => { const d = new Date(i.invoice_date); return d.getMonth() === currMonth && d.getFullYear() === currYear; }).reduce((s, i) => s + Number(i.total || 0), 0);
+    setCurrentMonthSales(currMonthSales);
+
     // Monthly change calculations
     const calcChange = (items: any[], dateField: string) => {
       const currTotal = items.filter(i => { const d = new Date(i[dateField]); return d.getMonth() === currMonth && d.getFullYear() === currYear; }).reduce((s, i) => s + Number(i.total || i.amount || 0), 0);
