@@ -207,7 +207,7 @@ export default function GrowthAnalytics() {
     return Object.values(productMap).sort((a, b) => b.total - a.total).slice(0, 6);
   }, [topProducts]);
 
-  const fmt = (n: number) => n.toLocaleString("ar-EG", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtPct = (n: number) => Math.abs(n).toFixed(1) + "%";
 
   const isLoading = loadingSales || loadingPurchases || loadingExpenses;
@@ -395,6 +395,7 @@ export default function GrowthAnalytics() {
                 <XAxis dataKey="month" fontSize={10} tick={{ fill: "hsl(220, 8%, 46%)" }} />
                 <YAxis fontSize={10} tick={{ fill: "hsl(220, 8%, 46%)" }} />
                 <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ direction: "rtl", fontSize: 12 }} />
+                <Legend />
                 <Bar dataKey="sales" name="المبيعات" fill="hsl(152, 60%, 42%)" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="purchases" name="المشتريات" fill="hsl(24, 95%, 53%)" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -417,6 +418,7 @@ export default function GrowthAnalytics() {
                 <XAxis dataKey="month" fontSize={10} tick={{ fill: "hsl(220, 8%, 46%)" }} />
                 <YAxis fontSize={10} tick={{ fill: "hsl(220, 8%, 46%)" }} />
                 <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ direction: "rtl", fontSize: 12 }} />
+                <Legend />
                 <Line type="monotone" dataKey="profit" name="مجمل الربح" stroke="hsl(152, 60%, 42%)" strokeWidth={2} dot={{ r: 3 }} />
                 <Line type="monotone" dataKey="expenses" name="المصروفات" stroke="hsl(0, 72%, 51%)" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 5" />
               </LineChart>
