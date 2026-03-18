@@ -177,7 +177,7 @@ export default function GrowthAnalytics() {
 
   // --- Monthly chart data ---
   const chartData = useMemo(() => {
-    const monthlyData: Record<string, { month: string; sales: number; purchases: number; expenses: number; profit: number }> = {};
+    const monthlyData: Record<string, { month: string; sales: number; purchases: number; expenses: number; grossProfit: number; netProfit: number }> = {};
     for (let i = months - 1; i >= 0; i--) {
       const d = subMonths(new Date(), i);
       const key = format(d, "yyyy-MM");
