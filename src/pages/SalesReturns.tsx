@@ -115,8 +115,17 @@ export default function SalesReturns() {
             <p className="text-sm text-muted-foreground">{returns.length} مرتجع</p>
           </div>
         </div>
-        <Button onClick={() => navigate("/sales-returns/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />مرتجع جديد</Button>
-      </div>
+        <div className="flex items-center gap-2">
+          <ExportMenu config={{
+            filenamePrefix: "مرتجعات-المبيعات",
+            sheetName: "مرتجعات المبيعات",
+            pdfTitle: "مرتجعات المبيعات",
+            headers: ["رقم المرتجع", "العميل", "التاريخ", "الإجمالي", "الحالة"],
+            rows: filtered.map(r => [formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status), r.customer_name || "—", r.return_date, formatCurrency(r.total), statusLabels[r.status] || r.status]),
+            settings,
+          }} disabled={loading} />
+          <Button onClick={() => navigate("/sales-returns/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />مرتجع جديد</Button>
+        </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
