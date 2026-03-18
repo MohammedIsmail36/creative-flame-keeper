@@ -13,7 +13,7 @@ import { ProductWithBrand, productsToLookupItems, formatProductName, formatProdu
 import { toast } from "@/hooks/use-toast";
 import {
   Plus, X, Save, CheckCircle, Pencil, Trash2, ClipboardCheck,
-  ListChecks, StickyNote, CreditCard,
+  ListChecks, StickyNote, CreditCard, Ban,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -320,12 +320,62 @@ export default function InventoryAdjustmentForm() {
     }
   }
 
+  async function handleCancelApproved() {
+    if (!id) return;
+    setSaving(true);
+    try {
+      // 1. Reverse inventory quantities
+      for (const item of items) {
+        if (item.difference === 0) continue;
+        const restoredQty = item.system_quantity; // restore to original system quantity
+        await supabase.from("products")
+          .update({ quantity_on_hand: restoredQty })
+          .eq("id", item.product_id);
+      }
+
+      // 2. Delete inventory movements for this adjustment
+      await (supabase.from("inventory_movements" as any) as any)
+        .delete()
+        .eq("reference_id", id);
+
+      // 3. Get and cancel journal entry
+      const { data: adj } = await (supabase.from("inventory_adjustments" as any) as any)
+        .select("journal_entry_id")
+        .eq("id", id)
+        .single();
+
+      if (adj?.journal_entry_id) {
+        await (supabase.from("journal_entry_lines" as any) as any)
+          .delete()
+          .eq("journal_entry_id", adj.journal_entry_id);
+        await (supabase.from("journal_entries" as any) as any)
+          .update({ status: "cancelled", total_debit: 0, total_credit: 0 })
+          .eq("id", adj.journal_entry_id);
+      }
+
+      // 4. Update adjustment status
+      await (supabase.from("inventory_adjustments" as any) as any)
+        .update({ status: "cancelled", journal_entry_id: null })
+        .eq("id", id);
+
+      setStatus("cancelled");
+      setEditMode(false);
+      toast({ title: "تم إلغاء التسوية بنجاح", description: "تم استعادة كميات المخزون وإلغاء القيود المحاسبية" });
+    } catch (e: any) {
+      toast({ title: "خطأ في إلغاء التسوية", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loading) return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
 
   const isDraft = status === "draft";
+  const isApproved = status === "approved";
+  const isCancelled = status === "cancelled";
   const isEditable = editMode && isDraft && canEdit;
-  const statusLabels: Record<string, string> = { draft: "مسودة", approved: "معتمد" };
-  const statusVariants: Record<string, "secondary" | "default"> = { draft: "secondary", approved: "default" };
+  const statusLabels: Record<string, string> = { draft: "مسودة", approved: "معتمد", cancelled: "ملغي" };
+  const statusVariants: Record<string, "secondary" | "default" | "destructive"> = { draft: "secondary", approved: "default", cancelled: "destructive" };
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -414,6 +464,35 @@ export default function InventoryAdjustmentForm() {
                 <AlertDialogFooter className="flex-row-reverse gap-2">
                   <AlertDialogCancel>إلغاء</AlertDialogCancel>
                   <AlertDialogAction onClick={handleApprove}>اعتماد</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {!isNew && isApproved && role === "admin" && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={saving}
+                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+                >
+                  <Ban className="h-4 w-4" />
+                  إلغاء التسوية
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent dir="rtl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>إلغاء التسوية المعتمدة</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    سيتم استعادة كميات المخزون إلى ما قبل التسوية وإلغاء القيود المحاسبية المرتبطة. هل أنت متأكد؟
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel>تراجع</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleCancelApproved} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    إلغاء التسوية
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
