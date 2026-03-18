@@ -706,6 +706,40 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
+          {/* Sales Target Progress */}
+          {(() => {
+            const target = Number((settings as any)?.monthly_sales_target || 0);
+            if (target <= 0) return null;
+            const progress = Math.min((currentMonthSales / target) * 100, 100);
+            const exceeded = currentMonthSales > target;
+            return (
+              <Card className="border-border/60 shadow-none">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" /> هدف المبيعات الشهري
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">المحقق</span>
+                    <span className={`font-bold ${exceeded ? "text-success" : "text-foreground"}`}>{formatCurrency(currentMonthSales)}</span>
+                  </div>
+                  <Progress value={progress} className="h-3" />
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>الهدف: {formatCurrency(target)}</span>
+                    <span className={`font-bold ${exceeded ? "text-success" : progress >= 70 ? "text-primary" : "text-destructive"}`}>
+                      {progress.toFixed(0)}%
+                    </span>
+                  </div>
+                  {exceeded && (
+                    <div className="bg-success/10 text-success text-xs font-medium rounded-lg p-2 text-center flex items-center justify-center gap-1">
+                      <TrendingUp className="w-3 h-3" /> تم تجاوز الهدف بـ {formatCurrency(currentMonthSales - target)}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
           {/* Expenses by Type */}
           {expensesByType.length > 0 && (
             <Card className="border-border/60 shadow-none">
