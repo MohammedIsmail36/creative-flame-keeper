@@ -259,9 +259,12 @@ export default function PurchaseInvoiceForm() {
 
       if (inv?.journal_entry_id) {
         const { data: origLines } = await supabase.from("journal_entry_lines").select("*").eq("journal_entry_id", inv.journal_entry_id);
+        const totalDebit = (origLines || []).reduce((s: number, l: any) => s + Number(l.debit), 0);
+        const totalCredit = (origLines || []).reduce((s: number, l: any) => s + Number(l.credit), 0);
+        const postedNumber = await getNextPostedNumber("journal_entries");
         const { data: reverseJe } = await supabase.from("journal_entries").insert({
           description: `عكس فاتورة شراء رقم ${invoiceNumber}`, entry_date: new Date().toISOString().split("T")[0],
-          total_debit: grandTotal, total_credit: grandTotal, status: "posted",
+          total_debit: totalCredit, total_credit: totalDebit, status: "posted", posted_number: postedNumber,
         } as any).select("id").single();
         if (reverseJe && origLines) {
           const reverseLines = origLines.map((line: any) => ({

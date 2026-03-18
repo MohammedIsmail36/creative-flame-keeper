@@ -320,9 +320,11 @@ export default function SalesReturnForm() {
       if (ret?.journal_entry_id) {
         const { data: origLines } = await supabase.from("journal_entry_lines").select("*").eq("journal_entry_id", ret.journal_entry_id);
         const totalDebit = (origLines || []).reduce((s: number, l: any) => s + Number(l.debit), 0);
+        const totalCredit = (origLines || []).reduce((s: number, l: any) => s + Number(l.credit), 0);
+        const postedNumber = await getNextPostedNumber("journal_entries");
         const { data: reverseJe } = await supabase.from("journal_entries").insert({
           description: `عكس مرتجع بيع رقم ${returnNumber}`, entry_date: new Date().toISOString().split("T")[0],
-          total_debit: totalDebit, total_credit: totalDebit, status: "posted",
+          total_debit: totalCredit, total_credit: totalDebit, status: "posted", posted_number: postedNumber,
         } as any).select("id").single();
         if (reverseJe && origLines) {
           const reverseLines = origLines.map((line: any) => ({
