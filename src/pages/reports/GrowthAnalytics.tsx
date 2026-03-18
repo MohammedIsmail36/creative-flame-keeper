@@ -147,26 +147,95 @@ export default function GrowthAnalytics() {
     },
   });
 
+  // --- Returns Queries ---
+  const { data: salesReturnsData } = useQuery({
+    queryKey: ["growth-sales-returns", dateFrom, dateTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_returns")
+        .select("return_date, total, status")
+        .gte("return_date", dateFrom)
+        .lte("return_date", dateTo)
+        .eq("status", "posted");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: prevSalesReturnsData } = useQuery({
+    queryKey: ["growth-prev-sales-returns", prevFrom, prevTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_returns")
+        .select("total")
+        .gte("return_date", prevFrom)
+        .lte("return_date", prevTo)
+        .eq("status", "posted");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: purchaseReturnsData } = useQuery({
+    queryKey: ["growth-purchase-returns", dateFrom, dateTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("purchase_returns")
+        .select("return_date, total, status")
+        .gte("return_date", dateFrom)
+        .lte("return_date", dateTo)
+        .eq("status", "posted");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: prevPurchaseReturnsData } = useQuery({
+    queryKey: ["growth-prev-purchase-returns", prevFrom, prevTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("purchase_returns")
+        .select("total")
+        .gte("return_date", prevFrom)
+        .lte("return_date", prevTo)
+        .eq("status", "posted");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // --- Calculations ---
 
   const totalSales = salesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
   const prevTotalSales = prevSalesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
 
+  const totalSalesReturns = salesReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const prevTotalSalesReturns = prevSalesReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+
+  const netSales = totalSales - totalSalesReturns;
+  const prevNetSales = prevTotalSales - prevTotalSalesReturns;
+
   const totalPurchases = purchasesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
   const prevTotalPurchases = prevPurchasesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+
+  const totalPurchaseReturns = purchaseReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const prevTotalPurchaseReturns = prevPurchaseReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+
+  const netPurchases = totalPurchases - totalPurchaseReturns;
+  const prevNetPurchases = prevTotalPurchases - prevTotalPurchaseReturns;
 
   const totalExpenses = expensesData?.reduce((s, i) => s + Number(i.amount), 0) ?? 0;
   const prevTotalExpenses = prevExpensesData?.reduce((s, i) => s + Number(i.amount), 0) ?? 0;
 
-  // Gross profit = Sales - Purchases (COGS proxy)
-  const grossProfit = totalSales - totalPurchases;
-  const prevGrossProfit = prevTotalSales - prevTotalPurchases;
-  const grossMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
+  // Gross profit = Net Sales - Net Purchases (COGS proxy)
+  const grossProfit = netSales - netPurchases;
+  const prevGrossProfit = prevNetSales - prevNetPurchases;
+  const grossMargin = netSales > 0 ? (grossProfit / netSales) * 100 : 0;
 
   // Net profit = Gross Profit - Operating Expenses
   const netProfit = grossProfit - totalExpenses;
   const prevNetProfit = prevGrossProfit - prevTotalExpenses;
-  const netMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
+  const netMargin = netSales > 0 ? (netProfit / netSales) * 100 : 0;
 
   const avgInvoice = salesData?.length ? totalSales / salesData.length : 0;
 
