@@ -436,7 +436,8 @@ export default function GrowthAnalytics() {
                 <YAxis fontSize={10} tick={{ fill: "hsl(220, 8%, 46%)" }} />
                 <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ direction: "rtl", fontSize: 12 }} />
                 <Legend />
-                <Line type="monotone" dataKey="profit" name="مجمل الربح" stroke="hsl(152, 60%, 42%)" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="grossProfit" name="مجمل الربح" stroke="hsl(152, 60%, 42%)" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="netProfit" name="صافي الربح" stroke="hsl(217, 80%, 50%)" strokeWidth={2} dot={{ r: 3 }} />
                 <Line type="monotone" dataKey="expenses" name="المصروفات" stroke="hsl(0, 72%, 51%)" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 5" />
               </LineChart>
             </ResponsiveContainer>
