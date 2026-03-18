@@ -10,7 +10,17 @@ import { DatePickerInput } from "@/components/DatePickerInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { Package, TrendingUp, TrendingDown, Activity, Coins, ExternalLink, Check, ChevronsUpDown, Search } from "lucide-react";
+import {
+  Package,
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  Coins,
+  ExternalLink,
+  Check,
+  ChevronsUpDown,
+  Search,
+} from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 import { cn } from "@/lib/utils";
@@ -72,7 +82,10 @@ export default function InventoryMovements() {
   const { data: products = [] } = useQuery({
     queryKey: ["products-list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("products").select("id, code, name, quantity_on_hand, purchase_price").order("code");
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, code, name, quantity_on_hand, purchase_price")
+        .order("code");
       if (error) throw error;
       return data;
     },
@@ -108,8 +121,12 @@ export default function InventoryMovements() {
     });
   }, [movements]);
 
-  const totalIn = movementsWithBalance.filter(m => inTypes.includes(m.movement_type)).reduce((s, m) => s + Number(m.quantity), 0);
-  const totalOut = movementsWithBalance.filter(m => !inTypes.includes(m.movement_type)).reduce((s, m) => s + Number(m.quantity), 0);
+  const totalIn = movementsWithBalance
+    .filter((m) => inTypes.includes(m.movement_type))
+    .reduce((s, m) => s + Number(m.quantity), 0);
+  const totalOut = movementsWithBalance
+    .filter((m) => !inTypes.includes(m.movement_type))
+    .reduce((s, m) => s + Number(m.quantity), 0);
   const totalValue = movementsWithBalance.reduce((s, m) => {
     const isIn = inTypes.includes(m.movement_type);
     return s + (isIn ? Number(m.total_cost) : -Number(m.total_cost));
@@ -180,7 +197,6 @@ export default function InventoryMovements() {
         return (
           <div>
             <div className="font-bold text-foreground">{displayName}</div>
-            <div className="text-[10px] text-muted-foreground">{p?.code}</div>
           </div>
         );
       },
@@ -191,7 +207,9 @@ export default function InventoryMovements() {
       cell: ({ row }) => {
         const isIn = inTypes.includes(row.original.movement_type);
         return isIn ? (
-          <span className="font-bold text-emerald-600 font-mono">+{Number(row.original.quantity).toLocaleString()}</span>
+          <span className="font-bold text-emerald-600 font-mono">
+            +{Number(row.original.quantity).toLocaleString()}
+          </span>
         ) : (
           <span className="text-muted-foreground/30">-</span>
         );
@@ -217,7 +235,9 @@ export default function InventoryMovements() {
     {
       accessorKey: "total_cost",
       header: ({ column }) => <DataTableColumnHeader column={column} title="القيمة" />,
-      cell: ({ row }) => <span className="font-mono font-bold">{Number(row.original.total_cost).toLocaleString()}</span>,
+      cell: ({ row }) => (
+        <span className="font-mono font-bold">{Number(row.original.total_cost).toLocaleString()}</span>
+      ),
     },
     {
       id: "balance",
@@ -229,11 +249,13 @@ export default function InventoryMovements() {
     {
       accessorKey: "notes",
       header: "ملاحظات",
-      cell: ({ row }) => <span className="text-xs text-muted-foreground max-w-[120px] truncate block">{row.original.notes || "-"}</span>,
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground max-w-[120px] truncate block">{row.original.notes || "-"}</span>
+      ),
     },
   ];
 
-  const exportRows = movementsWithBalance.map(m => {
+  const exportRows = movementsWithBalance.map((m) => {
     const p = m.products as any;
     return [
       m.movement_date,
@@ -280,7 +302,9 @@ export default function InventoryMovements() {
           <CardContent className="p-5">
             <p className="text-muted-foreground text-sm mb-1">إجمالي الحركات</p>
             <div className="flex items-end justify-between">
-              <h3 className="text-2xl font-black text-foreground font-mono">{movementsWithBalance.length.toLocaleString()}</h3>
+              <h3 className="text-2xl font-black text-foreground font-mono">
+                {movementsWithBalance.length.toLocaleString()}
+              </h3>
               <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Activity className="w-4 h-4 text-primary" />
               </div>
@@ -324,7 +348,9 @@ export default function InventoryMovements() {
           <CardContent className="p-5">
             <p className="text-muted-foreground text-sm mb-1">صافي الحركة</p>
             <div className="flex items-end justify-between">
-              <h3 className={`text-2xl font-black font-mono ${totalIn - totalOut >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+              <h3
+                className={`text-2xl font-black font-mono ${totalIn - totalOut >= 0 ? "text-emerald-600" : "text-rose-600"}`}
+              >
                 {(totalIn - totalOut).toLocaleString()}
               </h3>
               <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -353,18 +379,25 @@ export default function InventoryMovements() {
                   className={cn(
                     "w-56 justify-between h-9 font-normal text-sm shadow-xs transition-colors hover:bg-accent/50",
                     selectedProduct === "all" && "text-muted-foreground",
-                    productComboOpen && "ring-2 ring-ring/20 border-ring"
+                    productComboOpen && "ring-2 ring-ring/20 border-ring",
                   )}
                 >
                   <span className="truncate flex-1 text-right">
                     {selectedProduct !== "all"
-                      ? (() => { const p = products.find((p) => p.id === selectedProduct); return p ? `${p.code} - ${p.name}` : "جميع المنتجات"; })()
+                      ? (() => {
+                          const p = products.find((p) => p.id === selectedProduct);
+                          return p ? `${p.code} - ${p.name}` : "جميع المنتجات";
+                        })()
                       : "جميع المنتجات"}
                   </span>
                   <ChevronsUpDown className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 shadow-lg border-border/80" align="start" sideOffset={5}>
+              <PopoverContent
+                className="w-[--radix-popover-trigger-width] p-0 shadow-lg border-border/80"
+                align="start"
+                sideOffset={5}
+              >
                 <Command dir="rtl" className="rounded-md">
                   <CommandInput placeholder="ابحث بالكود أو الاسم..." className="h-10 text-sm" />
                   <CommandList>
@@ -377,22 +410,40 @@ export default function InventoryMovements() {
                     <CommandGroup>
                       <CommandItem
                         value="جميع المنتجات"
-                        onSelect={() => { setSelectedProduct("all"); setProductComboOpen(false); }}
+                        onSelect={() => {
+                          setSelectedProduct("all");
+                          setProductComboOpen(false);
+                        }}
                         className="gap-2.5"
                       >
                         <span className="flex-1">جميع المنتجات</span>
-                        <Check className={cn("mr-auto h-4 w-4 shrink-0 text-primary transition-opacity", selectedProduct === "all" ? "opacity-100" : "opacity-0")} />
+                        <Check
+                          className={cn(
+                            "mr-auto h-4 w-4 shrink-0 text-primary transition-opacity",
+                            selectedProduct === "all" ? "opacity-100" : "opacity-0",
+                          )}
+                        />
                       </CommandItem>
                       {products.map((p) => (
                         <CommandItem
                           key={p.id}
                           value={`${p.code} ${p.name}`}
-                          onSelect={() => { setSelectedProduct(p.id); setProductComboOpen(false); }}
+                          onSelect={() => {
+                            setSelectedProduct(p.id);
+                            setProductComboOpen(false);
+                          }}
                           className="gap-2.5"
                         >
-                          <span className="inline-flex items-center justify-center min-w-[3rem] rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{p.code}</span>
+                          <span className="inline-flex items-center justify-center min-w-[3rem] rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+                            {p.code}
+                          </span>
                           <span className="flex-1 truncate">{p.name}</span>
-                          <Check className={cn("mr-auto h-4 w-4 shrink-0 text-primary transition-opacity", selectedProduct === p.id ? "opacity-100" : "opacity-0")} />
+                          <Check
+                            className={cn(
+                              "mr-auto h-4 w-4 shrink-0 text-primary transition-opacity",
+                              selectedProduct === p.id ? "opacity-100" : "opacity-0",
+                            )}
+                          />
                         </CommandItem>
                       ))}
                     </CommandGroup>
@@ -407,7 +458,9 @@ export default function InventoryMovements() {
               <SelectContent>
                 <SelectItem value="all">جميع الأنواع</SelectItem>
                 {Object.entries(movementTypeLabels).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                  <SelectItem key={k} value={k}>
+                    {v}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
