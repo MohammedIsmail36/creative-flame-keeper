@@ -868,8 +868,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-      {/* صف 2: مخزون راكد + تفاصيل المصروفات */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         {/* Stagnant Stock */}
         <Card className={`shadow-none ${stagnantItems.length > 0 ? "border-warning/40 bg-warning/5" : "border-border/60"}`}>
           <CardHeader className="pb-3">
