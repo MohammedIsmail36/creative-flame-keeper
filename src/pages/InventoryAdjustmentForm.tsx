@@ -496,6 +496,7 @@ export default function InventoryAdjustmentForm() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+          )}
         </div>
       </div>
 
