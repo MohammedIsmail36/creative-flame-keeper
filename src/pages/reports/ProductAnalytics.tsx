@@ -842,348 +842,103 @@ export default function ProductAnalytics() {
         </Card>
       )}
 
-      {/* ── Data Tables ──────────────────────────────────────────────────────── */}
-      <Card className="border shadow-sm">
-        <CardContent className="pt-4 px-0 pb-0">
-          {isLoading ? (
-            <div className="space-y-2 px-4 pb-4">
-              {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
-          ) : view === "top-sellers" ? (
-            <div className="overflow-auto max-h-[520px]">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
-                    <TableHead className="w-10 text-center">#</TableHead>
-                    <TableHead>الكود</TableHead>
-                    <TableHead>المنتج</TableHead>
-                    <TableHead>التصنيف</TableHead>
-                    <TableHead className="text-center">مباع</TableHead>
-                    <TableHead className="text-center">مرتجع</TableHead>
-                    <TableHead className="text-center">صافي</TableHead>
-                    <TableHead className="text-end">الإيرادات</TableHead>
-                    <TableHead className="text-end">التكلفة</TableHead>
-                    <TableHead className="text-end">الربح</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {topSellers.map((p, i) => (
-                    <TableRow
-                      key={p.code + i}
-                      className="hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0"
-                    >
-                      <TableCell className="text-center">{medalIcon(i)}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs font-mono">{p.code}</TableCell>
-                      <TableCell className="font-medium">{p.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="text-xs font-normal">
-                          {p.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center tabular-nums">{fmtN(p.soldQty)}</TableCell>
-                      <TableCell className="text-center tabular-nums text-destructive/80">
-                        {p.returnedQty > 0 ? fmtN(p.returnedQty) : <span className="text-muted-foreground/40">—</span>}
-                      </TableCell>
-                      <TableCell className="text-center font-semibold tabular-nums">{fmtN(p.netQty)}</TableCell>
-                      <TableCell className="text-end tabular-nums text-sm">{fmt(p.netRevenue)}</TableCell>
-                      <TableCell className="text-end tabular-nums text-sm text-muted-foreground">
-                        {fmt(p.netCogs)}
-                      </TableCell>
-                      <TableCell className={`text-end ${profitColor(p.profit)}`}>{fmt(p.profit)}</TableCell>
-                    </TableRow>
-                  ))}
-                  {!topSellers.length && (
-                    <TableRow>
-                      <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
-                        لا توجد مبيعات في هذه الفترة
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-                {topSellers.length > 0 && (
-                  <TableFooter>
-                    <TableRow className="bg-muted/50 border-t-2 border-border font-bold">
-                      <TableCell colSpan={4} className="text-sm">
-                        الإجمالي
-                      </TableCell>
-                      <TableCell className="text-center tabular-nums">
-                        {fmtN(topSellers.reduce((s, p) => s + p.soldQty, 0))}
-                      </TableCell>
-                      <TableCell className="text-center tabular-nums text-destructive/80">
-                        {fmtN(topSellers.reduce((s, p) => s + p.returnedQty, 0))}
-                      </TableCell>
-                      <TableCell className="text-center tabular-nums">
-                        {fmtN(topSellers.reduce((s, p) => s + p.netQty, 0))}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {fmt(topSellers.reduce((s, p) => s + p.netRevenue, 0))}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums text-muted-foreground">
-                        {fmt(topSellers.reduce((s, p) => s + p.netCogs, 0))}
-                      </TableCell>
-                      <TableCell className={`text-end ${profitColor(topSellers.reduce((s, p) => s + p.profit, 0))}`}>
-                        {fmt(topSellers.reduce((s, p) => s + p.profit, 0))}
-                      </TableCell>
-                    </TableRow>
-                  </TableFooter>
-                )}
-              </Table>
-            </div>
-          ) : view === "most-profitable" ? (
-            <div className="overflow-auto max-h-[520px]">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
-                    <TableHead className="w-10 text-center">#</TableHead>
-                    <TableHead>الكود</TableHead>
-                    <TableHead>المنتج</TableHead>
-                    <TableHead>التصنيف</TableHead>
-                    <TableHead className="text-end">صافي الإيرادات</TableHead>
-                    <TableHead className="text-end">التكلفة</TableHead>
-                    <TableHead className="text-end">الربح</TableHead>
-                    <TableHead className="text-center">هامش الربح</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mostProfitable.map((p, i) => {
-                    const margin = p.netRevenue > 0 ? (p.profit / p.netRevenue) * 100 : 0;
-                    return (
-                      <TableRow
-                        key={p.code + i}
-                        className="hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0"
-                      >
-                        <TableCell className="text-center">{medalIcon(i)}</TableCell>
-                        <TableCell className="text-muted-foreground text-xs font-mono">{p.code}</TableCell>
-                        <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="text-xs font-normal">
-                            {p.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-end tabular-nums">{fmt(p.netRevenue)}</TableCell>
-                        <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(p.netCogs)}</TableCell>
-                        <TableCell className={`text-end ${profitColor(p.profit)}`}>{fmt(p.profit)}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge
-                            variant={margin > 30 ? "default" : margin > 15 ? "secondary" : "destructive"}
-                            className="tabular-nums text-xs"
-                          >
-                            {margin.toFixed(1)}%
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {!mostProfitable.length && (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                        لا توجد بيانات
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-                {mostProfitable.length > 0 && (
-                  <TableFooter>
-                    <TableRow className="bg-muted/50 border-t-2 border-border font-bold">
-                      <TableCell colSpan={4} className="text-sm">
-                        الإجمالي
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {fmt(mostProfitable.reduce((s, p) => s + p.netRevenue, 0))}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums text-muted-foreground">
-                        {fmt(mostProfitable.reduce((s, p) => s + p.netCogs, 0))}
-                      </TableCell>
-                      <TableCell
-                        className={`text-end ${profitColor(mostProfitable.reduce((s, p) => s + p.profit, 0))}`}
-                      >
-                        {fmt(mostProfitable.reduce((s, p) => s + p.profit, 0))}
-                      </TableCell>
-                      <TableCell />
-                    </TableRow>
-                  </TableFooter>
-                )}
-              </Table>
-            </div>
-          ) : view === "by-category" ? (
-            <div className="overflow-auto max-h-[520px]">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
-                    <TableHead>التصنيف</TableHead>
-                    <TableHead className="text-center">عدد المنتجات</TableHead>
-                    <TableHead className="text-center">صافي الكمية</TableHead>
-                    <TableHead className="text-end">صافي الإيرادات</TableHead>
-                    <TableHead className="text-end">التكلفة</TableHead>
-                    <TableHead className="text-end">الربح</TableHead>
-                    <TableHead className="text-center">هامش الربح</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {categoryList.map((c) => {
-                    const margin = c.netRevenue > 0 ? (c.profit / c.netRevenue) * 100 : 0;
-                    return (
-                      <TableRow
-                        key={c.name}
-                        className="hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0"
-                      >
-                        <TableCell className="font-semibold">{c.name}</TableCell>
-                        <TableCell className="text-center tabular-nums">{c.productCount}</TableCell>
-                        <TableCell className="text-center tabular-nums">{fmtN(c.netQty)}</TableCell>
-                        <TableCell className="text-end tabular-nums">{fmt(c.netRevenue)}</TableCell>
-                        <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(c.netCogs)}</TableCell>
-                        <TableCell className={`text-end ${profitColor(c.profit)}`}>{fmt(c.profit)}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={margin > 30 ? "default" : "secondary"} className="tabular-nums text-xs">
-                            {margin.toFixed(1)}%
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {!categoryList.length && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                        لا توجد بيانات
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-                {categoryList.length > 0 && (
-                  <TableFooter>
-                    <TableRow className="bg-muted/50 border-t-2 border-border font-bold">
-                      <TableCell className="text-sm">الإجمالي</TableCell>
-                      <TableCell className="text-center tabular-nums">
-                        {categoryList.reduce((s, c) => s + c.productCount, 0)}
-                      </TableCell>
-                      <TableCell className="text-center tabular-nums">
-                        {fmtN(categoryList.reduce((s, c) => s + c.netQty, 0))}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {fmt(categoryList.reduce((s, c) => s + c.netRevenue, 0))}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums text-muted-foreground">
-                        {fmt(categoryList.reduce((s, c) => s + c.netCogs, 0))}
-                      </TableCell>
-                      <TableCell className={`text-end ${profitColor(categoryList.reduce((s, c) => s + c.profit, 0))}`}>
-                        {fmt(categoryList.reduce((s, c) => s + c.profit, 0))}
-                      </TableCell>
-                      <TableCell />
-                    </TableRow>
-                  </TableFooter>
-                )}
-              </Table>
-            </div>
-          ) : (
-            /* Turnover table */
-            <div className="overflow-auto max-h-[520px]">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
-                    <TableHead>الكود</TableHead>
-                    <TableHead>المنتج</TableHead>
-                    <TableHead>التصنيف</TableHead>
-                    <TableHead className="text-end">تكلفة المبيعات</TableHead>
-                    <TableHead className="text-end">قيمة المخزون</TableHead>
-                    <TableHead className="text-center">معدل الدوران</TableHead>
-                    <TableHead className="text-center">المخزون الحالي</TableHead>
-                    <TableHead className="text-center">التقييم</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {turnoverData.map((p) => (
-                    <TableRow
-                      key={p.code}
-                      className={`hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0 ${
-                        p.rating === "dead" ? "bg-destructive/3" : ""
-                      }`}
-                    >
-                      <TableCell className="text-muted-foreground text-xs font-mono">{p.code}</TableCell>
-                      <TableCell className="font-medium">{p.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="text-xs font-normal">
-                          {p.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">{fmt(p.cogs)}</TableCell>
-                      <TableCell className="text-end tabular-nums text-muted-foreground">
-                        {fmt(p.avgInventory)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span
-                          className="font-bold tabular-nums text-sm"
-                          style={{
-                            color:
-                              p.rating === "excellent"
-                                ? TURNOVER_COLORS.excellent
-                                : p.rating === "medium"
-                                  ? TURNOVER_COLORS.medium
-                                  : p.rating === "slow"
-                                    ? TURNOVER_COLORS.slow
-                                    : TURNOVER_COLORS.dead,
-                          }}
-                        >
-                          {p.turnover}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span
-                          className={`tabular-nums font-medium ${
-                            p.currentStock > 0 && p.currentStock < p.minStockLevel ? "text-destructive font-bold" : ""
-                          }`}
-                        >
-                          {fmtN(p.currentStock)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge
-                          className="text-xs"
-                          style={{
-                            background:
-                              p.rating === "excellent"
-                                ? "hsl(152 60% 42% / 0.15)"
-                                : p.rating === "medium"
-                                  ? "hsl(38 92% 50% / 0.15)"
-                                  : p.rating === "slow"
-                                    ? "hsl(0 72% 51% / 0.15)"
-                                    : "hsl(0 50% 30% / 0.15)",
-                            color:
-                              p.rating === "excellent"
-                                ? TURNOVER_COLORS.excellent
-                                : p.rating === "medium"
-                                  ? TURNOVER_COLORS.medium
-                                  : p.rating === "slow"
-                                    ? TURNOVER_COLORS.slow
-                                    : TURNOVER_COLORS.dead,
-                            border: "1px solid currentColor",
-                          }}
-                        >
-                          {p.rating === "excellent"
-                            ? "ممتاز"
-                            : p.rating === "medium"
-                              ? "متوسط"
-                              : p.rating === "slow"
-                                ? "بطيء"
-                                : "راكد"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {!turnoverData.length && (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                        لا توجد بيانات
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* ── Data Tables (using DataTable component) ────────────────────────── */}
+      {view === "top-sellers" && (
+        <DataTable
+          columns={topSellersColumns}
+          data={topSellers}
+          isLoading={isLoading}
+          showSearch={true}
+          searchPlaceholder="بحث بالاسم أو الكود..."
+          showColumnToggle={true}
+          showPagination={true}
+          pageSize={20}
+          emptyMessage="لا توجد مبيعات في هذه الفترة"
+          columnLabels={{
+            rank: "#",
+            code: "الكود",
+            name: "المنتج",
+            category: "التصنيف",
+            soldQty: "مباع",
+            returnedQty: "مرتجع",
+            netQty: "صافي",
+            netRevenue: "الإيرادات",
+            netCogs: "التكلفة",
+            profit: "الربح",
+          }}
+        />
+      )}
+
+      {view === "most-profitable" && (
+        <DataTable
+          columns={mostProfitableColumns}
+          data={mostProfitable}
+          isLoading={isLoading}
+          showSearch={true}
+          searchPlaceholder="بحث بالاسم أو الكود..."
+          showColumnToggle={true}
+          showPagination={true}
+          pageSize={20}
+          emptyMessage="لا توجد بيانات"
+          columnLabels={{
+            rank: "#",
+            code: "الكود",
+            name: "المنتج",
+            category: "التصنيف",
+            netRevenue: "صافي الإيرادات",
+            netCogs: "التكلفة",
+            profit: "الربح",
+            margin: "هامش الربح",
+          }}
+        />
+      )}
+
+      {view === "by-category" && (
+        <DataTable
+          columns={categoryColumns}
+          data={categoryList}
+          isLoading={isLoading}
+          showSearch={true}
+          searchPlaceholder="بحث بالتصنيف..."
+          showColumnToggle={true}
+          showPagination={true}
+          pageSize={20}
+          emptyMessage="لا توجد بيانات"
+          columnLabels={{
+            name: "التصنيف",
+            productCount: "عدد المنتجات",
+            netQty: "صافي الكمية",
+            netRevenue: "صافي الإيرادات",
+            netCogs: "التكلفة",
+            profit: "الربح",
+            margin: "هامش الربح",
+          }}
+        />
+      )}
+
+      {view === "turnover" && (
+        <DataTable
+          columns={turnoverColumns}
+          data={turnoverData}
+          isLoading={isLoading}
+          showSearch={true}
+          searchPlaceholder="بحث بالاسم أو الكود..."
+          showColumnToggle={true}
+          showPagination={true}
+          pageSize={20}
+          emptyMessage="لا توجد بيانات"
+          columnLabels={{
+            code: "الكود",
+            name: "المنتج",
+            category: "التصنيف",
+            cogs: "تكلفة المبيعات",
+            avgInventory: "قيمة المخزون",
+            turnover: "معدل الدوران",
+            currentStock: "المخزون الحالي",
+            rating: "التقييم",
+          }}
+        />
+      )}
     </div>
   );
 }
