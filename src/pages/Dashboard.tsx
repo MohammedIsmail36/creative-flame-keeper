@@ -499,8 +499,10 @@ export default function Dashboard() {
     setStagnantItems(stagnant);
   };
 
-  const netProfit = totalSales - totalPurchases - totalExpenses - totalSalesReturns + totalPurchaseReturns;
-  const profitMargin = totalSales > 0 ? ((netProfit / totalSales) * 100).toFixed(1) : "0";
+  const netSales = totalSales - totalSalesReturns;
+  const netPurchases = totalPurchases - totalPurchaseReturns;
+  const netProfit = netSales - netPurchases - totalExpenses;
+  const profitMargin = netSales > 0 ? ((netProfit / netSales) * 100).toFixed(1) : "0";
 
   const renderChange = (change: number | null) => {
     if (change === null) return <span className="text-xs text-muted-foreground">لا توجد بيانات سابقة</span>;
