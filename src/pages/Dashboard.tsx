@@ -406,7 +406,7 @@ export default function Dashboard() {
 
     if (!items?.length) { setTopCategories([]); return; }
 
-    const invoiceIds = [...new Set(items.map((i: any) => i.invoice_id))];
+    const invoiceIds = [...new Set(items.map((i: any) => i.invoice_id))] as string[];
     const { data: invoices } = await supabase.from("sales_invoices").select("id").in("id", invoiceIds).eq("status", "posted");
     const postedIds = new Set((invoices || []).map(i => i.id));
 
