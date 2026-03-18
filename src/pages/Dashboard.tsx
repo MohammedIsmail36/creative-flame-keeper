@@ -522,16 +522,14 @@ export default function Dashboard() {
       : { data: [] };
     const cm = new Map((custs || []).map((c) => [c.id, c.name]));
     setUnpaidInvoices(
-      unpaid
-        .slice(0, 10)
-        .map((inv) => ({
-          id: inv.id,
-          invoice_number: inv.invoice_number,
-          customer_name: cm.get(inv.customer_id || "") || "عميل نقدي",
-          total: Number(inv.total),
-          paid_amount: Number(inv.paid_amount),
-          remaining: Number(inv.total) - Number(inv.paid_amount),
-        })),
+      unpaid.slice(0, 10).map((inv) => ({
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        customer_name: cm.get(inv.customer_id || "") || "عميل نقدي",
+        total: Number(inv.total),
+        paid_amount: Number(inv.paid_amount),
+        remaining: Number(inv.total) - Number(inv.paid_amount),
+      })),
     );
   };
 
@@ -1032,7 +1030,7 @@ export default function Dashboard() {
                 {loadingCharts ? (
                   <Skeleton className="h-[180px] w-full" />
                 ) : (
-                  <ResponsiveContainer width="100%" height={180}>
+                  <ResponsiveContainer width="100%" height={274}>
                     <LineChart data={monthlyExpenses.slice(-6)}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} opacity={0.5} />
                       <XAxis dataKey="name" fontSize={11} axisLine={false} tickLine={false} />
