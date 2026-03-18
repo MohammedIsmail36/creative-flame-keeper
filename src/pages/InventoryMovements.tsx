@@ -127,12 +127,15 @@ export default function InventoryMovements() {
   }, [movements]);
 
   const totalIn = movementsWithBalance
-    .filter((m) => inTypes.includes(m.movement_type))
-    .reduce((s, m) => s + Number(m.quantity), 0);
+    .filter((m) => m.movement_type === "adjustment" ? Number(m.quantity) > 0 : inTypes.includes(m.movement_type))
+    .reduce((s, m) => s + Math.abs(Number(m.quantity)), 0);
   const totalOut = movementsWithBalance
-    .filter((m) => !inTypes.includes(m.movement_type))
-    .reduce((s, m) => s + Number(m.quantity), 0);
+    .filter((m) => m.movement_type === "adjustment" ? Number(m.quantity) < 0 : !inTypes.includes(m.movement_type))
+    .reduce((s, m) => s + Math.abs(Number(m.quantity)), 0);
   const totalValue = movementsWithBalance.reduce((s, m) => {
+    if (m.movement_type === "adjustment") {
+      return s + (Number(m.quantity) > 0 ? Number(m.total_cost) : -Number(m.total_cost));
+    }
     const isIn = inTypes.includes(m.movement_type);
     return s + (isIn ? Number(m.total_cost) : -Number(m.total_cost));
   }, 0);
