@@ -106,7 +106,7 @@ export default function InventoryMovements() {
 
   const totalIn = movementsWithBalance.filter(m => inTypes.includes(m.movement_type)).reduce((s, m) => s + Number(m.quantity), 0);
   const totalOut = movementsWithBalance.filter(m => !inTypes.includes(m.movement_type)).reduce((s, m) => s + Number(m.quantity), 0);
-  const totalValue = movementsWithBalance.reduce((s, m) => s + Number(m.total_cost), 0);
+  const totalValue = products.reduce((s, p: any) => s + Number(p.quantity_on_hand || 0) * Number(p.purchase_price || 0), 0);
 
   const handleReferenceClick = (referenceType: string | null, referenceId: string | null) => {
     if (!referenceType || !referenceId) return;
