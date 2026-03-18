@@ -305,11 +305,19 @@ export default function GrowthAnalytics() {
       bgColor: grossProfit >= 0 ? "bg-success/10" : "bg-destructive/10",
     },
     {
-      label: "هامش الربح",
-      value: profitMargin.toFixed(1) + "%",
+      label: "صافي الربح",
+      value: fmt(netProfit),
+      growth: calcGrowth(netProfit, prevNetProfit),
+      icon: DollarSign,
+      color: netProfit >= 0 ? "text-success" : "text-destructive",
+      bgColor: netProfit >= 0 ? "bg-success/10" : "bg-destructive/10",
+    },
+    {
+      label: "هامش صافي الربح",
+      value: netMargin.toFixed(1) + "%",
       icon: Percent,
-      color: profitMargin >= 0 ? "text-success" : "text-destructive",
-      bgColor: profitMargin >= 0 ? "bg-success/10" : "bg-destructive/10",
+      color: netMargin >= 0 ? "text-success" : "text-destructive",
+      bgColor: netMargin >= 0 ? "bg-success/10" : "bg-destructive/10",
       noGrowth: true,
     },
     {
