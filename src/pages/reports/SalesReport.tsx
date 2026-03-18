@@ -157,12 +157,9 @@ export default function SalesReport() {
       header: "رقم الفاتورة",
       cell: ({ row }) => {
         const inv = row.original;
-        const display = formatDisplayNumber(
-          settings?.sales_invoice_prefix || "INV-",
-          inv.posted_number,
-          inv.invoice_number,
-          inv.status
-        );
+        const prefix = settings?.sales_invoice_prefix || "INV-";
+        const num = inv.posted_number || inv.invoice_number;
+        const display = `${prefix}${String(num).padStart(4, "0")}`;
         return (
           <button
             className="text-primary hover:underline font-mono font-medium"
