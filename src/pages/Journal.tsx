@@ -10,7 +10,7 @@ import { DatePickerInput } from "@/components/DatePickerInput";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Plus, Eye, CheckCircle, Clock, BookOpen, X, Ban } from "lucide-react";
+import { FileText, Plus, CheckCircle, Clock, BookOpen, X, Ban } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 
@@ -94,12 +94,47 @@ export default function Journal() {
   const hasFilters = statusFilter !== "all" || dateFrom || dateTo;
   const clearFilters = () => { setStatusFilter("all"); setDateFrom(""); setDateTo(""); };
 
+  const statCards = [
+    {
+      label: "إجمالي القيود",
+      value: entries.length,
+      icon: BookOpen,
+      iconBg: "bg-blue-100 dark:bg-blue-500/20",
+      iconColor: "text-blue-600 dark:text-blue-400",
+      filter: "all",
+    },
+    {
+      label: "مسودات",
+      value: statusCounts.draft,
+      icon: Clock,
+      iconBg: "bg-amber-100 dark:bg-amber-500/20",
+      iconColor: "text-amber-600 dark:text-amber-400",
+      filter: "draft",
+    },
+    {
+      label: "معتمدة",
+      value: statusCounts.posted,
+      icon: CheckCircle,
+      iconBg: "bg-green-100 dark:bg-green-500/20",
+      iconColor: "text-green-600 dark:text-green-400",
+      filter: "posted",
+    },
+    {
+      label: "ملغاة",
+      value: statusCounts.cancelled,
+      icon: Ban,
+      iconBg: "bg-red-100 dark:bg-red-500/20",
+      iconColor: "text-red-600 dark:text-red-400",
+      filter: "cancelled",
+    },
+  ];
+
   const columns: ColumnDef<JournalEntry, any>[] = [
     {
       accessorKey: "entry_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="رقم القيد" />,
       cell: ({ row }) => (
-        <span className="font-mono font-medium">
+        <span className="font-mono text-sm text-foreground">
           {formatDisplayNumber(prefix, row.original.posted_number, row.original.entry_number, row.original.status)}
         </span>
       ),
@@ -107,12 +142,12 @@ export default function Journal() {
     {
       accessorKey: "entry_date",
       header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.entry_date}</span>,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.entry_date}</span>,
     },
     {
       accessorKey: "description",
       header: ({ column }) => <DataTableColumnHeader column={column} title="الوصف" />,
-      cell: ({ row }) => <span className="font-medium max-w-[200px] truncate block">{row.original.description}</span>,
+      cell: ({ row }) => <span className="text-sm font-bold text-foreground max-w-[200px] truncate block">{row.original.description}</span>,
     },
     {
       accessorKey: "status",
@@ -131,66 +166,59 @@ export default function Journal() {
     {
       accessorKey: "total_debit",
       header: ({ column }) => <DataTableColumnHeader column={column} title="مدين" />,
-      cell: ({ row }) => <span className="font-mono">{formatCurrency(row.original.total_debit)}</span>,
+      cell: ({ row }) => <span className="text-sm font-bold text-foreground font-mono">{formatCurrency(row.original.total_debit)}</span>,
     },
     {
       accessorKey: "total_credit",
       header: ({ column }) => <DataTableColumnHeader column={column} title="دائن" />,
-      cell: ({ row }) => <span className="font-mono">{formatCurrency(row.original.total_credit)}</span>,
-    },
-    {
-      id: "actions",
-      header: "عرض",
-      enableHiding: false,
-      cell: ({ row }) => (
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); navigate(`/journal/${row.original.id}`); }}>
-          <Eye className="h-4 w-4" />
-        </Button>
-      ),
+      cell: ({ row }) => <span className="text-sm font-bold text-foreground font-mono">{formatCurrency(row.original.total_credit)}</span>,
     },
   ];
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <FileText className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">القيود المحاسبية</h1>
-            <p className="text-sm text-muted-foreground">{entries.length} قيد في اليومية</p>
-          </div>
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-foreground flex items-center">
+            <div className="bg-primary/10 p-2 rounded-lg ml-3">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            القيود المحاسبية
+          </h2>
+          <p className="text-muted-foreground text-sm mt-1">{entries.length} قيد في دفتر اليومية</p>
         </div>
-        {canEdit && (
-          <Button className="gap-2" onClick={() => navigate("/journal/new")}>
-            <Plus className="h-4 w-4" />
-            قيد جديد
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <ExportMenu config={journalExportConfig} disabled={loading} />
+          {canEdit && (
+            <Button className="gap-2 shadow-md shadow-primary/20 font-bold" onClick={() => navigate("/journal/new")}>
+              <Plus className="h-4 w-4" />
+              قيد جديد
+            </Button>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {[
-          { label: "إجمالي القيود", value: entries.length, icon: BookOpen, color: "bg-foreground/5 text-foreground", filter: "all" },
-          { label: "مسودات", value: statusCounts.draft, icon: Clock, color: "bg-amber-500/10 text-amber-600", filter: "draft" },
-          { label: "معتمدة", value: statusCounts.posted, icon: CheckCircle, color: "bg-green-500/10 text-green-600", filter: "posted" },
-          { label: "ملغاة", value: statusCounts.cancelled, icon: Ban, color: "bg-destructive/10 text-destructive", filter: "cancelled" },
-          { label: "إجمالي المبالغ", value: formatCurrency(totalDebit), icon: FileText, color: "bg-blue-500/10 text-blue-600", filter: "" },
-        ].map(({ label, value, icon: Icon, color, filter }) => (
-          <button key={label} onClick={() => filter && setStatusFilter(filter)}
-            className={`rounded-xl border p-3 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}>
-            <div className="flex items-center justify-between mb-1">
-              <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${color}`}>
-                <Icon className="h-4 w-4" />
-              </div>
-              <span className="text-xl font-bold text-foreground">{value}</span>
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        {statCards.map(({ label, value, icon: Icon, iconBg, iconColor, filter }) => (
+          <button
+            key={label}
+            onClick={() => setStatusFilter(filter)}
+            className={`bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4 text-right transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}
+          >
+            <div className={`p-3 rounded-full ${iconBg}`}>
+              <Icon className={`h-5 w-5 ${iconColor}`} />
             </div>
-            <p className="text-xs text-muted-foreground">{label}</p>
+            <div>
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-xl font-black text-foreground">{value.toLocaleString()}</p>
+            </div>
           </button>
         ))}
       </div>
 
+      {/* Data Table */}
       <DataTable
         columns={columns}
         data={filteredEntries}
@@ -199,9 +227,9 @@ export default function Journal() {
         emptyMessage="لا توجد قيود محاسبية"
         onRowClick={(entry) => navigate(`/journal/${entry.id}`)}
         toolbarContent={
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-3 flex-wrap items-center">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-36 h-9 text-sm">
+              <SelectTrigger className="w-36 h-9 text-sm bg-card border-border">
                 <SelectValue placeholder="الحالة" />
               </SelectTrigger>
               <SelectContent>
@@ -219,7 +247,6 @@ export default function Journal() {
                 مسح الفلاتر
               </Button>
             )}
-            <ExportMenu config={journalExportConfig} disabled={loading} />
           </div>
         }
       />
