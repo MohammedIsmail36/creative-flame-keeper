@@ -769,10 +769,11 @@ export default function Dashboard() {
         </Card>
 
         {/* Low Stock Table */}
-        <Card className="border-border/60 shadow-none">
+        <Card className={`shadow-none ${lowStockItems.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-warning" /> تنبيهات المخزون المنخفض
+              <AlertTriangle className={`w-4 h-4 ${lowStockItems.length > 0 ? "text-destructive" : "text-warning"}`} /> تنبيهات المخزون المنخفض
+              {lowStockItems.length > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{lowStockItems.length}</Badge>}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
