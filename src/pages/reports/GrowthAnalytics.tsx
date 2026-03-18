@@ -182,7 +182,7 @@ export default function GrowthAnalytics() {
       const d = subMonths(new Date(), i);
       const key = format(d, "yyyy-MM");
       const label = format(d, "MMM yyyy", { locale: ar });
-      monthlyData[key] = { month: label, sales: 0, purchases: 0, expenses: 0, profit: 0 };
+      monthlyData[key] = { month: label, sales: 0, purchases: 0, expenses: 0, grossProfit: 0, netProfit: 0 };
     }
     salesData?.forEach((inv) => {
       const key = inv.invoice_date.substring(0, 7);
