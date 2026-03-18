@@ -31,6 +31,7 @@ const statusVariants: Record<string, "secondary" | "default"> = { draft: "second
 export default function InventoryAdjustments() {
   const navigate = useNavigate();
   const { role } = useAuth();
+  const { settings } = useSettings();
   const queryClient = useQueryClient();
 
   const { data: adjustments = [], isLoading } = useQuery({
