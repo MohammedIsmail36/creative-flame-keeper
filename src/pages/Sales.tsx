@@ -105,7 +105,18 @@ export default function Sales() {
             <p className="text-sm text-muted-foreground">{invoices.length} فاتورة</p>
           </div>
         </div>
-        <Button onClick={() => navigate("/sales/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />فاتورة جديدة</Button>
+        <div className="flex items-center gap-2">
+          <ExportMenu config={{
+            filenamePrefix: "فواتير-البيع",
+            sheetName: "فواتير البيع",
+            pdfTitle: "فواتير البيع",
+            headers: ["رقم الفاتورة", "العميل", "التاريخ", "الإجمالي", "الحالة"],
+            rows: filtered.map(i => [formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status), i.customer_name || "—", i.invoice_date, formatCurrency(i.total), statusLabels[i.status] || i.status]),
+            settings: null,
+            pdfOrientation: "landscape",
+          }} disabled={loading} />
+          <Button onClick={() => navigate("/sales/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />فاتورة جديدة</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -156,15 +167,6 @@ export default function Sales() {
                 مسح الفلاتر
               </Button>
             )}
-            <ExportMenu config={{
-              filenamePrefix: "فواتير-البيع",
-              sheetName: "فواتير البيع",
-              pdfTitle: "فواتير البيع",
-              headers: ["رقم الفاتورة", "العميل", "التاريخ", "الإجمالي", "الحالة"],
-              rows: filtered.map(i => [formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status), i.customer_name || "—", i.invoice_date, formatCurrency(i.total), statusLabels[i.status] || i.status]),
-              settings: null,
-              pdfOrientation: "landscape",
-            }} disabled={loading} />
           </div>
         }
       />

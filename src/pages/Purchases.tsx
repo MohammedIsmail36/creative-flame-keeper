@@ -106,7 +106,18 @@ export default function Purchases() {
             <p className="text-sm text-muted-foreground">{invoices.length} فاتورة</p>
           </div>
         </div>
-        {canEdit && <Button onClick={() => navigate("/purchases/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />فاتورة جديدة</Button>}
+        <div className="flex items-center gap-2">
+          <ExportMenu config={{
+            filenamePrefix: "فواتير-الشراء",
+            sheetName: "فواتير الشراء",
+            pdfTitle: "فواتير الشراء",
+            headers: ["رقم الفاتورة", "المورد", "التاريخ", "الإجمالي", "الحالة"],
+            rows: filtered.map(i => [formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status), i.supplier_name || "—", i.invoice_date, formatCurrency(i.total), statusLabels[i.status] || i.status]),
+            settings: null,
+            pdfOrientation: "landscape",
+          }} disabled={loading} />
+          {canEdit && <Button onClick={() => navigate("/purchases/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />فاتورة جديدة</Button>}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -157,15 +168,6 @@ export default function Purchases() {
                 مسح الفلاتر
               </Button>
             )}
-            <ExportMenu config={{
-              filenamePrefix: "فواتير-الشراء",
-              sheetName: "فواتير الشراء",
-              pdfTitle: "فواتير الشراء",
-              headers: ["رقم الفاتورة", "المورد", "التاريخ", "الإجمالي", "الحالة"],
-              rows: filtered.map(i => [`#${i.invoice_number}`, i.supplier_name || "—", i.invoice_date, formatCurrency(i.total), statusLabels[i.status] || i.status]),
-              settings: null,
-              pdfOrientation: "landscape",
-            }} disabled={loading} />
           </div>
         }
       />

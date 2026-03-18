@@ -116,7 +116,17 @@ export default function PurchaseReturns() {
             <p className="text-sm text-muted-foreground">{returns.length} مرتجع</p>
           </div>
         </div>
-        {canEdit && <Button onClick={() => navigate("/purchase-returns/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />مرتجع جديد</Button>}
+        <div className="flex items-center gap-2">
+          <ExportMenu config={{
+            filenamePrefix: "مرتجعات-المشتريات",
+            sheetName: "مرتجعات المشتريات",
+            pdfTitle: "مرتجعات المشتريات",
+            headers: ["رقم المرتجع", "المورد", "التاريخ", "الإجمالي", "الحالة"],
+            rows: filtered.map(r => [formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status), r.supplier_name || "—", r.return_date, formatCurrency(r.total), statusLabels[r.status] || r.status]),
+            settings,
+          }} disabled={loading} />
+          {canEdit && <Button onClick={() => navigate("/purchase-returns/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />مرتجع جديد</Button>}
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -169,14 +179,6 @@ export default function PurchaseReturns() {
                 مسح الفلاتر
               </Button>
             )}
-            <ExportMenu config={{
-              filenamePrefix: "مرتجعات-المشتريات",
-              sheetName: "مرتجعات المشتريات",
-              pdfTitle: "مرتجعات المشتريات",
-              headers: ["رقم المرتجع", "المورد", "التاريخ", "الإجمالي", "الحالة"],
-              rows: filtered.map(r => [formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status), r.supplier_name || "—", r.return_date, formatCurrency(r.total), statusLabels[r.status] || r.status]),
-              settings,
-            }} disabled={loading} />
           </div>
         }
       />
