@@ -207,7 +207,7 @@ export default function GrowthAnalytics() {
     return Object.values(productMap).sort((a, b) => b.total - a.total).slice(0, 6);
   }, [topProducts]);
 
-  const fmt = (n: number) => n.toLocaleString("ar-EG", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtPct = (n: number) => Math.abs(n).toFixed(1) + "%";
 
   const isLoading = loadingSales || loadingPurchases || loadingExpenses;
