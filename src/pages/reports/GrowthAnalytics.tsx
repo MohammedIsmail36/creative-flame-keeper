@@ -324,18 +324,20 @@ export default function GrowthAnalytics() {
     const { headers, rows } = getExportData();
     const fmtN = (n: number) => Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     await exportReportPdf({
-      title: `تحليلات النمو - آخر ${period} أشهر`,
-      settings: settings || null,
-      headers,
-      rows: rows.map((r) => [r[0], ...r.slice(1).map((v) => fmtN(Number(v)))]),
-      summaryCards: [
-        { label: "إجمالي المبيعات", value: fmtN(totalSales) },
-        { label: "إجمالي المشتريات", value: fmtN(totalPurchases) },
-        { label: "المصروفات التشغيلية", value: fmtN(totalExpenses) },
-        { label: "مجمل الربح", value: fmtN(grossProfit) },
-        { label: "صافي الربح", value: fmtN(netProfit) },
-        { label: "هامش صافي الربح", value: netMargin.toFixed(1) + "%" },
-      ],
+       title: `لوحة الأداء المالي - آخر ${period} أشهر`,
+       settings: settings || null,
+       headers,
+       rows: rows.map((r) => [r[0], ...r.slice(1).map((v) => fmtN(Number(v)))]),
+       summaryCards: [
+         { label: "صافي المبيعات", value: fmtN(netSales) },
+         { label: "مرتجعات المبيعات", value: fmtN(totalSalesReturns) },
+         { label: "صافي المشتريات", value: fmtN(netPurchases) },
+         { label: "مرتجعات المشتريات", value: fmtN(totalPurchaseReturns) },
+         { label: "المصروفات التشغيلية", value: fmtN(totalExpenses) },
+         { label: "مجمل الربح", value: fmtN(grossProfit) },
+         { label: "صافي الربح", value: fmtN(netProfit) },
+         { label: "هامش صافي الربح", value: netMargin.toFixed(1) + "%" },
+       ],
       filename: `تحليلات-النمو`,
       orientation: "landscape",
     });
