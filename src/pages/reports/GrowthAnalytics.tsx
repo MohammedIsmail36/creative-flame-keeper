@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
   TrendingUp, TrendingDown, Minus, DollarSign, ShoppingCart,
-  Receipt, BarChart3, Percent, FileSpreadsheet, FileText, Users, Package
+  Receipt, BarChart3, Percent, FileSpreadsheet, FileText, Users, Package, RotateCcw
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -147,26 +147,95 @@ export default function GrowthAnalytics() {
     },
   });
 
+  // --- Returns Queries ---
+  const { data: salesReturnsData } = useQuery({
+    queryKey: ["growth-sales-returns", dateFrom, dateTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_returns")
+        .select("return_date, total, status")
+        .gte("return_date", dateFrom)
+        .lte("return_date", dateTo)
+        .eq("status", "posted");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: prevSalesReturnsData } = useQuery({
+    queryKey: ["growth-prev-sales-returns", prevFrom, prevTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_returns")
+        .select("total")
+        .gte("return_date", prevFrom)
+        .lte("return_date", prevTo)
+        .eq("status", "posted");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: purchaseReturnsData } = useQuery({
+    queryKey: ["growth-purchase-returns", dateFrom, dateTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("purchase_returns")
+        .select("return_date, total, status")
+        .gte("return_date", dateFrom)
+        .lte("return_date", dateTo)
+        .eq("status", "posted");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: prevPurchaseReturnsData } = useQuery({
+    queryKey: ["growth-prev-purchase-returns", prevFrom, prevTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("purchase_returns")
+        .select("total")
+        .gte("return_date", prevFrom)
+        .lte("return_date", prevTo)
+        .eq("status", "posted");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // --- Calculations ---
 
   const totalSales = salesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
   const prevTotalSales = prevSalesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
 
+  const totalSalesReturns = salesReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const prevTotalSalesReturns = prevSalesReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+
+  const netSales = totalSales - totalSalesReturns;
+  const prevNetSales = prevTotalSales - prevTotalSalesReturns;
+
   const totalPurchases = purchasesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
   const prevTotalPurchases = prevPurchasesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+
+  const totalPurchaseReturns = purchaseReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const prevTotalPurchaseReturns = prevPurchaseReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+
+  const netPurchases = totalPurchases - totalPurchaseReturns;
+  const prevNetPurchases = prevTotalPurchases - prevTotalPurchaseReturns;
 
   const totalExpenses = expensesData?.reduce((s, i) => s + Number(i.amount), 0) ?? 0;
   const prevTotalExpenses = prevExpensesData?.reduce((s, i) => s + Number(i.amount), 0) ?? 0;
 
-  // Gross profit = Sales - Purchases (COGS proxy)
-  const grossProfit = totalSales - totalPurchases;
-  const prevGrossProfit = prevTotalSales - prevTotalPurchases;
-  const grossMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
+  // Gross profit = Net Sales - Net Purchases (COGS proxy)
+  const grossProfit = netSales - netPurchases;
+  const prevGrossProfit = prevNetSales - prevNetPurchases;
+  const grossMargin = netSales > 0 ? (grossProfit / netSales) * 100 : 0;
 
   // Net profit = Gross Profit - Operating Expenses
   const netProfit = grossProfit - totalExpenses;
   const prevNetProfit = prevGrossProfit - prevTotalExpenses;
-  const netMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
+  const netMargin = netSales > 0 ? (netProfit / netSales) * 100 : 0;
 
   const avgInvoice = salesData?.length ? totalSales / salesData.length : 0;
 
@@ -188,9 +257,17 @@ export default function GrowthAnalytics() {
       const key = inv.invoice_date.substring(0, 7);
       if (monthlyData[key]) monthlyData[key].sales += Number(inv.total);
     });
+    salesReturnsData?.forEach((ret) => {
+      const key = ret.return_date.substring(0, 7);
+      if (monthlyData[key]) monthlyData[key].sales -= Number(ret.total);
+    });
     purchasesData?.forEach((inv) => {
       const key = inv.invoice_date.substring(0, 7);
       if (monthlyData[key]) monthlyData[key].purchases += Number(inv.total);
+    });
+    purchaseReturnsData?.forEach((ret) => {
+      const key = ret.return_date.substring(0, 7);
+      if (monthlyData[key]) monthlyData[key].purchases -= Number(ret.total);
     });
     expensesData?.forEach((exp) => {
       const key = exp.expense_date.substring(0, 7);
@@ -201,7 +278,7 @@ export default function GrowthAnalytics() {
       m.netProfit = m.grossProfit - m.expenses;
     });
     return Object.values(monthlyData);
-  }, [salesData, purchasesData, expensesData, months]);
+  }, [salesData, salesReturnsData, purchasesData, purchaseReturnsData, expensesData, months]);
 
   // --- Top products pie ---
   const topProductsList = useMemo(() => {
@@ -247,18 +324,20 @@ export default function GrowthAnalytics() {
     const { headers, rows } = getExportData();
     const fmtN = (n: number) => Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     await exportReportPdf({
-      title: `تحليلات النمو - آخر ${period} أشهر`,
-      settings: settings || null,
-      headers,
-      rows: rows.map((r) => [r[0], ...r.slice(1).map((v) => fmtN(Number(v)))]),
-      summaryCards: [
-        { label: "إجمالي المبيعات", value: fmtN(totalSales) },
-        { label: "إجمالي المشتريات", value: fmtN(totalPurchases) },
-        { label: "المصروفات التشغيلية", value: fmtN(totalExpenses) },
-        { label: "مجمل الربح", value: fmtN(grossProfit) },
-        { label: "صافي الربح", value: fmtN(netProfit) },
-        { label: "هامش صافي الربح", value: netMargin.toFixed(1) + "%" },
-      ],
+       title: `لوحة الأداء المالي - آخر ${period} أشهر`,
+       settings: settings || null,
+       headers,
+       rows: rows.map((r) => [r[0], ...r.slice(1).map((v) => fmtN(Number(v)))]),
+       summaryCards: [
+         { label: "صافي المبيعات", value: fmtN(netSales) },
+         { label: "مرتجعات المبيعات", value: fmtN(totalSalesReturns) },
+         { label: "صافي المشتريات", value: fmtN(netPurchases) },
+         { label: "مرتجعات المشتريات", value: fmtN(totalPurchaseReturns) },
+         { label: "المصروفات التشغيلية", value: fmtN(totalExpenses) },
+         { label: "مجمل الربح", value: fmtN(grossProfit) },
+         { label: "صافي الربح", value: fmtN(netProfit) },
+         { label: "هامش صافي الربح", value: netMargin.toFixed(1) + "%" },
+       ],
       filename: `تحليلات-النمو`,
       orientation: "landscape",
     });
@@ -267,9 +346,9 @@ export default function GrowthAnalytics() {
   // --- KPI cards config ---
   const kpiCards = [
     {
-      label: "إجمالي المبيعات",
-      value: fmt(totalSales),
-      growth: calcGrowth(totalSales, prevTotalSales),
+      label: "صافي المبيعات",
+      value: fmt(netSales),
+      growth: calcGrowth(netSales, prevNetSales),
       icon: DollarSign,
       color: "text-success",
       bgColor: "bg-success/10",
@@ -277,9 +356,9 @@ export default function GrowthAnalytics() {
       countLabel: "فاتورة",
     },
     {
-      label: "إجمالي المشتريات",
-      value: fmt(totalPurchases),
-      growth: calcGrowth(totalPurchases, prevTotalPurchases),
+      label: "صافي المشتريات",
+      value: fmt(netPurchases),
+      growth: calcGrowth(netPurchases, prevNetPurchases),
       inverted: true,
       icon: ShoppingCart,
       color: "text-primary",
@@ -497,6 +576,77 @@ export default function GrowthAnalytics() {
                 <span className="text-base font-bold">{item.value}</span>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Summary Table: Sales vs Purchases side by side */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* Sales Summary */}
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-success" />
+              ملخص المبيعات
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <tbody>
+                <tr className="border-b border-border/40">
+                  <td className="px-5 py-3 text-muted-foreground">إجمالي المبيعات</td>
+                  <td className="px-5 py-3 text-left font-semibold">{fmt(totalSales)}</td>
+                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">{salesData?.length ?? 0} فاتورة</td>
+                </tr>
+                <tr className="border-b border-border/40 bg-muted/30">
+                  <td className="px-5 py-3 text-muted-foreground flex items-center gap-1.5">
+                    <RotateCcw className="w-3.5 h-3.5 text-destructive" />
+                    مرتجعات المبيعات
+                  </td>
+                  <td className="px-5 py-3 text-left font-semibold text-destructive">({fmt(totalSalesReturns)})</td>
+                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">{salesReturnsData?.length ?? 0} مرتجع</td>
+                </tr>
+                <tr className="bg-success/5">
+                  <td className="px-5 py-3 font-bold">صافي المبيعات</td>
+                  <td className="px-5 py-3 text-left font-bold text-success text-base">{fmt(netSales)}</td>
+                  <td className="px-5 py-3"></td>
+                </tr>
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+
+        {/* Purchases Summary */}
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4 text-primary" />
+              ملخص المشتريات
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <tbody>
+                <tr className="border-b border-border/40">
+                  <td className="px-5 py-3 text-muted-foreground">إجمالي المشتريات</td>
+                  <td className="px-5 py-3 text-left font-semibold">{fmt(totalPurchases)}</td>
+                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">{purchasesData?.length ?? 0} فاتورة</td>
+                </tr>
+                <tr className="border-b border-border/40 bg-muted/30">
+                  <td className="px-5 py-3 text-muted-foreground flex items-center gap-1.5">
+                    <RotateCcw className="w-3.5 h-3.5 text-success" />
+                    مرتجعات المشتريات
+                  </td>
+                  <td className="px-5 py-3 text-left font-semibold text-success">({fmt(totalPurchaseReturns)})</td>
+                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">{purchaseReturnsData?.length ?? 0} مرتجع</td>
+                </tr>
+                <tr className="bg-primary/5">
+                  <td className="px-5 py-3 font-bold">صافي المشتريات</td>
+                  <td className="px-5 py-3 text-left font-bold text-primary text-base">{fmt(netPurchases)}</td>
+                  <td className="px-5 py-3"></td>
+                </tr>
+              </tbody>
+            </table>
           </CardContent>
         </Card>
       </div>
