@@ -127,6 +127,7 @@ export default function PurchaseReturns() {
           }} disabled={loading} />
           {canEdit && <Button onClick={() => navigate("/purchase-returns/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />مرتجع جديد</Button>}
         </div>
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
