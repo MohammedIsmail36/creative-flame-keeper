@@ -295,7 +295,7 @@ export default function Expenses() {
           </div>
         </div>
         <div className="flex gap-2">
-          <ExportMenu data={filtered} columns={exportColumns} filename="expenses" title="المصروفات" />
+          <ExportMenu config={exportConfig} />
           <Button onClick={() => navigate("/expenses/new")}>
             <Plus className="h-4 w-4 ml-2" /> مصروف جديد
           </Button>
