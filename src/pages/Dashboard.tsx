@@ -451,6 +451,54 @@ export default function Dashboard() {
     );
   };
 
+  const fetchStagnantStock = async () => {
+    // Get products with stock > 0
+    const { data: products } = await (supabase.from("products") as any)
+      .select("id, name, quantity_on_hand, model_number, product_brands(name)")
+      .eq("is_active", true)
+      .gt("quantity_on_hand", 0);
+
+    if (!products?.length) { setStagnantItems([]); return; }
+
+    // Get last movement date per product
+    const productIds = products.map((p: any) => p.id);
+    const { data: movements } = await supabase
+      .from("inventory_movements")
+      .select("product_id, movement_date")
+      .in("product_id", productIds)
+      .order("movement_date", { ascending: false });
+
+    const lastMoveMap = new Map<string, string>();
+    (movements || []).forEach((m: any) => {
+      if (!lastMoveMap.has(m.product_id)) lastMoveMap.set(m.product_id, m.movement_date);
+    });
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const stagnant = products
+      .filter((p: any) => {
+        const lastMove = lastMoveMap.get(p.id);
+        if (!lastMove) return true; // no movement ever
+        return new Date(lastMove) < thirtyDaysAgo;
+      })
+      .map((p: any) => ({
+        name: p.name,
+        brandName: p.product_brands?.name || null,
+        modelNumber: p.model_number || null,
+        quantity_on_hand: Number(p.quantity_on_hand),
+        lastMovement: lastMoveMap.get(p.id) || null,
+      }))
+      .sort((a: StagnantItem, b: StagnantItem) => {
+        if (!a.lastMovement) return -1;
+        if (!b.lastMovement) return 1;
+        return new Date(a.lastMovement).getTime() - new Date(b.lastMovement).getTime();
+      })
+      .slice(0, 10);
+
+    setStagnantItems(stagnant);
+  };
+
   const netProfit = totalSales - totalPurchases - totalExpenses - totalSalesReturns + totalPurchaseReturns;
   const profitMargin = totalSales > 0 ? ((netProfit / totalSales) * 100).toFixed(1) : "0";
 
