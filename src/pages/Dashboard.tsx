@@ -55,7 +55,7 @@ interface StagnantItem { name: string; brandName: string | null; modelNumber: st
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, settings } = useSettings();
   const [loading, setLoading] = useState(true);
 
   // KPI state
