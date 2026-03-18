@@ -9,7 +9,7 @@ export default function SupplierStatement() {
         <h1 className="text-2xl font-bold">كشف حساب مورد</h1>
         <p className="text-muted-foreground text-sm mt-1">عرض حركات وأرصدة المورد</p>
       </div>
-      <AccountStatement defaultEntityType="supplier" defaultEntityId={id} />
+      <AccountStatement defaultEntityType="supplier" defaultEntityId={id || undefined} />
     </div>
   );
 }
