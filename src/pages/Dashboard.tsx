@@ -410,10 +410,10 @@ export default function Dashboard() {
     const { data: invoices } = await supabase.from("sales_invoices").select("id").in("id", invoiceIds).eq("status", "posted");
     const postedIds = new Set((invoices || []).map(i => i.id));
 
-    const productIds = [...new Set(items.filter((i: any) => i.product_id && postedIds.has(i.invoice_id)).map((i: any) => i.product_id))];
+    const productIds = [...new Set(items.filter((i: any) => i.product_id && postedIds.has(i.invoice_id)).map((i: any) => i.product_id))] as string[];
     if (!productIds.length) { setTopCategories([]); return; }
 
-    const { data: products } = await supabase.from("products").select("id, category_id, purchase_price").in("id", productIds);
+    const { data: products } = await supabase.from("products").select("id, category_id, purchase_price").in("id", productIds as string[]);
     const { data: categories } = await supabase.from("product_categories").select("id, name");
 
     const prodMap = new Map((products || []).map(p => [p.id, p]));
