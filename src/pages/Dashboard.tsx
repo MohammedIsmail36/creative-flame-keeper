@@ -631,10 +631,12 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Middle Section: Charts + Right Column */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Left: Charts (2 cols) */}
-        <div className="lg:col-span-2 space-y-4">
+      {/* ═══════════════════════════════════════════════════════════
+          المنطقة العلوية الثابتة — عمودين: رسوم بيانية + بطاقات
+         ═══════════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* العمود الأيسر: الرسوم البيانية */}
+        <div className="space-y-4">
           {/* Bar Chart */}
           <Card className="border-border/60 shadow-none">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -647,7 +649,7 @@ export default function Dashboard() {
               </Badge>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={monthlyData.slice(-6)} barSize={36}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="name" fontSize={12} axisLine={false} tickLine={false} />
@@ -666,7 +668,7 @@ export default function Dashboard() {
               <CardTitle className="text-base font-bold">تحليل المصروفات الشهرية</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={monthlyExpenses.slice(-6)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="name" fontSize={12} axisLine={false} tickLine={false} />
@@ -679,7 +681,7 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Right Column */}
+        {/* العمود الأيمن: السيولة + الهدف + أحدث الحركات */}
         <div className="space-y-4">
           {/* Liquidity */}
           <Card className="border-border/60 shadow-none">
@@ -740,22 +742,6 @@ export default function Dashboard() {
               </Card>
             );
           })()}
-          {/* Expenses by Type */}
-          {expensesByType.length > 0 && (
-            <Card className="border-border/60 shadow-none">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-bold">تفاصيل المصروفات</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {expensesByType.map(et => (
-                  <div key={et.name} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
-                    <span className="text-sm">{et.name}</span>
-                    <span className="text-sm font-bold font-mono">{formatCurrency(et.amount)}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
 
           {/* Recent Activities */}
           <Card className="border-border/60 shadow-none">
@@ -788,8 +774,12 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Bottom Tables - Row 1: Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+      {/* ═══════════════════════════════════════════════════════════
+          المنطقة السفلية المتغيرة — جداول في صفوف من عمودين
+         ═══════════════════════════════════════════════════════════ */}
+
+      {/* صف 1: فواتير لم تسدد + المخزون المنخفض */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         {/* Unpaid Invoices */}
         <Card className={`shadow-none ${unpaidInvoices.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
@@ -826,7 +816,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Low Stock Table */}
+        {/* Low Stock */}
         <Card className={`shadow-none ${lowStockItems.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -859,7 +849,10 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+      </div>
 
+      {/* صف 2: مخزون راكد + تفاصيل المصروفات */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         {/* Stagnant Stock */}
         <Card className={`shadow-none ${stagnantItems.length > 0 ? "border-warning/40 bg-warning/5" : "border-border/60"}`}>
           <CardHeader className="pb-3">
@@ -894,10 +887,41 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+
+        {/* Expenses by Type (as table) */}
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <Banknote className="w-4 h-4 text-destructive" /> تفاصيل المصروفات
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 max-h-[320px] overflow-auto">
+            {expensesByType.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">لا توجد مصروفات</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-xs">النوع</TableHead>
+                    <TableHead className="text-xs">المبلغ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {expensesByType.map(et => (
+                    <TableRow key={et.name}>
+                      <TableCell className="text-sm font-medium">{et.name}</TableCell>
+                      <TableCell className="text-sm font-bold font-mono">{formatCurrency(et.amount)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Bottom Tables - Row 2: Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+      {/* صف 3: الأصناف الأكثر مبيعاً + الفئات الأكثر ربحية */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         {/* Top Products */}
         <Card className="border-border/60 shadow-none">
           <CardHeader className="pb-3">
@@ -965,8 +989,10 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+      </div>
 
-        {/* Account Balances Summary */}
+      {/* صف 4: ملخص الحسابات */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         <Card className="border-border/60 shadow-none">
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2 font-bold">
