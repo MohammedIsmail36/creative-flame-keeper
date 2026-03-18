@@ -18,6 +18,8 @@ import {
 } from "recharts";
 import { useSettings } from "@/contexts/SettingsContext";
 import { FileText, TrendingUp, TrendingDown, ArrowDownLeft, ReceiptText, Percent, DollarSign, AlertTriangle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatDisplayNumber } from "@/lib/posted-number-utils";
 
 // ── helpers ──
 const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
