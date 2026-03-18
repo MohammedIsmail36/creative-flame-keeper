@@ -97,15 +97,15 @@ export default function Sales() {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <FileText className="h-5 w-5 text-primary" />
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            <FileText className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">فواتير البيع</h1>
+            <h1 className="text-3xl font-extrabold text-foreground">فواتير البيع</h1>
             <p className="text-sm text-muted-foreground">{invoices.length} فاتورة</p>
           </div>
         </div>
-        <Button onClick={() => navigate("/sales/new")} className="gap-2"><Plus className="h-4 w-4" />فاتورة جديدة</Button>
+        <Button onClick={() => navigate("/sales/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />فاتورة جديدة</Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
