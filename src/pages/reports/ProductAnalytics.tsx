@@ -12,11 +12,31 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format, startOfMonth, endOfMonth } from "date-fns";
-import { FileSpreadsheet, FileText, Trophy, TrendingUp, DollarSign, Package, Medal, AlertTriangle, Info, ShoppingCart } from "lucide-react";
+import {
+  FileSpreadsheet,
+  FileText,
+  Trophy,
+  TrendingUp,
+  DollarSign,
+  Package,
+  Medal,
+  AlertTriangle,
+  Info,
+  ShoppingCart,
+} from "lucide-react";
 import { CategoryTreeSelect } from "@/components/CategoryTreeSelect";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from "recharts";
 import { exportToExcel } from "@/lib/excel-export";
 import { exportReportPdf } from "@/lib/report-pdf";
@@ -75,7 +95,9 @@ export default function ProductAnalytics() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales_invoice_items")
-        .select("quantity, total, unit_price, product_id, product:products(name, code, category_id, quantity_on_hand, min_stock_level, purchase_price, category:product_categories(name)), invoice:sales_invoices!inner(invoice_date, status)")
+        .select(
+          "quantity, total, unit_price, product_id, product:products(name, code, category_id, quantity_on_hand, min_stock_level, purchase_price, category:product_categories(name)), invoice:sales_invoices!inner(invoice_date, status)",
+        )
         .gte("invoice.invoice_date", dateFrom)
         .lte("invoice.invoice_date", dateTo)
         .eq("invoice.status", "posted");
@@ -120,7 +142,9 @@ export default function ProductAnalytics() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, code, purchase_price, selling_price, quantity_on_hand, min_stock_level, category_id, category:product_categories(name)")
+        .select(
+          "id, name, code, purchase_price, selling_price, quantity_on_hand, min_stock_level, category_id, category:product_categories(name)",
+        )
         .eq("is_active", true);
       if (error) throw error;
       return data;
@@ -150,7 +174,6 @@ export default function ProductAnalytics() {
   const productMetrics = useMemo(() => {
     const metrics: Record<string, ProductMetrics> = {};
 
-    // Initialize from sales
     salesItems?.forEach((item: any) => {
       const id = item.product_id || "unknown";
       if (!metrics[id]) {
@@ -159,9 +182,16 @@ export default function ProductAnalytics() {
           code: item.product?.code || "-",
           category: item.product?.category?.name || "بدون تصنيف",
           categoryId: item.product?.category_id || null,
-          soldQty: 0, returnedQty: 0, netQty: 0,
-          revenue: 0, returnsValue: 0, netRevenue: 0,
-          cogs: 0, returnsCogs: 0, netCogs: 0, profit: 0,
+          soldQty: 0,
+          returnedQty: 0,
+          netQty: 0,
+          revenue: 0,
+          returnsValue: 0,
+          netRevenue: 0,
+          cogs: 0,
+          returnsCogs: 0,
+          netCogs: 0,
+          profit: 0,
           currentStock: Number(item.product?.quantity_on_hand || 0),
           minStockLevel: Number(item.product?.min_stock_level || 0),
           purchasePrice: Number(item.product?.purchase_price || 0),
@@ -171,23 +201,33 @@ export default function ProductAnalytics() {
       metrics[id].revenue += Number(item.total);
     });
 
-    // Add returns
     returnItems?.forEach((item: any) => {
       const id = item.product_id || "unknown";
       if (!metrics[id]) {
         metrics[id] = {
-          name: "محذوف", code: "-", category: "بدون تصنيف", categoryId: null,
-          soldQty: 0, returnedQty: 0, netQty: 0,
-          revenue: 0, returnsValue: 0, netRevenue: 0,
-          cogs: 0, returnsCogs: 0, netCogs: 0, profit: 0,
-          currentStock: 0, minStockLevel: 0, purchasePrice: 0,
+          name: "محذوف",
+          code: "-",
+          category: "بدون تصنيف",
+          categoryId: null,
+          soldQty: 0,
+          returnedQty: 0,
+          netQty: 0,
+          revenue: 0,
+          returnsValue: 0,
+          netRevenue: 0,
+          cogs: 0,
+          returnsCogs: 0,
+          netCogs: 0,
+          profit: 0,
+          currentStock: 0,
+          minStockLevel: 0,
+          purchasePrice: 0,
         };
       }
       metrics[id].returnedQty += Number(item.quantity);
       metrics[id].returnsValue += Number(item.total);
     });
 
-    // Actual COGS from inventory_movements
     movements?.forEach((m: any) => {
       const id = m.product_id;
       if (!metrics[id]) return;
@@ -198,7 +238,6 @@ export default function ProductAnalytics() {
       }
     });
 
-    // Calculate net values
     Object.values(metrics).forEach((p) => {
       p.netQty = p.soldQty - p.returnedQty;
       p.netRevenue = p.revenue - p.returnsValue;
@@ -209,14 +248,12 @@ export default function ProductAnalytics() {
     return metrics;
   }, [salesItems, returnItems, movements]);
 
-  // Apply category filter
   const filteredMetrics = useMemo(() => {
     const all = Object.values(productMetrics);
     if (categoryFilter === "all") return all;
     return all.filter((p) => p.categoryId === categoryFilter);
   }, [productMetrics, categoryFilter]);
 
-  // KPIs
   const kpis = useMemo(() => {
     const distinctProducts = filteredMetrics.filter((p) => p.soldQty > 0).length;
     const totalNetQty = filteredMetrics.reduce((s, p) => s + p.netQty, 0);
@@ -225,14 +262,17 @@ export default function ProductAnalytics() {
     return { distinctProducts, totalNetQty, totalNetRevenue, totalProfit };
   }, [filteredMetrics]);
 
-  // Views
   const topSellers = useMemo(() => [...filteredMetrics].sort((a, b) => b.netQty - a.netQty), [filteredMetrics]);
   const mostProfitable = useMemo(() => [...filteredMetrics].sort((a, b) => b.profit - a.profit), [filteredMetrics]);
 
   const categoryList = useMemo(() => {
-    const cats: Record<string, { name: string; productCount: number; netQty: number; netRevenue: number; netCogs: number; profit: number }> = {};
+    const cats: Record<
+      string,
+      { name: string; productCount: number; netQty: number; netRevenue: number; netCogs: number; profit: number }
+    > = {};
     filteredMetrics.forEach((p) => {
-      if (!cats[p.category]) cats[p.category] = { name: p.category, productCount: 0, netQty: 0, netRevenue: 0, netCogs: 0, profit: 0 };
+      if (!cats[p.category])
+        cats[p.category] = { name: p.category, productCount: 0, netQty: 0, netRevenue: 0, netCogs: 0, profit: 0 };
       cats[p.category].productCount++;
       cats[p.category].netQty += p.netQty;
       cats[p.category].netRevenue += p.netRevenue;
@@ -242,40 +282,52 @@ export default function ProductAnalytics() {
     return Object.values(cats).sort((a, b) => b.netRevenue - a.netRevenue);
   }, [filteredMetrics]);
 
-  // Turnover data from all products
   const turnoverData = useMemo(() => {
     const allProducts = products || [];
-    const filtered = categoryFilter === "all" ? allProducts : allProducts.filter((p: any) => p.category_id === categoryFilter);
-    return filtered.map((p: any) => {
-      const m = productMetrics[p.id];
-      const cogs = m?.netCogs || 0;
-      const currentStockValue = Number(p.quantity_on_hand) * Number(p.purchase_price);
-      const avgInventory = currentStockValue > 0 ? currentStockValue : 1; // avoid division by zero
-      const turnover = cogs > 0 ? Math.round((cogs / avgInventory) * 100) / 100 : 0;
-      const hasSales = m && m.soldQty > 0;
-      return {
-        name: p.name,
-        code: p.code,
-        category: p.category?.name || "بدون تصنيف",
-        cogs,
-        avgInventory: currentStockValue,
-        turnover,
-        currentStock: Number(p.quantity_on_hand),
-        minStockLevel: Number(p.min_stock_level),
-        rating: !hasSales ? "dead" as const : turnover > 2 ? "excellent" as const : turnover > 0.5 ? "medium" as const : "slow" as const,
-      };
-    }).sort((a, b) => b.turnover - a.turnover);
+    const filtered =
+      categoryFilter === "all" ? allProducts : allProducts.filter((p: any) => p.category_id === categoryFilter);
+    return filtered
+      .map((p: any) => {
+        const m = productMetrics[p.id];
+        const cogs = m?.netCogs || 0;
+        const currentStockValue = Number(p.quantity_on_hand) * Number(p.purchase_price);
+        const avgInventory = currentStockValue > 0 ? currentStockValue : 1;
+        const turnover = cogs > 0 ? Math.round((cogs / avgInventory) * 100) / 100 : 0;
+        const hasSales = m && m.soldQty > 0;
+        return {
+          name: p.name,
+          code: p.code,
+          category: p.category?.name || "بدون تصنيف",
+          cogs,
+          avgInventory: currentStockValue,
+          turnover,
+          currentStock: Number(p.quantity_on_hand),
+          minStockLevel: Number(p.min_stock_level),
+          rating: !hasSales
+            ? ("dead" as const)
+            : turnover > 2
+              ? ("excellent" as const)
+              : turnover > 0.5
+                ? ("medium" as const)
+                : ("slow" as const),
+        };
+      })
+      .sort((a, b) => b.turnover - a.turnover);
   }, [products, productMetrics, categoryFilter]);
 
-  // Dead stock & reorder alerts
   const deadStockCount = turnoverData.filter((p) => p.rating === "dead" && p.currentStock > 0).length;
-  const deadStockValue = turnoverData.filter((p) => p.rating === "dead" && p.currentStock > 0).reduce((s, p) => s + p.avgInventory, 0);
-  const reorderAlerts = turnoverData.filter((p) => p.currentStock > 0 && p.currentStock < p.minStockLevel && p.rating !== "dead");
+  const deadStockValue = turnoverData
+    .filter((p) => p.rating === "dead" && p.currentStock > 0)
+    .reduce((s, p) => s + p.avgInventory, 0);
+  const reorderAlerts = turnoverData.filter(
+    (p) => p.currentStock > 0 && p.currentStock < p.minStockLevel && p.rating !== "dead",
+  );
 
-  // Turnover distribution for donut chart
   const turnoverDistribution = useMemo(() => {
     const dist = { excellent: 0, medium: 0, slow: 0, dead: 0 };
-    turnoverData.forEach((p) => { dist[p.rating]++; });
+    turnoverData.forEach((p) => {
+      dist[p.rating]++;
+    });
     return [
       { name: "ممتاز (>2)", value: dist.excellent, color: TURNOVER_COLORS.excellent },
       { name: "متوسط (0.5-2)", value: dist.medium, color: TURNOVER_COLORS.medium },
@@ -284,78 +336,223 @@ export default function ProductAnalytics() {
     ].filter((d) => d.value > 0);
   }, [turnoverData]);
 
-  // Chart data
   const chartData = useMemo(() => {
-    if (view === "top-sellers") return topSellers.slice(0, 10).map((p) => ({ name: p.name.length > 15 ? p.name.slice(0, 15) + "..." : p.name, value: p.netQty }));
-    if (view === "most-profitable") return mostProfitable.slice(0, 10).map((p) => ({ name: p.name.length > 15 ? p.name.slice(0, 15) + "..." : p.name, value: p.profit }));
+    if (view === "top-sellers")
+      return topSellers
+        .slice(0, 10)
+        .map((p) => ({ name: p.name.length > 15 ? p.name.slice(0, 15) + "..." : p.name, value: p.netQty }));
+    if (view === "most-profitable")
+      return mostProfitable
+        .slice(0, 10)
+        .map((p) => ({ name: p.name.length > 15 ? p.name.slice(0, 15) + "..." : p.name, value: p.profit }));
     return [];
   }, [view, topSellers, mostProfitable]);
 
-  const categoryChartData = useMemo(() =>
-    categoryList.map((c, i) => ({ name: c.name, value: c.netRevenue, color: CHART_COLORS[i % CHART_COLORS.length] })),
-    [categoryList]);
+  const categoryChartData = useMemo(
+    () =>
+      categoryList.map((c, i) => ({ name: c.name, value: c.netRevenue, color: CHART_COLORS[i % CHART_COLORS.length] })),
+    [categoryList],
+  );
 
+  // ─── Design-only helpers ──────────────────────────────────────────────────
   const medalIcon = (index: number) => {
-    if (index === 0) return <Medal className="w-4 h-4 text-yellow-500" />;
-    if (index === 1) return <Medal className="w-4 h-4 text-gray-400" />;
-    if (index === 2) return <Medal className="w-4 h-4 text-amber-700" />;
-    return <span className="text-muted-foreground text-xs">{index + 1}</span>;
+    if (index === 0) return <Medal className="w-4 h-4 text-yellow-500 drop-shadow-sm" />;
+    if (index === 1) return <Medal className="w-4 h-4 text-slate-400 drop-shadow-sm" />;
+    if (index === 2) return <Medal className="w-4 h-4 text-amber-700 drop-shadow-sm" />;
+    return <span className="text-muted-foreground/60 text-xs font-medium tabular-nums">{index + 1}</span>;
   };
 
-  const profitColor = (val: number) => val >= 0 ? "text-success font-bold" : "text-destructive font-bold";
+  const profitColor = (val: number) =>
+    val >= 0
+      ? "text-emerald-600 dark:text-emerald-400 font-bold tabular-nums"
+      : "text-destructive font-bold tabular-nums";
 
   // Export handlers
   const handleExport = () => {
     if (view === "top-sellers") {
-      exportToExcel({ filename: "أكثر-المنتجات-مبيعاً", sheetName: "الأكثر مبيعاً", headers: ["الكود", "المنتج", "التصنيف", "الكمية المباعة", "المرتجعات", "صافي الكمية", "الإيرادات", "التكلفة الفعلية", "الربح"], rows: topSellers.map((p) => [p.code, p.name, p.category, p.soldQty, p.returnedQty, p.netQty, p.netRevenue, p.netCogs, p.profit]) });
+      exportToExcel({
+        filename: "أكثر-المنتجات-مبيعاً",
+        sheetName: "الأكثر مبيعاً",
+        headers: [
+          "الكود",
+          "المنتج",
+          "التصنيف",
+          "الكمية المباعة",
+          "المرتجعات",
+          "صافي الكمية",
+          "الإيرادات",
+          "التكلفة الفعلية",
+          "الربح",
+        ],
+        rows: topSellers.map((p) => [
+          p.code,
+          p.name,
+          p.category,
+          p.soldQty,
+          p.returnedQty,
+          p.netQty,
+          p.netRevenue,
+          p.netCogs,
+          p.profit,
+        ]),
+      });
     } else if (view === "most-profitable") {
-      exportToExcel({ filename: "الأكثر-ربحية", sheetName: "الأكثر ربحية", headers: ["الكود", "المنتج", "التصنيف", "صافي الإيرادات", "التكلفة الفعلية", "الربح", "هامش الربح %"], rows: mostProfitable.map((p) => [p.code, p.name, p.category, p.netRevenue, p.netCogs, p.profit, p.netRevenue > 0 ? ((p.profit / p.netRevenue) * 100).toFixed(1) + "%" : "0%"]) });
+      exportToExcel({
+        filename: "الأكثر-ربحية",
+        sheetName: "الأكثر ربحية",
+        headers: ["الكود", "المنتج", "التصنيف", "صافي الإيرادات", "التكلفة الفعلية", "الربح", "هامش الربح %"],
+        rows: mostProfitable.map((p) => [
+          p.code,
+          p.name,
+          p.category,
+          p.netRevenue,
+          p.netCogs,
+          p.profit,
+          p.netRevenue > 0 ? ((p.profit / p.netRevenue) * 100).toFixed(1) + "%" : "0%",
+        ]),
+      });
     } else if (view === "by-category") {
-      exportToExcel({ filename: "المبيعات-بالتصنيف", sheetName: "بالتصنيف", headers: ["التصنيف", "عدد المنتجات", "صافي الكمية", "صافي الإيرادات", "التكلفة", "الربح"], rows: categoryList.map((c) => [c.name, c.productCount, c.netQty, c.netRevenue, c.netCogs, c.profit]) });
+      exportToExcel({
+        filename: "المبيعات-بالتصنيف",
+        sheetName: "بالتصنيف",
+        headers: ["التصنيف", "عدد المنتجات", "صافي الكمية", "صافي الإيرادات", "التكلفة", "الربح"],
+        rows: categoryList.map((c) => [c.name, c.productCount, c.netQty, c.netRevenue, c.netCogs, c.profit]),
+      });
     } else {
-      exportToExcel({ filename: "معدل-دوران-المخزون", sheetName: "دوران المخزون", headers: ["الكود", "المنتج", "التصنيف", "تكلفة المبيعات", "قيمة المخزون", "معدل الدوران", "المخزون الحالي", "التقييم"], rows: turnoverData.map((p) => [p.code, p.name, p.category, p.cogs, p.avgInventory, p.turnover, p.currentStock, p.rating === "excellent" ? "ممتاز" : p.rating === "medium" ? "متوسط" : p.rating === "slow" ? "بطيء" : "راكد"]) });
+      exportToExcel({
+        filename: "معدل-دوران-المخزون",
+        sheetName: "دوران المخزون",
+        headers: [
+          "الكود",
+          "المنتج",
+          "التصنيف",
+          "تكلفة المبيعات",
+          "قيمة المخزون",
+          "معدل الدوران",
+          "المخزون الحالي",
+          "التقييم",
+        ],
+        rows: turnoverData.map((p) => [
+          p.code,
+          p.name,
+          p.category,
+          p.cogs,
+          p.avgInventory,
+          p.turnover,
+          p.currentStock,
+          p.rating === "excellent" ? "ممتاز" : p.rating === "medium" ? "متوسط" : p.rating === "slow" ? "بطيء" : "راكد",
+        ]),
+      });
     }
   };
 
   const handlePdfExport = async () => {
-    const titles: Record<string, string> = { "top-sellers": "أكثر المنتجات مبيعاً", "most-profitable": "المنتجات الأكثر ربحية", "by-category": "المبيعات حسب التصنيف", turnover: "معدل دوران المخزون" };
+    const titles: Record<string, string> = {
+      "top-sellers": "أكثر المنتجات مبيعاً",
+      "most-profitable": "المنتجات الأكثر ربحية",
+      "by-category": "المبيعات حسب التصنيف",
+      turnover: "معدل دوران المخزون",
+    };
     if (view === "top-sellers") {
-      await exportReportPdf({ title: titles[view], settings, headers: ["الكود", "المنتج", "التصنيف", "مباع", "مرتجع", "صافي", "الإيرادات", "التكلفة", "الربح"], rows: topSellers.map((p) => [p.code, p.name, p.category, fmtN(p.soldQty), fmtN(p.returnedQty), fmtN(p.netQty), fmt(p.netRevenue), fmt(p.netCogs), fmt(p.profit)]), filename: "أكثر-المنتجات-مبيعاً", orientation: "landscape" });
+      await exportReportPdf({
+        title: titles[view],
+        settings,
+        headers: ["الكود", "المنتج", "التصنيف", "مباع", "مرتجع", "صافي", "الإيرادات", "التكلفة", "الربح"],
+        rows: topSellers.map((p) => [
+          p.code,
+          p.name,
+          p.category,
+          fmtN(p.soldQty),
+          fmtN(p.returnedQty),
+          fmtN(p.netQty),
+          fmt(p.netRevenue),
+          fmt(p.netCogs),
+          fmt(p.profit),
+        ]),
+        filename: "أكثر-المنتجات-مبيعاً",
+        orientation: "landscape",
+      });
     } else if (view === "most-profitable") {
-      await exportReportPdf({ title: titles[view], settings, headers: ["الكود", "المنتج", "التصنيف", "الإيرادات", "التكلفة", "الربح", "هامش %"], rows: mostProfitable.map((p) => [p.code, p.name, p.category, fmt(p.netRevenue), fmt(p.netCogs), fmt(p.profit), p.netRevenue > 0 ? ((p.profit / p.netRevenue) * 100).toFixed(1) + "%" : "0%"]), filename: "الأكثر-ربحية", orientation: "landscape" });
+      await exportReportPdf({
+        title: titles[view],
+        settings,
+        headers: ["الكود", "المنتج", "التصنيف", "الإيرادات", "التكلفة", "الربح", "هامش %"],
+        rows: mostProfitable.map((p) => [
+          p.code,
+          p.name,
+          p.category,
+          fmt(p.netRevenue),
+          fmt(p.netCogs),
+          fmt(p.profit),
+          p.netRevenue > 0 ? ((p.profit / p.netRevenue) * 100).toFixed(1) + "%" : "0%",
+        ]),
+        filename: "الأكثر-ربحية",
+        orientation: "landscape",
+      });
     } else if (view === "by-category") {
-      await exportReportPdf({ title: titles[view], settings, headers: ["التصنيف", "عدد المنتجات", "صافي الكمية", "الإيرادات", "التكلفة", "الربح"], rows: categoryList.map((c) => [c.name, c.productCount, fmtN(c.netQty), fmt(c.netRevenue), fmt(c.netCogs), fmt(c.profit)]), filename: "مبيعات-بالتصنيف" });
+      await exportReportPdf({
+        title: titles[view],
+        settings,
+        headers: ["التصنيف", "عدد المنتجات", "صافي الكمية", "الإيرادات", "التكلفة", "الربح"],
+        rows: categoryList.map((c) => [
+          c.name,
+          c.productCount,
+          fmtN(c.netQty),
+          fmt(c.netRevenue),
+          fmt(c.netCogs),
+          fmt(c.profit),
+        ]),
+        filename: "مبيعات-بالتصنيف",
+      });
     } else {
-      await exportReportPdf({ title: titles[view], settings, headers: ["الكود", "المنتج", "التصنيف", "ت.المبيعات", "ق.المخزون", "الدوران", "المخزون", "التقييم"], rows: turnoverData.map((p) => [p.code, p.name, p.category, fmt(p.cogs), fmt(p.avgInventory), String(p.turnover), fmtN(p.currentStock), p.rating === "excellent" ? "ممتاز" : p.rating === "medium" ? "متوسط" : p.rating === "slow" ? "بطيء" : "راكد"]), filename: "دوران-المخزون", orientation: "landscape" });
+      await exportReportPdf({
+        title: titles[view],
+        settings,
+        headers: ["الكود", "المنتج", "التصنيف", "ت.المبيعات", "ق.المخزون", "الدوران", "المخزون", "التقييم"],
+        rows: turnoverData.map((p) => [
+          p.code,
+          p.name,
+          p.category,
+          fmt(p.cogs),
+          fmt(p.avgInventory),
+          String(p.turnover),
+          fmtN(p.currentStock),
+          p.rating === "excellent" ? "ممتاز" : p.rating === "medium" ? "متوسط" : p.rating === "slow" ? "بطيء" : "راكد",
+        ]),
+        filename: "دوران-المخزون",
+        orientation: "landscape",
+      });
     }
   };
 
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <Card>
+    <div className="space-y-5 p-1">
+      {/* ── Filters ─────────────────────────────────────────────────────────── */}
+      <Card className="border shadow-sm">
         <CardContent className="pt-5 pb-4">
           <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
             {/* Date Range */}
             <div className="flex items-end gap-2">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">من تاريخ</Label>
+                <Label className="text-xs font-medium text-muted-foreground">من تاريخ</Label>
                 <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-[150px]" />
               </div>
-              <span className="pb-2 text-muted-foreground/40">—</span>
+              <span className="pb-2 text-muted-foreground/30 text-lg">—</span>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">إلى تاريخ</Label>
+                <Label className="text-xs font-medium text-muted-foreground">إلى تاريخ</Label>
                 <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-[150px]" />
               </div>
             </div>
 
-            <div className="h-8 w-px bg-border hidden md:block" />
+            <div className="h-8 w-px bg-border/60 hidden md:block" />
 
             {/* Report Type */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">نوع التقرير</Label>
+              <Label className="text-xs font-medium text-muted-foreground">نوع التقرير</Label>
               <Select value={view} onValueChange={(v: any) => setView(v)}>
-                <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[180px] font-medium">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="top-sellers">الأكثر مبيعاً</SelectItem>
                   <SelectItem value="most-profitable">الأكثر ربحية</SelectItem>
@@ -365,9 +562,9 @@ export default function ProductAnalytics() {
               </Select>
             </div>
 
-            {/* Category Filter - Searchable Tree */}
+            {/* Category Filter */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">التصنيف</Label>
+              <Label className="text-xs font-medium text-muted-foreground">التصنيف</Label>
               <CategoryTreeSelect
                 categories={categories || []}
                 value={categoryFilter === "all" ? "" : categoryFilter}
@@ -377,102 +574,195 @@ export default function ProductAnalytics() {
               />
             </div>
 
-            <div className="h-8 w-px bg-border hidden md:block" />
+            <div className="h-8 w-px bg-border/60 hidden md:block" />
 
             {/* Export Buttons */}
             <div className="flex items-end gap-2">
-              <Button variant="outline" size="sm" onClick={handleExport} disabled={isLoading}><FileSpreadsheet className="w-4 h-4 ml-1.5" />Excel</Button>
-              <Button variant="outline" size="sm" onClick={handlePdfExport} disabled={isLoading}><FileText className="w-4 h-4 ml-1.5" />PDF</Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={isLoading}
+                className="gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300 dark:text-emerald-400 dark:border-emerald-900 dark:hover:bg-emerald-950 transition-colors"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Excel
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePdfExport}
+                disabled={isLoading}
+                className="gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-300 dark:text-rose-400 dark:border-rose-900 dark:hover:bg-rose-950 transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                PDF
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* KPI Cards */}
+      {/* ── KPI Cards ────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><Package className="w-5 h-5 text-primary" /></div>
-              <div>
-                <p className="text-xs text-muted-foreground">أصناف مباعة</p>
-                {isLoading ? <Skeleton className="h-6 w-16" /> : <p className="text-xl font-extrabold">{fmtN(kpis.distinctProducts)}</p>}
+        {/* Sold SKUs */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 shadow-inner">
+                <Package className="w-5 h-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">أصناف مباعة</p>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-16" />
+                ) : (
+                  <p className="text-2xl font-extrabold tracking-tight tabular-nums">{fmtN(kpis.distinctProducts)}</p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center"><ShoppingCart className="w-5 h-5 text-blue-500" /></div>
-              <div>
-                <p className="text-xs text-muted-foreground">صافي الكميات</p>
-                {isLoading ? <Skeleton className="h-6 w-16" /> : <p className="text-xl font-extrabold">{fmtN(kpis.totalNetQty)}</p>}
+
+        {/* Net Qty */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-blue-500/10 flex items-center justify-center shrink-0 shadow-inner">
+                <ShoppingCart className="w-5 h-5 text-blue-500" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">صافي الكميات</p>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-16" />
+                ) : (
+                  <p className="text-2xl font-extrabold tracking-tight tabular-nums">{fmtN(kpis.totalNetQty)}</p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center"><TrendingUp className="w-5 h-5 text-success" /></div>
-              <div>
-                <p className="text-xs text-muted-foreground">صافي الإيرادات</p>
-                {isLoading ? <Skeleton className="h-6 w-16" /> : <p className="text-xl font-extrabold">{fmt(kpis.totalNetRevenue)}</p>}
+
+        {/* Net Revenue */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center shrink-0 shadow-inner">
+                <TrendingUp className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">صافي الإيرادات</p>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-20" />
+                ) : (
+                  <p className="text-2xl font-extrabold tracking-tight tabular-nums truncate">
+                    {fmt(kpis.totalNetRevenue)}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: kpis.totalProfit >= 0 ? "hsl(152 60% 42% / 0.1)" : "hsl(0 72% 51% / 0.1)" }}>
-                <DollarSign className="w-5 h-5" style={{ color: kpis.totalProfit >= 0 ? "hsl(152, 60%, 42%)" : "hsl(0, 72%, 51%)" }} />
+
+        {/* Total Profit */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                kpis.totalProfit >= 0
+                  ? "linear-gradient(135deg, hsl(152 60% 42% / 0.06) 0%, transparent 60%)"
+                  : "linear-gradient(135deg, hsl(0 72% 51% / 0.06) 0%, transparent 60%)",
+            }}
+          />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div
+                className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-inner"
+                style={{
+                  background: kpis.totalProfit >= 0 ? "hsl(152 60% 42% / 0.12)" : "hsl(0 72% 51% / 0.12)",
+                }}
+              >
+                <DollarSign
+                  className="w-5 h-5"
+                  style={{ color: kpis.totalProfit >= 0 ? "hsl(152, 60%, 42%)" : "hsl(0, 72%, 51%)" }}
+                />
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">إجمالي الربح</p>
-                {isLoading ? <Skeleton className="h-6 w-16" /> : <p className={`text-xl font-extrabold ${profitColor(kpis.totalProfit)}`}>{fmt(kpis.totalProfit)}</p>}
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">إجمالي الربح</p>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-20" />
+                ) : (
+                  <p className={`text-2xl font-extrabold tracking-tight truncate ${profitColor(kpis.totalProfit)}`}>
+                    {fmt(kpis.totalProfit)}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Alerts for turnover view */}
+      {/* ── Turnover Alerts ──────────────────────────────────────────────────── */}
       {view === "turnover" && !isLoading && (
         <div className="space-y-2">
           {deadStockCount > 0 && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
               <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                <strong>{fmtN(deadStockCount)}</strong> منتج راكد بدون مبيعات خلال الفترة — قيمة مخزون محتجز: <strong>{fmt(deadStockValue)}</strong>
+              <AlertDescription className="text-sm">
+                <strong>{fmtN(deadStockCount)}</strong> منتج راكد بدون مبيعات خلال الفترة — قيمة مخزون محتجز:{" "}
+                <strong>{fmt(deadStockValue)}</strong>
               </AlertDescription>
             </Alert>
           )}
           {reorderAlerts.length > 0 && (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription>
-                <strong>{reorderAlerts.length}</strong> منتج تحت نقطة إعادة الطلب وله مبيعات نشطة: {reorderAlerts.slice(0, 3).map((p) => p.name).join("، ")}{reorderAlerts.length > 3 ? ` و${reorderAlerts.length - 3} آخرين` : ""}
+            <Alert className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/30">
+              <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <AlertDescription className="text-sm text-amber-800 dark:text-amber-300">
+                <strong>{reorderAlerts.length}</strong> منتج تحت نقطة إعادة الطلب وله مبيعات نشطة:{" "}
+                {reorderAlerts
+                  .slice(0, 3)
+                  .map((p) => p.name)
+                  .join("، ")}
+                {reorderAlerts.length > 3 ? ` و${reorderAlerts.length - 3} آخرين` : ""}
               </AlertDescription>
             </Alert>
           )}
         </div>
       )}
 
-      {/* Charts */}
+      {/* ── Charts ──────────────────────────────────────────────────────────── */}
       {(view === "top-sellers" || view === "most-profitable") && chartData.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">{view === "top-sellers" ? "الأكثر مبيعاً" : "الأكثر ربحية"} (أعلى 10)</CardTitle></CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-[250px] w-full" /> : (
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={chartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" fontSize={10} />
-                  <YAxis dataKey="name" type="category" width={120} fontSize={10} />
-                  <Tooltip formatter={(v: number) => view === "top-sellers" ? fmtN(v) : fmt(v)} />
-                  <Bar dataKey="value" name={view === "top-sellers" ? "صافي الكمية" : "الربح"} fill={view === "top-sellers" ? "hsl(217, 80%, 50%)" : "hsl(152, 60%, 42%)"} radius={[0, 4, 4, 0]} />
+        <Card className="border shadow-sm">
+          <CardHeader className="pb-1 pt-4 px-5">
+            <CardTitle className="text-sm font-semibold text-foreground/80">
+              {view === "top-sellers" ? "الأكثر مبيعاً" : "الأكثر ربحية"}
+              <span className="ms-1.5 text-xs font-normal text-muted-foreground">(أعلى 10)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-3">
+            {isLoading ? (
+              <Skeleton className="h-[260px] w-full" />
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={chartData} layout="vertical" margin={{ left: 4, right: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.4} />
+                  <XAxis type="number" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis dataKey="name" type="category" width={120} fontSize={10} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    formatter={(v: number) => (view === "top-sellers" ? fmtN(v) : fmt(v))}
+                    contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    name={view === "top-sellers" ? "صافي الكمية" : "الربح"}
+                    fill={view === "top-sellers" ? "hsl(217, 80%, 50%)" : "hsl(152, 60%, 42%)"}
+                    radius={[0, 6, 6, 0]}
+                    maxBarSize={22}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -481,16 +771,32 @@ export default function ProductAnalytics() {
       )}
 
       {view === "by-category" && categoryChartData.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">توزيع الإيرادات حسب التصنيف</CardTitle></CardHeader>
+        <Card className="border shadow-sm">
+          <CardHeader className="pb-1 pt-4 px-5">
+            <CardTitle className="text-sm font-semibold text-foreground/80">توزيع الإيرادات حسب التصنيف</CardTitle>
+          </CardHeader>
           <CardContent>
-            {isLoading ? <Skeleton className="h-[280px] w-full" /> : (
-              <ResponsiveContainer width="100%" height={280}>
+            {isLoading ? (
+              <Skeleton className="h-[290px] w-full" />
+            ) : (
+              <ResponsiveContainer width="100%" height={290}>
                 <PieChart>
-                  <Pie data={categoryChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>
-                    {categoryChartData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  <Pie
+                    data={categoryChartData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={105}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    fontSize={11}
+                    paddingAngle={2}
+                  >
+                    {categoryChartData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => fmt(v)} />
+                  <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ borderRadius: 8, fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -499,13 +805,15 @@ export default function ProductAnalytics() {
       )}
 
       {view === "turnover" && turnoverDistribution.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="border shadow-sm">
+          <CardHeader className="pb-1 pt-4 px-5">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-sm">توزيع فئات دوران المخزون</CardTitle>
+              <CardTitle className="text-sm font-semibold text-foreground/80">توزيع فئات دوران المخزون</CardTitle>
               <TooltipProvider>
                 <UITooltip>
-                  <TooltipTrigger><Info className="w-3.5 h-3.5 text-muted-foreground" /></TooltipTrigger>
+                  <TooltipTrigger>
+                    <Info className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-muted-foreground transition-colors" />
+                  </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-xs text-xs">
                     <p>ممتاز: دوران أكبر من 2 — متوسط: بين 0.5 و 2 — بطيء: أقل من 0.5 — راكد: لم يُبع خلال الفترة</p>
                   </TooltipContent>
@@ -514,14 +822,29 @@ export default function ProductAnalytics() {
             </div>
           </CardHeader>
           <CardContent>
-            {isLoading ? <Skeleton className="h-[280px] w-full" /> : (
-              <ResponsiveContainer width="100%" height={280}>
+            {isLoading ? (
+              <Skeleton className="h-[290px] w-full" />
+            ) : (
+              <ResponsiveContainer width="100%" height={290}>
                 <PieChart>
-                  <Pie data={turnoverDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} label={({ name, value }) => `${name}: ${value}`} fontSize={11}>
-                    {turnoverDistribution.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  <Pie
+                    data={turnoverDistribution}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={65}
+                    outerRadius={105}
+                    label={({ name, value }) => `${name}: ${value}`}
+                    fontSize={11}
+                    paddingAngle={3}
+                  >
+                    {turnoverDistribution.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
                   </Pie>
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                  <Legend iconType="circle" iconSize={8} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -529,54 +852,165 @@ export default function ProductAnalytics() {
         </Card>
       )}
 
-      {/* Data Tables */}
-      <Card>
-        <CardContent className="pt-4">
-          {isLoading ? <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}</div> : view === "top-sellers" ? (
-            <div className="overflow-auto max-h-[500px]">
+      {/* ── Data Tables ──────────────────────────────────────────────────────── */}
+      <Card className="border shadow-sm">
+        <CardContent className="pt-4 px-0 pb-0">
+          {isLoading ? (
+            <div className="space-y-2 px-4 pb-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : view === "top-sellers" ? (
+            <div className="overflow-auto max-h-[520px]">
               <Table>
-                <TableHeader><TableRow><TableHead>#</TableHead><TableHead>الكود</TableHead><TableHead>المنتج</TableHead><TableHead>التصنيف</TableHead><TableHead>مباع</TableHead><TableHead>مرتجع</TableHead><TableHead>صافي</TableHead><TableHead>الإيرادات</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
+                    <TableHead className="w-10 text-center">#</TableHead>
+                    <TableHead>الكود</TableHead>
+                    <TableHead>المنتج</TableHead>
+                    <TableHead>التصنيف</TableHead>
+                    <TableHead className="text-center">مباع</TableHead>
+                    <TableHead className="text-center">مرتجع</TableHead>
+                    <TableHead className="text-center">صافي</TableHead>
+                    <TableHead className="text-end">الإيرادات</TableHead>
+                    <TableHead className="text-end">التكلفة</TableHead>
+                    <TableHead className="text-end">الربح</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
                   {topSellers.map((p, i) => (
-                    <TableRow key={p.code + i}><TableCell>{medalIcon(i)}</TableCell><TableCell>{p.code}</TableCell><TableCell className="font-medium">{p.name}</TableCell><TableCell><Badge variant="secondary">{p.category}</Badge></TableCell><TableCell>{fmtN(p.soldQty)}</TableCell><TableCell className="text-destructive">{p.returnedQty > 0 ? fmtN(p.returnedQty) : "-"}</TableCell><TableCell className="font-bold">{fmtN(p.netQty)}</TableCell><TableCell>{fmt(p.netRevenue)}</TableCell><TableCell>{fmt(p.netCogs)}</TableCell><TableCell className={profitColor(p.profit)}>{fmt(p.profit)}</TableCell></TableRow>
+                    <TableRow
+                      key={p.code + i}
+                      className="hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0"
+                    >
+                      <TableCell className="text-center">{medalIcon(i)}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs font-mono">{p.code}</TableCell>
+                      <TableCell className="font-medium">{p.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-xs font-normal">
+                          {p.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums">{fmtN(p.soldQty)}</TableCell>
+                      <TableCell className="text-center tabular-nums text-destructive/80">
+                        {p.returnedQty > 0 ? fmtN(p.returnedQty) : <span className="text-muted-foreground/40">—</span>}
+                      </TableCell>
+                      <TableCell className="text-center font-semibold tabular-nums">{fmtN(p.netQty)}</TableCell>
+                      <TableCell className="text-end tabular-nums text-sm">{fmt(p.netRevenue)}</TableCell>
+                      <TableCell className="text-end tabular-nums text-sm text-muted-foreground">
+                        {fmt(p.netCogs)}
+                      </TableCell>
+                      <TableCell className={`text-end ${profitColor(p.profit)}`}>{fmt(p.profit)}</TableCell>
+                    </TableRow>
                   ))}
-                  {!topSellers.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">لا توجد مبيعات</TableCell></TableRow>}
+                  {!topSellers.length && (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                        لا توجد مبيعات في هذه الفترة
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
                 {topSellers.length > 0 && (
                   <TableFooter>
-                    <TableRow className="bg-muted/50 font-bold">
-                      <TableCell colSpan={4}>الإجمالي</TableCell>
-                      <TableCell>{fmtN(topSellers.reduce((s, p) => s + p.soldQty, 0))}</TableCell>
-                      <TableCell className="text-destructive">{fmtN(topSellers.reduce((s, p) => s + p.returnedQty, 0))}</TableCell>
-                      <TableCell>{fmtN(topSellers.reduce((s, p) => s + p.netQty, 0))}</TableCell>
-                      <TableCell>{fmt(topSellers.reduce((s, p) => s + p.netRevenue, 0))}</TableCell>
-                      <TableCell>{fmt(topSellers.reduce((s, p) => s + p.netCogs, 0))}</TableCell>
-                      <TableCell className={profitColor(topSellers.reduce((s, p) => s + p.profit, 0))}>{fmt(topSellers.reduce((s, p) => s + p.profit, 0))}</TableCell>
+                    <TableRow className="bg-muted/50 border-t-2 border-border font-bold">
+                      <TableCell colSpan={4} className="text-sm">
+                        الإجمالي
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums">
+                        {fmtN(topSellers.reduce((s, p) => s + p.soldQty, 0))}
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums text-destructive/80">
+                        {fmtN(topSellers.reduce((s, p) => s + p.returnedQty, 0))}
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums">
+                        {fmtN(topSellers.reduce((s, p) => s + p.netQty, 0))}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums">
+                        {fmt(topSellers.reduce((s, p) => s + p.netRevenue, 0))}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums text-muted-foreground">
+                        {fmt(topSellers.reduce((s, p) => s + p.netCogs, 0))}
+                      </TableCell>
+                      <TableCell className={`text-end ${profitColor(topSellers.reduce((s, p) => s + p.profit, 0))}`}>
+                        {fmt(topSellers.reduce((s, p) => s + p.profit, 0))}
+                      </TableCell>
                     </TableRow>
                   </TableFooter>
                 )}
               </Table>
             </div>
           ) : view === "most-profitable" ? (
-            <div className="overflow-auto max-h-[500px]">
+            <div className="overflow-auto max-h-[520px]">
               <Table>
-                <TableHeader><TableRow><TableHead>#</TableHead><TableHead>الكود</TableHead><TableHead>المنتج</TableHead><TableHead>التصنيف</TableHead><TableHead>صافي الإيرادات</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead><TableHead>هامش الربح</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
+                    <TableHead className="w-10 text-center">#</TableHead>
+                    <TableHead>الكود</TableHead>
+                    <TableHead>المنتج</TableHead>
+                    <TableHead>التصنيف</TableHead>
+                    <TableHead className="text-end">صافي الإيرادات</TableHead>
+                    <TableHead className="text-end">التكلفة</TableHead>
+                    <TableHead className="text-end">الربح</TableHead>
+                    <TableHead className="text-center">هامش الربح</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
                   {mostProfitable.map((p, i) => {
                     const margin = p.netRevenue > 0 ? (p.profit / p.netRevenue) * 100 : 0;
                     return (
-                      <TableRow key={p.code + i}><TableCell>{medalIcon(i)}</TableCell><TableCell>{p.code}</TableCell><TableCell className="font-medium">{p.name}</TableCell><TableCell><Badge variant="secondary">{p.category}</Badge></TableCell><TableCell>{fmt(p.netRevenue)}</TableCell><TableCell>{fmt(p.netCogs)}</TableCell><TableCell className={profitColor(p.profit)}>{fmt(p.profit)}</TableCell><TableCell><Badge variant={margin > 30 ? "default" : margin > 15 ? "secondary" : "destructive"}>{margin.toFixed(1)}%</Badge></TableCell></TableRow>
+                      <TableRow
+                        key={p.code + i}
+                        className="hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0"
+                      >
+                        <TableCell className="text-center">{medalIcon(i)}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs font-mono">{p.code}</TableCell>
+                        <TableCell className="font-medium">{p.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="text-xs font-normal">
+                            {p.category}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-end tabular-nums">{fmt(p.netRevenue)}</TableCell>
+                        <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(p.netCogs)}</TableCell>
+                        <TableCell className={`text-end ${profitColor(p.profit)}`}>{fmt(p.profit)}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge
+                            variant={margin > 30 ? "default" : margin > 15 ? "secondary" : "destructive"}
+                            className="tabular-nums text-xs"
+                          >
+                            {margin.toFixed(1)}%
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                  {!mostProfitable.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>}
+                  {!mostProfitable.length && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                        لا توجد بيانات
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
                 {mostProfitable.length > 0 && (
                   <TableFooter>
-                    <TableRow className="bg-muted/50 font-bold">
-                      <TableCell colSpan={4}>الإجمالي</TableCell>
-                      <TableCell>{fmt(mostProfitable.reduce((s, p) => s + p.netRevenue, 0))}</TableCell>
-                      <TableCell>{fmt(mostProfitable.reduce((s, p) => s + p.netCogs, 0))}</TableCell>
-                      <TableCell className={profitColor(mostProfitable.reduce((s, p) => s + p.profit, 0))}>{fmt(mostProfitable.reduce((s, p) => s + p.profit, 0))}</TableCell>
+                    <TableRow className="bg-muted/50 border-t-2 border-border font-bold">
+                      <TableCell colSpan={4} className="text-sm">
+                        الإجمالي
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums">
+                        {fmt(mostProfitable.reduce((s, p) => s + p.netRevenue, 0))}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums text-muted-foreground">
+                        {fmt(mostProfitable.reduce((s, p) => s + p.netCogs, 0))}
+                      </TableCell>
+                      <TableCell
+                        className={`text-end ${profitColor(mostProfitable.reduce((s, p) => s + p.profit, 0))}`}
+                      >
+                        {fmt(mostProfitable.reduce((s, p) => s + p.profit, 0))}
+                      </TableCell>
                       <TableCell />
                     </TableRow>
                   </TableFooter>
@@ -584,27 +1018,68 @@ export default function ProductAnalytics() {
               </Table>
             </div>
           ) : view === "by-category" ? (
-            <div className="overflow-auto max-h-[500px]">
+            <div className="overflow-auto max-h-[520px]">
               <Table>
-                <TableHeader><TableRow><TableHead>التصنيف</TableHead><TableHead>عدد المنتجات</TableHead><TableHead>صافي الكمية</TableHead><TableHead>صافي الإيرادات</TableHead><TableHead>التكلفة</TableHead><TableHead>الربح</TableHead><TableHead>هامش الربح</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
+                    <TableHead>التصنيف</TableHead>
+                    <TableHead className="text-center">عدد المنتجات</TableHead>
+                    <TableHead className="text-center">صافي الكمية</TableHead>
+                    <TableHead className="text-end">صافي الإيرادات</TableHead>
+                    <TableHead className="text-end">التكلفة</TableHead>
+                    <TableHead className="text-end">الربح</TableHead>
+                    <TableHead className="text-center">هامش الربح</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
                   {categoryList.map((c) => {
                     const margin = c.netRevenue > 0 ? (c.profit / c.netRevenue) * 100 : 0;
                     return (
-                      <TableRow key={c.name}><TableCell className="font-medium">{c.name}</TableCell><TableCell>{c.productCount}</TableCell><TableCell>{fmtN(c.netQty)}</TableCell><TableCell>{fmt(c.netRevenue)}</TableCell><TableCell>{fmt(c.netCogs)}</TableCell><TableCell className={profitColor(c.profit)}>{fmt(c.profit)}</TableCell><TableCell><Badge variant={margin > 30 ? "default" : "secondary"}>{margin.toFixed(1)}%</Badge></TableCell></TableRow>
+                      <TableRow
+                        key={c.name}
+                        className="hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0"
+                      >
+                        <TableCell className="font-semibold">{c.name}</TableCell>
+                        <TableCell className="text-center tabular-nums">{c.productCount}</TableCell>
+                        <TableCell className="text-center tabular-nums">{fmtN(c.netQty)}</TableCell>
+                        <TableCell className="text-end tabular-nums">{fmt(c.netRevenue)}</TableCell>
+                        <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(c.netCogs)}</TableCell>
+                        <TableCell className={`text-end ${profitColor(c.profit)}`}>{fmt(c.profit)}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant={margin > 30 ? "default" : "secondary"} className="tabular-nums text-xs">
+                            {margin.toFixed(1)}%
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                  {!categoryList.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>}
+                  {!categoryList.length && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                        لا توجد بيانات
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
                 {categoryList.length > 0 && (
                   <TableFooter>
-                    <TableRow className="bg-muted/50 font-bold">
-                      <TableCell>الإجمالي</TableCell>
-                      <TableCell>{categoryList.reduce((s, c) => s + c.productCount, 0)}</TableCell>
-                      <TableCell>{fmtN(categoryList.reduce((s, c) => s + c.netQty, 0))}</TableCell>
-                      <TableCell>{fmt(categoryList.reduce((s, c) => s + c.netRevenue, 0))}</TableCell>
-                      <TableCell>{fmt(categoryList.reduce((s, c) => s + c.netCogs, 0))}</TableCell>
-                      <TableCell className={profitColor(categoryList.reduce((s, c) => s + c.profit, 0))}>{fmt(categoryList.reduce((s, c) => s + c.profit, 0))}</TableCell>
+                    <TableRow className="bg-muted/50 border-t-2 border-border font-bold">
+                      <TableCell className="text-sm">الإجمالي</TableCell>
+                      <TableCell className="text-center tabular-nums">
+                        {categoryList.reduce((s, c) => s + c.productCount, 0)}
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums">
+                        {fmtN(categoryList.reduce((s, c) => s + c.netQty, 0))}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums">
+                        {fmt(categoryList.reduce((s, c) => s + c.netRevenue, 0))}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums text-muted-foreground">
+                        {fmt(categoryList.reduce((s, c) => s + c.netCogs, 0))}
+                      </TableCell>
+                      <TableCell className={`text-end ${profitColor(categoryList.reduce((s, c) => s + c.profit, 0))}`}>
+                        {fmt(categoryList.reduce((s, c) => s + c.profit, 0))}
+                      </TableCell>
                       <TableCell />
                     </TableRow>
                   </TableFooter>
@@ -612,26 +1087,107 @@ export default function ProductAnalytics() {
               </Table>
             </div>
           ) : (
-            <div className="overflow-auto max-h-[500px]">
+            /* Turnover table */
+            <div className="overflow-auto max-h-[520px]">
               <Table>
-                <TableHeader><TableRow><TableHead>الكود</TableHead><TableHead>المنتج</TableHead><TableHead>التصنيف</TableHead><TableHead>تكلفة المبيعات</TableHead><TableHead>قيمة المخزون</TableHead><TableHead>معدل الدوران</TableHead><TableHead>المخزون الحالي</TableHead><TableHead>التقييم</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
+                    <TableHead>الكود</TableHead>
+                    <TableHead>المنتج</TableHead>
+                    <TableHead>التصنيف</TableHead>
+                    <TableHead className="text-end">تكلفة المبيعات</TableHead>
+                    <TableHead className="text-end">قيمة المخزون</TableHead>
+                    <TableHead className="text-center">معدل الدوران</TableHead>
+                    <TableHead className="text-center">المخزون الحالي</TableHead>
+                    <TableHead className="text-center">التقييم</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
                   {turnoverData.map((p) => (
-                    <TableRow key={p.code} className={p.rating === "dead" ? "bg-destructive/5" : ""}>
-                      <TableCell>{p.code}</TableCell><TableCell className="font-medium">{p.name}</TableCell><TableCell><Badge variant="secondary">{p.category}</Badge></TableCell><TableCell>{fmt(p.cogs)}</TableCell><TableCell>{fmt(p.avgInventory)}</TableCell><TableCell className="font-bold">{p.turnover}</TableCell>
+                    <TableRow
+                      key={p.code}
+                      className={`hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0 ${
+                        p.rating === "dead" ? "bg-destructive/3" : ""
+                      }`}
+                    >
+                      <TableCell className="text-muted-foreground text-xs font-mono">{p.code}</TableCell>
+                      <TableCell className="font-medium">{p.name}</TableCell>
                       <TableCell>
-                        <span className={p.currentStock > 0 && p.currentStock < p.minStockLevel ? "text-destructive font-bold" : ""}>
+                        <Badge variant="secondary" className="text-xs font-normal">
+                          {p.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums">{fmt(p.cogs)}</TableCell>
+                      <TableCell className="text-end tabular-nums text-muted-foreground">
+                        {fmt(p.avgInventory)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span
+                          className="font-bold tabular-nums text-sm"
+                          style={{
+                            color:
+                              p.rating === "excellent"
+                                ? TURNOVER_COLORS.excellent
+                                : p.rating === "medium"
+                                  ? TURNOVER_COLORS.medium
+                                  : p.rating === "slow"
+                                    ? TURNOVER_COLORS.slow
+                                    : TURNOVER_COLORS.dead,
+                          }}
+                        >
+                          {p.turnover}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span
+                          className={`tabular-nums font-medium ${
+                            p.currentStock > 0 && p.currentStock < p.minStockLevel ? "text-destructive font-bold" : ""
+                          }`}
+                        >
                           {fmtN(p.currentStock)}
                         </span>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant={p.rating === "excellent" ? "default" : p.rating === "medium" ? "secondary" : "destructive"}>
-                          {p.rating === "excellent" ? "ممتاز" : p.rating === "medium" ? "متوسط" : p.rating === "slow" ? "بطيء" : "راكد"}
+                      <TableCell className="text-center">
+                        <Badge
+                          className="text-xs"
+                          style={{
+                            background:
+                              p.rating === "excellent"
+                                ? "hsl(152 60% 42% / 0.15)"
+                                : p.rating === "medium"
+                                  ? "hsl(38 92% 50% / 0.15)"
+                                  : p.rating === "slow"
+                                    ? "hsl(0 72% 51% / 0.15)"
+                                    : "hsl(0 50% 30% / 0.15)",
+                            color:
+                              p.rating === "excellent"
+                                ? TURNOVER_COLORS.excellent
+                                : p.rating === "medium"
+                                  ? TURNOVER_COLORS.medium
+                                  : p.rating === "slow"
+                                    ? TURNOVER_COLORS.slow
+                                    : TURNOVER_COLORS.dead,
+                            border: "1px solid currentColor",
+                          }}
+                        >
+                          {p.rating === "excellent"
+                            ? "ممتاز"
+                            : p.rating === "medium"
+                              ? "متوسط"
+                              : p.rating === "slow"
+                                ? "بطيء"
+                                : "راكد"}
                         </Badge>
                       </TableCell>
                     </TableRow>
                   ))}
-                  {!turnoverData.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">لا توجد بيانات</TableCell></TableRow>}
+                  {!turnoverData.length && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                        لا توجد بيانات
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>
