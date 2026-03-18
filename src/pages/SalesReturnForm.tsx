@@ -256,25 +256,27 @@ export default function SalesReturnForm() {
 
       const totalDebit = grandTotal + totalCost;
       const jePostedNum = await getNextPostedNumber("journal_entries");
+      const nextPostedNum = await getNextPostedNumber("sales_returns");
+      const retPrefix = settings?.sales_return_prefix || "SRN-";
+      const displayRetNum = `${retPrefix}${String(nextPostedNum).padStart(4, "0")}`;
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
-        description: `مرتجع بيع رقم ${returnNumber}`, entry_date: returnDate,
+        description: `مرتجع بيع رقم ${displayRetNum}`, entry_date: returnDate,
         total_debit: totalDebit, total_credit: totalDebit, status: "posted", posted_number: jePostedNum,
       } as any).select("id").single();
       if (jeError) throw jeError;
 
       const lines: any[] = [
-        { journal_entry_id: je.id, account_id: revenueAcc.id, debit: grandTotal, credit: 0, description: `مرتجع مبيعات - ${returnNumber}` },
-        { journal_entry_id: je.id, account_id: customersAcc.id, debit: 0, credit: grandTotal, description: `خصم ذمم عملاء - ${returnNumber}` },
+        { journal_entry_id: je.id, account_id: revenueAcc.id, debit: grandTotal, credit: 0, description: `مرتجع مبيعات - ${displayRetNum}` },
+        { journal_entry_id: je.id, account_id: customersAcc.id, debit: 0, credit: grandTotal, description: `خصم ذمم عملاء - ${displayRetNum}` },
       ];
       if (totalCost > 0 && inventoryAcc && cogsAcc) {
         lines.push(
-          { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: totalCost, credit: 0, description: `إرجاع مخزون - ${returnNumber}` },
-          { journal_entry_id: je.id, account_id: cogsAcc.id, debit: 0, credit: totalCost, description: `عكس تكلفة بضاعة - ${returnNumber}` },
+          { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: totalCost, credit: 0, description: `إرجاع مخزون - ${displayRetNum}` },
+          { journal_entry_id: je.id, account_id: cogsAcc.id, debit: 0, credit: totalCost, description: `عكس تكلفة بضاعة - ${displayRetNum}` },
         );
       }
       await supabase.from("journal_entry_lines").insert(lines as any);
 
-      const nextPostedNum = await getNextPostedNumber("sales_returns");
       await (supabase.from("sales_returns" as any) as any).update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum }).eq("id", id);
 
       for (const item of items) {
@@ -323,7 +325,7 @@ export default function SalesReturnForm() {
         const totalCredit = (origLines || []).reduce((s: number, l: any) => s + Number(l.credit), 0);
         const postedNumber = await getNextPostedNumber("journal_entries");
         const { data: reverseJe } = await supabase.from("journal_entries").insert({
-          description: `عكس مرتجع بيع رقم ${returnNumber}`, entry_date: new Date().toISOString().split("T")[0],
+          description: `عكس مرتجع بيع رقم ${formatDisplayNumber(settings?.sales_return_prefix || "SRN-", postedNumber, returnNumber || 0, "posted")}`, entry_date: new Date().toISOString().split("T")[0],
           total_debit: totalCredit, total_credit: totalDebit, status: "posted", posted_number: postedNumber,
         } as any).select("id").single();
         if (reverseJe && origLines) {

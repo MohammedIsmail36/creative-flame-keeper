@@ -195,18 +195,20 @@ export default function PurchaseInvoiceForm() {
       }
 
       const jePostedNum = await getNextPostedNumber("journal_entries");
+      const nextPostedNum = await getNextPostedNumber("purchase_invoices");
+      const purPrefix = settings?.purchase_invoice_prefix || "PUR-";
+      const displayInvNum = `${purPrefix}${String(nextPostedNum).padStart(4, "0")}`;
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
-        description: `فاتورة شراء رقم ${invoiceNumber}`, entry_date: invoiceDate,
+        description: `فاتورة شراء رقم ${displayInvNum}`, entry_date: invoiceDate,
         total_debit: grandTotal, total_credit: grandTotal, status: "posted", posted_number: jePostedNum,
       } as any).select("id").single();
       if (jeError) throw jeError;
 
       await supabase.from("journal_entry_lines").insert([
-        { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: grandTotal, credit: 0, description: `مشتريات - فاتورة ${invoiceNumber}` },
-        { journal_entry_id: je.id, account_id: supplierAcc.id, debit: 0, credit: grandTotal, description: `مستحقات مورد - فاتورة ${invoiceNumber}` },
+        { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: grandTotal, credit: 0, description: `مشتريات - فاتورة ${displayInvNum}` },
+        { journal_entry_id: je.id, account_id: supplierAcc.id, debit: 0, credit: grandTotal, description: `مستحقات مورد - فاتورة ${displayInvNum}` },
       ] as any);
 
-      const nextPostedNum = await getNextPostedNumber("purchase_invoices");
       await (supabase.from("purchase_invoices" as any) as any).update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum }).eq("id", id);
 
       for (const item of items) {
@@ -263,7 +265,7 @@ export default function PurchaseInvoiceForm() {
         const totalCredit = (origLines || []).reduce((s: number, l: any) => s + Number(l.credit), 0);
         const postedNumber = await getNextPostedNumber("journal_entries");
         const { data: reverseJe } = await supabase.from("journal_entries").insert({
-          description: `عكس فاتورة شراء رقم ${invoiceNumber}`, entry_date: new Date().toISOString().split("T")[0],
+          description: `عكس فاتورة شراء رقم ${formatDisplayNumber(settings?.purchase_invoice_prefix || "PUR-", postedNumber, invoiceNumber || 0, "posted")}`, entry_date: new Date().toISOString().split("T")[0],
           total_debit: totalCredit, total_credit: totalDebit, status: "posted", posted_number: postedNumber,
         } as any).select("id").single();
         if (reverseJe && origLines) {

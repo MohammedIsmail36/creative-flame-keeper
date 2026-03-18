@@ -321,10 +321,13 @@ export default function SalesInvoiceForm() {
 
       const totalDebit = grandTotal + totalCost;
       const jePostedNum = await getNextPostedNumber("journal_entries");
+      const nextPostedNum = await getNextPostedNumber("sales_invoices");
+      const invPrefix = settings?.sales_invoice_prefix || "INV-";
+      const displayInvNum = `${invPrefix}${String(nextPostedNum).padStart(4, "0")}`;
       const { data: je, error: jeError } = await supabase
         .from("journal_entries")
         .insert({
-          description: `فاتورة بيع رقم ${invoiceNumber}`,
+          description: `فاتورة بيع رقم ${displayInvNum}`,
           entry_date: invoiceDate,
           total_debit: totalDebit,
           total_credit: totalDebit,
@@ -341,14 +344,14 @@ export default function SalesInvoiceForm() {
           account_id: customersAcc.id,
           debit: grandTotal,
           credit: 0,
-          description: `مبيعات - فاتورة ${invoiceNumber}`,
+          description: `مبيعات - فاتورة ${displayInvNum}`,
         },
         {
           journal_entry_id: je.id,
           account_id: revenueAcc.id,
           debit: 0,
           credit: grandTotal,
-          description: `إيراد مبيعات - فاتورة ${invoiceNumber}`,
+          description: `إيراد مبيعات - فاتورة ${displayInvNum}`,
         },
       ];
       if (totalCost > 0) {
@@ -358,20 +361,19 @@ export default function SalesInvoiceForm() {
             account_id: cogsAcc.id,
             debit: totalCost,
             credit: 0,
-            description: `تكلفة بضاعة مباعة - فاتورة ${invoiceNumber}`,
+            description: `تكلفة بضاعة مباعة - فاتورة ${displayInvNum}`,
           },
           {
             journal_entry_id: je.id,
             account_id: inventoryAcc.id,
             debit: 0,
             credit: totalCost,
-            description: `خصم مخزون - فاتورة ${invoiceNumber}`,
+            description: `خصم مخزون - فاتورة ${displayInvNum}`,
           },
         );
       }
       await supabase.from("journal_entry_lines").insert(lines as any);
 
-      const nextPostedNum = await getNextPostedNumber("sales_invoices");
       await (supabase.from("sales_invoices" as any) as any)
         .update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum })
         .eq("id", id);
@@ -463,7 +465,7 @@ export default function SalesInvoiceForm() {
         const { data: reverseJe } = await supabase
           .from("journal_entries")
           .insert({
-            description: `عكس فاتورة بيع رقم ${invoiceNumber}`,
+            description: `عكس فاتورة بيع رقم ${formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", postedNumber, invoiceNumber || 0, "posted")}`,
             entry_date: new Date().toISOString().split("T")[0],
             total_debit: totalCredit,
             total_credit: totalDebit,

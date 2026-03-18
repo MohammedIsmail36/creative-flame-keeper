@@ -195,18 +195,20 @@ export default function PurchaseReturnForm() {
       }
 
       const jePostedNum = await getNextPostedNumber("journal_entries");
+      const nextPostedNum = await getNextPostedNumber("purchase_returns");
+      const retPrefix = settings?.purchase_return_prefix || "PRN-";
+      const displayRetNum = `${retPrefix}${String(nextPostedNum).padStart(4, "0")}`;
       const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
-        description: `مرتجع شراء رقم ${returnNumber}`, entry_date: returnDate,
+        description: `مرتجع شراء رقم ${displayRetNum}`, entry_date: returnDate,
         total_debit: grandTotal, total_credit: grandTotal, status: "posted", posted_number: jePostedNum,
       } as any).select("id").single();
       if (jeError) throw jeError;
 
       await supabase.from("journal_entry_lines").insert([
-        { journal_entry_id: je.id, account_id: supplierAcc.id, debit: grandTotal, credit: 0, description: `مرتجع شراء - ${returnNumber}` },
-        { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: 0, credit: grandTotal, description: `خصم مخزون مرتجع - ${returnNumber}` },
+        { journal_entry_id: je.id, account_id: supplierAcc.id, debit: grandTotal, credit: 0, description: `مرتجع شراء - ${displayRetNum}` },
+        { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: 0, credit: grandTotal, description: `خصم مخزون مرتجع - ${displayRetNum}` },
       ] as any);
 
-      const nextPostedNum = await getNextPostedNumber("purchase_returns");
       await (supabase.from("purchase_returns" as any) as any).update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum }).eq("id", id);
 
       for (const item of items) {
@@ -254,7 +256,7 @@ export default function PurchaseReturnForm() {
         const totalCredit = (origLines || []).reduce((s: number, l: any) => s + Number(l.credit), 0);
         const postedNumber = await getNextPostedNumber("journal_entries");
         const { data: reverseJe } = await supabase.from("journal_entries").insert({
-          description: `عكس مرتجع شراء رقم ${returnNumber}`, entry_date: new Date().toISOString().split("T")[0],
+          description: `عكس مرتجع شراء رقم ${formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", postedNumber, returnNumber || 0, "posted")}`, entry_date: new Date().toISOString().split("T")[0],
           total_debit: totalCredit, total_credit: totalDebit, status: "posted", posted_number: postedNumber,
         } as any).select("id").single();
         if (reverseJe && origLines) {
