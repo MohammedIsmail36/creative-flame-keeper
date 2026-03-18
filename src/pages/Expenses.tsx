@@ -355,7 +355,7 @@ export default function Expenses() {
 
       {/* Table */}
       <div className="rounded-xl border bg-card shadow-sm">
-        <DataTable columns={columns} data={filtered} searchKey="expense_type_name" searchPlaceholder="بحث..." />
+        <DataTable columns={columns} data={filtered} showSearch searchPlaceholder="بحث..." />
       </div>
 
       {/* Post Alert */}
