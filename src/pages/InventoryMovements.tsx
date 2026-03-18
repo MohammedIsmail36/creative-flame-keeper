@@ -282,7 +282,7 @@ export default function InventoryMovements() {
         </Card>
         <Card>
           <CardContent className="p-5">
-            <p className="text-muted-foreground text-sm mb-1">إجمالي القيمة</p>
+            <p className="text-muted-foreground text-sm mb-1">قيمة المخزون</p>
             <div className="flex items-end justify-between">
               <h3 className="text-2xl font-black text-foreground font-mono">{totalValue.toLocaleString()}</h3>
               <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
