@@ -68,7 +68,7 @@ export default function InventoryMovements() {
   const { data: products = [] } = useQuery({
     queryKey: ["products-list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("products").select("id, code, name").order("code");
+      const { data, error } = await supabase.from("products").select("id, code, name, quantity_on_hand, purchase_price").order("code");
       if (error) throw error;
       return data;
     },
@@ -106,7 +106,7 @@ export default function InventoryMovements() {
 
   const totalIn = movementsWithBalance.filter(m => inTypes.includes(m.movement_type)).reduce((s, m) => s + Number(m.quantity), 0);
   const totalOut = movementsWithBalance.filter(m => !inTypes.includes(m.movement_type)).reduce((s, m) => s + Number(m.quantity), 0);
-  const totalValue = movementsWithBalance.reduce((s, m) => s + Number(m.total_cost), 0);
+  const totalValue = products.reduce((s, p: any) => s + Number(p.quantity_on_hand || 0) * Number(p.purchase_price || 0), 0);
 
   const handleReferenceClick = (referenceType: string | null, referenceId: string | null) => {
     if (!referenceType || !referenceId) return;
@@ -282,7 +282,7 @@ export default function InventoryMovements() {
         </Card>
         <Card>
           <CardContent className="p-5">
-            <p className="text-muted-foreground text-sm mb-1">إجمالي القيمة</p>
+            <p className="text-muted-foreground text-sm mb-1">قيمة المخزون</p>
             <div className="flex items-end justify-between">
               <h3 className="text-2xl font-black text-foreground font-mono">{totalValue.toLocaleString()}</h3>
               <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
