@@ -76,6 +76,7 @@ export type Database = {
           default_currency: string
           email: string | null
           enable_fiscal_year_closing: boolean
+          expense_prefix: string
           fiscal_year_start: string
           id: string
           invoice_footer: string | null
@@ -108,6 +109,7 @@ export type Database = {
           default_currency?: string
           email?: string | null
           enable_fiscal_year_closing?: boolean
+          expense_prefix?: string
           fiscal_year_start?: string
           id?: string
           invoice_footer?: string | null
@@ -140,6 +142,7 @@ export type Database = {
           default_currency?: string
           email?: string | null
           enable_fiscal_year_closing?: boolean
+          expense_prefix?: string
           fiscal_year_start?: string
           id?: string
           invoice_footer?: string | null
@@ -325,6 +328,101 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      expense_types: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_types_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          expense_date: string
+          expense_number: number
+          expense_type_id: string
+          id: string
+          journal_entry_id: string | null
+          payment_method: string
+          posted_number: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          expense_number?: number
+          expense_type_id: string
+          id?: string
+          journal_entry_id?: string | null
+          payment_method?: string
+          posted_number?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          expense_number?: number
+          expense_type_id?: string
+          id?: string
+          journal_entry_id?: string | null
+          payment_method?: string
+          posted_number?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_expense_type_id_fkey"
+            columns: ["expense_type_id"]
+            isOneToOne: false
+            referencedRelation: "expense_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventory_adjustment_items: {
         Row: {

@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-type TableName = "sales_invoices" | "purchase_invoices" | "sales_returns" | "purchase_returns" | "customer_payments" | "supplier_payments" | "journal_entries";
+type TableName = "sales_invoices" | "purchase_invoices" | "sales_returns" | "purchase_returns" | "customer_payments" | "supplier_payments" | "journal_entries" | "expenses";
 
 export async function getNextPostedNumber(table: TableName): Promise<number> {
   const { data } = await (supabase.from(table as any) as any)

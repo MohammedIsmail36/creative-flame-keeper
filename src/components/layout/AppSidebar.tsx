@@ -19,6 +19,8 @@ import {
   Boxes,
   ChartPie,
   Lock,
+  Wallet,
+  Receipt,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
@@ -81,6 +83,15 @@ const sections: MenuSection[] = [
       { title: "شجرة الحسابات", url: "/accounts", icon: BookOpen, roles: ["admin", "accountant"] },
       { title: "قيود اليومية", url: "/journal", icon: FileText, roles: ["admin", "accountant"] },
       { title: "دفتر الأستاذ", url: "/ledger", icon: Calculator, roles: ["admin", "accountant"] },
+    ],
+  },
+  {
+    label: "المصروفات",
+    icon: Wallet,
+    colorVar: "var(--cat-purchases)",
+    items: [
+      { title: "المصروفات", url: "/expenses", icon: Receipt, roles: ["admin", "accountant"] },
+      { title: "أنواع المصروفات", url: "/expense-types", icon: Receipt, roles: ["admin", "accountant"] },
     ],
   },
   {
