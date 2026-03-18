@@ -525,93 +525,69 @@ export default function ProductAnalytics() {
     }
   };
 
-  const viewLabels: Record<ViewType, string> = {
-    "top-sellers": "الأكثر مبيعاً",
-    "most-profitable": "الأكثر ربحية",
-    "by-category": "حسب التصنيف",
-    turnover: "دوران المخزون",
-  };
-
   return (
     <div className="space-y-5 p-1">
-      {/* ── Page Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4">
-        {/* Title + subtitle */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Trophy className="w-4.5 h-4.5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold leading-tight">تحليل المنتجات</h1>
-            <p className="text-xs text-muted-foreground leading-tight mt-0.5">
-              {viewLabels[view]}
-              {categoryFilter !== "all" && <span className="mx-1 text-muted-foreground/40">·</span>}
-              <span className="text-primary/70">
-                {dateFrom} — {dateTo}
-              </span>
-            </p>
-          </div>
-        </div>
-
-        {/* Export Buttons */}
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            disabled={isLoading}
-            className="gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300 dark:text-emerald-400 dark:border-emerald-900 dark:hover:bg-emerald-950 transition-colors"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span className="hidden sm:inline">Excel</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handlePdfExport}
-            disabled={isLoading}
-            className="gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-300 dark:text-rose-400 dark:border-rose-900 dark:hover:bg-rose-950 transition-colors"
-          >
-            <FileText className="w-4 h-4" />
-            <span className="hidden sm:inline">PDF</span>
-          </Button>
-        </div>
-      </div>
-
       {/* ── Filters Card ────────────────────────────────────────────────────── */}
       <Card className="border shadow-sm">
         <CardContent className="py-3 px-4">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-            {/* Date Range */}
-            <div className="flex items-center gap-2">
-              <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-[140px]" />
-              <span className="text-muted-foreground/30">—</span>
-              <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-[140px]" />
+          <div className="flex flex-wrap items-center justify-between gap-y-3">
+            {/* Filters — right side (RTL: visual left) */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+              {/* Date Range */}
+              <div className="flex items-center gap-2">
+                <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-[140px]" />
+                <span className="text-muted-foreground/30">—</span>
+                <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-[140px]" />
+              </div>
+
+              <div className="h-7 w-px bg-border/60 hidden md:block" />
+
+              {/* Report Type */}
+              <Select value={view} onValueChange={(v: any) => setView(v)}>
+                <SelectTrigger className="w-[170px] font-medium h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="top-sellers">الأكثر مبيعاً</SelectItem>
+                  <SelectItem value="most-profitable">الأكثر ربحية</SelectItem>
+                  <SelectItem value="by-category">حسب التصنيف</SelectItem>
+                  <SelectItem value="turnover">دوران المخزون</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Category Filter */}
+              <CategoryTreeSelect
+                categories={categories || []}
+                value={categoryFilter === "all" ? "" : categoryFilter}
+                onValueChange={(id) => setCategoryFilter(id || "all")}
+                placeholder="جميع التصنيفات"
+                className="w-[170px]"
+              />
             </div>
 
-            <div className="h-7 w-px bg-border/60 hidden md:block" />
-
-            {/* Report Type */}
-            <Select value={view} onValueChange={(v: any) => setView(v)}>
-              <SelectTrigger className="w-[170px] font-medium h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="top-sellers">الأكثر مبيعاً</SelectItem>
-                <SelectItem value="most-profitable">الأكثر ربحية</SelectItem>
-                <SelectItem value="by-category">حسب التصنيف</SelectItem>
-                <SelectItem value="turnover">دوران المخزون</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Category Filter */}
-            <CategoryTreeSelect
-              categories={categories || []}
-              value={categoryFilter === "all" ? "" : categoryFilter}
-              onValueChange={(id) => setCategoryFilter(id || "all")}
-              placeholder="جميع التصنيفات"
-              className="w-[170px]"
-            />
+            {/* Export Buttons — far left (RTL: visual right of card) */}
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={isLoading}
+                className="gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300 dark:text-emerald-400 dark:border-emerald-900 dark:hover:bg-emerald-950 transition-colors"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Excel
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePdfExport}
+                disabled={isLoading}
+                className="gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-300 dark:text-rose-400 dark:border-rose-900 dark:hover:bg-rose-950 transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                PDF
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
