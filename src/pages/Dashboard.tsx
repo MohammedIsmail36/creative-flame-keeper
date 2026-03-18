@@ -53,6 +53,70 @@ interface RecentActivity { id: string; title: string; subtitle: string; amount: 
 interface TopCategory { name: string; totalSales: number; totalProfit: number; }
 interface StagnantItem { name: string; brandName: string | null; modelNumber: string | null; quantity_on_hand: number; lastMovement: string | null; }
 
+function Last7DaysSalesTable({ formatCurrency }: { formatCurrency: (n: number) => string }) {
+  const [data, setData] = useState<{ date: string; count: number; total: number; paid: number }[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      const now = new Date();
+      const from = new Date(now);
+      from.setDate(from.getDate() - 6);
+      const fromStr = from.toISOString().slice(0, 10);
+      const toStr = now.toISOString().slice(0, 10);
+      const { data: invoices } = await supabase
+        .from("sales_invoices")
+        .select("invoice_date, total, paid_amount")
+        .eq("status", "posted")
+        .gte("invoice_date", fromStr)
+        .lte("invoice_date", toStr);
+      const map: Record<string, { count: number; total: number; paid: number }> = {};
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        map[d.toISOString().slice(0, 10)] = { count: 0, total: 0, paid: 0 };
+      }
+      (invoices || []).forEach(inv => {
+        const key = inv.invoice_date;
+        if (map[key]) { map[key].count++; map[key].total += Number(inv.total); map[key].paid += Number(inv.paid_amount); }
+      });
+      setData(Object.entries(map).map(([date, v]) => ({ date, ...v })));
+      setLoading(false);
+    })();
+  }, []);
+  if (loading) return <p className="text-sm text-muted-foreground text-center py-6">جاري التحميل...</p>;
+  const totals = data.reduce((s, d) => ({ count: s.count + d.count, total: s.total + d.total, paid: s.paid + d.paid }), { count: 0, total: 0, paid: 0 });
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-muted/30 hover:bg-muted/30">
+          <TableHead className="text-xs">التاريخ</TableHead>
+          <TableHead className="text-xs">عدد الفواتير</TableHead>
+          <TableHead className="text-xs">الإجمالي</TableHead>
+          <TableHead className="text-xs">المدفوع</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {data.map(d => (
+          <TableRow key={d.date}>
+            <TableCell className="text-sm font-mono">{d.date}</TableCell>
+            <TableCell className="text-sm">{d.count}</TableCell>
+            <TableCell className="text-sm">{formatCurrency(d.total)}</TableCell>
+            <TableCell className="text-sm">{formatCurrency(d.paid)}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+      <tfoot>
+        <TableRow className="bg-muted/40 font-bold">
+          <TableCell className="text-sm">الإجمالي</TableCell>
+          <TableCell className="text-sm">{totals.count}</TableCell>
+          <TableCell className="text-sm">{formatCurrency(totals.total)}</TableCell>
+          <TableCell className="text-sm">{formatCurrency(totals.paid)}</TableCell>
+        </TableRow>
+      </tfoot>
+    </Table>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { formatCurrency, settings } = useSettings();
