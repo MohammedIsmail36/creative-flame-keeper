@@ -156,14 +156,23 @@ export default function SalesReport() {
     {
       accessorKey: "invoice_number",
       header: "رقم الفاتورة",
-      cell: ({ row }) => (
-        <button
-          className="text-primary hover:underline font-mono font-medium"
-          onClick={(e) => { e.stopPropagation(); navigate(`/sales/${row.original.id}/edit`); }}
-        >
-          #{row.original.invoice_number}
-        </button>
-      ),
+      cell: ({ row }) => {
+        const inv = row.original;
+        const display = formatDisplayNumber(
+          settings?.sales_invoice_prefix || "INV-",
+          inv.posted_number,
+          inv.invoice_number,
+          inv.status
+        );
+        return (
+          <button
+            className="text-primary hover:underline font-mono font-medium"
+            onClick={(e) => { e.stopPropagation(); navigate(`/sales/${inv.id}/edit`); }}
+          >
+            {display}
+          </button>
+        );
+      },
       footer: () => <span className="font-bold">الإجمالي</span>,
     },
     { accessorKey: "invoice_date", header: "التاريخ" },
