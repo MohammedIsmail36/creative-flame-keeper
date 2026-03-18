@@ -8,6 +8,8 @@ const DEFAULT_ADMIN_EMAIL = "admin@system.com";
 const DEFAULT_ADMIN_PASSWORD = "admin123456";
 const DEFAULT_ADMIN_NAME = "مدير النظام";
 
+const SYSTEM_CODES = ["1101", "1102", "1103", "1104", "2101", "3101", "3102", "4101", "5101"];
+
 const DEFAULT_ACCOUNTS = [
   { code: "1", name: "الأصول", account_type: "asset", is_parent: true, parent_code: null },
   { code: "11", name: "الأصول المتداولة", account_type: "asset", is_parent: true, parent_code: "1" },
@@ -90,6 +92,7 @@ Deno.serve(async (req) => {
             name: acc.name,
             account_type: acc.account_type,
             is_parent: acc.is_parent,
+            is_system: SYSTEM_CODES.includes(acc.code),
             parent_id,
           })
           .select("id")
