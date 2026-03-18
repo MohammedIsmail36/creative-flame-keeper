@@ -161,7 +161,13 @@ export default function GrowthAnalytics() {
   // Gross profit = Sales - Purchases (COGS proxy)
   const grossProfit = totalSales - totalPurchases;
   const prevGrossProfit = prevTotalSales - prevTotalPurchases;
-  const profitMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
+  const grossMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
+
+  // Net profit = Gross Profit - Operating Expenses
+  const netProfit = grossProfit - totalExpenses;
+  const prevNetProfit = prevGrossProfit - prevTotalExpenses;
+  const netMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
+
   const avgInvoice = salesData?.length ? totalSales / salesData.length : 0;
 
   const calcGrowth = (current: number, prev: number) => {
