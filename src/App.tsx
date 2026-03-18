@@ -104,7 +104,15 @@ const App = () => (
             <Route path="/trial-balance" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><TrialBalance /></AppLayout></ProtectedRoute>} />
             <Route path="/income-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><IncomeStatement /></AppLayout></ProtectedRoute>} />
             <Route path="/balance-sheet" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><BalanceSheet /></AppLayout></ProtectedRoute>} />
-            <Route path="/reports" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Reports /></AppLayout></ProtectedRoute>} />
+            <Route path="/reports/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><SalesReportPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/reports/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchasesReportPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/reports/inventory" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryReportPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/reports/aging" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><DebtAgingReportPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/reports/growth" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><GrowthAnalyticsPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/reports/products" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ProductAnalyticsPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/reports/balances" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><AccountBalancesPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/customer-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><CustomerStatement /></AppLayout></ProtectedRoute>} />
+            <Route path="/supplier-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><SupplierStatement /></AppLayout></ProtectedRoute>} />
             <Route path="/inventory-movements" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryMovements /></AppLayout></ProtectedRoute>} />
             <Route path="/inventory-adjustments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryAdjustments /></AppLayout></ProtectedRoute>} />
             <Route path="/inventory-adjustments/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryAdjustmentForm /></AppLayout></ProtectedRoute>} />
