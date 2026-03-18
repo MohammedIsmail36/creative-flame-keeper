@@ -465,7 +465,7 @@ export default function SalesInvoiceForm() {
         const { data: reverseJe } = await supabase
           .from("journal_entries")
           .insert({
-            description: `عكس فاتورة بيع رقم ${invoiceNumber}`,
+            description: `عكس فاتورة بيع رقم ${formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", postedNumber, invoiceNumber || 0, "posted")}`,
             entry_date: new Date().toISOString().split("T")[0],
             total_debit: totalCredit,
             total_credit: totalDebit,
