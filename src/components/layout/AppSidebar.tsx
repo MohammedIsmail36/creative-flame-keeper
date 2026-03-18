@@ -86,6 +86,15 @@ const sections: MenuSection[] = [
     ],
   },
   {
+    label: "المصروفات",
+    icon: Wallet,
+    colorVar: "var(--cat-purchases)",
+    items: [
+      { title: "المصروفات", url: "/expenses", icon: Receipt, roles: ["admin", "accountant"] },
+      { title: "أنواع المصروفات", url: "/expense-types", icon: Receipt, roles: ["admin", "accountant"] },
+    ],
+  },
+  {
     label: "المشتريات",
     icon: ShoppingCart,
     colorVar: "var(--cat-purchases)",
