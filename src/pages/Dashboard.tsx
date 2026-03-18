@@ -341,7 +341,7 @@ export default function Dashboard() {
 
     setTopProducts(
       Array.from(grouped.entries())
-        .map(([pid, data]) => ({ product_id: pid, name: productMap.get(pid) || "منتج", totalQty: data.qty, totalAmount: data.amount }))
+        .map(([pid, data]) => ({ product_id: pid, name: (productMap.get(pid) as string) || "منتج", totalQty: data.qty, totalAmount: data.amount }))
         .sort((a, b) => b.totalAmount - a.totalAmount)
         .slice(0, 10)
     );
