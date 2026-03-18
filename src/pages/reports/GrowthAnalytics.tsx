@@ -336,9 +336,9 @@ export default function GrowthAnalytics() {
   // --- KPI cards config ---
   const kpiCards = [
     {
-      label: "إجمالي المبيعات",
-      value: fmt(totalSales),
-      growth: calcGrowth(totalSales, prevTotalSales),
+      label: "صافي المبيعات",
+      value: fmt(netSales),
+      growth: calcGrowth(netSales, prevNetSales),
       icon: DollarSign,
       color: "text-success",
       bgColor: "bg-success/10",
@@ -346,9 +346,9 @@ export default function GrowthAnalytics() {
       countLabel: "فاتورة",
     },
     {
-      label: "إجمالي المشتريات",
-      value: fmt(totalPurchases),
-      growth: calcGrowth(totalPurchases, prevTotalPurchases),
+      label: "صافي المشتريات",
+      value: fmt(netPurchases),
+      growth: calcGrowth(netPurchases, prevNetPurchases),
       inverted: true,
       icon: ShoppingCart,
       color: "text-primary",
