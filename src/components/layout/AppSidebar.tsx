@@ -21,6 +21,8 @@ import {
   Lock,
   Wallet,
   Receipt,
+  Award,
+  Clock,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
