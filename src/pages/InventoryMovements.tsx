@@ -10,9 +10,12 @@ import { DatePickerInput } from "@/components/DatePickerInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { Package, TrendingUp, TrendingDown, Activity, Coins, ExternalLink } from "lucide-react";
+import { Package, TrendingUp, TrendingDown, Activity, Coins, ExternalLink, Check, ChevronsUpDown, Search } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 const movementTypeLabels: Record<string, string> = {
   opening_balance: "رصيد افتتاحي",
@@ -64,6 +67,7 @@ export default function InventoryMovements() {
   const [selectedType, setSelectedType] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [productComboOpen, setProductComboOpen] = useState(false);
 
   const { data: products = [] } = useQuery({
     queryKey: ["products-list"],
@@ -340,17 +344,62 @@ export default function InventoryMovements() {
         emptyMessage="لا توجد حركات مخزون"
         toolbarContent={
           <div className="flex gap-2 flex-wrap">
-            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="جميع المنتجات" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">جميع المنتجات</SelectItem>
-                {products.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.code} - {p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={productComboOpen} onOpenChange={setProductComboOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={productComboOpen}
+                  className={cn(
+                    "w-56 justify-between h-9 font-normal text-sm shadow-xs transition-colors hover:bg-accent/50",
+                    selectedProduct === "all" && "text-muted-foreground",
+                    productComboOpen && "ring-2 ring-ring/20 border-ring"
+                  )}
+                >
+                  <span className="truncate flex-1 text-right">
+                    {selectedProduct !== "all"
+                      ? (() => { const p = products.find((p) => p.id === selectedProduct); return p ? `${p.code} - ${p.name}` : "جميع المنتجات"; })()
+                      : "جميع المنتجات"}
+                  </span>
+                  <ChevronsUpDown className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 shadow-lg border-border/80" align="start" sideOffset={5}>
+                <Command dir="rtl" className="rounded-md">
+                  <CommandInput placeholder="ابحث بالكود أو الاسم..." className="h-10 text-sm" />
+                  <CommandList>
+                    <CommandEmpty>
+                      <div className="flex flex-col items-center gap-1.5">
+                        <Search className="h-5 w-5 text-muted-foreground/40" />
+                        <span>لا توجد نتائج</span>
+                      </div>
+                    </CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="جميع المنتجات"
+                        onSelect={() => { setSelectedProduct("all"); setProductComboOpen(false); }}
+                        className="gap-2.5"
+                      >
+                        <span className="flex-1">جميع المنتجات</span>
+                        <Check className={cn("mr-auto h-4 w-4 shrink-0 text-primary transition-opacity", selectedProduct === "all" ? "opacity-100" : "opacity-0")} />
+                      </CommandItem>
+                      {products.map((p) => (
+                        <CommandItem
+                          key={p.id}
+                          value={`${p.code} ${p.name}`}
+                          onSelect={() => { setSelectedProduct(p.id); setProductComboOpen(false); }}
+                          className="gap-2.5"
+                        >
+                          <span className="inline-flex items-center justify-center min-w-[3rem] rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{p.code}</span>
+                          <span className="flex-1 truncate">{p.name}</span>
+                          <Check className={cn("mr-auto h-4 w-4 shrink-0 text-primary transition-opacity", selectedProduct === p.id ? "opacity-100" : "opacity-0")} />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <Select value={selectedType} onValueChange={setSelectedType}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="جميع الأنواع" />
