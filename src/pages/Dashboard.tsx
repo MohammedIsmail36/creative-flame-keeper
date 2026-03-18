@@ -89,6 +89,8 @@ export default function Dashboard() {
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
   const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
   const [topCategories, setTopCategories] = useState<TopCategory[]>([]);
+  const [currentMonthSales, setCurrentMonthSales] = useState(0);
+  const [stagnantItems, setStagnantItems] = useState<StagnantItem[]>([]);
 
   useEffect(() => {
     fetchAll();
