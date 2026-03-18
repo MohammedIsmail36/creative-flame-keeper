@@ -197,7 +197,8 @@ export default function GrowthAnalytics() {
       if (monthlyData[key]) monthlyData[key].expenses += Number(exp.amount);
     });
     Object.values(monthlyData).forEach((m) => {
-      m.profit = m.sales - m.purchases;
+      m.grossProfit = m.sales - m.purchases;
+      m.netProfit = m.grossProfit - m.expenses;
     });
     return Object.values(monthlyData);
   }, [salesData, purchasesData, expensesData, months]);
