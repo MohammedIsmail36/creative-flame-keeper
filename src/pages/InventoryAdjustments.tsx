@@ -25,8 +25,8 @@ interface AdjustmentRow {
   created_at: string;
 }
 
-const statusLabels: Record<string, string> = { draft: "مسودة", approved: "معتمد" };
-const statusVariants: Record<string, "secondary" | "default"> = { draft: "secondary", approved: "default" };
+const statusLabels: Record<string, string> = { draft: "مسودة", approved: "معتمد", cancelled: "ملغي" };
+const statusVariants: Record<string, "secondary" | "default" | "destructive"> = { draft: "secondary", approved: "default", cancelled: "destructive" };
 
 export default function InventoryAdjustments() {
   const navigate = useNavigate();
