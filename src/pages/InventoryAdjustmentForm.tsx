@@ -13,7 +13,7 @@ import { ProductWithBrand, productsToLookupItems, formatProductName, formatProdu
 import { toast } from "@/hooks/use-toast";
 import {
   Plus, X, Save, CheckCircle, Pencil, Trash2, ClipboardCheck,
-  ListChecks, StickyNote, CreditCard,
+  ListChecks, StickyNote, CreditCard, Ban,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
