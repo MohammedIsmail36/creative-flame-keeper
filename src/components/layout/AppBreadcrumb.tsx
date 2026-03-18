@@ -41,6 +41,7 @@ const routeLabels: Record<string, string> = {
   "products-analytics": "تحليل المنتجات",
   "aging": "أعمار الديون",
   "balances": "أرصدة الحسابات",
+  "profit-loss": "الأرباح والخسائر",
   "settings": "الإعدادات",
   "users": "إدارة المستخدمين",
   "profile": "الملف الشخصي",
