@@ -634,9 +634,9 @@ export default function Dashboard() {
       {/* ═══════════════════════════════════════════════════════════
           المنطقة العلوية الثابتة — عمودين: رسوم بيانية + بطاقات
          ═══════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* العمود الأيسر: الرسوم البيانية */}
-        <div className="space-y-4">
+        <div className="lg:col-span-2 space-y-4">
           {/* Bar Chart */}
           <Card className="border-border/60 shadow-none">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
