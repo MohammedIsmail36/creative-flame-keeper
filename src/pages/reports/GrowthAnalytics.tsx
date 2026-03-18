@@ -257,9 +257,17 @@ export default function GrowthAnalytics() {
       const key = inv.invoice_date.substring(0, 7);
       if (monthlyData[key]) monthlyData[key].sales += Number(inv.total);
     });
+    salesReturnsData?.forEach((ret) => {
+      const key = ret.return_date.substring(0, 7);
+      if (monthlyData[key]) monthlyData[key].sales -= Number(ret.total);
+    });
     purchasesData?.forEach((inv) => {
       const key = inv.invoice_date.substring(0, 7);
       if (monthlyData[key]) monthlyData[key].purchases += Number(inv.total);
+    });
+    purchaseReturnsData?.forEach((ret) => {
+      const key = ret.return_date.substring(0, 7);
+      if (monthlyData[key]) monthlyData[key].purchases -= Number(ret.total);
     });
     expensesData?.forEach((exp) => {
       const key = exp.expense_date.substring(0, 7);
@@ -270,7 +278,7 @@ export default function GrowthAnalytics() {
       m.netProfit = m.grossProfit - m.expenses;
     });
     return Object.values(monthlyData);
-  }, [salesData, purchasesData, expensesData, months]);
+  }, [salesData, salesReturnsData, purchasesData, purchaseReturnsData, expensesData, months]);
 
   // --- Top products pie ---
   const topProductsList = useMemo(() => {
