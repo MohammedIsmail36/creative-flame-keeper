@@ -256,7 +256,7 @@ export default function PurchaseReturnForm() {
         const totalCredit = (origLines || []).reduce((s: number, l: any) => s + Number(l.credit), 0);
         const postedNumber = await getNextPostedNumber("journal_entries");
         const { data: reverseJe } = await supabase.from("journal_entries").insert({
-          description: `عكس مرتجع شراء رقم ${returnNumber}`, entry_date: new Date().toISOString().split("T")[0],
+          description: `عكس مرتجع شراء رقم ${formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", postedNumber, returnNumber || 0, "posted")}`, entry_date: new Date().toISOString().split("T")[0],
           total_debit: totalCredit, total_credit: totalDebit, status: "posted", posted_number: postedNumber,
         } as any).select("id").single();
         if (reverseJe && origLines) {
