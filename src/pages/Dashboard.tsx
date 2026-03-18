@@ -698,12 +698,12 @@ export default function Dashboard() {
       {/* Bottom Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Unpaid Invoices */}
-        <Card className="border-border/60 shadow-none">
+        <Card className={`shadow-none ${unpaidInvoices.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <ReceiptText className="w-4 h-4 text-warning" /> فواتير لم تسدد
+              <ReceiptText className={`w-4 h-4 ${unpaidInvoices.length > 0 ? "text-destructive" : "text-warning"}`} /> فواتير لم تسدد
             </CardTitle>
-            <Badge variant="outline" className="text-xs">{unpaidInvoices.length} فاتورة</Badge>
+            <Badge variant={unpaidInvoices.length > 0 ? "destructive" : "outline"} className="text-xs">{unpaidInvoices.length} فاتورة</Badge>
           </CardHeader>
           <CardContent className="p-0">
             {unpaidInvoices.length === 0 ? (
