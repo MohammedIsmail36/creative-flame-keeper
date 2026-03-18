@@ -89,7 +89,9 @@ export default function JournalEntryForm() {
           (supabase.from("purchase_returns") as any).select("id").eq("journal_entry_id", id).limit(1),
         ];
         const results = await Promise.all(queries);
-        setIsLinked(results.some(r => r.data && r.data.length > 0));
+        const linkedToDocument = results.some(r => r.data && r.data.length > 0);
+        const isReversalEntry = (entry.description || "").startsWith("عكس ");
+        setIsLinked(linkedToDocument || isReversalEntry);
       }
       setLoading(false);
     } else {
