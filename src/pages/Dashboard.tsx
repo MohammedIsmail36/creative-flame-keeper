@@ -29,6 +29,11 @@ import {
   PackageX,
   Clock,
   ChevronRight,
+  LayoutDashboard,
+  Coins,
+  Scale,
+  PiggyBank,
+  TrendingUpIcon,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { useNavigate } from "react-router-dom";
@@ -840,12 +845,17 @@ export default function Dashboard() {
           PAGE HEADER
          ═══════════════════════════════════════════════════════════════════════ */}
       <div className="flex items-center justify-between gap-4 pb-6 pt-1 border-b border-border/40 mb-8">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight">لوحة التحكم</h1>
-          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-            <Clock className="w-3 h-3 shrink-0" />
-            {todayLabel}
-          </p>
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 shadow-inner">
+            <LayoutDashboard className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight leading-tight">لوحة التحكم</h1>
+            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+              <Clock className="w-3 h-3 shrink-0" />
+              {todayLabel}
+            </p>
+          </div>
         </div>
         {!loadingKPIs && (
           <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
@@ -1563,7 +1573,7 @@ export default function Dashboard() {
             {loadingTables ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                  <Skeleton key={i} className="h-24 w-full rounded-xl" />
                 ))}
               </div>
             ) : accountBalances.length === 0 ? (
@@ -1571,33 +1581,118 @@ export default function Dashboard() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {(() => {
-                  const groups: Record<string, { label: string; total: number; accent: string }> = {};
-                  const meta: Record<string, { label: string; accent: string }> = {
-                    asset: { label: "الأصول", accent: "bg-primary/8 border-primary/20" },
-                    liability: { label: "الخصوم", accent: "bg-amber-500/8 border-amber-400/20" },
-                    equity: { label: "حقوق الملكية", accent: "bg-emerald-500/8 border-emerald-400/20" },
-                    revenue: { label: "الإيرادات", accent: "bg-emerald-500/8 border-emerald-400/20" },
-                    expense: { label: "المصروفات", accent: "bg-destructive/8 border-destructive/20" },
+                  const groups: Record<
+                    string,
+                    {
+                      label: string;
+                      total: number;
+                      icon: React.ElementType;
+                      iconBg: string;
+                      iconColor: string;
+                      accent: string;
+                      borderAccent: string;
+                    }
+                  > = {};
+                  const meta: Record<
+                    string,
+                    {
+                      label: string;
+                      icon: React.ElementType;
+                      iconBg: string;
+                      iconColor: string;
+                      accent: string;
+                      borderAccent: string;
+                    }
+                  > = {
+                    asset: {
+                      label: "الأصول",
+                      icon: Boxes,
+                      iconBg: "bg-primary/10",
+                      iconColor: "text-primary",
+                      accent: "bg-primary/5",
+                      borderAccent: "border-primary/20",
+                    },
+                    liability: {
+                      label: "الخصوم",
+                      icon: Landmark,
+                      iconBg: "bg-amber-500/10",
+                      iconColor: "text-amber-600 dark:text-amber-400",
+                      accent: "bg-amber-500/5",
+                      borderAccent: "border-amber-400/25",
+                    },
+                    equity: {
+                      label: "حقوق الملكية",
+                      icon: Scale,
+                      iconBg: "bg-emerald-500/10",
+                      iconColor: "text-emerald-600 dark:text-emerald-400",
+                      accent: "bg-emerald-500/5",
+                      borderAccent: "border-emerald-400/25",
+                    },
+                    revenue: {
+                      label: "الإيرادات",
+                      icon: TrendingUp,
+                      iconBg: "bg-emerald-500/10",
+                      iconColor: "text-emerald-600 dark:text-emerald-400",
+                      accent: "bg-emerald-500/5",
+                      borderAccent: "border-emerald-400/25",
+                    },
+                    expense: {
+                      label: "المصروفات",
+                      icon: Banknote,
+                      iconBg: "bg-destructive/10",
+                      iconColor: "text-destructive",
+                      accent: "bg-destructive/5",
+                      borderAccent: "border-destructive/20",
+                    },
                   };
                   accountBalances.forEach((acc) => {
                     const k = acc.account_type;
-                    const m = meta[k] || { label: k, accent: "bg-muted border-border/60" };
-                    if (!groups[k]) groups[k] = { label: m.label, total: 0, accent: m.accent };
+                    const m = meta[k] || {
+                      label: k,
+                      icon: Calculator,
+                      iconBg: "bg-muted",
+                      iconColor: "text-muted-foreground",
+                      accent: "bg-muted/40",
+                      borderAccent: "border-border/60",
+                    };
+                    if (!groups[k])
+                      groups[k] = {
+                        label: m.label,
+                        total: 0,
+                        icon: m.icon,
+                        iconBg: m.iconBg,
+                        iconColor: m.iconColor,
+                        accent: m.accent,
+                        borderAccent: m.borderAccent,
+                      };
                     groups[k].total += acc.balance;
                   });
-                  return Object.entries(groups).map(([key, g]) => (
-                    <Card key={key} className={`shadow-sm border ${g.accent}`}>
-                      <CardContent className="p-4 text-center">
-                        <p className="text-[11px] font-medium text-muted-foreground mb-1.5">{g.label}</p>
-                        <p
-                          className={`text-lg font-extrabold tabular-nums ${g.total >= 0 ? "text-foreground" : "text-destructive"}`}
-                        >
-                          {formatCurrency(Math.abs(g.total))}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground/60 mt-0.5">{g.total >= 0 ? "مدين" : "دائن"}</p>
-                      </CardContent>
-                    </Card>
-                  ));
+                  return Object.entries(groups).map(([key, g]) => {
+                    const Icon = g.icon;
+                    return (
+                      <Card key={key} className={`shadow-sm border ${g.borderAccent} ${g.accent} overflow-hidden`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between gap-2 mb-3">
+                            <div className={`w-9 h-9 rounded-xl ${g.iconBg} flex items-center justify-center shrink-0`}>
+                              <Icon className={`w-4 h-4 ${g.iconColor}`} />
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] px-1.5 py-0.5 border ${g.total >= 0 ? "border-border/50 text-muted-foreground" : "border-destructive/30 text-destructive"}`}
+                            >
+                              {g.total >= 0 ? "مدين" : "دائن"}
+                            </Badge>
+                          </div>
+                          <p className="text-[11px] font-medium text-muted-foreground mb-1">{g.label}</p>
+                          <p
+                            className={`text-base font-extrabold tabular-nums leading-tight ${g.total >= 0 ? "text-foreground" : "text-destructive"}`}
+                          >
+                            {formatCurrency(Math.abs(g.total))}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    );
+                  });
                 })()}
               </div>
             )}
