@@ -569,6 +569,77 @@ export default function GrowthAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Summary Table: Sales vs Purchases side by side */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* Sales Summary */}
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-success" />
+              ملخص المبيعات
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <tbody>
+                <tr className="border-b border-border/40">
+                  <td className="px-5 py-3 text-muted-foreground">إجمالي المبيعات</td>
+                  <td className="px-5 py-3 text-left font-semibold">{fmt(totalSales)}</td>
+                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">{salesData?.length ?? 0} فاتورة</td>
+                </tr>
+                <tr className="border-b border-border/40 bg-muted/30">
+                  <td className="px-5 py-3 text-muted-foreground flex items-center gap-1.5">
+                    <RotateCcw className="w-3.5 h-3.5 text-destructive" />
+                    مرتجعات المبيعات
+                  </td>
+                  <td className="px-5 py-3 text-left font-semibold text-destructive">({fmt(totalSalesReturns)})</td>
+                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">{salesReturnsData?.length ?? 0} مرتجع</td>
+                </tr>
+                <tr className="bg-success/5">
+                  <td className="px-5 py-3 font-bold">صافي المبيعات</td>
+                  <td className="px-5 py-3 text-left font-bold text-success text-base">{fmt(netSales)}</td>
+                  <td className="px-5 py-3"></td>
+                </tr>
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+
+        {/* Purchases Summary */}
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4 text-primary" />
+              ملخص المشتريات
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <tbody>
+                <tr className="border-b border-border/40">
+                  <td className="px-5 py-3 text-muted-foreground">إجمالي المشتريات</td>
+                  <td className="px-5 py-3 text-left font-semibold">{fmt(totalPurchases)}</td>
+                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">{purchasesData?.length ?? 0} فاتورة</td>
+                </tr>
+                <tr className="border-b border-border/40 bg-muted/30">
+                  <td className="px-5 py-3 text-muted-foreground flex items-center gap-1.5">
+                    <RotateCcw className="w-3.5 h-3.5 text-success" />
+                    مرتجعات المشتريات
+                  </td>
+                  <td className="px-5 py-3 text-left font-semibold text-success">({fmt(totalPurchaseReturns)})</td>
+                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">{purchaseReturnsData?.length ?? 0} مرتجع</td>
+                </tr>
+                <tr className="bg-primary/5">
+                  <td className="px-5 py-3 font-bold">صافي المشتريات</td>
+                  <td className="px-5 py-3 text-left font-bold text-primary text-base">{fmt(netPurchases)}</td>
+                  <td className="px-5 py-3"></td>
+                </tr>
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
