@@ -213,10 +213,12 @@ export default function InventoryMovements() {
       id: "in_qty",
       header: "الوارد",
       cell: ({ row }) => {
-        const isIn = inTypes.includes(row.original.movement_type);
+        const mt = row.original.movement_type;
+        const qty = Number(row.original.quantity);
+        const isIn = mt === "adjustment" ? qty > 0 : inTypes.includes(mt);
         return isIn ? (
           <span className="font-bold text-emerald-600 font-mono">
-            +{Number(row.original.quantity).toLocaleString()}
+            +{Math.abs(qty).toLocaleString()}
           </span>
         ) : (
           <span className="text-muted-foreground/30">-</span>
@@ -227,9 +229,11 @@ export default function InventoryMovements() {
       id: "out_qty",
       header: "الصادر",
       cell: ({ row }) => {
-        const isIn = inTypes.includes(row.original.movement_type);
-        return !isIn ? (
-          <span className="font-bold text-rose-600 font-mono">-{Number(row.original.quantity).toLocaleString()}</span>
+        const mt = row.original.movement_type;
+        const qty = Number(row.original.quantity);
+        const isOut = mt === "adjustment" ? qty < 0 : !inTypes.includes(mt);
+        return isOut ? (
+          <span className="font-bold text-rose-600 font-mono">-{Math.abs(qty).toLocaleString()}</span>
         ) : (
           <span className="text-muted-foreground/30">-</span>
         );
