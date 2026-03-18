@@ -136,6 +136,7 @@ const sections: MenuSection[] = [
       { title: "تقرير المخزون", url: "/reports/inventory", icon: Package, roles: ["admin", "accountant"] },
       { title: "أعمار الديون", url: "/reports/aging", icon: Clock, roles: ["admin", "accountant"] },
       { title: "أرصدة الحسابات", url: "/reports/balances", icon: Calculator, roles: ["admin", "accountant"] },
+      { title: "الأرباح والخسائر", url: "/reports/profit-loss", icon: DollarSign, roles: ["admin", "accountant"] },
       { title: "حركة المخزون", url: "/inventory-movements", icon: Package, roles: ["admin", "accountant"] },
       { title: "تسوية المخزون", url: "/inventory-adjustments", icon: ClipboardCheck, roles: ["admin", "accountant"] },
     ],

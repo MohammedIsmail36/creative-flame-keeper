@@ -112,6 +112,7 @@ const App = () => (
             <Route path="/reports/growth" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><GrowthAnalyticsPage /></AppLayout></ProtectedRoute>} />
             <Route path="/reports/products" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ProductAnalyticsPage /></AppLayout></ProtectedRoute>} />
             <Route path="/reports/balances" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><AccountBalancesPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/reports/profit-loss" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ProfitLossPage /></AppLayout></ProtectedRoute>} />
             <Route path="/customer-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><CustomerStatement /></AppLayout></ProtectedRoute>} />
             <Route path="/supplier-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><SupplierStatement /></AppLayout></ProtectedRoute>} />
             <Route path="/inventory-movements" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryMovements /></AppLayout></ProtectedRoute>} />
