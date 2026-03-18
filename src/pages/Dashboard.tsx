@@ -51,6 +51,7 @@ interface LowStockItem { name: string; brandName: string | null; modelNumber: st
 interface ExpenseByType { name: string; amount: number; }
 interface RecentActivity { id: string; title: string; subtitle: string; amount: number; type: "sale" | "purchase" | "expense"; date: string; }
 interface TopCategory { name: string; totalSales: number; totalProfit: number; }
+interface StagnantItem { name: string; brandName: string | null; modelNumber: string | null; quantity_on_hand: number; lastMovement: string | null; }
 
 export default function Dashboard() {
   const navigate = useNavigate();
