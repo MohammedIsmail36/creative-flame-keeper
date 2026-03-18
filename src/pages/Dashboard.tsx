@@ -11,13 +11,18 @@ import {
   Package,
   DollarSign,
   ShoppingCart,
-  FileText,
   AlertTriangle,
   Calculator,
   ArrowDownLeft,
   ArrowUpRight,
   Boxes,
   ReceiptText,
+  Wallet,
+  Users,
+  Landmark,
+  Banknote,
+  BarChart3,
+  Award,
 } from "lucide-react";
 import {
   BarChart,
@@ -31,126 +36,315 @@ import {
   Line,
 } from "recharts";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-
-interface AccountBalance {
-  id: string;
-  code: string;
-  name: string;
-  account_type: string;
-  debit: number;
-  credit: number;
-  balance: number;
-}
-
-interface SummaryData {
-  totalSales: number;
-  totalPurchases: number;
-  netProfit: number;
-  lowStockCount: number;
-}
-
-interface RecentInvoice {
-  id: string;
-  invoice_number: number;
-  customer_name: string;
-  total: number;
-  status: string;
-}
-
-interface LowStockItem {
-  name: string;
-  brandName: string | null;
-  modelNumber: string | null;
-  quantity_on_hand: number;
-  min_stock_level: number;
-}
-
-interface MonthlyData {
-  name: string;
-  مبيعات: number;
-  مشتريات: number;
-  ربح: number;
-}
-
-interface RecentActivity {
-  id: string;
-  title: string;
-  subtitle: string;
-  amount: string;
-  type: "income" | "expense" | "inventory";
-  icon: React.ComponentType<{ className?: string }>;
-}
 
 const MONTH_NAMES = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+
+interface MonthlyData { name: string; مبيعات: number; مشتريات: number; }
+interface MonthlyExpense { name: string; مصروفات: number; }
+interface AccountBalance { id: string; code: string; name: string; account_type: string; debit: number; credit: number; balance: number; }
+interface UnpaidInvoice { id: string; invoice_number: number; customer_name: string; total: number; paid_amount: number; remaining: number; }
+interface TopProduct { product_id: string; name: string; totalQty: number; totalAmount: number; }
+interface LowStockItem { name: string; brandName: string | null; modelNumber: string | null; quantity_on_hand: number; min_stock_level: number; }
+interface ExpenseByType { name: string; amount: number; }
+interface RecentActivity { id: string; title: string; subtitle: string; amount: number; type: "sale" | "purchase" | "expense"; date: string; }
+interface TopCategory { name: string; totalSales: number; totalProfit: number; }
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { formatCurrency } = useSettings();
-  const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
-  const [summary, setSummary] = useState<SummaryData>({ totalSales: 0, totalPurchases: 0, netProfit: 0, lowStockCount: 0 });
-  const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
-  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // KPI state
+  const [totalSales, setTotalSales] = useState(0);
+  const [totalPurchases, setTotalPurchases] = useState(0);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [totalSalesReturns, setTotalSalesReturns] = useState(0);
+  const [totalPurchaseReturns, setTotalPurchaseReturns] = useState(0);
+  const [salesChange, setSalesChange] = useState<number | null>(null);
+  const [purchasesChange, setPurchasesChange] = useState<number | null>(null);
+  const [expensesChange, setExpensesChange] = useState<number | null>(null);
+
+  // Secondary KPIs
+  const [receivables, setReceivables] = useState(0);
+  const [payables, setPayables] = useState(0);
+  const [inventoryValue, setInventoryValue] = useState(0);
+  const [lowStockCount, setLowStockCount] = useState(0);
+
+  // Charts
+  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
+  const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyExpense[]>([]);
+
+  // Right column
+  const [liquidity, setLiquidity] = useState({ total: 0, cash: 0, bank: 0 });
+  const [expensesByType, setExpensesByType] = useState<ExpenseByType[]>([]);
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+
+  // Tables
+  const [unpaidInvoices, setUnpaidInvoices] = useState<UnpaidInvoice[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
+  const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
+  const [topCategories, setTopCategories] = useState<TopCategory[]>([]);
+
   useEffect(() => {
-    const fetchAll = async () => {
-      setLoading(true);
-      await Promise.all([
-        fetchSummary(),
-        fetchRecentInvoices(),
-        fetchLowStock(),
-        fetchMonthlyData(),
-        fetchBalances(),
-      ]);
-      setLoading(false);
-    };
     fetchAll();
   }, []);
 
-  const fetchSummary = async () => {
-    const [salesRes, purchasesRes, productsRes] = await Promise.all([
-      supabase.from("sales_invoices").select("total, status").eq("status", "posted"),
-      supabase.from("purchase_invoices").select("total, status").eq("status", "posted"),
-      supabase.from("products").select("quantity_on_hand, min_stock_level").eq("is_active", true),
+  const fetchAll = async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchKPIs(),
+      fetchSecondaryKPIs(),
+      fetchCharts(),
+      fetchLiquidity(),
+      fetchExpensesByType(),
+      fetchRecentActivities(),
+      fetchUnpaidInvoices(),
+      fetchTopProducts(),
+      fetchLowStock(),
+      fetchBalances(),
+      fetchTopCategories(),
     ]);
-
-    const totalSales = (salesRes.data || []).reduce((s, i) => s + Number(i.total), 0);
-    const totalPurchases = (purchasesRes.data || []).reduce((s, i) => s + Number(i.total), 0);
-    const lowStockCount = (productsRes.data || []).filter(p => Number(p.quantity_on_hand) <= Number(p.min_stock_level)).length;
-
-    setSummary({
-      totalSales,
-      totalPurchases,
-      netProfit: totalSales - totalPurchases,
-      lowStockCount,
-    });
+    setLoading(false);
   };
 
-  const fetchRecentInvoices = async () => {
+  const fetchKPIs = async () => {
+    const now = new Date();
+    const currMonth = now.getMonth();
+    const currYear = now.getFullYear();
+
+    const [salesRes, purchasesRes, expensesRes, salesReturnsRes, purchaseReturnsRes] = await Promise.all([
+      supabase.from("sales_invoices").select("total, invoice_date").eq("status", "posted"),
+      supabase.from("purchase_invoices").select("total, invoice_date").eq("status", "posted"),
+      supabase.from("expenses").select("amount, expense_date").eq("status", "posted"),
+      supabase.from("sales_returns").select("total").eq("status", "posted"),
+      supabase.from("purchase_returns").select("total").eq("status", "posted"),
+    ]);
+
+    const sales = salesRes.data || [];
+    const purchases = purchasesRes.data || [];
+    const expenses = expensesRes.data || [];
+
+    const sumTotal = (arr: any[]) => arr.reduce((s, i) => s + Number(i.total || i.amount || 0), 0);
+
+    setTotalSales(sumTotal(sales));
+    setTotalPurchases(sumTotal(purchases));
+    setTotalExpenses(sumTotal(expenses));
+    setTotalSalesReturns(sumTotal(salesReturnsRes.data || []));
+    setTotalPurchaseReturns(sumTotal(purchaseReturnsRes.data || []));
+
+    // Monthly change calculations
+    const calcChange = (items: any[], dateField: string) => {
+      const currTotal = items.filter(i => { const d = new Date(i[dateField]); return d.getMonth() === currMonth && d.getFullYear() === currYear; }).reduce((s, i) => s + Number(i.total || i.amount || 0), 0);
+      const prevMonth = currMonth === 0 ? 11 : currMonth - 1;
+      const prevYear = currMonth === 0 ? currYear - 1 : currYear;
+      const prevTotal = items.filter(i => { const d = new Date(i[dateField]); return d.getMonth() === prevMonth && d.getFullYear() === prevYear; }).reduce((s, i) => s + Number(i.total || i.amount || 0), 0);
+      return prevTotal > 0 ? ((currTotal - prevTotal) / prevTotal) * 100 : null;
+    };
+
+    setSalesChange(calcChange(sales, "invoice_date"));
+    setPurchasesChange(calcChange(purchases, "invoice_date"));
+    setExpensesChange(calcChange(expenses, "expense_date"));
+  };
+
+  const fetchSecondaryKPIs = async () => {
+    const [customersRes, suppliersRes, productsRes] = await Promise.all([
+      supabase.from("customers").select("balance"),
+      supabase.from("suppliers").select("balance"),
+      supabase.from("products").select("quantity_on_hand, min_stock_level, purchase_price").eq("is_active", true),
+    ]);
+
+    const customers = customersRes.data || [];
+    const suppliers = suppliersRes.data || [];
+    const products = productsRes.data || [];
+
+    setReceivables(customers.filter(c => Number(c.balance) > 0).reduce((s, c) => s + Number(c.balance), 0));
+    setPayables(suppliers.filter(s => Number(s.balance) > 0).reduce((s2, s) => s2 + Number(s.balance), 0));
+    setInventoryValue(products.reduce((s, p) => s + Number(p.quantity_on_hand) * Number(p.purchase_price), 0));
+    setLowStockCount(products.filter(p => Number(p.quantity_on_hand) <= Number(p.min_stock_level) && Number(p.min_stock_level) > 0).length);
+  };
+
+  const fetchCharts = async () => {
+    const year = new Date().getFullYear();
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+
+    const [salesRes, purchasesRes, expensesRes] = await Promise.all([
+      supabase.from("sales_invoices").select("invoice_date, total").eq("status", "posted").gte("invoice_date", startDate).lte("invoice_date", endDate),
+      supabase.from("purchase_invoices").select("invoice_date, total").eq("status", "posted").gte("invoice_date", startDate).lte("invoice_date", endDate),
+      supabase.from("expenses").select("expense_date, amount").eq("status", "posted").gte("expense_date", startDate).lte("expense_date", endDate),
+    ]);
+
+    const monthly: MonthlyData[] = MONTH_NAMES.map(name => ({ name, مبيعات: 0, مشتريات: 0 }));
+    const monthlyExp: MonthlyExpense[] = MONTH_NAMES.map(name => ({ name, مصروفات: 0 }));
+
+    (salesRes.data || []).forEach(inv => { monthly[new Date(inv.invoice_date).getMonth()].مبيعات += Number(inv.total); });
+    (purchasesRes.data || []).forEach(inv => { monthly[new Date(inv.invoice_date).getMonth()].مشتريات += Number(inv.total); });
+    (expensesRes.data || []).forEach(exp => { monthlyExp[new Date(exp.expense_date).getMonth()].مصروفات += Number(exp.amount); });
+
+    const currentMonth = new Date().getMonth();
+    setMonthlyData(monthly.slice(0, currentMonth + 1));
+    setMonthlyExpenses(monthlyExp.slice(0, currentMonth + 1));
+  };
+
+  const fetchLiquidity = async () => {
+    const [accountsRes, linesRes] = await Promise.all([
+      supabase.from("accounts").select("id, code, name").eq("is_active", true),
+      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entry_id"),
+    ]);
+
+    if (!accountsRes.data || !linesRes.data) return;
+
+    const cashAccounts = accountsRes.data.filter(a => a.code.startsWith("1101"));
+    const bankAccounts = accountsRes.data.filter(a => a.code.startsWith("1102"));
+    const allLiquidIds = new Set([...cashAccounts, ...bankAccounts].map(a => a.id));
+
+    const entryIds = [...new Set(linesRes.data.map((l: any) => l.journal_entry_id))];
+    if (!entryIds.length) return;
+
+    const { data: entries } = await supabase.from("journal_entries").select("id").in("id", entryIds).eq("status", "posted");
+    const postedIds = new Set((entries || []).map(e => e.id));
+
+    let cashBal = 0, bankBal = 0;
+    const cashIds = new Set(cashAccounts.map(a => a.id));
+    const bankIds = new Set(bankAccounts.map(a => a.id));
+
+    linesRes.data.forEach((l: any) => {
+      if (!postedIds.has(l.journal_entry_id) || !allLiquidIds.has(l.account_id)) return;
+      const net = Number(l.debit) - Number(l.credit);
+      if (cashIds.has(l.account_id)) cashBal += net;
+      if (bankIds.has(l.account_id)) bankBal += net;
+    });
+
+    setLiquidity({ total: cashBal + bankBal, cash: cashBal, bank: bankBal });
+  };
+
+  const fetchExpensesByType = async () => {
+    const [expensesRes, typesRes] = await Promise.all([
+      supabase.from("expenses").select("expense_type_id, amount").eq("status", "posted"),
+      supabase.from("expense_types").select("id, name"),
+    ]);
+
+    const typeMap = new Map((typesRes.data || []).map(t => [t.id, t.name]));
+    const grouped = new Map<string, number>();
+
+    (expensesRes.data || []).forEach(e => {
+      const name = typeMap.get(e.expense_type_id) || "أخرى";
+      grouped.set(name, (grouped.get(name) || 0) + Number(e.amount));
+    });
+
+    setExpensesByType(
+      Array.from(grouped.entries())
+        .map(([name, amount]) => ({ name, amount }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 5)
+    );
+  };
+
+  const fetchRecentActivities = async () => {
+    const [salesRes, purchasesRes] = await Promise.all([
+      supabase.from("sales_invoices").select("id, invoice_number, total, invoice_date, customer_id").order("created_at", { ascending: false }).limit(3),
+      supabase.from("purchase_invoices").select("id, invoice_number, total, invoice_date, supplier_id").order("created_at", { ascending: false }).limit(2),
+    ]);
+
+    const activities: RecentActivity[] = [];
+
+    if (salesRes.data?.length) {
+      const custIds = [...new Set(salesRes.data.filter(d => d.customer_id).map(d => d.customer_id!))];
+      const { data: custs } = custIds.length ? await supabase.from("customers").select("id, name").in("id", custIds) : { data: [] };
+      const custMap = new Map((custs || []).map(c => [c.id, c.name]));
+
+      salesRes.data.forEach(inv => {
+        activities.push({
+          id: inv.id,
+          title: `فاتورة مبيعات #${inv.invoice_number}`,
+          subtitle: custMap.get(inv.customer_id || "") || "عميل نقدي",
+          amount: Number(inv.total),
+          type: "sale",
+          date: inv.invoice_date,
+        });
+      });
+    }
+
+    if (purchasesRes.data?.length) {
+      const suppIds = [...new Set(purchasesRes.data.filter(d => d.supplier_id).map(d => d.supplier_id!))];
+      const { data: supps } = suppIds.length ? await supabase.from("suppliers").select("id, name").in("id", suppIds) : { data: [] };
+      const suppMap = new Map((supps || []).map(s => [s.id, s.name]));
+
+      purchasesRes.data.forEach(inv => {
+        activities.push({
+          id: inv.id,
+          title: `فاتورة مشتريات #${inv.invoice_number}`,
+          subtitle: suppMap.get(inv.supplier_id || "") || "مورد",
+          amount: Number(inv.total),
+          type: "purchase",
+          date: inv.invoice_date,
+        });
+      });
+    }
+
+    activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setRecentActivities(activities.slice(0, 4));
+  };
+
+  const fetchUnpaidInvoices = async () => {
     const { data } = await supabase
       .from("sales_invoices")
-      .select("id, invoice_number, total, status, customer_id")
+      .select("id, invoice_number, total, paid_amount, customer_id")
+      .eq("status", "posted")
       .order("created_at", { ascending: false })
-      .limit(5);
+      .limit(100);
 
-    if (!data?.length) return;
+    if (!data) return;
+    const unpaid = data.filter(inv => Number(inv.paid_amount) < Number(inv.total));
+    const custIds = [...new Set(unpaid.filter(d => d.customer_id).map(d => d.customer_id!))];
+    const { data: custs } = custIds.length ? await supabase.from("customers").select("id, name").in("id", custIds) : { data: [] };
+    const custMap = new Map((custs || []).map(c => [c.id, c.name]));
 
-    const customerIds = [...new Set(data.filter(d => d.customer_id).map(d => d.customer_id!))];
-    const { data: customers } = customerIds.length
-      ? await supabase.from("customers").select("id, name").in("id", customerIds)
-      : { data: [] };
+    setUnpaidInvoices(
+      unpaid.slice(0, 10).map(inv => ({
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        customer_name: custMap.get(inv.customer_id || "") || "عميل نقدي",
+        total: Number(inv.total),
+        paid_amount: Number(inv.paid_amount),
+        remaining: Number(inv.total) - Number(inv.paid_amount),
+      }))
+    );
+  };
 
-    const custMap = new Map((customers || []).map(c => [c.id, c.name]));
+  const fetchTopProducts = async () => {
+    const { data: items } = await (supabase.from("sales_invoice_items") as any)
+      .select("product_id, quantity, total, invoice_id");
 
-    setRecentInvoices(data.map(inv => ({
-      id: inv.id,
-      invoice_number: inv.invoice_number,
-      customer_name: custMap.get(inv.customer_id || "") || "عميل نقدي",
-      total: Number(inv.total),
-      status: inv.status,
-    })));
+    if (!items?.length) return;
+
+    const invoiceIds = [...new Set(items.map((i: any) => i.invoice_id))];
+    const { data: invoices } = await supabase.from("sales_invoices").select("id, status").in("id", invoiceIds).eq("status", "posted");
+    const postedIds = new Set((invoices || []).map(i => i.id));
+
+    const grouped = new Map<string, { qty: number; amount: number }>();
+    items.forEach((item: any) => {
+      if (!postedIds.has(item.invoice_id) || !item.product_id) return;
+      const cur = grouped.get(item.product_id) || { qty: 0, amount: 0 };
+      cur.qty += Number(item.quantity);
+      cur.amount += Number(item.total);
+      grouped.set(item.product_id, cur);
+    });
+
+    const productIds = [...grouped.keys()];
+    const { data: products } = await (supabase.from("products") as any)
+      .select("id, name, model_number, product_brands(name)")
+      .in("id", productIds);
+
+    const productMap = new Map((products || []).map((p: any) => [p.id, formatProductDisplay(p.name, p.product_brands?.name, p.model_number)]));
+
+    setTopProducts(
+      Array.from(grouped.entries())
+        .map(([pid, data]) => ({ product_id: pid, name: productMap.get(pid) || "منتج", totalQty: data.qty, totalAmount: data.amount }))
+        .sort((a, b) => b.totalAmount - a.totalAmount)
+        .slice(0, 10)
+    );
   };
 
   const fetchLowStock = async () => {
@@ -158,11 +352,11 @@ export default function Dashboard() {
       .select("name, quantity_on_hand, min_stock_level, model_number, product_brands(name)")
       .eq("is_active", true)
       .order("quantity_on_hand", { ascending: true })
-      .limit(10);
+      .limit(20);
 
     setLowStockItems(
       (data || [])
-        .filter((p: any) => Number(p.quantity_on_hand) <= Number(p.min_stock_level))
+        .filter((p: any) => Number(p.quantity_on_hand) <= Number(p.min_stock_level) && Number(p.min_stock_level) > 0)
         .map((p: any) => ({
           name: p.name,
           brandName: p.product_brands?.name || null,
@@ -173,35 +367,9 @@ export default function Dashboard() {
     );
   };
 
-  const fetchMonthlyData = async () => {
-    const year = new Date().getFullYear();
-    const startDate = `${year}-01-01`;
-    const endDate = `${year}-12-31`;
-
-    const [salesRes, purchasesRes] = await Promise.all([
-      supabase.from("sales_invoices").select("invoice_date, total").eq("status", "posted").gte("invoice_date", startDate).lte("invoice_date", endDate),
-      supabase.from("purchase_invoices").select("invoice_date, total").eq("status", "posted").gte("invoice_date", startDate).lte("invoice_date", endDate),
-    ]);
-
-    const monthly: MonthlyData[] = MONTH_NAMES.map(name => ({ name, مبيعات: 0, مشتريات: 0, ربح: 0 }));
-
-    (salesRes.data || []).forEach(inv => {
-      const m = new Date(inv.invoice_date).getMonth();
-      monthly[m].مبيعات += Number(inv.total);
-    });
-    (purchasesRes.data || []).forEach(inv => {
-      const m = new Date(inv.invoice_date).getMonth();
-      monthly[m].مشتريات += Number(inv.total);
-    });
-    monthly.forEach(m => { m.ربح = m.مبيعات - m.مشتريات; });
-
-    const currentMonth = new Date().getMonth();
-    setMonthlyData(monthly.slice(0, currentMonth + 1));
-  };
-
   const fetchBalances = async () => {
     const [accountsRes, linesRes] = await Promise.all([
-      supabase.from("accounts").select("id, code, name, account_type").eq("is_active", true).order("code"),
+      supabase.from("accounts").select("id, code, name, account_type").eq("is_active", true).eq("is_parent", false).order("code"),
       supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entry_id"),
     ]);
 
@@ -210,15 +378,10 @@ export default function Dashboard() {
     const entryIds = [...new Set(linesRes.data.map((l: any) => l.journal_entry_id))];
     if (!entryIds.length) return;
 
-    const { data: entriesData } = await supabase
-      .from("journal_entries")
-      .select("id, status")
-      .in("id", entryIds)
-      .eq("status", "posted");
+    const { data: entries } = await supabase.from("journal_entries").select("id").in("id", entryIds).eq("status", "posted");
+    const postedIds = new Set((entries || []).map(e => e.id));
 
-    const postedIds = new Set((entriesData || []).map((e: any) => e.id));
     const balMap = new Map<string, { debit: number; credit: number }>();
-
     linesRes.data.forEach((l: any) => {
       if (!postedIds.has(l.journal_entry_id)) return;
       const cur = balMap.get(l.account_id) || { debit: 0, credit: 0 };
@@ -237,230 +400,463 @@ export default function Dashboard() {
     );
   };
 
-  const statusLabel = (s: string) => {
-    switch (s) {
-      case "posted": return "مرحّلة";
-      case "draft": return "مسودة";
-      case "paid": return "مدفوعة";
-      default: return s;
-    }
+  const fetchTopCategories = async () => {
+    const { data: items } = await (supabase.from("sales_invoice_items") as any)
+      .select("product_id, quantity, total, unit_price, invoice_id");
+
+    if (!items?.length) { setTopCategories([]); return; }
+
+    const invoiceIds = [...new Set(items.map((i: any) => i.invoice_id))];
+    const { data: invoices } = await supabase.from("sales_invoices").select("id").in("id", invoiceIds).eq("status", "posted");
+    const postedIds = new Set((invoices || []).map(i => i.id));
+
+    const productIds = [...new Set(items.filter((i: any) => i.product_id && postedIds.has(i.invoice_id)).map((i: any) => i.product_id))];
+    if (!productIds.length) { setTopCategories([]); return; }
+
+    const { data: products } = await supabase.from("products").select("id, category_id, purchase_price").in("id", productIds);
+    const { data: categories } = await supabase.from("product_categories").select("id, name");
+
+    const prodMap = new Map((products || []).map(p => [p.id, p]));
+    const catMap = new Map((categories || []).map(c => [c.id, c.name]));
+
+    const grouped = new Map<string, { sales: number; profit: number }>();
+
+    items.forEach((item: any) => {
+      if (!postedIds.has(item.invoice_id) || !item.product_id) return;
+      const prod = prodMap.get(item.product_id);
+      if (!prod) return;
+      const catName = prod.category_id ? (catMap.get(prod.category_id) || "بدون تصنيف") : "بدون تصنيف";
+      const cur = grouped.get(catName) || { sales: 0, profit: 0 };
+      cur.sales += Number(item.total);
+      cur.profit += Number(item.total) - (Number(prod.purchase_price) * Number(item.quantity));
+      grouped.set(catName, cur);
+    });
+
+    setTopCategories(
+      Array.from(grouped.entries())
+        .map(([name, d]) => ({ name, totalSales: d.sales, totalProfit: d.profit }))
+        .sort((a, b) => b.totalSales - a.totalSales)
+        .slice(0, 8)
+    );
   };
 
-  const statusClass = (s: string) => {
-    switch (s) {
-      case "posted": return "bg-primary/10 text-primary border-primary/20";
-      case "paid": return "bg-success/10 text-success border-success/20";
-      case "draft": return "bg-muted text-muted-foreground border-border";
-      default: return "bg-warning/10 text-warning border-warning/20";
-    }
+  const netProfit = totalSales - totalPurchases - totalExpenses - totalSalesReturns + totalPurchaseReturns;
+  const profitMargin = totalSales > 0 ? ((netProfit / totalSales) * 100).toFixed(1) : "0";
+
+  const renderChange = (change: number | null) => {
+    if (change === null) return <span className="text-xs text-muted-foreground">لا توجد بيانات سابقة</span>;
+    const isPositive = change >= 0;
+    return (
+      <span className={`text-xs font-semibold flex items-center gap-0.5 ${isPositive ? "text-success" : "text-destructive"}`}>
+        {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+        {Math.abs(change).toFixed(1)}%
+        <span className="text-muted-foreground font-normal mr-1">مقارنة بالشهر السابق</span>
+      </span>
+    );
   };
-
-  const profitMargin = summary.totalSales > 0 ? ((summary.netProfit / summary.totalSales) * 100).toFixed(1) : "0";
-
-  const summaryCards = [
-    {
-      title: "إجمالي المبيعات",
-      value: formatCurrency(summary.totalSales),
-      change: "+12.5%",
-      icon: DollarSign,
-      iconBg: "bg-primary/10",
-      iconColor: "text-primary",
-      changeColor: "text-success",
-    },
-    {
-      title: "المصروفات التشغيلية",
-      value: formatCurrency(summary.totalPurchases),
-      change: "+5.2%",
-      icon: ShoppingCart,
-      iconBg: "bg-warning/10",
-      iconColor: "text-warning",
-      changeColor: "text-success",
-    },
-    {
-      title: "صافي الربح",
-      value: formatCurrency(summary.netProfit),
-      change: `${profitMargin}%${summary.netProfit >= 0 ? "-" : "+"}`,
-      icon: summary.netProfit >= 0 ? TrendingUp : TrendingDown,
-      iconBg: summary.netProfit >= 0 ? "bg-success/10" : "bg-destructive/10",
-      iconColor: summary.netProfit >= 0 ? "text-success" : "text-destructive",
-      changeColor: summary.netProfit >= 0 ? "text-destructive" : "text-success",
-    },
-    {
-      title: "الذمم المدينة",
-      value: `${summary.lowStockCount}`,
-      change: "+15.0%",
-      icon: Package,
-      iconBg: "bg-accent",
-      iconColor: "text-accent-foreground",
-      changeColor: "text-success",
-    },
-  ];
 
   return (
     <div className="space-y-5">
-      {/* KPI Cards - matching reference */}
+      {/* Row 1: Primary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {summaryCards.map((card) => (
-          <Card key={card.title} className="border-border/60 shadow-none hover:shadow-sm transition-shadow">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <div className="space-y-3">
-                  <p className="text-xs text-muted-foreground">{card.title}</p>
-                  <p className="text-2xl font-bold tracking-tight">{card.value}</p>
+        {/* Sales */}
+        <Card className="border-border/60 shadow-none hover:shadow-sm transition-shadow">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">إجمالي المبيعات</p>
+                <p className="text-2xl font-bold tracking-tight">{formatCurrency(totalSales)}</p>
+                {renderChange(salesChange)}
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Purchases */}
+        <Card className="border-border/60 shadow-none hover:shadow-sm transition-shadow">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">إجمالي المشتريات</p>
+                <p className="text-2xl font-bold tracking-tight">{formatCurrency(totalPurchases)}</p>
+                {renderChange(purchasesChange)}
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
+                <ShoppingCart className="w-5 h-5 text-warning" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Net Profit */}
+        <Card className="border-border/60 shadow-none hover:shadow-sm transition-shadow border-r-4 border-r-primary">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">صافي الربح</p>
+                <p className={`text-2xl font-bold tracking-tight ${netProfit >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(netProfit)}</p>
+                <span className="text-xs text-muted-foreground">هامش الربح {profitMargin}%</span>
+              </div>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${netProfit >= 0 ? "bg-success/10" : "bg-destructive/10"}`}>
+                {netProfit >= 0 ? <TrendingUp className="w-5 h-5 text-success" /> : <TrendingDown className="w-5 h-5 text-destructive" />}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Expenses */}
+        <Card className="border-border/60 shadow-none hover:shadow-sm transition-shadow">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">إجمالي المصروفات</p>
+                <p className="text-2xl font-bold tracking-tight">{formatCurrency(totalExpenses)}</p>
+                {renderChange(expensesChange)}
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+                <ReceiptText className="w-5 h-5 text-destructive" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 2: Secondary KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card className="border-border/60 shadow-none">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Users className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground">المستحقات (مدين)</p>
+              <p className="text-lg font-bold">{formatCurrency(receivables)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 shadow-none">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center flex-shrink-0">
+              <Landmark className="w-5 h-5 text-warning" />
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground">المطلوبات (دائن)</p>
+              <p className="text-lg font-bold">{formatCurrency(payables)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 shadow-none">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center flex-shrink-0">
+              <Boxes className="w-5 h-5 text-success" />
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground">قيمة المخزون</p>
+              <p className="text-lg font-bold">{formatCurrency(inventoryValue)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 shadow-none">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${lowStockCount > 0 ? "bg-destructive/10" : "bg-success/10"}`}>
+              <AlertTriangle className={`w-5 h-5 ${lowStockCount > 0 ? "text-destructive" : "text-success"}`} />
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground">نقص المخزون</p>
+              <p className="text-lg font-bold">{lowStockCount} <span className="text-xs font-normal text-muted-foreground">صنف</span></p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Middle Section: Charts + Right Column */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Left: Charts (2 cols) */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Bar Chart */}
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-bold">التحليل المالي (المبيعات مقابل المشتريات)</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">آخر 6 أشهر</p>
+              </div>
+              <Badge variant="outline" className="text-xs border-border/60 text-muted-foreground">
+                <BarChart3 className="w-3 h-3 ml-1" /> {new Date().getFullYear()}
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={monthlyData.slice(-6)} barSize={36}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="name" fontSize={12} axisLine={false} tickLine={false} />
+                  <YAxis fontSize={11} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", fontSize: "12px" }} />
+                  <Bar dataKey="مبيعات" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="مشتريات" fill="hsl(var(--primary) / 0.25)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Line Chart - Expenses */}
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-bold">تحليل المصروفات الشهرية</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={monthlyExpenses.slice(-6)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="name" fontSize={12} axisLine={false} tickLine={false} />
+                  <YAxis fontSize={11} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", fontSize: "12px" }} />
+                  <Line type="monotone" dataKey="مصروفات" stroke="hsl(var(--destructive))" strokeWidth={2.5} dot={{ r: 4, fill: "hsl(var(--destructive))" }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-4">
+          {/* Liquidity */}
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-primary" /> السيولة النقدية
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="text-center py-2">
+                <p className="text-xs text-muted-foreground">الإجمالي</p>
+                <p className="text-2xl font-bold text-primary">{formatCurrency(liquidity.total)}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <p className="text-[11px] text-muted-foreground">البنوك</p>
+                  <p className="text-sm font-bold">{formatCurrency(liquidity.bank)}</p>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <Badge variant="outline" className={`text-[10px] font-semibold px-1.5 py-0 border-0 ${card.changeColor} bg-transparent`}>
-                    {card.change}
-                  </Badge>
-                  <div className={`w-10 h-10 rounded-xl ${card.iconBg} flex items-center justify-center`}>
-                    <card.icon className={`w-5 h-5 ${card.iconColor}`} />
-                  </div>
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <p className="text-[11px] text-muted-foreground">الصندوق</p>
+                  <p className="text-sm font-bold">{formatCurrency(liquidity.cash)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-        ))}
+
+          {/* Expenses by Type */}
+          {expensesByType.length > 0 && (
+            <Card className="border-border/60 shadow-none">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-bold">تفاصيل المصروفات</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {expensesByType.map(et => (
+                  <div key={et.name} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
+                    <span className="text-sm">{et.name}</span>
+                    <span className="text-sm font-bold font-mono">{formatCurrency(et.amount)}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Recent Activities */}
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-base font-bold">أحدث الحركات</CardTitle>
+              <button onClick={() => navigate("/sales")} className="text-xs text-primary hover:underline font-medium">عرض الكل</button>
+            </CardHeader>
+            <CardContent className="space-y-1 px-3">
+              {recentActivities.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">لا توجد حركات بعد</p>
+              ) : (
+                recentActivities.map(act => (
+                  <div key={act.id} className="flex items-center gap-3 py-2.5 px-2 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer"
+                    onClick={() => navigate(act.type === "sale" ? `/sales/${act.id}` : `/purchases/${act.id}`)}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${act.type === "sale" ? "bg-success/10" : "bg-primary/10"}`}>
+                      {act.type === "sale" ? <ArrowDownLeft className="w-4 h-4 text-success" /> : <ArrowUpRight className="w-4 h-4 text-primary" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{act.title}</p>
+                      <p className="text-[11px] text-muted-foreground">{act.subtitle}</p>
+                    </div>
+                    <span className={`text-sm font-bold ${act.type === "sale" ? "text-success" : "text-foreground"}`}>
+                      {act.type === "sale" ? "+" : "-"}{formatCurrency(act.amount)}
+                    </span>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Charts + Recent Activity Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Revenue Chart - 2 cols */}
-        <Card className="lg:col-span-2 border-border/60 shadow-none">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-base font-bold">تحليل الإيرادات والتدفقات النقدية</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">نظرة عامة على أداء السنة الأخيرة</p>
-            </div>
-            <Badge variant="outline" className="text-xs font-medium border-border/60 text-muted-foreground">
-              آخر 6 أشهر
-            </Badge>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={monthlyData.slice(-6)} barSize={40}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="name" fontSize={12} axisLine={false} tickLine={false} />
-                <YAxis fontSize={11} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "8px",
-                    border: "1px solid hsl(var(--border))",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                    fontSize: "12px",
-                  }}
-                />
-                <Bar dataKey="مبيعات" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="مشتريات" fill="hsl(var(--primary) / 0.2)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card className="border-border/60 shadow-none">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-bold">أحدث الحركات</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 px-3">
-            {recentInvoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">لا توجد حركات بعد</p>
-            ) : (
-              recentInvoices.slice(0, 4).map((inv) => (
-                <div key={inv.id} className="flex items-center gap-3 py-2.5 px-2 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer" onClick={() => navigate(`/sales/${inv.id}`)}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${inv.status === "posted" ? "bg-success/10" : "bg-primary/10"}`}>
-                    {inv.status === "posted" ? (
-                      <ArrowDownLeft className="w-4 h-4 text-success" />
-                    ) : (
-                      <ArrowUpRight className="w-4 h-4 text-primary" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{inv.customer_name}</p>
-                    <p className="text-[11px] text-muted-foreground">فاتورة #{inv.invoice_number}</p>
-                  </div>
-                  <span className={`text-sm font-bold ${inv.status === "posted" ? "text-success" : "text-foreground"}`}>
-                    {formatCurrency(inv.total)}
-                  </span>
-                </div>
-              ))
-            )}
-            {recentInvoices.length > 0 && (
-              <button onClick={() => navigate("/sales")} className="w-full text-center text-xs text-primary hover:underline pt-2 pb-1 font-medium">
-                عرض كافة العمليات
-              </button>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Pending Invoices Table */}
-      {recentInvoices.length > 0 && (
+      {/* Bottom Tables */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Unpaid Invoices */}
         <Card className="border-border/60 shadow-none">
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-base font-bold">الفواتير المعلقة</CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="text-xs h-8">تصدير PDF</Button>
-              <Button variant="default" size="sm" className="text-xs h-8">فلترة النتائج</Button>
-            </div>
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <ReceiptText className="w-4 h-4 text-warning" /> فواتير لم تسدد
+            </CardTitle>
+            <Badge variant="outline" className="text-xs">{unpaidInvoices.length} فاتورة</Badge>
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="text-right text-xs font-bold text-muted-foreground">رقم الفاتورة</TableHead>
-                  <TableHead className="text-right text-xs font-bold text-muted-foreground">العميل</TableHead>
-                  <TableHead className="text-right text-xs font-bold text-muted-foreground">المبلغ</TableHead>
-                  <TableHead className="text-right text-xs font-bold text-muted-foreground">الحالة</TableHead>
-                  <TableHead className="text-right text-xs font-bold text-muted-foreground">الإجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentInvoices.map((inv) => (
-                  <TableRow key={inv.id} className="cursor-pointer" onClick={() => navigate(`/sales/${inv.id}`)}>
-                    <TableCell className="font-mono text-sm font-medium">#{inv.invoice_number}</TableCell>
-                    <TableCell className="text-sm">{inv.customer_name}</TableCell>
-                    <TableCell className="text-sm font-semibold">{formatCurrency(inv.total)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`text-[10px] ${statusClass(inv.status)}`}>
-                        {statusLabel(inv.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-muted-foreground">⋮</span>
-                    </TableCell>
+            {unpaidInvoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">لا توجد فواتير معلقة</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-xs">رقم الفاتورة</TableHead>
+                    <TableHead className="text-xs">العميل</TableHead>
+                    <TableHead className="text-xs">الإجمالي</TableHead>
+                    <TableHead className="text-xs">المتبقي</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {unpaidInvoices.map(inv => (
+                    <TableRow key={inv.id} className="cursor-pointer" onClick={() => navigate(`/sales/${inv.id}`)}>
+                      <TableCell className="font-mono text-sm">#{inv.invoice_number}</TableCell>
+                      <TableCell className="text-sm">{inv.customer_name}</TableCell>
+                      <TableCell className="text-sm">{formatCurrency(inv.total)}</TableCell>
+                      <TableCell className="text-sm font-bold text-destructive">{formatCurrency(inv.remaining)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
-      )}
+
+        {/* Top Products */}
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <Award className="w-4 h-4 text-primary" /> الأصناف الأكثر مبيعاً
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {topProducts.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">لا توجد بيانات مبيعات</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-xs">#</TableHead>
+                    <TableHead className="text-xs">الصنف</TableHead>
+                    <TableHead className="text-xs">الكمية</TableHead>
+                    <TableHead className="text-xs">الإجمالي</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topProducts.map((p, idx) => (
+                    <TableRow key={p.product_id}>
+                      <TableCell className="text-sm font-mono">{idx + 1}</TableCell>
+                      <TableCell className="text-sm font-medium">{p.name}</TableCell>
+                      <TableCell className="text-sm">{p.totalQty}</TableCell>
+                      <TableCell className="text-sm font-bold">{formatCurrency(p.totalAmount)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Low Stock Table */}
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-warning" /> تنبيهات المخزون المنخفض
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {lowStockItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">لا توجد أصناف منخفضة</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-xs">الصنف</TableHead>
+                    <TableHead className="text-xs">الكمية الحالية</TableHead>
+                    <TableHead className="text-xs">الحد الأدنى</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lowStockItems.map(item => (
+                    <TableRow key={item.name}>
+                      <TableCell className="text-sm font-medium">{formatProductDisplay(item.name, item.brandName, item.modelNumber)}</TableCell>
+                      <TableCell className="text-sm font-bold text-destructive">{item.quantity_on_hand}</TableCell>
+                      <TableCell className="text-sm">{item.min_stock_level}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top Categories */}
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <Package className="w-4 h-4 text-primary" /> الفئات الأكثر مبيعاً وربحية
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {topCategories.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">لا توجد بيانات</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-xs">الفئة</TableHead>
+                    <TableHead className="text-xs">إجمالي المبيعات</TableHead>
+                    <TableHead className="text-xs">إجمالي الربح</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topCategories.map(cat => (
+                    <TableRow key={cat.name}>
+                      <TableCell className="text-sm font-medium">{cat.name}</TableCell>
+                      <TableCell className="text-sm">{formatCurrency(cat.totalSales)}</TableCell>
+                      <TableCell className={`text-sm font-bold ${cat.totalProfit >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(cat.totalProfit)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Account Balances */}
       {accountBalances.length > 0 && (
         <Card className="border-border/60 shadow-none">
           <CardHeader className="border-b border-border/40 py-3 flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2 font-bold">
-              <Calculator className="h-4 w-4 text-primary" />
-              ملخص أرصدة الحسابات
+              <Calculator className="h-4 w-4 text-primary" /> ملخص أرصدة الحسابات
             </CardTitle>
-            <button onClick={() => navigate("/ledger")} className="text-xs text-primary hover:underline font-medium">
-              عرض التفاصيل ←
-            </button>
+            <button onClick={() => navigate("/ledger")} className="text-xs text-primary hover:underline font-medium">عرض التفاصيل ←</button>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="text-right text-xs">الرمز</TableHead>
-                  <TableHead className="text-right text-xs">اسم الحساب</TableHead>
-                  <TableHead className="text-right text-xs">إجمالي المدين</TableHead>
-                  <TableHead className="text-right text-xs">إجمالي الدائن</TableHead>
-                  <TableHead className="text-right text-xs">الرصيد</TableHead>
+                  <TableHead className="text-xs">الرمز</TableHead>
+                  <TableHead className="text-xs">اسم الحساب</TableHead>
+                  <TableHead className="text-xs">إجمالي المدين</TableHead>
+                  <TableHead className="text-xs">إجمالي الدائن</TableHead>
+                  <TableHead className="text-xs">الرصيد</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {accountBalances.map((acc) => (
+                {accountBalances.map(acc => (
                   <TableRow key={acc.id} className="cursor-pointer" onClick={() => navigate("/ledger")}>
                     <TableCell className="font-mono text-xs">{acc.code}</TableCell>
                     <TableCell className="text-sm font-medium">{acc.name}</TableCell>
@@ -473,33 +869,6 @@ export default function Dashboard() {
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Low Stock Alerts */}
-      {lowStockItems.length > 0 && (
-        <Card className="border-border/60 shadow-none">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2 font-bold">
-              <AlertTriangle className="w-4 h-4 text-warning" />
-              تنبيهات المخزون
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {lowStockItems.map((item) => (
-                <div key={item.name} className="flex items-center justify-between py-2 px-3 rounded-lg bg-destructive/5 border border-destructive/10">
-                  <div>
-                    <p className="text-sm font-medium">{formatProductDisplay(item.name, item.brandName, item.modelNumber)}</p>
-                    <p className="text-[11px] text-muted-foreground">الحد الأدنى: {item.min_stock_level}</p>
-                  </div>
-                  <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10 font-bold">
-                    {item.quantity_on_hand} وحدة
-                  </Badge>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
       )}
