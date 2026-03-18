@@ -233,8 +233,8 @@ export default function GrowthAnalytics() {
 
   // --- Export ---
   const getExportData = () => {
-    const headers = ["الشهر", "المبيعات", "المشتريات", "المصروفات", "مجمل الربح"];
-    const rows = chartData.map((m) => [m.month, m.sales, m.purchases, m.expenses, m.profit]);
+    const headers = ["الشهر", "المبيعات", "المشتريات", "المصروفات", "مجمل الربح", "صافي الربح"];
+    const rows = chartData.map((m) => [m.month, m.sales, m.purchases, m.expenses, m.grossProfit, m.netProfit]);
     return { headers, rows };
   };
 
