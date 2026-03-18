@@ -157,12 +157,9 @@ export default function SalesReport() {
       header: "رقم الفاتورة",
       cell: ({ row }) => {
         const inv = row.original;
-        const display = formatDisplayNumber(
-          settings?.sales_invoice_prefix || "INV-",
-          inv.posted_number,
-          inv.invoice_number,
-          inv.status
-        );
+        const prefix = settings?.sales_invoice_prefix || "INV-";
+        const num = inv.posted_number || inv.invoice_number;
+        const display = `${prefix}${String(num).padStart(4, "0")}`;
         return (
           <button
             className="text-primary hover:underline font-mono font-medium"
@@ -404,12 +401,16 @@ export default function SalesReport() {
         sheetName: "المبيعات",
         pdfTitle: `تقرير المبيعات (${dateFrom} - ${dateTo})`,
         headers: ["رقم", "التاريخ", "العميل", "الحالة", "الإجمالي", "المدفوع", "المتبقي", "متأخر"],
-        rows: filtered.map(inv => [
-          inv.invoice_number, inv.invoice_date, inv.customer?.name || "-",
-          inv.status === "posted" ? "مُرحّل" : inv.status === "cancelled" ? "ملغي" : "مسودة",
-          Number(inv.total), Number(inv.paid_amount), Number(inv.total) - Number(inv.paid_amount),
-          isOverdue(inv) ? "نعم" : "",
-        ]),
+        rows: filtered.map(inv => {
+          const prefix = settings?.sales_invoice_prefix || "INV-";
+          const num = inv.posted_number || inv.invoice_number;
+          return [
+            `${prefix}${String(num).padStart(4, "0")}`, inv.invoice_date, inv.customer?.name || "-",
+            inv.status === "posted" ? "مُرحّل" : inv.status === "cancelled" ? "ملغي" : "مسودة",
+            Number(inv.total), Number(inv.paid_amount), Number(inv.total) - Number(inv.paid_amount),
+            isOverdue(inv) ? "نعم" : "",
+          ];
+        }),
         summaryCards,
         settings,
         pdfOrientation: "landscape" as const,
@@ -509,7 +510,7 @@ export default function SalesReport() {
       </Card>
 
       {/* ── KPI Cards (ProductAnalytics style) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {/* عدد الفواتير */}
         <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
