@@ -254,8 +254,10 @@ export default function GrowthAnalytics() {
       summaryCards: [
         { label: "إجمالي المبيعات", value: fmtN(totalSales) },
         { label: "إجمالي المشتريات", value: fmtN(totalPurchases) },
+        { label: "المصروفات التشغيلية", value: fmtN(totalExpenses) },
         { label: "مجمل الربح", value: fmtN(grossProfit) },
-        { label: "هامش الربح", value: profitMargin.toFixed(1) + "%" },
+        { label: "صافي الربح", value: fmtN(netProfit) },
+        { label: "هامش صافي الربح", value: netMargin.toFixed(1) + "%" },
       ],
       filename: `تحليلات-النمو`,
       orientation: "landscape",
