@@ -24,6 +24,8 @@ import {
   Banknote,
   BarChart3,
   Award,
+  Target,
+  PackageX,
 } from "lucide-react";
 import {
   BarChart,
