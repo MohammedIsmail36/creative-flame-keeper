@@ -166,7 +166,7 @@ export default function SalesReport() {
         return (
           <button
             className="text-primary hover:underline font-mono font-medium"
-            onClick={(e) => { e.stopPropagation(); navigate(`/sales/${inv.id}/edit`); }}
+            onClick={(e) => { e.stopPropagation(); navigate(`/sales/${inv.id}`); }}
           >
             {display}
           </button>
