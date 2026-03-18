@@ -261,15 +261,25 @@ export default function Expenses() {
 
   const totalPosted = filtered.filter(e => e.status === "posted").reduce((s, e) => s + e.amount, 0);
 
-  const exportColumns = [
-    { header: "الرقم", accessor: (e: Expense) => formatDisplayNumber(prefix, e.posted_number, e.expense_number, e.status) },
-    { header: "التاريخ", accessor: "expense_date" as const },
-    { header: "نوع المصروف", accessor: "expense_type_name" as const },
-    { header: "المبلغ", accessor: "amount" as const },
-    { header: "طريقة الدفع", accessor: (e: Expense) => methodLabels[e.payment_method] || e.payment_method },
-    { header: "البيان", accessor: (e: Expense) => e.description || "" },
-    { header: "الحالة", accessor: (e: Expense) => statusLabels[e.status] || e.status },
-  ];
+  const exportHeaders = ["الرقم", "التاريخ", "نوع المصروف", "المبلغ", "طريقة الدفع", "البيان", "الحالة"];
+  const exportRows = filtered.map(e => [
+    formatDisplayNumber(prefix, e.posted_number, e.expense_number, e.status),
+    e.expense_date,
+    e.expense_type_name || "",
+    e.amount,
+    methodLabels[e.payment_method] || e.payment_method,
+    e.description || "",
+    statusLabels[e.status] || e.status,
+  ]);
+
+  const exportConfig = {
+    filenamePrefix: "expenses",
+    sheetName: "المصروفات",
+    pdfTitle: "المصروفات",
+    headers: exportHeaders,
+    rows: exportRows,
+    settings,
+  };
 
   return (
     <div className="space-y-6">

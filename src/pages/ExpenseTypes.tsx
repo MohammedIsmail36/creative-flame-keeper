@@ -188,7 +188,7 @@ export default function ExpenseTypes() {
 
       {/* Table */}
       <div className="rounded-xl border bg-card shadow-sm">
-        <DataTable columns={columns} data={types} searchKey="name" searchPlaceholder="بحث بنوع المصروف..." />
+        <DataTable columns={columns} data={types} showSearch searchPlaceholder="بحث بنوع المصروف..." />
       </div>
 
       {/* Dialog */}

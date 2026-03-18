@@ -180,7 +180,7 @@ export default function ExpenseForm() {
               <Label>نوع المصروف *</Label>
               <div className="mt-1">
                 <LookupCombobox
-                  options={typeOptions}
+                  items={expenseTypes.map(t => ({ id: t.id, name: t.name }))}
                   value={expenseTypeId}
                   onValueChange={setExpenseTypeId}
                   placeholder="اختر نوع المصروف..."
