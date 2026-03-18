@@ -53,6 +53,7 @@ const referenceRouteMap: Record<string, string> = {
   purchase_return: "/purchase-returns",
   sales_return: "/sales-returns",
   inventory_adjustment: "/inventory-adjustments",
+  adjustment: "/inventory-adjustments",
 };
 
 interface MovementRow {
@@ -115,19 +116,27 @@ export default function InventoryMovements() {
     return movements.map((m: any) => {
       const pid = m.product_id;
       if (!(pid in balances)) balances[pid] = 0;
-      const isIn = inTypes.includes(m.movement_type);
-      balances[pid] += isIn ? Number(m.quantity) : -Number(m.quantity);
+      if (m.movement_type === "adjustment") {
+        // Adjustments store signed quantity: positive = gain, negative = loss
+        balances[pid] += Number(m.quantity);
+      } else {
+        const isIn = inTypes.includes(m.movement_type);
+        balances[pid] += isIn ? Number(m.quantity) : -Number(m.quantity);
+      }
       return { ...m, cumulativeBalance: balances[pid] };
     });
   }, [movements]);
 
   const totalIn = movementsWithBalance
-    .filter((m) => inTypes.includes(m.movement_type))
-    .reduce((s, m) => s + Number(m.quantity), 0);
+    .filter((m) => m.movement_type === "adjustment" ? Number(m.quantity) > 0 : inTypes.includes(m.movement_type))
+    .reduce((s, m) => s + Math.abs(Number(m.quantity)), 0);
   const totalOut = movementsWithBalance
-    .filter((m) => !inTypes.includes(m.movement_type))
-    .reduce((s, m) => s + Number(m.quantity), 0);
+    .filter((m) => m.movement_type === "adjustment" ? Number(m.quantity) < 0 : !inTypes.includes(m.movement_type))
+    .reduce((s, m) => s + Math.abs(Number(m.quantity)), 0);
   const totalValue = movementsWithBalance.reduce((s, m) => {
+    if (m.movement_type === "adjustment") {
+      return s + (Number(m.quantity) > 0 ? Number(m.total_cost) : -Number(m.total_cost));
+    }
     const isIn = inTypes.includes(m.movement_type);
     return s + (isIn ? Number(m.total_cost) : -Number(m.total_cost));
   }, 0);
@@ -205,10 +214,12 @@ export default function InventoryMovements() {
       id: "in_qty",
       header: "الوارد",
       cell: ({ row }) => {
-        const isIn = inTypes.includes(row.original.movement_type);
+        const mt = row.original.movement_type;
+        const qty = Number(row.original.quantity);
+        const isIn = mt === "adjustment" ? qty > 0 : inTypes.includes(mt);
         return isIn ? (
           <span className="font-bold text-emerald-600 font-mono">
-            +{Number(row.original.quantity).toLocaleString()}
+            +{Math.abs(qty).toLocaleString()}
           </span>
         ) : (
           <span className="text-muted-foreground/30">-</span>
@@ -219,9 +230,11 @@ export default function InventoryMovements() {
       id: "out_qty",
       header: "الصادر",
       cell: ({ row }) => {
-        const isIn = inTypes.includes(row.original.movement_type);
-        return !isIn ? (
-          <span className="font-bold text-rose-600 font-mono">-{Number(row.original.quantity).toLocaleString()}</span>
+        const mt = row.original.movement_type;
+        const qty = Number(row.original.quantity);
+        const isOut = mt === "adjustment" ? qty < 0 : !inTypes.includes(mt);
+        return isOut ? (
+          <span className="font-bold text-rose-600 font-mono">-{Math.abs(qty).toLocaleString()}</span>
         ) : (
           <span className="text-muted-foreground/30">-</span>
         );
@@ -262,8 +275,8 @@ export default function InventoryMovements() {
       p ? formatProductDisplay(p.name, p.product_brands?.name, p.model_number) : "",
       p?.code || "",
       movementTypeLabels[m.movement_type] || m.movement_type,
-      inTypes.includes(m.movement_type) ? m.quantity : "",
-      !inTypes.includes(m.movement_type) ? m.quantity : "",
+      (m.movement_type === "adjustment" ? Number(m.quantity) > 0 : inTypes.includes(m.movement_type)) ? Math.abs(m.quantity) : "",
+      (m.movement_type === "adjustment" ? Number(m.quantity) < 0 : !inTypes.includes(m.movement_type)) ? Math.abs(m.quantity) : "",
       m.unit_cost,
       m.total_cost,
       m.cumulativeBalance,

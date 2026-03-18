@@ -293,10 +293,12 @@ export default function InventoryAdjustmentForm() {
         await (supabase.from("inventory_movements" as any) as any).insert({
           product_id: item.product_id,
           movement_type: "adjustment",
-          quantity: Math.abs(item.difference),
+          quantity: item.difference,
           unit_cost: item.unit_cost,
           total_cost: item.total_cost,
           movement_date: adjustmentDate,
+          reference_id: id,
+          reference_type: "adjustment",
           notes: `تسوية جرد - ${item.difference > 0 ? "فائض" : "عجز"}: ${Math.abs(item.difference)} وحدة`,
           created_by: user?.id,
         });
