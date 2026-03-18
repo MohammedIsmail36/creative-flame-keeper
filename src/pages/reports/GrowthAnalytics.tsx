@@ -161,7 +161,13 @@ export default function GrowthAnalytics() {
   // Gross profit = Sales - Purchases (COGS proxy)
   const grossProfit = totalSales - totalPurchases;
   const prevGrossProfit = prevTotalSales - prevTotalPurchases;
-  const profitMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
+  const grossMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
+
+  // Net profit = Gross Profit - Operating Expenses
+  const netProfit = grossProfit - totalExpenses;
+  const prevNetProfit = prevGrossProfit - prevTotalExpenses;
+  const netMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
+
   const avgInvoice = salesData?.length ? totalSales / salesData.length : 0;
 
   const calcGrowth = (current: number, prev: number) => {
@@ -171,12 +177,12 @@ export default function GrowthAnalytics() {
 
   // --- Monthly chart data ---
   const chartData = useMemo(() => {
-    const monthlyData: Record<string, { month: string; sales: number; purchases: number; expenses: number; profit: number }> = {};
+    const monthlyData: Record<string, { month: string; sales: number; purchases: number; expenses: number; grossProfit: number; netProfit: number }> = {};
     for (let i = months - 1; i >= 0; i--) {
       const d = subMonths(new Date(), i);
       const key = format(d, "yyyy-MM");
       const label = format(d, "MMM yyyy", { locale: ar });
-      monthlyData[key] = { month: label, sales: 0, purchases: 0, expenses: 0, profit: 0 };
+      monthlyData[key] = { month: label, sales: 0, purchases: 0, expenses: 0, grossProfit: 0, netProfit: 0 };
     }
     salesData?.forEach((inv) => {
       const key = inv.invoice_date.substring(0, 7);
@@ -191,7 +197,8 @@ export default function GrowthAnalytics() {
       if (monthlyData[key]) monthlyData[key].expenses += Number(exp.amount);
     });
     Object.values(monthlyData).forEach((m) => {
-      m.profit = m.sales - m.purchases;
+      m.grossProfit = m.sales - m.purchases;
+      m.netProfit = m.grossProfit - m.expenses;
     });
     return Object.values(monthlyData);
   }, [salesData, purchasesData, expensesData, months]);
@@ -226,8 +233,8 @@ export default function GrowthAnalytics() {
 
   // --- Export ---
   const getExportData = () => {
-    const headers = ["الشهر", "المبيعات", "المشتريات", "المصروفات", "مجمل الربح"];
-    const rows = chartData.map((m) => [m.month, m.sales, m.purchases, m.expenses, m.profit]);
+    const headers = ["الشهر", "المبيعات", "المشتريات", "المصروفات", "مجمل الربح", "صافي الربح"];
+    const rows = chartData.map((m) => [m.month, m.sales, m.purchases, m.expenses, m.grossProfit, m.netProfit]);
     return { headers, rows };
   };
 
@@ -247,8 +254,10 @@ export default function GrowthAnalytics() {
       summaryCards: [
         { label: "إجمالي المبيعات", value: fmtN(totalSales) },
         { label: "إجمالي المشتريات", value: fmtN(totalPurchases) },
+        { label: "المصروفات التشغيلية", value: fmtN(totalExpenses) },
         { label: "مجمل الربح", value: fmtN(grossProfit) },
-        { label: "هامش الربح", value: profitMargin.toFixed(1) + "%" },
+        { label: "صافي الربح", value: fmtN(netProfit) },
+        { label: "هامش صافي الربح", value: netMargin.toFixed(1) + "%" },
       ],
       filename: `تحليلات-النمو`,
       orientation: "landscape",
@@ -296,11 +305,19 @@ export default function GrowthAnalytics() {
       bgColor: grossProfit >= 0 ? "bg-success/10" : "bg-destructive/10",
     },
     {
-      label: "هامش الربح",
-      value: profitMargin.toFixed(1) + "%",
+      label: "صافي الربح",
+      value: fmt(netProfit),
+      growth: calcGrowth(netProfit, prevNetProfit),
+      icon: DollarSign,
+      color: netProfit >= 0 ? "text-success" : "text-destructive",
+      bgColor: netProfit >= 0 ? "bg-success/10" : "bg-destructive/10",
+    },
+    {
+      label: "هامش صافي الربح",
+      value: netMargin.toFixed(1) + "%",
       icon: Percent,
-      color: profitMargin >= 0 ? "text-success" : "text-destructive",
-      bgColor: profitMargin >= 0 ? "bg-success/10" : "bg-destructive/10",
+      color: netMargin >= 0 ? "text-success" : "text-destructive",
+      bgColor: netMargin >= 0 ? "bg-success/10" : "bg-destructive/10",
       noGrowth: true,
     },
     {
@@ -317,8 +334,8 @@ export default function GrowthAnalytics() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-full" />
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+          {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
         <div className="grid md:grid-cols-2 gap-4">
           <Skeleton className="h-[300px]" />
@@ -352,7 +369,7 @@ export default function GrowthAnalytics() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         {kpiCards.map((kpi) => (
           <Card key={kpi.label} className="border-border/60 shadow-none">
             <CardContent className="p-4">
@@ -419,7 +436,8 @@ export default function GrowthAnalytics() {
                 <YAxis fontSize={10} tick={{ fill: "hsl(220, 8%, 46%)" }} />
                 <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ direction: "rtl", fontSize: 12 }} />
                 <Legend />
-                <Line type="monotone" dataKey="profit" name="مجمل الربح" stroke="hsl(152, 60%, 42%)" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="grossProfit" name="مجمل الربح" stroke="hsl(152, 60%, 42%)" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="netProfit" name="صافي الربح" stroke="hsl(217, 80%, 50%)" strokeWidth={2} dot={{ r: 3 }} />
                 <Line type="monotone" dataKey="expenses" name="المصروفات" stroke="hsl(0, 72%, 51%)" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 5" />
               </LineChart>
             </ResponsiveContainer>
