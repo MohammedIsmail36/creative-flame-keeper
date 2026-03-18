@@ -157,9 +157,12 @@ export default function SalesReport() {
       header: "رقم الفاتورة",
       cell: ({ row }) => {
         const inv = row.original;
-        const prefix = settings?.sales_invoice_prefix || "INV-";
-        const num = inv.posted_number || inv.invoice_number;
-        const display = `${prefix}${String(num).padStart(4, "0")}`;
+        const display = formatDisplayNumber(
+          settings?.sales_invoice_prefix || "INV-",
+          inv.posted_number,
+          inv.invoice_number,
+          inv.status
+        );
         return (
           <button
             className="text-primary hover:underline font-mono font-medium"
@@ -401,16 +404,13 @@ export default function SalesReport() {
         sheetName: "المبيعات",
         pdfTitle: `تقرير المبيعات (${dateFrom} - ${dateTo})`,
         headers: ["رقم", "التاريخ", "العميل", "الحالة", "الإجمالي", "المدفوع", "المتبقي", "متأخر"],
-        rows: filtered.map(inv => {
-          const prefix = settings?.sales_invoice_prefix || "INV-";
-          const num = inv.posted_number || inv.invoice_number;
-          return [
-            `${prefix}${String(num).padStart(4, "0")}`, inv.invoice_date, inv.customer?.name || "-",
-            inv.status === "posted" ? "مُرحّل" : inv.status === "cancelled" ? "ملغي" : "مسودة",
-            Number(inv.total), Number(inv.paid_amount), Number(inv.total) - Number(inv.paid_amount),
-            isOverdue(inv) ? "نعم" : "",
-          ];
-        }),
+        rows: filtered.map(inv => [
+          formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", inv.posted_number, inv.invoice_number, inv.status),
+          inv.invoice_date, inv.customer?.name || "-",
+          inv.status === "posted" ? "مُرحّل" : inv.status === "cancelled" ? "ملغي" : "مسودة",
+          Number(inv.total), Number(inv.paid_amount), Number(inv.total) - Number(inv.paid_amount),
+          isOverdue(inv) ? "نعم" : "",
+        ]),
         summaryCards,
         settings,
         pdfOrientation: "landscape" as const,
