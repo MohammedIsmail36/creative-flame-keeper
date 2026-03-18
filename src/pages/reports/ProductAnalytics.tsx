@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { FileSpreadsheet, FileText, Trophy, TrendingUp, DollarSign, Package, Medal, AlertTriangle, Info, ShoppingCart } from "lucide-react";
+import { CategoryTreeSelect } from "@/components/CategoryTreeSelect";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
