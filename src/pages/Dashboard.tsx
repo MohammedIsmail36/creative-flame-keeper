@@ -836,43 +836,39 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Account Balances */}
-      {accountBalances.length > 0 && (
-        <Card className="border-border/60 shadow-none">
-          <CardHeader className="border-b border-border/40 py-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2 font-bold">
-              <Calculator className="h-4 w-4 text-primary" /> ملخص أرصدة الحسابات
-            </CardTitle>
-            <button onClick={() => navigate("/ledger")} className="text-xs text-primary hover:underline font-medium">عرض التفاصيل ←</button>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="text-xs">الرمز</TableHead>
-                  <TableHead className="text-xs">اسم الحساب</TableHead>
-                  <TableHead className="text-xs">إجمالي المدين</TableHead>
-                  <TableHead className="text-xs">إجمالي الدائن</TableHead>
-                  <TableHead className="text-xs">الرصيد</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {accountBalances.map(acc => (
-                  <TableRow key={acc.id} className="cursor-pointer" onClick={() => navigate("/ledger")}>
-                    <TableCell className="font-mono text-xs">{acc.code}</TableCell>
-                    <TableCell className="text-sm font-medium">{acc.name}</TableCell>
-                    <TableCell className="text-sm">{formatCurrency(acc.debit)}</TableCell>
-                    <TableCell className="text-sm">{formatCurrency(acc.credit)}</TableCell>
-                    <TableCell className={`text-sm font-bold ${acc.balance >= 0 ? "text-success" : "text-destructive"}`}>
-                      {formatCurrency(Math.abs(acc.balance))} {acc.balance >= 0 ? "مدين" : "دائن"}
-                    </TableCell>
-                  </TableRow>
+      {/* Account Balances Summary */}
+      {accountBalances.length > 0 && (() => {
+        const typeGroups: Record<string, { label: string; total: number }> = {};
+        const typeLabels: Record<string, string> = { asset: "الأصول", liability: "الخصوم", equity: "حقوق الملكية", revenue: "الإيرادات", expense: "المصروفات" };
+        accountBalances.forEach(acc => {
+          const key = acc.account_type;
+          if (!typeGroups[key]) typeGroups[key] = { label: typeLabels[key] || key, total: 0 };
+          typeGroups[key].total += acc.balance;
+        });
+        return (
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="border-b border-border/40 py-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2 font-bold">
+                <Calculator className="h-4 w-4 text-primary" /> ملخص أرصدة الحسابات
+              </CardTitle>
+              <button onClick={() => navigate("/reports")} className="text-xs text-primary hover:underline font-medium">عرض التفاصيل ←</button>
+            </CardHeader>
+            <CardContent className="py-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {Object.entries(typeGroups).map(([key, g]) => (
+                  <div key={key} className="bg-muted/40 rounded-lg p-3 text-center">
+                    <p className="text-[11px] text-muted-foreground mb-1">{g.label}</p>
+                    <p className={`text-sm font-bold ${g.total >= 0 ? "text-foreground" : "text-destructive"}`}>
+                      {formatCurrency(Math.abs(g.total))}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{g.total >= 0 ? "مدين" : "دائن"}</p>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }
