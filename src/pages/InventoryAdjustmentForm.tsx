@@ -220,7 +220,9 @@ export default function InventoryAdjustmentForm() {
     if (!id) return;
     setSaving(true);
     try {
+      // 1. Fetch accounts
       const { data: invAccount } = await supabase.from("accounts").select("id").eq("code", ACCOUNT_CODES.INVENTORY).single();
+      if (!invAccount) throw new Error("حساب المخزون غير موجود - تأكد من وجود حساب بكود " + ACCOUNT_CODES.INVENTORY);
 
       let lossAccount: { id: string } | null = null;
       if (totalLoss > 0) {
@@ -228,10 +230,8 @@ export default function InventoryAdjustmentForm() {
         lossAccount = data;
         if (!lossAccount) {
           const { data: created } = await supabase.from("accounts").insert({
-            code: ACCOUNT_CODES.INVENTORY_ADJUSTMENT_LOSS,
-            name: "عجز المخزون",
-            account_type: "expense",
-            description: "خسائر ناتجة عن عجز الجرد",
+            code: ACCOUNT_CODES.INVENTORY_ADJUSTMENT_LOSS, name: "عجز المخزون",
+            account_type: "expense", description: "خسائر ناتجة عن عجز الجرد",
           }).select().single();
           lossAccount = created;
         }
@@ -243,17 +243,14 @@ export default function InventoryAdjustmentForm() {
         gainAccount = data;
         if (!gainAccount) {
           const { data: created } = await supabase.from("accounts").insert({
-            code: ACCOUNT_CODES.INVENTORY_ADJUSTMENT_GAIN,
-            name: "فائض المخزون",
-            account_type: "revenue",
-            description: "أرباح ناتجة عن فائض الجرد",
+            code: ACCOUNT_CODES.INVENTORY_ADJUSTMENT_GAIN, name: "فائض المخزون",
+            account_type: "revenue", description: "أرباح ناتجة عن فائض الجرد",
           }).select().single();
           gainAccount = created;
         }
       }
 
-      if (!invAccount) throw new Error("حساب المخزون غير موجود - تأكد من وجود حساب بكود " + ACCOUNT_CODES.INVENTORY);
-
+      // 2. Build journal entry lines
       const lines: { account_id: string; debit: number; credit: number; description: string }[] = [];
 
       if (totalLoss > 0 && lossAccount) {
@@ -269,13 +266,16 @@ export default function InventoryAdjustmentForm() {
       const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
       const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
 
+      // 3. Create journal entry with posted_number
       let journalEntryId: string | null = null;
       if (lines.length > 0) {
+        const postedNumber = await getNextPostedNumber("journal_entries");
         const { data: je, error: jeErr } = await (supabase.from("journal_entries" as any) as any)
           .insert({
             entry_date: adjustmentDate,
             description: `تسوية مخزون - جرد رقم ADJ-${adjustmentNumber}`,
             status: "posted",
+            posted_number: postedNumber,
             total_debit: totalDebit,
             total_credit: totalCredit,
             created_by: user?.id,
@@ -288,8 +288,17 @@ export default function InventoryAdjustmentForm() {
         if (linesErr) throw linesErr;
       }
 
+      // 4. Create inventory movements and update product quantities
       for (const item of items) {
         if (item.difference === 0) continue;
+
+        // Fetch fresh quantity to avoid stale data
+        const { data: freshProd } = await supabase.from("products")
+          .select("quantity_on_hand").eq("id", item.product_id).single();
+        if (!freshProd) continue;
+
+        const currentQty = Number(freshProd.quantity_on_hand);
+        const newQty = currentQty + item.difference;
 
         await (supabase.from("inventory_movements" as any) as any).insert({
           product_id: item.product_id,
@@ -300,15 +309,16 @@ export default function InventoryAdjustmentForm() {
           movement_date: adjustmentDate,
           reference_id: id,
           reference_type: "adjustment",
-          notes: `تسوية جرد - ${item.difference > 0 ? "فائض" : "عجز"}: ${Math.abs(item.difference)} وحدة`,
+          notes: `تسوية جرد ADJ-${adjustmentNumber} - ${item.difference > 0 ? "فائض" : "عجز"}: ${Math.abs(item.difference)} وحدة`,
           created_by: user?.id,
         });
 
         await supabase.from("products")
-          .update({ quantity_on_hand: item.actual_quantity })
+          .update({ quantity_on_hand: newQty })
           .eq("id", item.product_id);
       }
 
+      // 5. Update adjustment status
       await (supabase.from("inventory_adjustments" as any) as any)
         .update({ status: "approved", journal_entry_id: journalEntryId })
         .eq("id", id);
@@ -327,10 +337,17 @@ export default function InventoryAdjustmentForm() {
     if (!id) return;
     setSaving(true);
     try {
-      // 1. Reverse inventory quantities
+      // 1. Reverse inventory quantities (fetch fresh data)
       for (const item of items) {
         if (item.difference === 0) continue;
-        const restoredQty = item.system_quantity; // restore to original system quantity
+
+        const { data: freshProd } = await supabase.from("products")
+          .select("quantity_on_hand").eq("id", item.product_id).single();
+        if (!freshProd) continue;
+
+        const currentQty = Number(freshProd.quantity_on_hand);
+        const restoredQty = currentQty - item.difference; // reverse the difference
+
         await supabase.from("products")
           .update({ quantity_on_hand: restoredQty })
           .eq("id", item.product_id);
@@ -339,31 +356,57 @@ export default function InventoryAdjustmentForm() {
       // 2. Delete inventory movements for this adjustment
       await (supabase.from("inventory_movements" as any) as any)
         .delete()
-        .eq("reference_id", id);
+        .eq("reference_id", id)
+        .eq("reference_type", "adjustment");
 
-      // 3. Get and cancel journal entry
+      // 3. Create REVERSE journal entry (not just cancel the original)
       const { data: adj } = await (supabase.from("inventory_adjustments" as any) as any)
         .select("journal_entry_id")
         .eq("id", id)
         .single();
 
       if (adj?.journal_entry_id) {
-        await (supabase.from("journal_entry_lines" as any) as any)
-          .delete()
+        // Read original journal entry lines
+        const { data: origLines } = await supabase.from("journal_entry_lines")
+          .select("*")
           .eq("journal_entry_id", adj.journal_entry_id);
-        await (supabase.from("journal_entries" as any) as any)
-          .update({ status: "cancelled", total_debit: 0, total_credit: 0 })
-          .eq("id", adj.journal_entry_id);
+
+        if (origLines && origLines.length > 0) {
+          const totalDebit = origLines.reduce((s, l) => s + Number(l.credit), 0); // swap
+          const totalCredit = origLines.reduce((s, l) => s + Number(l.debit), 0); // swap
+          const postedNumber = await getNextPostedNumber("journal_entries");
+
+          const { data: reverseJe } = await supabase.from("journal_entries").insert({
+            description: `عكس تسوية مخزون - جرد رقم ADJ-${adjustmentNumber}`,
+            entry_date: new Date().toISOString().split("T")[0],
+            total_debit: totalDebit,
+            total_credit: totalCredit,
+            status: "posted",
+            posted_number: postedNumber,
+            created_by: user?.id,
+          } as any).select("id").single();
+
+          if (reverseJe) {
+            const reverseLines = origLines.map((line: any) => ({
+              journal_entry_id: reverseJe.id,
+              account_id: line.account_id,
+              debit: line.credit,   // swap debit/credit
+              credit: line.debit,   // swap debit/credit
+              description: `عكس - ${line.description}`,
+            }));
+            await supabase.from("journal_entry_lines").insert(reverseLines as any);
+          }
+        }
       }
 
-      // 4. Update adjustment status
+      // 4. Update adjustment status to cancelled
       await (supabase.from("inventory_adjustments" as any) as any)
-        .update({ status: "cancelled", journal_entry_id: null })
+        .update({ status: "cancelled" })
         .eq("id", id);
 
       setStatus("cancelled");
       setEditMode(false);
-      toast({ title: "تم إلغاء التسوية بنجاح", description: "تم استعادة كميات المخزون وإلغاء القيود المحاسبية" });
+      toast({ title: "تم إلغاء التسوية بنجاح", description: "تم استعادة كميات المخزون وتسجيل قيد عكسي" });
     } catch (e: any) {
       toast({ title: "خطأ في إلغاء التسوية", description: e.message, variant: "destructive" });
     } finally {
