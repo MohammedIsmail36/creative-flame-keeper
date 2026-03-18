@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { FileSpreadsheet, FileText, Trophy, TrendingUp, DollarSign, Package, Medal, AlertTriangle, Info, ShoppingCart } from "lucide-react";
+import { CategoryTreeSelect } from "@/components/CategoryTreeSelect";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -333,14 +334,28 @@ export default function ProductAnalytics() {
     <div className="space-y-4">
       {/* Filters */}
       <Card>
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-1"><Label>من تاريخ</Label><DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-40" /></div>
-            <div className="space-y-1"><Label>إلى تاريخ</Label><DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-40" /></div>
-            <div className="space-y-1">
-              <Label>نوع التقرير</Label>
+        <CardContent className="pt-5 pb-4">
+          <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
+            {/* Date Range */}
+            <div className="flex items-end gap-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">من تاريخ</Label>
+                <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-[150px]" />
+              </div>
+              <span className="pb-2 text-muted-foreground/40">—</span>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">إلى تاريخ</Label>
+                <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-[150px]" />
+              </div>
+            </div>
+
+            <div className="h-8 w-px bg-border hidden md:block" />
+
+            {/* Report Type */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">نوع التقرير</Label>
               <Select value={view} onValueChange={(v: any) => setView(v)}>
-                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="top-sellers">الأكثر مبيعاً</SelectItem>
                   <SelectItem value="most-profitable">الأكثر ربحية</SelectItem>
@@ -349,18 +364,26 @@ export default function ProductAnalytics() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
-              <Label>التصنيف</Label>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-44"><SelectValue placeholder="الكل" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">جميع التصنيفات</SelectItem>
-                  {categories?.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+
+            {/* Category Filter - Searchable Tree */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">التصنيف</Label>
+              <CategoryTreeSelect
+                categories={categories || []}
+                value={categoryFilter === "all" ? "" : categoryFilter}
+                onValueChange={(id) => setCategoryFilter(id || "all")}
+                placeholder="جميع التصنيفات"
+                className="w-[180px]"
+              />
             </div>
-            <Button variant="outline" onClick={handleExport} disabled={isLoading}><FileSpreadsheet className="w-4 h-4 ml-2" />Excel</Button>
-            <Button variant="outline" onClick={handlePdfExport} disabled={isLoading}><FileText className="w-4 h-4 ml-2" />PDF</Button>
+
+            <div className="h-8 w-px bg-border hidden md:block" />
+
+            {/* Export Buttons */}
+            <div className="flex items-end gap-2">
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={isLoading}><FileSpreadsheet className="w-4 h-4 ml-1.5" />Excel</Button>
+              <Button variant="outline" size="sm" onClick={handlePdfExport} disabled={isLoading}><FileText className="w-4 h-4 ml-1.5" />PDF</Button>
+            </div>
           </div>
         </CardContent>
       </Card>

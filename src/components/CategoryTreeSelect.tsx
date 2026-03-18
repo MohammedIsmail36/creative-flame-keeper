@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronsUpDown, ChevronLeft, Folder, FolderOpen, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ChevronsUpDown, ChevronLeft, Folder, FolderOpen, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CategoryItem {
@@ -48,20 +49,40 @@ function getFullPath(id: string, items: CategoryItem[]): string {
   return parts.join(" / ");
 }
 
+// Get all ancestor IDs for a given node
+function getAncestorIds(id: string, items: CategoryItem[]): Set<string> {
+  const map = new Map(items.map(i => [i.id, i]));
+  const ancestors = new Set<string>();
+  let current = map.get(id);
+  while (current?.parent_id) {
+    ancestors.add(current.parent_id);
+    current = map.get(current.parent_id);
+  }
+  return ancestors;
+}
+
 function TreeNodeItem({
   node,
   level,
   selectedId,
   onSelect,
+  searchQuery,
+  matchingIds,
 }: {
   node: TreeNode;
   level: number;
   selectedId: string;
   onSelect: (id: string) => void;
+  searchQuery: string;
+  matchingIds: Set<string>;
 }) {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children.length > 0;
   const isSelected = node.id === selectedId;
+  const isMatch = matchingIds.has(node.id);
+
+  // When searching, only show nodes that match or have matching descendants
+  if (searchQuery && !isMatch) return null;
 
   return (
     <div>
@@ -93,10 +114,10 @@ function TreeNodeItem({
         <span className="flex-1 truncate">{node.name}</span>
         {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
       </button>
-      {hasChildren && expanded && (
+      {hasChildren && (expanded || searchQuery) && (
         <div>
           {node.children.map(child => (
-            <TreeNodeItem key={child.id} node={child} level={level + 1} selectedId={selectedId} onSelect={onSelect} />
+            <TreeNodeItem key={child.id} node={child} level={level + 1} selectedId={selectedId} onSelect={onSelect} searchQuery={searchQuery} matchingIds={matchingIds} />
           ))}
         </div>
       )}
@@ -106,16 +127,32 @@ function TreeNodeItem({
 
 export function CategoryTreeSelect({ categories, value, onValueChange, placeholder = "اختر التصنيف", className }: CategoryTreeSelectProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const tree = useMemo(() => buildTree(categories), [categories]);
   const displayText = value ? getFullPath(value, categories) : placeholder;
+
+  // Build set of matching IDs (direct matches + their ancestors so the tree path is visible)
+  const matchingIds = useMemo(() => {
+    if (!search.trim()) return new Set<string>();
+    const query = search.trim().toLowerCase();
+    const directMatches = categories.filter(c => c.name.toLowerCase().includes(query));
+    const ids = new Set<string>();
+    directMatches.forEach(m => {
+      ids.add(m.id);
+      const ancestors = getAncestorIds(m.id, categories);
+      ancestors.forEach(a => ids.add(a));
+    });
+    return ids;
+  }, [search, categories]);
 
   const handleSelect = (id: string) => {
     onValueChange(id === value ? "" : id);
     setOpen(false);
+    setSearch("");
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(""); }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -132,14 +169,31 @@ export function CategoryTreeSelect({ categories, value, onValueChange, placehold
           <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-1 max-h-64 overflow-y-auto shadow-lg border-border/80" align="start" dir="rtl" sideOffset={5}>
-        {tree.length === 0 ? (
-          <p className="text-sm text-muted-foreground/70 text-center py-6">لا توجد تصنيفات</p>
-        ) : (
-          tree.map(node => (
-            <TreeNodeItem key={node.id} node={node} level={0} selectedId={value} onSelect={handleSelect} />
-          ))
-        )}
+      <PopoverContent className="w-72 p-0 shadow-lg border-border/80" align="start" dir="rtl" sideOffset={5}>
+        {/* Search Input */}
+        <div className="p-2 border-b">
+          <div className="relative">
+            <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+            <Input
+              placeholder="ابحث عن تصنيف..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 text-sm pr-8 border-0 bg-muted/50 focus-visible:ring-1"
+              autoFocus
+            />
+          </div>
+        </div>
+        <div className="p-1 max-h-64 overflow-y-auto">
+          {tree.length === 0 ? (
+            <p className="text-sm text-muted-foreground/70 text-center py-6">لا توجد تصنيفات</p>
+          ) : search.trim() && matchingIds.size === 0 ? (
+            <p className="text-sm text-muted-foreground/70 text-center py-6">لا توجد نتائج</p>
+          ) : (
+            tree.map(node => (
+              <TreeNodeItem key={node.id} node={node} level={0} selectedId={value} onSelect={handleSelect} searchQuery={search.trim()} matchingIds={matchingIds} />
+            ))
+          )}
+        </div>
       </PopoverContent>
     </Popover>
   );
