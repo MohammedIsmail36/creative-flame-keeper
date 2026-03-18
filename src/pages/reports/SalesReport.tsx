@@ -509,7 +509,7 @@ export default function SalesReport() {
       </Card>
 
       {/* ── KPI Cards (ProductAnalytics style) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {/* عدد الفواتير */}
         <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
