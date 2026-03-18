@@ -454,23 +454,24 @@ export default function SalesReport() {
   const isLoading = loadingInv;
 
   return (
-    <div className="space-y-4">
-      {/* ── Filters ── */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-1">
-              <Label>من تاريخ</Label>
-              <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-40" />
-            </div>
-            <div className="space-y-1">
-              <Label>إلى تاريخ</Label>
-              <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-40" />
-            </div>
-            <div className="space-y-1">
-              <Label>الحالة</Label>
+    <div className="space-y-5 p-1">
+      {/* ── Filters Card (ProductAnalytics style) ── */}
+      <Card className="border shadow-sm">
+        <CardContent className="py-3 px-4">
+          <div className="flex flex-wrap items-center justify-between gap-y-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+              {/* Date Range */}
+              <div className="flex items-center gap-2">
+                <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-[140px]" />
+                <span className="text-muted-foreground/30">—</span>
+                <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-[140px]" />
+              </div>
+
+              <div className="h-7 w-px bg-border/60 hidden md:block" />
+
+              {/* Status */}
               <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[130px] font-medium h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">الكل</SelectItem>
                   <SelectItem value="posted">مُرحّل</SelectItem>
@@ -478,11 +479,10 @@ export default function SalesReport() {
                   <SelectItem value="cancelled">ملغي</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>تجميع حسب</Label>
+
+              {/* Group By */}
               <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
-                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[140px] font-medium h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="invoice">الفاتورة</SelectItem>
                   <SelectItem value="customer">العميل</SelectItem>
@@ -490,49 +490,145 @@ export default function SalesReport() {
                   <SelectItem value="time">يومي/شهري</SelectItem>
                 </SelectContent>
               </Select>
+
+              {groupBy === "time" && (
+                <>
+                  <div className="h-7 w-px bg-border/60 hidden md:block" />
+                  <ToggleGroup type="single" value={timeMode} onValueChange={(v) => v && setTimeMode(v as any)} className="border rounded-lg p-0.5">
+                    <ToggleGroupItem value="daily" className="text-xs px-3 h-8">يومي</ToggleGroupItem>
+                    <ToggleGroupItem value="monthly" className="text-xs px-3 h-8">شهري</ToggleGroupItem>
+                  </ToggleGroup>
+                </>
+              )}
             </div>
-            {groupBy === "time" && (
-              <ToggleGroup type="single" value={timeMode} onValueChange={(v) => v && setTimeMode(v as any)} className="border rounded-lg p-0.5">
-                <ToggleGroupItem value="daily" className="text-xs px-3 h-8">يومي</ToggleGroupItem>
-                <ToggleGroupItem value="monthly" className="text-xs px-3 h-8">شهري</ToggleGroupItem>
-              </ToggleGroup>
-            )}
-            <ExportMenu config={exportConfig} disabled={isLoading} />
+
+            <div className="shrink-0">
+              <ExportMenu config={exportConfig} disabled={isLoading} />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Card><CardContent className="pt-4 text-center">
-          <div className="flex items-center justify-center gap-1.5 mb-1"><ReceiptText className="w-3.5 h-3.5 text-muted-foreground" /><p className="text-xs text-muted-foreground">عدد الفواتير</p></div>
-          <p className="text-xl font-bold">{kpi.count}</p>
-        </CardContent></Card>
-        <Card><CardContent className="pt-4 text-center">
-          <div className="flex items-center justify-center gap-1.5 mb-1"><DollarSign className="w-3.5 h-3.5 text-muted-foreground" /><p className="text-xs text-muted-foreground">إجمالي المبيعات</p></div>
-          <p className="text-xl font-bold text-primary">{fmt(kpi.grossSales)}</p>
-        </CardContent></Card>
-        <Card><CardContent className="pt-4 text-center">
-          <div className="flex items-center justify-center gap-1.5 mb-1"><ArrowDownLeft className="w-3.5 h-3.5 text-destructive" /><p className="text-xs text-muted-foreground">المرتجعات</p></div>
-          <p className="text-xl font-bold text-destructive">{fmt(kpi.returnsTotal)}</p>
-        </CardContent></Card>
-        <Card><CardContent className="pt-4 text-center">
-          <div className="flex items-center justify-center gap-1.5 mb-1"><TrendingUp className="w-3.5 h-3.5 text-success" /><p className="text-xs text-muted-foreground">صافي المبيعات</p></div>
-          <p className="text-xl font-bold text-success">{fmt(kpi.netSales)}</p>
-        </CardContent></Card>
-        <Card><CardContent className="pt-4 text-center">
-          <div className="flex items-center justify-center gap-1.5 mb-1">
-            {kpi.grossProfit >= 0 ? <TrendingUp className="w-3.5 h-3.5 text-success" /> : <TrendingDown className="w-3.5 h-3.5 text-destructive" />}
-            <p className="text-xs text-muted-foreground">إجمالي الربح</p>
-          </div>
-          <p className={`text-xl font-bold ${isPostedOnly ? (kpi.grossProfit >= 0 ? "text-success" : "text-destructive") : "text-muted-foreground"}`}>
-            {isPostedOnly ? fmt(kpi.grossProfit) : "—"}
-          </p>
-        </CardContent></Card>
-        <Card><CardContent className="pt-4 text-center">
-          <div className="flex items-center justify-center gap-1.5 mb-1"><Percent className="w-3.5 h-3.5 text-muted-foreground" /><p className="text-xs text-muted-foreground">نسبة التحصيل</p></div>
-          <p className="text-xl font-bold">{kpi.collectionRate.toFixed(1)}%</p>
-        </CardContent></Card>
+      {/* ── KPI Cards (ProductAnalytics style) ── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {/* عدد الفواتير */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 shadow-inner">
+                <ReceiptText className="w-5 h-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">عدد الفواتير</p>
+                {isLoading ? <Skeleton className="h-7 w-12" /> : (
+                  <p className="text-2xl font-extrabold tracking-tight tabular-nums">{kpi.count}</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* إجمالي المبيعات */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-blue-500/10 flex items-center justify-center shrink-0 shadow-inner">
+                <DollarSign className="w-5 h-5 text-blue-500" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">إجمالي المبيعات</p>
+                {isLoading ? <Skeleton className="h-7 w-20" /> : (
+                  <p className="text-2xl font-extrabold tracking-tight tabular-nums truncate">{fmt(kpi.grossSales)}</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* المرتجعات */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+          <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-destructive/10 flex items-center justify-center shrink-0 shadow-inner">
+                <ArrowDownLeft className="w-5 h-5 text-destructive" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">المرتجعات</p>
+                {isLoading ? <Skeleton className="h-7 w-16" /> : (
+                  <p className="text-2xl font-extrabold tracking-tight tabular-nums text-destructive">{fmt(kpi.returnsTotal)}</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* صافي المبيعات */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center shrink-0 shadow-inner">
+                <TrendingUp className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">صافي المبيعات</p>
+                {isLoading ? <Skeleton className="h-7 w-20" /> : (
+                  <p className="text-2xl font-extrabold tracking-tight tabular-nums truncate">{fmt(kpi.netSales)}</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* إجمالي الربح */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+          <div className="absolute inset-0 pointer-events-none" style={{
+            background: kpi.grossProfit >= 0
+              ? "linear-gradient(135deg, hsl(152 60% 42% / 0.06) 0%, transparent 60%)"
+              : "linear-gradient(135deg, hsl(0 72% 51% / 0.06) 0%, transparent 60%)",
+          }} />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-inner" style={{
+                background: kpi.grossProfit >= 0 ? "hsl(152 60% 42% / 0.12)" : "hsl(0 72% 51% / 0.12)",
+              }}>
+                {kpi.grossProfit >= 0
+                  ? <TrendingUp className="w-5 h-5" style={{ color: "hsl(152, 60%, 42%)" }} />
+                  : <TrendingDown className="w-5 h-5" style={{ color: "hsl(0, 72%, 51%)" }} />
+                }
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">إجمالي الربح</p>
+                {isLoading ? <Skeleton className="h-7 w-20" /> : (
+                  <p className={`text-2xl font-extrabold tracking-tight tabular-nums truncate ${isPostedOnly ? (kpi.grossProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive") : "text-muted-foreground"}`}>
+                    {isPostedOnly ? fmt(kpi.grossProfit) : "—"}
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* نسبة التحصيل */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center shrink-0 shadow-inner">
+                <Percent className="w-5 h-5 text-amber-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">نسبة التحصيل</p>
+                {isLoading ? <Skeleton className="h-7 w-16" /> : (
+                  <p className="text-2xl font-extrabold tracking-tight tabular-nums">{kpi.collectionRate.toFixed(1)}%</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* ── Chart (for time/customer/product modes) ── */}
