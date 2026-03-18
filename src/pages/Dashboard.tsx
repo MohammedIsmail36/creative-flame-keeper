@@ -780,7 +780,74 @@ export default function Dashboard() {
           المنطقة السفلية المتغيرة — جداول في صفوف من عمودين
          ═══════════════════════════════════════════════════════════ */}
 
-      {/* صف 1: فواتير لم تسدد + المخزون المنخفض */}
+      {/* صف 0: مبيعات آخر 7 أيام + فواتير لم تسدد */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        {/* Last 7 Days Sales */}
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-primary" /> مبيعات آخر 7 أيام
+            </CardTitle>
+            <button onClick={() => navigate("/reports/sales")} className="text-xs text-primary hover:underline font-medium">التفاصيل ←</button>
+          </CardHeader>
+          <CardContent className="p-0 max-h-[320px] overflow-auto">
+            {(() => {
+              // Build last 7 days from fetched invoices
+              const now = new Date();
+              const days: { date: string; count: number; total: number; paid: number }[] = [];
+              for (let i = 6; i >= 0; i--) {
+                const d = new Date(now);
+                d.setDate(d.getDate() - i);
+                const ds = d.toISOString().slice(0, 10);
+                days.push({ date: ds, count: 0, total: 0, paid: 0 });
+              }
+              // We need posted sales data — reuse what we have
+              // fetchKPIs already fetches all sales. Let's compute from a simple inline approach:
+              // We don't have the raw sales array here easily, so let's use a dedicated mini-query via state
+              return null; // placeholder, will be replaced by the real component below
+            })()}
+            <Last7DaysSalesTable formatCurrency={formatCurrency} />
+          </CardContent>
+        </Card>
+
+        {/* Unpaid Invoices — moved here */}
+        <Card className={`shadow-none ${unpaidInvoices.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <ReceiptText className={`w-4 h-4 ${unpaidInvoices.length > 0 ? "text-destructive" : "text-warning"}`} /> فواتير لم تسدد
+            </CardTitle>
+            <Badge variant={unpaidInvoices.length > 0 ? "destructive" : "outline"} className="text-xs">{unpaidInvoices.length} فاتورة</Badge>
+          </CardHeader>
+          <CardContent className="p-0 max-h-[320px] overflow-auto">
+            {unpaidInvoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">لا توجد فواتير معلقة</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-xs">رقم الفاتورة</TableHead>
+                    <TableHead className="text-xs">العميل</TableHead>
+                    <TableHead className="text-xs">الإجمالي</TableHead>
+                    <TableHead className="text-xs">المتبقي</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {unpaidInvoices.map(inv => (
+                    <TableRow key={inv.id} className="cursor-pointer" onClick={() => navigate(`/sales/${inv.id}`)}>
+                      <TableCell className="font-mono text-sm">#{inv.invoice_number}</TableCell>
+                      <TableCell className="text-sm">{inv.customer_name}</TableCell>
+                      <TableCell className="text-sm">{formatCurrency(inv.total)}</TableCell>
+                      <TableCell className="text-sm font-bold text-destructive">{formatCurrency(inv.remaining)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* صف 1: المخزون المنخفض + مخزون راكد */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         {/* Unpaid Invoices */}
         <Card className={`shadow-none ${unpaidInvoices.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
