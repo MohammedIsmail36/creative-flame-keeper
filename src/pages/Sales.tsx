@@ -166,15 +166,6 @@ export default function Sales() {
                 مسح الفلاتر
               </Button>
             )}
-            <ExportMenu config={{
-              filenamePrefix: "فواتير-البيع",
-              sheetName: "فواتير البيع",
-              pdfTitle: "فواتير البيع",
-              headers: ["رقم الفاتورة", "العميل", "التاريخ", "الإجمالي", "الحالة"],
-              rows: filtered.map(i => [formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status), i.customer_name || "—", i.invoice_date, formatCurrency(i.total), statusLabels[i.status] || i.status]),
-              settings: null,
-              pdfOrientation: "landscape",
-            }} disabled={loading} />
           </div>
         }
       />

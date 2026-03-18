@@ -177,14 +177,6 @@ export default function SalesReturns() {
                 مسح الفلاتر
               </Button>
             )}
-            <ExportMenu config={{
-              filenamePrefix: "مرتجعات-المبيعات",
-              sheetName: "مرتجعات المبيعات",
-              pdfTitle: "مرتجعات المبيعات",
-              headers: ["رقم المرتجع", "العميل", "التاريخ", "الإجمالي", "الحالة"],
-              rows: filtered.map(r => [formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status), r.customer_name || "—", r.return_date, formatCurrency(r.total), statusLabels[r.status] || r.status]),
-              settings,
-            }} disabled={loading} />
           </div>
         }
       />

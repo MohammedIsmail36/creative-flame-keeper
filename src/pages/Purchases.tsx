@@ -167,15 +167,6 @@ export default function Purchases() {
                 مسح الفلاتر
               </Button>
             )}
-            <ExportMenu config={{
-              filenamePrefix: "فواتير-الشراء",
-              sheetName: "فواتير الشراء",
-              pdfTitle: "فواتير الشراء",
-              headers: ["رقم الفاتورة", "المورد", "التاريخ", "الإجمالي", "الحالة"],
-              rows: filtered.map(i => [`#${i.invoice_number}`, i.supplier_name || "—", i.invoice_date, formatCurrency(i.total), statusLabels[i.status] || i.status]),
-              settings: null,
-              pdfOrientation: "landscape",
-            }} disabled={loading} />
           </div>
         }
       />
