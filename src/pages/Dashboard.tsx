@@ -791,21 +791,6 @@ export default function Dashboard() {
             <button onClick={() => navigate("/reports/sales")} className="text-xs text-primary hover:underline font-medium">التفاصيل ←</button>
           </CardHeader>
           <CardContent className="p-0 max-h-[320px] overflow-auto">
-            {(() => {
-              // Build last 7 days from fetched invoices
-              const now = new Date();
-              const days: { date: string; count: number; total: number; paid: number }[] = [];
-              for (let i = 6; i >= 0; i--) {
-                const d = new Date(now);
-                d.setDate(d.getDate() - i);
-                const ds = d.toISOString().slice(0, 10);
-                days.push({ date: ds, count: 0, total: 0, paid: 0 });
-              }
-              // We need posted sales data — reuse what we have
-              // fetchKPIs already fetches all sales. Let's compute from a simple inline approach:
-              // We don't have the raw sales array here easily, so let's use a dedicated mini-query via state
-              return null; // placeholder, will be replaced by the real component below
-            })()}
             <Last7DaysSalesTable formatCurrency={formatCurrency} />
           </CardContent>
         </Card>
