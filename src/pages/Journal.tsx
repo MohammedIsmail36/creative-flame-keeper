@@ -180,7 +180,7 @@ export default function Journal() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-foreground flex items-center">
+          <h2 className="text-3xl font-extrabold text-foreground flex items-center">
             <div className="bg-primary/10 p-2 rounded-lg ml-3">
               <FileText className="h-5 w-5 text-primary" />
             </div>
