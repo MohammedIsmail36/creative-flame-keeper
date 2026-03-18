@@ -849,42 +849,6 @@ export default function Dashboard() {
 
       {/* صف 1: المخزون المنخفض + مخزون راكد */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        {/* Unpaid Invoices */}
-        <Card className={`shadow-none ${unpaidInvoices.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <ReceiptText className={`w-4 h-4 ${unpaidInvoices.length > 0 ? "text-destructive" : "text-warning"}`} /> فواتير لم تسدد
-            </CardTitle>
-            <Badge variant={unpaidInvoices.length > 0 ? "destructive" : "outline"} className="text-xs">{unpaidInvoices.length} فاتورة</Badge>
-          </CardHeader>
-          <CardContent className="p-0 max-h-[320px] overflow-auto">
-            {unpaidInvoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">لا توجد فواتير معلقة</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30 hover:bg-muted/30">
-                    <TableHead className="text-xs">رقم الفاتورة</TableHead>
-                    <TableHead className="text-xs">العميل</TableHead>
-                    <TableHead className="text-xs">الإجمالي</TableHead>
-                    <TableHead className="text-xs">المتبقي</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {unpaidInvoices.map(inv => (
-                    <TableRow key={inv.id} className="cursor-pointer" onClick={() => navigate(`/sales/${inv.id}`)}>
-                      <TableCell className="font-mono text-sm">#{inv.invoice_number}</TableCell>
-                      <TableCell className="text-sm">{inv.customer_name}</TableCell>
-                      <TableCell className="text-sm">{formatCurrency(inv.total)}</TableCell>
-                      <TableCell className="text-sm font-bold text-destructive">{formatCurrency(inv.remaining)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Low Stock */}
         <Card className={`shadow-none ${lowStockItems.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
           <CardHeader className="pb-3">
@@ -918,7 +882,6 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
-      </div>
 
       {/* صف 2: مخزون راكد + تفاصيل المصروفات */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
