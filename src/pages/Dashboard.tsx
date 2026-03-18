@@ -496,9 +496,9 @@ export default function Dashboard() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">صافي الربح</p>
-                <p className={`text-2xl font-bold tracking-tight ${netProfit >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(netProfit)}</p>
-                <span className="text-xs text-muted-foreground">هامش الربح {profitMargin}%</span>
+                <p className="text-xs text-muted-foreground">{netProfit >= 0 ? "صافي الربح" : "صافي الخسارة"}</p>
+                <p className={`text-2xl font-bold tracking-tight ${netProfit >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(Math.abs(netProfit))}</p>
+                <span className="text-xs text-muted-foreground">{netProfit >= 0 ? "هامش الربح" : "هامش الخسارة"} {profitMargin}%</span>
               </div>
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${netProfit >= 0 ? "bg-success/10" : "bg-destructive/10"}`}>
                 {netProfit >= 0 ? <TrendingUp className="w-5 h-5 text-success" /> : <TrendingDown className="w-5 h-5 text-destructive" />}
@@ -698,12 +698,12 @@ export default function Dashboard() {
       {/* Bottom Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Unpaid Invoices */}
-        <Card className="border-border/60 shadow-none">
+        <Card className={`shadow-none ${unpaidInvoices.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <ReceiptText className="w-4 h-4 text-warning" /> فواتير لم تسدد
+              <ReceiptText className={`w-4 h-4 ${unpaidInvoices.length > 0 ? "text-destructive" : "text-warning"}`} /> فواتير لم تسدد
             </CardTitle>
-            <Badge variant="outline" className="text-xs">{unpaidInvoices.length} فاتورة</Badge>
+            <Badge variant={unpaidInvoices.length > 0 ? "destructive" : "outline"} className="text-xs">{unpaidInvoices.length} فاتورة</Badge>
           </CardHeader>
           <CardContent className="p-0">
             {unpaidInvoices.length === 0 ? (
@@ -769,10 +769,11 @@ export default function Dashboard() {
         </Card>
 
         {/* Low Stock Table */}
-        <Card className="border-border/60 shadow-none">
+        <Card className={`shadow-none ${lowStockItems.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-warning" /> تنبيهات المخزون المنخفض
+              <AlertTriangle className={`w-4 h-4 ${lowStockItems.length > 0 ? "text-destructive" : "text-warning"}`} /> تنبيهات المخزون المنخفض
+              {lowStockItems.length > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{lowStockItems.length}</Badge>}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -835,43 +836,39 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Account Balances */}
-      {accountBalances.length > 0 && (
-        <Card className="border-border/60 shadow-none">
-          <CardHeader className="border-b border-border/40 py-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2 font-bold">
-              <Calculator className="h-4 w-4 text-primary" /> ملخص أرصدة الحسابات
-            </CardTitle>
-            <button onClick={() => navigate("/ledger")} className="text-xs text-primary hover:underline font-medium">عرض التفاصيل ←</button>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="text-xs">الرمز</TableHead>
-                  <TableHead className="text-xs">اسم الحساب</TableHead>
-                  <TableHead className="text-xs">إجمالي المدين</TableHead>
-                  <TableHead className="text-xs">إجمالي الدائن</TableHead>
-                  <TableHead className="text-xs">الرصيد</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {accountBalances.map(acc => (
-                  <TableRow key={acc.id} className="cursor-pointer" onClick={() => navigate("/ledger")}>
-                    <TableCell className="font-mono text-xs">{acc.code}</TableCell>
-                    <TableCell className="text-sm font-medium">{acc.name}</TableCell>
-                    <TableCell className="text-sm">{formatCurrency(acc.debit)}</TableCell>
-                    <TableCell className="text-sm">{formatCurrency(acc.credit)}</TableCell>
-                    <TableCell className={`text-sm font-bold ${acc.balance >= 0 ? "text-success" : "text-destructive"}`}>
-                      {formatCurrency(Math.abs(acc.balance))} {acc.balance >= 0 ? "مدين" : "دائن"}
-                    </TableCell>
-                  </TableRow>
+      {/* Account Balances Summary */}
+      {accountBalances.length > 0 && (() => {
+        const typeGroups: Record<string, { label: string; total: number }> = {};
+        const typeLabels: Record<string, string> = { asset: "الأصول", liability: "الخصوم", equity: "حقوق الملكية", revenue: "الإيرادات", expense: "المصروفات" };
+        accountBalances.forEach(acc => {
+          const key = acc.account_type;
+          if (!typeGroups[key]) typeGroups[key] = { label: typeLabels[key] || key, total: 0 };
+          typeGroups[key].total += acc.balance;
+        });
+        return (
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="border-b border-border/40 py-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2 font-bold">
+                <Calculator className="h-4 w-4 text-primary" /> ملخص أرصدة الحسابات
+              </CardTitle>
+              <button onClick={() => navigate("/reports")} className="text-xs text-primary hover:underline font-medium">عرض التفاصيل ←</button>
+            </CardHeader>
+            <CardContent className="py-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {Object.entries(typeGroups).map(([key, g]) => (
+                  <div key={key} className="bg-muted/40 rounded-lg p-3 text-center">
+                    <p className="text-[11px] text-muted-foreground mb-1">{g.label}</p>
+                    <p className={`text-sm font-bold ${g.total >= 0 ? "text-foreground" : "text-destructive"}`}>
+                      {formatCurrency(Math.abs(g.total))}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{g.total >= 0 ? "مدين" : "دائن"}</p>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }

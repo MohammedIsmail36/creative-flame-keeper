@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, ShoppingCart, Package, Clock, TrendingUp, Award, FileText } from "lucide-react";
+import { BarChart3, ShoppingCart, Package, Clock, TrendingUp, Award, FileText, Calculator } from "lucide-react";
 import SalesReport from "./reports/SalesReport";
 import PurchasesReport from "./reports/PurchasesReport";
 import InventoryReport from "./reports/InventoryReport";
@@ -7,6 +7,7 @@ import DebtAgingReport from "./reports/DebtAgingReport";
 import GrowthAnalytics from "./reports/GrowthAnalytics";
 import ProductAnalytics from "./reports/ProductAnalytics";
 import AccountStatement from "./reports/AccountStatement";
+import AccountBalancesReport from "./reports/AccountBalancesReport";
 
 export default function Reports() {
   return (
@@ -21,6 +22,7 @@ export default function Reports() {
           <TabsTrigger value="growth" className="gap-1.5"><TrendingUp className="w-4 h-4" />تحليلات النمو</TabsTrigger>
           <TabsTrigger value="products" className="gap-1.5"><Award className="w-4 h-4" />تحليل المنتجات</TabsTrigger>
           <TabsTrigger value="statement" className="gap-1.5"><FileText className="w-4 h-4" />كشف حساب</TabsTrigger>
+          <TabsTrigger value="balances" className="gap-1.5"><Calculator className="w-4 h-4" />أرصدة الحسابات</TabsTrigger>
           <TabsTrigger value="sales" className="gap-1.5"><BarChart3 className="w-4 h-4" />المبيعات</TabsTrigger>
           <TabsTrigger value="purchases" className="gap-1.5"><ShoppingCart className="w-4 h-4" />المشتريات</TabsTrigger>
           <TabsTrigger value="inventory" className="gap-1.5"><Package className="w-4 h-4" />المخزون</TabsTrigger>
@@ -30,6 +32,7 @@ export default function Reports() {
         <TabsContent value="growth"><GrowthAnalytics /></TabsContent>
         <TabsContent value="products"><ProductAnalytics /></TabsContent>
         <TabsContent value="statement"><AccountStatement /></TabsContent>
+        <TabsContent value="balances"><AccountBalancesReport /></TabsContent>
         <TabsContent value="sales"><SalesReport /></TabsContent>
         <TabsContent value="purchases"><PurchasesReport /></TabsContent>
         <TabsContent value="inventory"><InventoryReport /></TabsContent>
