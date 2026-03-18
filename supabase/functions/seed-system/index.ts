@@ -92,6 +92,7 @@ Deno.serve(async (req) => {
             name: acc.name,
             account_type: acc.account_type,
             is_parent: acc.is_parent,
+            is_system: SYSTEM_CODES.includes(acc.code),
             parent_id,
           })
           .select("id")
