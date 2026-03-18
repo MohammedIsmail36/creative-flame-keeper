@@ -251,17 +251,13 @@ export default function Ledger() {
         emptyMessage="لا توجد حركات محاسبية"
         toolbarContent={
           <div className="flex items-center gap-2 flex-wrap">
-            <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-              <SelectTrigger className="w-56">
-                <SelectValue placeholder="اختر حساب" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">جميع الحسابات</SelectItem>
-                {accounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AccountCombobox
+              accounts={accounts}
+              value={selectedAccountId === "all" ? "" : selectedAccountId}
+              onValueChange={(val) => setSelectedAccountId(val || "all")}
+              placeholder="جميع الحسابات"
+              className="w-56"
+            />
             <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-[150px]" />
             <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-[150px]" />
             {hasFilters && (
