@@ -353,11 +353,19 @@ export default function InventoryAdjustmentForm() {
           .eq("id", item.product_id);
       }
 
-      // 2. Delete inventory movements for this adjustment
-      await (supabase.from("inventory_movements" as any) as any)
+      // 2. Delete inventory movements for this adjustment (handle both possible reference_type values)
+      const { error: delErr1 } = await (supabase.from("inventory_movements" as any) as any)
         .delete()
         .eq("reference_id", id)
         .eq("reference_type", "adjustment");
+      if (delErr1) console.warn("Delete adjustment movements error:", delErr1);
+
+      // Also try with "inventory_adjustment" reference_type (legacy data)
+      const { error: delErr2 } = await (supabase.from("inventory_movements" as any) as any)
+        .delete()
+        .eq("reference_id", id)
+        .eq("reference_type", "inventory_adjustment");
+      if (delErr2) console.warn("Delete inventory_adjustment movements error:", delErr2);
 
       // 3. Create REVERSE journal entry (not just cancel the original)
       const { data: adj } = await (supabase.from("inventory_adjustments" as any) as any)
