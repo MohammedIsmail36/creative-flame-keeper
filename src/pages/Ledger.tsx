@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/DatePickerInput";
-import { Badge } from "@/components/ui/badge";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import { Calculator, Download, BookOpen, ArrowUpDown, TrendingUp, TrendingDown, X } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
+import { Calculator, BookOpen, ArrowUpDown, TrendingUp, TrendingDown, X, Coins } from "lucide-react";
 
 interface Account {
   id: string;
@@ -43,8 +41,6 @@ interface LedgerLine {
 const formatNumber = (val: number) =>
   val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const formatCurrency = (val: number) => `${formatNumber(val)} EGP`;
-
 export default function Ledger() {
   const { settings } = useSettings();
   const jePrefix = (settings as any)?.journal_entry_prefix || "JV-";
@@ -54,7 +50,6 @@ export default function Ledger() {
   const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -134,55 +129,27 @@ export default function Ledger() {
 
   const totalDebit = filteredLines.reduce((s, l) => s + l.debit, 0);
   const totalCredit = filteredLines.reduce((s, l) => s + l.credit, 0);
+  const netBalance = totalDebit - totalCredit;
 
   const hasFilters = selectedAccountId !== "all" || dateFrom || dateTo;
   const clearFilters = () => { setSelectedAccountId("all"); setDateFrom(""); setDateTo(""); };
-
-  const handleExportPDF = async () => {
-    const { exportReportPdf } = await import("@/lib/pdf-arabic");
-    const selectedAccount = selectedAccountId !== "all" ? accountMap.get(selectedAccountId) : null;
-    const pdfTitle = selectedAccount ? `دفتر الأستاذ - ${selectedAccount.code} ${selectedAccount.name}` : "دفتر الأستاذ العام";
-    const tableData = linesWithBalance.map((l) => [
-      formatDisplayNumber(jePrefix, l.entry_posted_number, l.entry_number, l.entry_status), l.entry_date, l.accountCode ? `${l.accountCode} - ${l.accountName}` : "",
-      l.entry_description, l.debit > 0 ? formatNumber(l.debit) : "-", l.credit > 0 ? formatNumber(l.credit) : "-",
-      l.showBalance ? formatNumber(l.runningBalance!) : "-",
-    ]);
-    await exportReportPdf({
-      title: pdfTitle,
-      settings: null,
-      headers: ["#", "التاريخ", "الحساب", "الوصف", "مدين", "دائن", "الرصيد"],
-      rows: tableData,
-      orientation: "landscape",
-      filename: "General_Ledger",
-    });
-    toast({ title: "تم التصدير" });
-    setExportMenuOpen(false);
-  };
-
-  const handleExportExcel = async () => {
-    const { exportToExcel } = await import("@/lib/excel-export");
-    const data = linesWithBalance.map((l) => ({ "#": formatDisplayNumber(jePrefix, l.entry_posted_number, l.entry_number, l.entry_status), "التاريخ": l.entry_date, "الحساب": `${l.accountCode} - ${l.accountName}`, "الوصف": l.entry_description, "مدين": l.debit, "دائن": l.credit, "الرصيد": l.showBalance ? l.runningBalance : "" }));
-    await exportToExcel(data, "Ledger", "General_Ledger.xlsx");
-    toast({ title: "تم التصدير" });
-    setExportMenuOpen(false);
-  };
 
   const columns: ColumnDef<LedgerLine, any>[] = [
     {
       accessorKey: "entry_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="رقم القيد" />,
-      cell: ({ row }) => <span className="font-mono text-sm">{formatDisplayNumber(jePrefix, row.original.entry_posted_number, row.original.entry_number, row.original.entry_status)}</span>,
+      cell: ({ row }) => <span className="font-mono font-bold text-sm">{formatDisplayNumber(jePrefix, row.original.entry_posted_number, row.original.entry_number, row.original.entry_status)}</span>,
     },
     {
       accessorKey: "entry_date",
       header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
-      cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.entry_date}</span>,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground whitespace-nowrap">{row.original.entry_date}</span>,
     },
     ...(selectedAccountId === "all" ? [{
       id: "account",
       header: "الحساب",
       cell: ({ row }: any) => (
-        <button className="text-primary hover:underline text-sm" onClick={() => setSelectedAccountId(row.original.account_id)}>
+        <button className="text-primary hover:text-primary/80 font-medium text-sm transition-colors" onClick={() => setSelectedAccountId(row.original.account_id)}>
           {row.original.accountCode} - {row.original.accountName}
         </button>
       ),
@@ -194,21 +161,21 @@ export default function Ledger() {
     },
     {
       accessorKey: "debit",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="مدين (EGP)" />,
-      cell: ({ row }) => <span className={`font-mono text-sm ${row.original.debit > 0 ? "text-green-600 font-medium" : "text-muted-foreground"}`}>{row.original.debit > 0 ? formatNumber(row.original.debit) : "-"}</span>,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="مدين" />,
+      cell: ({ row }) => <span className={`font-mono text-sm ${row.original.debit > 0 ? "text-emerald-600 font-bold" : "text-muted-foreground/30"}`}>{row.original.debit > 0 ? formatNumber(row.original.debit) : "-"}</span>,
     },
     {
       accessorKey: "credit",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="دائن (EGP)" />,
-      cell: ({ row }) => <span className={`font-mono text-sm ${row.original.credit > 0 ? "text-red-600 font-medium" : "text-muted-foreground"}`}>{row.original.credit > 0 ? formatNumber(row.original.credit) : "-"}</span>,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="دائن" />,
+      cell: ({ row }) => <span className={`font-mono text-sm ${row.original.credit > 0 ? "text-rose-600 font-bold" : "text-muted-foreground/30"}`}>{row.original.credit > 0 ? formatNumber(row.original.credit) : "-"}</span>,
     },
     ...(selectedAccountId !== "all" ? [{
       id: "balance",
-      header: "الرصيد (EGP)",
+      header: "الرصيد",
       cell: ({ row }: any) => {
         const bal = row.original.runningBalance ?? 0;
         return (
-          <span className={`font-mono text-sm font-bold ${bal >= 0 ? "text-green-600" : "text-red-600"}`}>
+          <span className={`font-mono text-sm font-black ${bal >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
             {bal >= 0 ? formatNumber(bal) : `(${formatNumber(Math.abs(bal))})`}
           </span>
         );
@@ -216,41 +183,66 @@ export default function Ledger() {
     } as ColumnDef<LedgerLine, any>] : []),
   ];
 
+  const exportConfig = {
+    filenamePrefix: "دفتر-الأستاذ",
+    sheetName: "دفتر الأستاذ",
+    pdfTitle: selectedAccountId !== "all" && accountMap.get(selectedAccountId)
+      ? `دفتر الأستاذ - ${accountMap.get(selectedAccountId)!.code} ${accountMap.get(selectedAccountId)!.name}`
+      : "دفتر الأستاذ العام",
+    headers: ["رقم القيد", "التاريخ", "الحساب", "البيان", "مدين", "دائن", ...(selectedAccountId !== "all" ? ["الرصيد"] : [])],
+    rows: linesWithBalance.map((l) => [
+      formatDisplayNumber(jePrefix, l.entry_posted_number, l.entry_number, l.entry_status),
+      l.entry_date,
+      `${l.accountCode} - ${l.accountName}`,
+      l.entry_description,
+      l.debit > 0 ? l.debit : "",
+      l.credit > 0 ? l.credit : "",
+      ...(l.showBalance ? [l.runningBalance] : []),
+    ]),
+    settings,
+    pdfOrientation: "landscape" as const,
+  };
+
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Calculator className="h-5 w-5 text-primary" />
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Calculator className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">دفتر الأستاذ العام</h1>
+            <h1 className="text-3xl font-extrabold text-foreground">دفتر الأستاذ العام</h1>
             <p className="text-sm text-muted-foreground">حركة الحسابات وأرصدتها</p>
           </div>
         </div>
+        <ExportMenu config={exportConfig} disabled={loading || linesWithBalance.length === 0} />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          { label: "حسابات نشطة", value: activeAccounts.length, icon: BookOpen, color: "bg-foreground/5 text-foreground" },
-          { label: "إجمالي الحركات", value: lines.length, icon: ArrowUpDown, color: "bg-blue-500/10 text-blue-600" },
-          { label: "إجمالي المدين", value: formatCurrency(lines.reduce((s, l) => s + l.debit, 0)), icon: TrendingUp, color: "bg-green-500/10 text-green-600" },
-          { label: "إجمالي الدائن", value: formatCurrency(lines.reduce((s, l) => s + l.credit, 0)), icon: TrendingDown, color: "bg-red-500/10 text-red-600" },
+          { label: "حسابات نشطة", value: activeAccounts.length.toLocaleString(), icon: BookOpen, color: "bg-primary/10 text-primary" },
+          { label: "إجمالي الحركات", value: filteredLines.length.toLocaleString(), icon: ArrowUpDown, color: "bg-blue-500/10 text-blue-600" },
+          { label: "إجمالي المدين", value: formatNumber(totalDebit), icon: TrendingUp, color: "bg-emerald-500/10 text-emerald-600" },
+          { label: "إجمالي الدائن", value: formatNumber(totalCredit), icon: TrendingDown, color: "bg-rose-500/10 text-rose-600" },
+          { label: "صافي الرصيد", value: netBalance >= 0 ? formatNumber(netBalance) : `(${formatNumber(Math.abs(netBalance))})`, icon: Coins, color: netBalance >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600" },
         ].map(({ label, value, icon: Icon, color }) => (
-          <Card key={label} className="border">
+          <Card key={label}>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-1">
-                <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${color}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
                   <Icon className="h-4 w-4" />
                 </div>
-                <span className="text-lg font-bold text-foreground">{value}</span>
               </div>
-              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-2xl font-black text-foreground font-mono">{value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{label}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* Data Table */}
       <DataTable
         columns={columns}
         data={linesWithBalance}
@@ -260,7 +252,7 @@ export default function Ledger() {
         toolbarContent={
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-              <SelectTrigger className="w-56 h-9 text-sm">
+              <SelectTrigger className="w-56">
                 <SelectValue placeholder="اختر حساب" />
               </SelectTrigger>
               <SelectContent>
@@ -270,26 +262,14 @@ export default function Ledger() {
                 ))}
               </SelectContent>
             </Select>
-            <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-[150px] h-9 text-sm" />
-            <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-[150px] h-9 text-sm" />
+            <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-[150px]" />
+            <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-[150px]" />
             {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-muted-foreground hover:text-foreground">
                 <X className="h-3.5 w-3.5" />
                 مسح الفلاتر
               </Button>
             )}
-            <div className="relative">
-              <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
-                <Download className="h-4 w-4" />
-                تصدير
-              </Button>
-              {exportMenuOpen && (
-                <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[140px]">
-                  <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">PDF تصدير</button>
-                  <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors">Excel تصدير</button>
-                </div>
-              )}
-            </div>
           </div>
         }
         columnLabels={{
