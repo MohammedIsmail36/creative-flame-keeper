@@ -19,6 +19,8 @@ import {
   Boxes,
   ChartPie,
   Lock,
+  Wallet,
+  Receipt,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";

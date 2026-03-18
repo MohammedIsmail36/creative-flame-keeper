@@ -108,6 +108,10 @@ const App = () => (
             <Route path="/profile" element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>} />
             <Route path="/system-setup" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout><SystemSetup /></AppLayout></ProtectedRoute>} />
             <Route path="/fiscal-year-closing" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><FiscalYearClosing /></AppLayout></ProtectedRoute>} />
+            <Route path="/expense-types" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ExpenseTypes /></AppLayout></ProtectedRoute>} />
+            <Route path="/expenses" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Expenses /></AppLayout></ProtectedRoute>} />
+            <Route path="/expenses/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ExpenseForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/expenses/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ExpenseForm /></AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </SettingsProvider>
