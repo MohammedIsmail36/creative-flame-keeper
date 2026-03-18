@@ -9,7 +9,7 @@ export default function CustomerStatement() {
         <h1 className="text-2xl font-bold">كشف حساب عميل</h1>
         <p className="text-muted-foreground text-sm mt-1">عرض حركات وأرصدة العميل</p>
       </div>
-      <AccountStatement defaultEntityType="customer" defaultEntityId={id} />
+      <AccountStatement defaultEntityType="customer" defaultEntityId={id || undefined} />
     </div>
   );
 }

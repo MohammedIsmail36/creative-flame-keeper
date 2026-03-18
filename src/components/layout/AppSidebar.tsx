@@ -21,6 +21,8 @@ import {
   Lock,
   Wallet,
   Receipt,
+  Award,
+  Clock,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
@@ -103,6 +105,7 @@ const sections: MenuSection[] = [
       { title: "مرتجع مشتريات", url: "/purchase-returns", icon: RotateCcw, roles: ["admin", "accountant"] },
       { title: "مدفوعات موردين", url: "/supplier-payments", icon: CreditCard, roles: ["admin", "accountant"] },
       { title: "الموردين", url: "/suppliers", icon: Truck, roles: ["admin", "accountant"] },
+      { title: "كشف حساب مورد", url: "/supplier-statement", icon: FileText, roles: ["admin", "accountant"] },
     ],
   },
   {
@@ -114,6 +117,7 @@ const sections: MenuSection[] = [
       { title: "مرتجع مبيعات", url: "/sales-returns", icon: RotateCcw, roles: ["admin", "accountant", "sales"] },
       { title: "مدفوعات عملاء", url: "/customer-payments", icon: CreditCard, roles: ["admin", "accountant", "sales"] },
       { title: "العملاء", url: "/customers", icon: Users, roles: ["admin", "accountant", "sales"] },
+      { title: "كشف حساب عميل", url: "/customer-statement", icon: FileText, roles: ["admin", "accountant", "sales"] },
     ],
   },
   {
@@ -124,7 +128,13 @@ const sections: MenuSection[] = [
       { title: "ميزان المراجعة", url: "/trial-balance", icon: BarChart3, roles: ["admin", "accountant"] },
       { title: "قائمة الدخل", url: "/income-statement", icon: BarChart3, roles: ["admin", "accountant"] },
       { title: "الميزانية العمومية", url: "/balance-sheet", icon: BarChart3, roles: ["admin", "accountant"] },
-      { title: "التقارير", url: "/reports", icon: BarChart3, roles: ["admin", "accountant"] },
+      { title: "تحليلات النمو", url: "/reports/growth", icon: TrendingUp, roles: ["admin", "accountant"] },
+      { title: "تحليل المنتجات", url: "/reports/products", icon: Award, roles: ["admin", "accountant"] },
+      { title: "تقرير المبيعات", url: "/reports/sales", icon: BarChart3, roles: ["admin", "accountant"] },
+      { title: "تقرير المشتريات", url: "/reports/purchases", icon: ShoppingCart, roles: ["admin", "accountant"] },
+      { title: "تقرير المخزون", url: "/reports/inventory", icon: Package, roles: ["admin", "accountant"] },
+      { title: "أعمار الديون", url: "/reports/aging", icon: Clock, roles: ["admin", "accountant"] },
+      { title: "أرصدة الحسابات", url: "/reports/balances", icon: Calculator, roles: ["admin", "accountant"] },
       { title: "حركة المخزون", url: "/inventory-movements", icon: Package, roles: ["admin", "accountant"] },
       { title: "تسوية المخزون", url: "/inventory-adjustments", icon: ClipboardCheck, roles: ["admin", "accountant"] },
     ],
