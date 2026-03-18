@@ -788,8 +788,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Bottom Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Bottom Tables - Row 1: Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         {/* Unpaid Invoices */}
         <Card className={`shadow-none ${unpaidInvoices.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
@@ -798,7 +798,7 @@ export default function Dashboard() {
             </CardTitle>
             <Badge variant={unpaidInvoices.length > 0 ? "destructive" : "outline"} className="text-xs">{unpaidInvoices.length} فاتورة</Badge>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 max-h-[320px] overflow-auto">
             {unpaidInvoices.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">لا توجد فواتير معلقة</p>
             ) : (
@@ -826,6 +826,78 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
+        {/* Low Stock Table */}
+        <Card className={`shadow-none ${lowStockItems.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <AlertTriangle className={`w-4 h-4 ${lowStockItems.length > 0 ? "text-destructive" : "text-warning"}`} /> تنبيهات المخزون المنخفض
+              {lowStockItems.length > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{lowStockItems.length}</Badge>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 max-h-[320px] overflow-auto">
+            {lowStockItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">لا توجد أصناف منخفضة</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-xs">الصنف</TableHead>
+                    <TableHead className="text-xs">الكمية الحالية</TableHead>
+                    <TableHead className="text-xs">الحد الأدنى</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lowStockItems.map(item => (
+                    <TableRow key={item.name}>
+                      <TableCell className="text-sm font-medium">{formatProductDisplay(item.name, item.brandName, item.modelNumber)}</TableCell>
+                      <TableCell className="text-sm font-bold text-destructive">{item.quantity_on_hand}</TableCell>
+                      <TableCell className="text-sm">{item.min_stock_level}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Stagnant Stock */}
+        <Card className={`shadow-none ${stagnantItems.length > 0 ? "border-warning/40 bg-warning/5" : "border-border/60"}`}>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <PackageX className="w-4 h-4 text-warning" /> مخزون راكد
+              {stagnantItems.length > 0 && <Badge variant="outline" className="text-[10px] border-warning/40 text-warning">{stagnantItems.length} صنف</Badge>}
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground">أصناف لم تتحرك منذ أكثر من 30 يوماً</p>
+          </CardHeader>
+          <CardContent className="p-0 max-h-[320px] overflow-auto">
+            {stagnantItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">لا توجد أصناف راكدة</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-xs">الصنف</TableHead>
+                    <TableHead className="text-xs">الكمية</TableHead>
+                    <TableHead className="text-xs">آخر حركة</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stagnantItems.map(item => (
+                    <TableRow key={item.name}>
+                      <TableCell className="text-sm font-medium">{formatProductDisplay(item.name, item.brandName, item.modelNumber)}</TableCell>
+                      <TableCell className="text-sm">{item.quantity_on_hand}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{item.lastMovement || "لا توجد حركة"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom Tables - Row 2: Analytics */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         {/* Top Products */}
         <Card className="border-border/60 shadow-none">
           <CardHeader className="pb-3">
@@ -833,7 +905,7 @@ export default function Dashboard() {
               <Award className="w-4 h-4 text-primary" /> الأصناف الأكثر مبيعاً
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 max-h-[320px] overflow-auto">
             {topProducts.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">لا توجد بيانات مبيعات</p>
             ) : (
@@ -861,40 +933,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Low Stock Table */}
-        <Card className={`shadow-none ${lowStockItems.length > 0 ? "border-destructive/40 bg-destructive/5" : "border-border/60"}`}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <AlertTriangle className={`w-4 h-4 ${lowStockItems.length > 0 ? "text-destructive" : "text-warning"}`} /> تنبيهات المخزون المنخفض
-              {lowStockItems.length > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{lowStockItems.length}</Badge>}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {lowStockItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">لا توجد أصناف منخفضة</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30 hover:bg-muted/30">
-                    <TableHead className="text-xs">الصنف</TableHead>
-                    <TableHead className="text-xs">الكمية الحالية</TableHead>
-                    <TableHead className="text-xs">الحد الأدنى</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lowStockItems.map(item => (
-                    <TableRow key={item.name}>
-                      <TableCell className="text-sm font-medium">{formatProductDisplay(item.name, item.brandName, item.modelNumber)}</TableCell>
-                      <TableCell className="text-sm font-bold text-destructive">{item.quantity_on_hand}</TableCell>
-                      <TableCell className="text-sm">{item.min_stock_level}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Top Categories */}
         <Card className="border-border/60 shadow-none">
           <CardHeader className="pb-3">
@@ -902,7 +940,7 @@ export default function Dashboard() {
               <Package className="w-4 h-4 text-primary" /> الفئات الأكثر مبيعاً وربحية
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 max-h-[320px] overflow-auto">
             {topCategories.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">لا توجد بيانات</p>
             ) : (
@@ -928,75 +966,44 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Stagnant Stock */}
-        <Card className={`shadow-none ${stagnantItems.length > 0 ? "border-warning/40 bg-warning/5" : "border-border/60"}`}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <PackageX className="w-4 h-4 text-warning" /> مخزون راكد
-              {stagnantItems.length > 0 && <Badge variant="outline" className="text-[10px] border-warning/40 text-warning">{stagnantItems.length} صنف</Badge>}
+        {/* Account Balances Summary */}
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2 font-bold">
+              <Calculator className="h-4 w-4 text-primary" /> ملخص الحسابات
             </CardTitle>
-            <p className="text-[11px] text-muted-foreground">أصناف لم تتحرك منذ أكثر من 30 يوماً</p>
+            <button onClick={() => navigate("/reports")} className="text-xs text-primary hover:underline font-medium">التفاصيل ←</button>
           </CardHeader>
-          <CardContent className="p-0">
-            {stagnantItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">لا توجد أصناف راكدة</p>
+          <CardContent>
+            {accountBalances.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">لا توجد بيانات</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30 hover:bg-muted/30">
-                    <TableHead className="text-xs">الصنف</TableHead>
-                    <TableHead className="text-xs">الكمية</TableHead>
-                    <TableHead className="text-xs">آخر حركة</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stagnantItems.map(item => (
-                    <TableRow key={item.name}>
-                      <TableCell className="text-sm font-medium">{formatProductDisplay(item.name, item.brandName, item.modelNumber)}</TableCell>
-                      <TableCell className="text-sm">{item.quantity_on_hand}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{item.lastMovement || "لا توجد حركة"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="space-y-2">
+                {(() => {
+                  const typeGroups: Record<string, { label: string; total: number }> = {};
+                  const typeLabels: Record<string, string> = { asset: "الأصول", liability: "الخصوم", equity: "حقوق الملكية", revenue: "الإيرادات", expense: "المصروفات" };
+                  accountBalances.forEach(acc => {
+                    const key = acc.account_type;
+                    if (!typeGroups[key]) typeGroups[key] = { label: typeLabels[key] || key, total: 0 };
+                    typeGroups[key].total += acc.balance;
+                  });
+                  return Object.entries(typeGroups).map(([key, g]) => (
+                    <div key={key} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                      <span className="text-sm">{g.label}</span>
+                      <div className="text-left">
+                        <span className={`text-sm font-bold font-mono ${g.total >= 0 ? "text-foreground" : "text-destructive"}`}>
+                          {formatCurrency(Math.abs(g.total))}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground mr-1">{g.total >= 0 ? "مدين" : "دائن"}</span>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Account Balances Summary */}
-      {accountBalances.length > 0 && (() => {
-        const typeGroups: Record<string, { label: string; total: number }> = {};
-        const typeLabels: Record<string, string> = { asset: "الأصول", liability: "الخصوم", equity: "حقوق الملكية", revenue: "الإيرادات", expense: "المصروفات" };
-        accountBalances.forEach(acc => {
-          const key = acc.account_type;
-          if (!typeGroups[key]) typeGroups[key] = { label: typeLabels[key] || key, total: 0 };
-          typeGroups[key].total += acc.balance;
-        });
-        return (
-          <Card className="border-border/60 shadow-none">
-            <CardHeader className="border-b border-border/40 py-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2 font-bold">
-                <Calculator className="h-4 w-4 text-primary" /> ملخص أرصدة الحسابات
-              </CardTitle>
-              <button onClick={() => navigate("/reports")} className="text-xs text-primary hover:underline font-medium">عرض التفاصيل ←</button>
-            </CardHeader>
-            <CardContent className="py-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                {Object.entries(typeGroups).map(([key, g]) => (
-                  <div key={key} className="bg-muted/40 rounded-lg p-3 text-center">
-                    <p className="text-[11px] text-muted-foreground mb-1">{g.label}</p>
-                    <p className={`text-sm font-bold ${g.total >= 0 ? "text-foreground" : "text-destructive"}`}>
-                      {formatCurrency(Math.abs(g.total))}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">{g.total >= 0 ? "مدين" : "دائن"}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })()}
     </div>
   );
 }
