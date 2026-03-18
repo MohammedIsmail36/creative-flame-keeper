@@ -332,7 +332,7 @@ export default function Dashboard() {
       grouped.set(item.product_id, cur);
     });
 
-    const productIds = [...grouped.keys()];
+    const productIds = [...grouped.keys()] as string[];
     const { data: products } = await (supabase.from("products") as any)
       .select("id, name, model_number, product_brands(name)")
       .in("id", productIds);
