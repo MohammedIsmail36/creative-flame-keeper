@@ -63,7 +63,7 @@ export function ExportMenu({ config, disabled }: ExportMenuProps) {
 
   return (
     <div className="relative" ref={ref}>
-      <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setOpen(!open)} disabled={disabled}>
+      <Button variant="outline" className="gap-1.5 shadow-sm" onClick={() => setOpen(!open)} disabled={disabled}>
         <Download className="h-4 w-4" />
         تصدير
       </Button>
