@@ -68,7 +68,7 @@ export default function InventoryMovements() {
   const { data: products = [] } = useQuery({
     queryKey: ["products-list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("products").select("id, code, name").order("code");
+      const { data, error } = await supabase.from("products").select("id, code, name, quantity_on_hand, purchase_price").order("code");
       if (error) throw error;
       return data;
     },
