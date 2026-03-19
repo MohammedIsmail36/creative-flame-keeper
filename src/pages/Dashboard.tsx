@@ -120,16 +120,19 @@ interface StagnantItem {
 }
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
-function EmptyState({ message = "لا توجد بيانات" }: { message?: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-10 gap-2">
-      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-        <Package className="w-5 h-5 text-muted-foreground/40" />
+const EmptyState = forwardRef<HTMLDivElement, { message?: string }>(
+  ({ message = "لا توجد بيانات" }, ref) => {
+    return (
+      <div ref={ref} className="flex flex-col items-center justify-center py-10 gap-2">
+        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+          <Package className="w-5 h-5 text-muted-foreground/40" />
+        </div>
+        <p className="text-sm text-muted-foreground">{message}</p>
       </div>
-      <p className="text-sm text-muted-foreground">{message}</p>
-    </div>
-  );
-}
+    );
+  }
+);
+EmptyState.displayName = "EmptyState";
 function KpiSkeleton() {
   return (
     <Card className="border-border/60 shadow-sm overflow-hidden">
