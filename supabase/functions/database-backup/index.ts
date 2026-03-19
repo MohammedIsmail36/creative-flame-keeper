@@ -35,7 +35,7 @@ const TABLES_ORDER = [
   "expense_types",
 ];
 
-// ✅ جميع الجداول تُحذف عند التصفير — قاعدة بيانات جديدة كلياً
+// جميع الجداول تُحذف عند التصفير — قاعدة بيانات جديدة كلياً
 const ALL_TABLES_TRUNCATE = [
   "customer_payment_allocations",
   "supplier_payment_allocations",
@@ -105,6 +105,89 @@ const DEFAULT_ADMIN_EMAIL = "admin@system.com";
 const DEFAULT_ADMIN_PASSWORD = "admin123456";
 const DEFAULT_ADMIN_NAME = "مدير النظام";
 
+// ─────────────────────────────────────────────────────────────────
+// دالة مساعدة: إنشاء مدير النظام مع دوره وملفه الشخصي
+// تتحقق أولاً من وجوده وتكمل الخطوات الناقصة فقط
+// ─────────────────────────────────────────────────────────────────
+async function createAdminUser(supabase: any, results: string[]): Promise<void> {
+  let adminId: string | null = null;
+
+  // تحقق هل المستخدم موجود بالفعل في auth
+  const { data: existingUsers, error: listErr } = await supabase.auth.admin.listUsers();
+  if (listErr) {
+    results.push(`❌ خطأ في جلب المستخدمين للتحقق: ${listErr.message}`);
+    return;
+  }
+
+  const existingAdmin = existingUsers?.users?.find((u: any) => u.email === DEFAULT_ADMIN_EMAIL);
+
+  if (existingAdmin) {
+    adminId = existingAdmin.id;
+    results.push(`ℹ️ المستخدم موجود في auth | id: ${adminId}`);
+  } else {
+    // إنشاء المستخدم
+    const { data: newUserData, error: createErr } = await supabase.auth.admin.createUser({
+      email: DEFAULT_ADMIN_EMAIL,
+      password: DEFAULT_ADMIN_PASSWORD,
+      email_confirm: true,
+      user_metadata: { full_name: DEFAULT_ADMIN_NAME },
+    });
+
+    if (createErr) {
+      results.push(`❌ خطأ في إنشاء حساب المدير: ${createErr.message}`);
+      return;
+    }
+
+    if (!newUserData?.user) {
+      results.push("❌ فشل إنشاء المستخدم — الاستجابة فارغة");
+      return;
+    }
+
+    adminId = newUserData.user.id;
+    results.push(`✅ تم إنشاء حساب المدير: ${DEFAULT_ADMIN_EMAIL} | id: ${adminId}`);
+  }
+
+  // ── إسناد دور الأدمن إن لم يكن موجوداً ──
+  const { data: existingRole } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("user_id", adminId)
+    .eq("role", "admin")
+    .maybeSingle();
+
+  if (!existingRole) {
+    const { error: roleError } = await supabase.from("user_roles").insert({ user_id: adminId, role: "admin" });
+
+    if (roleError) {
+      results.push(`❌ خطأ في إسناد دور الأدمن: ${roleError.message}`);
+    } else {
+      results.push("✅ تم إسناد دور الأدمن بنجاح");
+    }
+  } else {
+    results.push("ℹ️ دور الأدمن موجود بالفعل");
+  }
+
+  // ── إنشاء الملف الشخصي إن لم يكن موجوداً ──
+  const { data: existingProfile } = await supabase.from("profiles").select("id").eq("id", adminId).maybeSingle();
+
+  if (!existingProfile) {
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .insert({ id: adminId, full_name: DEFAULT_ADMIN_NAME });
+
+    if (profileError) {
+      results.push(`❌ خطأ في إنشاء الملف الشخصي: ${profileError.message}`);
+    } else {
+      results.push("✅ تم إنشاء الملف الشخصي للمدير");
+    }
+  } else {
+    results.push("ℹ️ الملف الشخصي موجود بالفعل");
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// الدالة الرئيسية
+// ─────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -149,14 +232,14 @@ Deno.serve(async (req) => {
     if (action === "reset") {
       const results: string[] = [];
 
-      // ── Step 1: حذف بيانات الجداول (عدا المصروفات) ──
+      // ── Step 1: حذف بيانات جميع الجداول ──
       for (const table of ALL_TABLES_TRUNCATE) {
         const { error } = await supabase.from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
         if (error) {
-          results.push(`خطأ في حذف بيانات ${table}: ${error.message}`);
+          results.push(`❌ خطأ في حذف ${table}: ${error.message}`);
         } else {
-          results.push(`تم حذف بيانات ${table}`);
+          results.push(`🗑️ تم حذف بيانات ${table}`);
         }
       }
 
@@ -164,12 +247,12 @@ Deno.serve(async (req) => {
       const { error: rolesErr } = await supabase
         .from("user_roles")
         .delete()
-        .neq("user_id", "00000000-0000-0000-0000-000000000000"); // ✅ user_id وليس id
+        .neq("user_id", "00000000-0000-0000-0000-000000000000");
 
       if (rolesErr) {
-        results.push(`خطأ في حذف الأدوار: ${rolesErr.message}`);
+        results.push(`❌ خطأ في حذف الأدوار: ${rolesErr.message}`);
       } else {
-        results.push("تم حذف أدوار المستخدمين");
+        results.push("🗑️ تم حذف أدوار المستخدمين");
       }
 
       const { error: profilesErr } = await supabase
@@ -178,58 +261,36 @@ Deno.serve(async (req) => {
         .neq("id", "00000000-0000-0000-0000-000000000000");
 
       if (profilesErr) {
-        results.push(`خطأ في حذف الملفات الشخصية: ${profilesErr.message}`);
+        results.push(`❌ خطأ في حذف الملفات الشخصية: ${profilesErr.message}`);
       } else {
-        results.push("تم حذف الملفات الشخصية");
+        results.push("🗑️ تم حذف الملفات الشخصية");
       }
 
       // ── Step 3: حذف جميع مستخدمي Auth ──
-      const { data: allUsers } = await supabase.auth.admin.listUsers();
-      if (allUsers?.users) {
+      const { data: allUsers, error: listErr } = await supabase.auth.admin.listUsers();
+
+      if (listErr) {
+        results.push(`❌ خطأ في جلب المستخدمين: ${listErr.message}`);
+      } else if (allUsers?.users?.length) {
+        let deletedCount = 0;
         for (const user of allUsers.users) {
           const { error: delErr } = await supabase.auth.admin.deleteUser(user.id);
           if (delErr) {
-            results.push(`خطأ في حذف المستخدم ${user.email}: ${delErr.message}`);
+            results.push(`❌ خطأ في حذف المستخدم ${user.email}: ${delErr.message}`);
+          } else {
+            deletedCount++;
           }
         }
-        results.push(`تم حذف ${allUsers.users.length} مستخدم`);
+        results.push(`🗑️ تم حذف ${deletedCount} من أصل ${allUsers.users.length} مستخدم`);
+      } else {
+        results.push("ℹ️ لا يوجد مستخدمون لحذفهم");
       }
 
-      // ── Step 4: إعادة إنشاء حساب المدير ──
-      const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
-        email: DEFAULT_ADMIN_EMAIL,
-        password: DEFAULT_ADMIN_PASSWORD,
-        email_confirm: true,
-        user_metadata: { full_name: DEFAULT_ADMIN_NAME },
-      });
+      // انتظار قصير لضمان اكتمال عمليات الحذف قبل الإنشاء
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      if (createErr) {
-        results.push(`خطأ في إنشاء حساب المدير: ${createErr.message}`);
-      } else if (newUser?.user) {
-        results.push(`تم إنشاء حساب المدير: ${DEFAULT_ADMIN_EMAIL}`);
-
-        // ✅ إسناد دور الأدمن
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({ user_id: newUser.user.id, role: "admin" });
-
-        if (roleError) {
-          results.push(`خطأ في إسناد دور الأدمن: ${roleError.message}`);
-        } else {
-          results.push("تم إسناد دور الأدمن بنجاح");
-        }
-
-        // ✅ إنشاء الملف الشخصي
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .insert({ id: newUser.user.id, full_name: DEFAULT_ADMIN_NAME });
-
-        if (profileError) {
-          results.push(`خطأ في إنشاء الملف الشخصي: ${profileError.message}`);
-        } else {
-          results.push("تم إنشاء الملف الشخصي للمدير");
-        }
-      }
+      // ── Step 4: إعادة إنشاء حساب المدير + دوره + ملفه الشخصي ──
+      await createAdminUser(supabase, results);
 
       // ── Step 5: إعادة إنشاء شجرة الحسابات ──
       const codeToId: Record<string, string> = {};
@@ -256,21 +317,22 @@ Deno.serve(async (req) => {
           accountsCount++;
         }
         if (error) {
-          results.push(`خطأ في إضافة حساب ${acc.code}: ${error.message}`);
+          results.push(`❌ خطأ في إضافة حساب ${acc.code}: ${error.message}`);
         }
       }
-      results.push(`تم إضافة ${accountsCount} حساب في شجرة الحسابات`);
+      results.push(`✅ تم إضافة ${accountsCount} حساب في شجرة الحسابات`);
 
       // ── Step 6: إعادة إنشاء إعدادات الشركة ──
       const { error: settingsErr } = await supabase.from("company_settings").insert({ company_name: "شركتي" });
 
       if (settingsErr) {
-        results.push(`خطأ في إنشاء إعدادات الشركة: ${settingsErr.message}`);
+        results.push(`❌ خطأ في إنشاء إعدادات الشركة: ${settingsErr.message}`);
       } else {
-        results.push("تم إنشاء إعدادات الشركة الافتراضية");
+        results.push("✅ تم إنشاء إعدادات الشركة الافتراضية");
       }
 
-      results.push("✅ تم تصفير قاعدة البيانات بالكامل وإعادة البناء بنجاح");
+      results.push("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      results.push("✅ تم تصفير قاعدة البيانات وإعادة البناء بنجاح");
 
       return new Response(JSON.stringify({ success: true, results }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
