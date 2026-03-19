@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, forwardRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatProductDisplay } from "@/lib/product-utils";
 import { useSettings } from "@/contexts/SettingsContext";
