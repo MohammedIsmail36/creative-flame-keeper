@@ -63,6 +63,8 @@ const ALL_TABLES_TRUNCATE = [
   "product_units",
   "accounts",
   "company_settings",
+  "expenses",
+  "expense_types",
 ];
 
 const SYSTEM_CODES = ["1101", "1102", "1103", "1104", "2101", "3101", "3102", "4101", "5101"];
