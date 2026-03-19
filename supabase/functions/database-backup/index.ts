@@ -31,6 +31,8 @@ const TABLES_ORDER = [
   "inventory_movements",
   "inventory_adjustments",
   "inventory_adjustment_items",
+  "expenses",
+  "expense_types",
 ];
 
 // All tables to truncate during full reset (reverse dependency order)
@@ -123,14 +125,17 @@ Deno.serve(async (req) => {
       const { data: profiles } = await supabase.from("profiles").select("*");
       backup["profiles"] = profiles || [];
 
-      return new Response(JSON.stringify({
-        success: true,
-        backup,
-        created_at: new Date().toISOString(),
-        version: "1.0",
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          backup,
+          created_at: new Date().toISOString(),
+          version: "1.0",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     if (action === "reset") {
@@ -147,11 +152,17 @@ Deno.serve(async (req) => {
       }
 
       // Step 2: Delete all user roles and profiles (but keep auth users)
-      const { error: rolesErr } = await supabase.from("user_roles").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      const { error: rolesErr } = await supabase
+        .from("user_roles")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
       if (rolesErr) results.push(`خطأ في حذف الأدوار: ${rolesErr.message}`);
       else results.push("تم حذف أدوار المستخدمين");
 
-      const { error: profilesErr } = await supabase.from("profiles").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      const { error: profilesErr } = await supabase
+        .from("profiles")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
       if (profilesErr) results.push(`خطأ في حذف الملفات الشخصية: ${profilesErr.message}`);
       else results.push("تم حذف الملفات الشخصية");
 
