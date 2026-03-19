@@ -216,7 +216,7 @@ export default function Profile() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">الدور</Label>
-                  <Input value={role ? roleLabels[role] || role : "admin"} disabled className="bg-muted" />
+                  <Input value={role ? roleLabels[role] || role : ""} disabled className="bg-muted" />
                 </div>
                 <div className="flex items-end">
                   <Button onClick={handleUpdateName} disabled={savingName} className="w-full">
