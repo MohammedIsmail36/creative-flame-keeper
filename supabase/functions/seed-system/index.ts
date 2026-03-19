@@ -65,11 +65,65 @@ Deno.serve(async (req) => {
 
       if (createError) {
         results.push(`خطأ في إنشاء حساب الأدمن: ${createError.message}`);
-      } else {
+      } else if (newUser?.user) {
         results.push(`تم إنشاء حساب الأدمن: ${DEFAULT_ADMIN_EMAIL}`);
+
+        // Assign admin role
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .upsert({ user_id: newUser.user.id, role: "admin" }, { onConflict: "user_id,role" });
+        if (roleError) {
+          results.push(`خطأ في إسناد دور الأدمن: ${roleError.message}`);
+        } else {
+          results.push("تم إسناد دور الأدمن بنجاح");
+        }
+
+        // Create profile
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .upsert({ id: newUser.user.id, full_name: DEFAULT_ADMIN_NAME }, { onConflict: "id" });
+        if (profileError) {
+          results.push(`خطأ في إنشاء الملف الشخصي: ${profileError.message}`);
+        } else {
+          results.push("تم إنشاء الملف الشخصي للأدمن");
+        }
       }
     } else {
       results.push("حساب الأدمن موجود بالفعل");
+
+      // Ensure admin role exists for existing admin user
+      const adminUser = existingUsers?.users?.find(u => u.email === DEFAULT_ADMIN_EMAIL);
+      if (adminUser) {
+        const { data: existingRole } = await supabase
+          .from("user_roles")
+          .select("id")
+          .eq("user_id", adminUser.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (!existingRole) {
+          const { error: roleError } = await supabase
+            .from("user_roles")
+            .insert({ user_id: adminUser.id, role: "admin" });
+          if (roleError) {
+            results.push(`خطأ في إسناد دور الأدمن: ${roleError.message}`);
+          } else {
+            results.push("تم إسناد دور الأدمن للحساب الموجود");
+          }
+        }
+
+        // Ensure profile exists
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", adminUser.id)
+          .maybeSingle();
+
+        if (!existingProfile) {
+          await supabase.from("profiles").insert({ id: adminUser.id, full_name: DEFAULT_ADMIN_NAME });
+          results.push("تم إنشاء الملف الشخصي للأدمن الموجود");
+        }
+      }
     }
 
     // 2. Seed default accounts (chart of accounts)
