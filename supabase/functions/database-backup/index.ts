@@ -107,7 +107,7 @@ const DEFAULT_ADMIN_NAME = "مدير النظام";
 
 // ─────────────────────────────────────────────────────────────────
 // دالة مساعدة: إنشاء مدير النظام مع دوره وملفه الشخصي
-// تتحقق أولاً من وجوده وتكمل الخطوات الناقصة فقط
+// تستخدم RPC (SECURITY DEFINER) لتجاوز RLS
 // ─────────────────────────────────────────────────────────────────
 async function createAdminUser(supabase: any, results: string[]): Promise<void> {
   let adminId: string | null = null;
@@ -115,7 +115,7 @@ async function createAdminUser(supabase: any, results: string[]): Promise<void> 
   // تحقق هل المستخدم موجود بالفعل في auth
   const { data: existingUsers, error: listErr } = await supabase.auth.admin.listUsers();
   if (listErr) {
-    results.push(`❌ خطأ في جلب المستخدمين للتحقق: ${listErr.message}`);
+    results.push(`❌ خطأ في جلب المستخدمين: ${listErr.message}`);
     return;
   }
 
@@ -125,7 +125,6 @@ async function createAdminUser(supabase: any, results: string[]): Promise<void> 
     adminId = existingAdmin.id;
     results.push(`ℹ️ المستخدم موجود في auth | id: ${adminId}`);
   } else {
-    // إنشاء المستخدم
     const { data: newUserData, error: createErr } = await supabase.auth.admin.createUser({
       email: DEFAULT_ADMIN_EMAIL,
       password: DEFAULT_ADMIN_PASSWORD,
@@ -147,41 +146,28 @@ async function createAdminUser(supabase: any, results: string[]): Promise<void> 
     results.push(`✅ تم إنشاء حساب المدير: ${DEFAULT_ADMIN_EMAIL} | id: ${adminId}`);
   }
 
-  // ── إسناد دور الأدمن إن لم يكن موجوداً ──
-  const { data: existingRole } = await supabase
-    .from("user_roles")
-    .select("user_id")
-    .eq("user_id", adminId)
-    .eq("role", "admin")
-    .maybeSingle();
+  // ✅ إسناد دور الأدمن عبر RPC لتجاوز RLS
+  const { error: roleError } = await supabase.rpc("admin_insert_user_role", {
+    p_user_id: adminId,
+    p_role: "admin",
+  });
 
-  if (!existingRole) {
-    const { error: roleError } = await supabase.from("user_roles").insert({ user_id: adminId, role: "admin" });
-
-    if (roleError) {
-      results.push(`❌ خطأ في إسناد دور الأدمن: ${roleError.message}`);
-    } else {
-      results.push("✅ تم إسناد دور الأدمن بنجاح");
-    }
+  if (roleError) {
+    results.push(`❌ خطأ في إسناد دور الأدمن: ${roleError.message}`);
   } else {
-    results.push("ℹ️ دور الأدمن موجود بالفعل");
+    results.push("✅ تم إسناد دور الأدمن بنجاح");
   }
 
-  // ── إنشاء الملف الشخصي إن لم يكن موجوداً ──
-  const { data: existingProfile } = await supabase.from("profiles").select("id").eq("id", adminId).maybeSingle();
+  // ✅ إنشاء الملف الشخصي عبر RPC لتجاوز RLS
+  const { error: profileError } = await supabase.rpc("admin_insert_profile", {
+    p_id: adminId,
+    p_full_name: DEFAULT_ADMIN_NAME,
+  });
 
-  if (!existingProfile) {
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .insert({ id: adminId, full_name: DEFAULT_ADMIN_NAME });
-
-    if (profileError) {
-      results.push(`❌ خطأ في إنشاء الملف الشخصي: ${profileError.message}`);
-    } else {
-      results.push("✅ تم إنشاء الملف الشخصي للمدير");
-    }
+  if (profileError) {
+    results.push(`❌ خطأ في إنشاء الملف الشخصي: ${profileError.message}`);
   } else {
-    results.push("ℹ️ الملف الشخصي موجود بالفعل");
+    results.push("✅ تم إنشاء الملف الشخصي للمدير");
   }
 }
 
@@ -286,10 +272,10 @@ Deno.serve(async (req) => {
         results.push("ℹ️ لا يوجد مستخدمون لحذفهم");
       }
 
-      // انتظار قصير لضمان اكتمال عمليات الحذف قبل الإنشاء
+      // انتظار قصير لضمان اكتمال عمليات الحذف
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // ── Step 4: إعادة إنشاء حساب المدير + دوره + ملفه الشخصي ──
+      // ── Step 4: إعادة إنشاء حساب المدير + دوره + ملفه (عبر RPC) ──
       await createAdminUser(supabase, results);
 
       // ── Step 5: إعادة إنشاء شجرة الحسابات ──
@@ -339,9 +325,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ─────────────────────────────────────────────
-    // Unknown action
-    // ─────────────────────────────────────────────
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
