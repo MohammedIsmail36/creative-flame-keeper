@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
 
     // 1. Seed default admin account
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const adminExists = existingUsers?.users?.some(u => u.email === DEFAULT_ADMIN_EMAIL);
+    const adminExists = existingUsers?.users?.some((u) => u.email === DEFAULT_ADMIN_EMAIL);
 
     if (!adminExists) {
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       results.push("حساب الأدمن موجود بالفعل");
 
       // Ensure admin role exists for existing admin user
-      const adminUser = existingUsers?.users?.find(u => u.email === DEFAULT_ADMIN_EMAIL);
+      const adminUser = existingUsers?.users?.find((u) => u.email === DEFAULT_ADMIN_EMAIL);
       if (adminUser) {
         const { data: existingRole } = await supabase
           .from("user_roles")
@@ -127,10 +127,7 @@ Deno.serve(async (req) => {
     }
 
     // 2. Seed default accounts (chart of accounts)
-    const { data: existingAccounts } = await supabase
-      .from("accounts")
-      .select("code")
-      .limit(1);
+    const { data: existingAccounts } = await supabase.from("accounts").select("code").limit(1);
 
     if (!existingAccounts || existingAccounts.length === 0) {
       // Build a code->id map for parent references
@@ -165,10 +162,7 @@ Deno.serve(async (req) => {
     }
 
     // 3. Seed default company settings
-    const { data: existingSettings } = await supabase
-      .from("company_settings")
-      .select("id")
-      .limit(1);
+    const { data: existingSettings } = await supabase.from("company_settings").select("id").limit(1);
 
     if (!existingSettings || existingSettings.length === 0) {
       const { error } = await supabase.from("company_settings").insert({
