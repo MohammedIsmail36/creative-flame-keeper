@@ -53,7 +53,7 @@ export default function Profile() {
       try {
         const { data, error } = await supabase.auth.mfa.listFactors();
         if (error) throw error;
-        const verified = data.totp.filter(f => f.status === "verified");
+        const verified = data.totp.filter((f) => f.status === "verified");
         setMfaEnabled(verified.length > 0);
         if (verified.length > 0) {
           setFactorId(verified[0].id);
@@ -74,10 +74,7 @@ export default function Profile() {
     }
     setSavingName(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ full_name: name.trim() })
-        .eq("id", user?.id);
+      const { error } = await supabase.from("profiles").update({ full_name: name.trim() }).eq("id", user?.id);
       if (error) throw error;
       toast({ title: "تم التحديث", description: "تم تحديث الاسم بنجاح" });
     } catch (error: any) {
@@ -191,9 +188,7 @@ export default function Profile() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold">إعدادات الملف الشخصي</h1>
-          <p className="text-muted-foreground mt-1">
-            قم بتحديث معلوماتك الشخصية وإدارة إعدادات الأمان الخاصة بك
-          </p>
+          <p className="text-muted-foreground mt-1">قم بتحديث معلوماتك الشخصية وإدارة إعدادات الأمان الخاصة بك</p>
         </div>
       </div>
 
@@ -213,11 +208,7 @@ export default function Profile() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">الاسم الكامل</Label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="أدخل اسمك الكامل"
-                  />
+                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="أدخل اسمك الكامل" />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">البريد الإلكتروني</Label>
@@ -225,7 +216,7 @@ export default function Profile() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">الدور</Label>
-                  <Input value={role ? roleLabels[role] || role : ""} disabled className="bg-muted" />
+                  <Input value={role ? roleLabels[role] || role : "admin"} disabled className="bg-muted" />
                 </div>
                 <div className="flex items-end">
                   <Button onClick={handleUpdateName} disabled={savingName} className="w-full">
@@ -268,9 +259,13 @@ export default function Profile() {
                     {mfaLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : mfaEnabled ? (
-                      <Badge variant="default" className="bg-green-600 text-xs">مفعّل</Badge>
+                      <Badge variant="default" className="bg-green-600 text-xs">
+                        مفعّل
+                      </Badge>
                     ) : (
-                      <Badge variant="secondary" className="text-xs">غير مفعّل</Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        غير مفعّل
+                      </Badge>
                     )}
                   </div>
                 </div>
@@ -311,12 +306,7 @@ export default function Profile() {
                   dir="ltr"
                 />
               </div>
-              <Button
-                onClick={handleChangePassword}
-                disabled={savingPassword}
-                className="w-full"
-                variant="secondary"
-              >
+              <Button onClick={handleChangePassword} disabled={savingPassword} className="w-full" variant="secondary">
                 <Lock className="w-4 h-4 ml-2" />
                 {savingPassword ? "جاري التحديث..." : "تحديث كلمة المرور"}
               </Button>
@@ -342,11 +332,7 @@ export default function Profile() {
                 {mfaLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 ) : (
-                  <Switch
-                    checked={mfaEnabled}
-                    onCheckedChange={handleMfaToggle}
-                    disabled={unenrolling}
-                  />
+                  <Switch checked={mfaEnabled} onCheckedChange={handleMfaToggle} disabled={unenrolling} />
                 )}
               </div>
               {mfaEnabled && (
@@ -415,15 +401,9 @@ export default function Profile() {
 
             {/* 6-Digit Verification Code */}
             <div className="space-y-4">
-              <Label className="text-sm font-medium text-muted-foreground text-center block">
-                رمز التحقق
-              </Label>
+              <Label className="text-sm font-medium text-muted-foreground text-center block">رمز التحقق</Label>
               <div className="flex justify-center" dir="ltr">
-                <InputOTP
-                  maxLength={6}
-                  value={verifyCode}
-                  onChange={(val) => setVerifyCode(val)}
-                >
+                <InputOTP maxLength={6} value={verifyCode} onChange={(val) => setVerifyCode(val)}>
                   <InputOTPGroup>
                     <InputOTPSlot index={0} className="w-12 h-14 text-xl font-bold border-2" />
                     <InputOTPSlot index={1} className="w-12 h-14 text-xl font-bold border-2" />
