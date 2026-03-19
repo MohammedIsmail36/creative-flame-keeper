@@ -35,7 +35,7 @@ const TABLES_ORDER = [
   "expense_types",
 ];
 
-// All tables to truncate during full reset (reverse dependency order)
+// ✅ جميع الجداول تُحذف عند التصفير — قاعدة بيانات جديدة كلياً
 const ALL_TABLES_TRUNCATE = [
   "customer_payment_allocations",
   "supplier_payment_allocations",
@@ -61,10 +61,10 @@ const ALL_TABLES_TRUNCATE = [
   "product_categories",
   "product_brands",
   "product_units",
-  "accounts",
-  "company_settings",
   "expenses",
   "expense_types",
+  "accounts",
+  "company_settings",
 ];
 
 const SYSTEM_CODES = ["1101", "1102", "1103", "1104", "2101", "3101", "3102", "4101", "5101"];
@@ -114,8 +114,12 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const { action } = await req.json();
 
+    // ─────────────────────────────────────────────
+    // BACKUP
+    // ─────────────────────────────────────────────
     if (action === "backup") {
       const backup: Record<string, any[]> = {};
+
       for (const table of TABLES_ORDER) {
         const { data, error } = await supabase.from(table).select("*");
         if (error) throw new Error(`Error reading ${table}: ${error.message}`);
@@ -124,6 +128,7 @@ Deno.serve(async (req) => {
 
       const { data: roles } = await supabase.from("user_roles").select("*");
       backup["user_roles"] = roles || [];
+
       const { data: profiles } = await supabase.from("profiles").select("*");
       backup["profiles"] = profiles || [];
 
@@ -134,18 +139,20 @@ Deno.serve(async (req) => {
           created_at: new Date().toISOString(),
           version: "1.0",
         }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
+    // ─────────────────────────────────────────────
+    // RESET
+    // ─────────────────────────────────────────────
     if (action === "reset") {
       const results: string[] = [];
 
-      // Step 1: Delete ALL data from all tables (reverse dependency order)
+      // ── Step 1: حذف بيانات الجداول (عدا المصروفات) ──
       for (const table of ALL_TABLES_TRUNCATE) {
         const { error } = await supabase.from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
         if (error) {
           results.push(`خطأ في حذف بيانات ${table}: ${error.message}`);
         } else {
@@ -153,49 +160,84 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Step 2: Delete all user roles and profiles (but keep auth users)
+      // ── Step 2: حذف أدوار المستخدمين والملفات الشخصية ──
       const { error: rolesErr } = await supabase
         .from("user_roles")
         .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000");
-      if (rolesErr) results.push(`خطأ في حذف الأدوار: ${rolesErr.message}`);
-      else results.push("تم حذف أدوار المستخدمين");
+        .neq("user_id", "00000000-0000-0000-0000-000000000000"); // ✅ user_id وليس id
+
+      if (rolesErr) {
+        results.push(`خطأ في حذف الأدوار: ${rolesErr.message}`);
+      } else {
+        results.push("تم حذف أدوار المستخدمين");
+      }
 
       const { error: profilesErr } = await supabase
         .from("profiles")
         .delete()
         .neq("id", "00000000-0000-0000-0000-000000000000");
-      if (profilesErr) results.push(`خطأ في حذف الملفات الشخصية: ${profilesErr.message}`);
-      else results.push("تم حذف الملفات الشخصية");
 
-      // Step 3: Delete all auth users
+      if (profilesErr) {
+        results.push(`خطأ في حذف الملفات الشخصية: ${profilesErr.message}`);
+      } else {
+        results.push("تم حذف الملفات الشخصية");
+      }
+
+      // ── Step 3: حذف جميع مستخدمي Auth ──
       const { data: allUsers } = await supabase.auth.admin.listUsers();
       if (allUsers?.users) {
         for (const user of allUsers.users) {
           const { error: delErr } = await supabase.auth.admin.deleteUser(user.id);
-          if (delErr) results.push(`خطأ في حذف المستخدم ${user.email}: ${delErr.message}`);
+          if (delErr) {
+            results.push(`خطأ في حذف المستخدم ${user.email}: ${delErr.message}`);
+          }
         }
         results.push(`تم حذف ${allUsers.users.length} مستخدم`);
       }
 
-      // Step 4: Re-create default admin
+      // ── Step 4: إعادة إنشاء حساب المدير ──
       const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
         email: DEFAULT_ADMIN_EMAIL,
         password: DEFAULT_ADMIN_PASSWORD,
         email_confirm: true,
         user_metadata: { full_name: DEFAULT_ADMIN_NAME },
       });
+
       if (createErr) {
         results.push(`خطأ في إنشاء حساب المدير: ${createErr.message}`);
-      } else {
+      } else if (newUser?.user) {
         results.push(`تم إنشاء حساب المدير: ${DEFAULT_ADMIN_EMAIL}`);
+
+        // ✅ إسناد دور الأدمن
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: newUser.user.id, role: "admin" });
+
+        if (roleError) {
+          results.push(`خطأ في إسناد دور الأدمن: ${roleError.message}`);
+        } else {
+          results.push("تم إسناد دور الأدمن بنجاح");
+        }
+
+        // ✅ إنشاء الملف الشخصي
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .insert({ id: newUser.user.id, full_name: DEFAULT_ADMIN_NAME });
+
+        if (profileError) {
+          results.push(`خطأ في إنشاء الملف الشخصي: ${profileError.message}`);
+        } else {
+          results.push("تم إنشاء الملف الشخصي للمدير");
+        }
       }
 
-      // Step 5: Re-seed chart of accounts
+      // ── Step 5: إعادة إنشاء شجرة الحسابات ──
       const codeToId: Record<string, string> = {};
       let accountsCount = 0;
+
       for (const acc of DEFAULT_ACCOUNTS) {
         const parent_id = acc.parent_code ? codeToId[acc.parent_code] || null : null;
+
         const { data: inserted, error } = await supabase
           .from("accounts")
           .insert({
@@ -208,18 +250,20 @@ Deno.serve(async (req) => {
           })
           .select("id")
           .single();
+
         if (inserted) {
           codeToId[acc.code] = inserted.id;
           accountsCount++;
         }
-        if (error) results.push(`خطأ في إضافة حساب ${acc.code}: ${error.message}`);
+        if (error) {
+          results.push(`خطأ في إضافة حساب ${acc.code}: ${error.message}`);
+        }
       }
       results.push(`تم إضافة ${accountsCount} حساب في شجرة الحسابات`);
 
-      // Step 6: Re-seed company settings
-      const { error: settingsErr } = await supabase.from("company_settings").insert({
-        company_name: "شركتي",
-      });
+      // ── Step 6: إعادة إنشاء إعدادات الشركة ──
+      const { error: settingsErr } = await supabase.from("company_settings").insert({ company_name: "شركتي" });
+
       if (settingsErr) {
         results.push(`خطأ في إنشاء إعدادات الشركة: ${settingsErr.message}`);
       } else {
@@ -233,6 +277,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─────────────────────────────────────────────
+    // Unknown action
+    // ─────────────────────────────────────────────
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
