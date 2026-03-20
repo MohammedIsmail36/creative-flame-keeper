@@ -1,72 +1,97 @@
+# خطة صيانة صفحة إعداد النظام
 
-# خطة تطوير النظام المحاسبي
+## المشاكل المكتشفة
 
-## الحالة العامة: ~75% مكتمل
+### 1. التهيئة لا تعمل (خطأ حرج)
 
----
+صفحة `SystemSetup` ترسل `body: {}` إلى `seed-system`، لكن الدالة تحاول قراءة `action` من الـ body. بما أن `action` يكون `undefined`، الدالة تُرجع خطأ `"Unknown action"` (400). **هذا هو السبب الرئيسي لعدم عمل التهيئة.**
 
-## ✅ المراحل المكتملة
+### 2. التصفير يفشل بسبب جداول مفقودة
 
-### المرحلة 1: قاعدة البيانات ✅
-- جداول: accounts, journal_entries, journal_entry_lines, customers, suppliers, products, sales/purchase invoices, returns, payments, inventory_movements
-- جداول البحث: product_categories, product_brands, product_units
-- جداول المصادقة: profiles, user_roles مع enum app_role
-- دوال: has_role, get_user_role, get_avg_purchase_price, get_avg_selling_price
-- Triggers: إنشاء ملف شخصي تلقائي عند التسجيل
+قائمة الجداول المحذوفة عند التصفير لا تشمل 4 جداول موجودة فعلياً في قاعدة البيانات:
 
-### المرحلة 2: نظام المصادقة والصلاحيات ✅
-- صفحة تسجيل الدخول/إنشاء حساب (Auth.tsx)
-- AuthContext مع إدارة الجلسات والأدوار
-- ProtectedRoute لحماية المسارات
-- RoleGuard لإخفاء عناصر حسب الدور
-- 3 أدوار: admin, accountant, sales
+- `sales_invoice_return_settlements`
+- `purchase_invoice_return_settlements`
+- `sales_return_payment_allocations`
+- `purchase_return_payment_allocations`
 
-### المرحلة 3: الصفحات والجداول ✅
-- DataTable موحد مع بحث + ترتيب + صفحات + إخفاء أعمدة
-- فلاتر متقدمة مخصصة لكل صفحة (حالة، تاريخ، نوع الدفع، رصيد، دور)
-- جميع صفحات CRUD: مبيعات، مشتريات، مرتجعات، مدفوعات، عملاء، موردين، منتجات
-- شجرة الحسابات، القيود المحاسبية، دفتر الأستاذ
-- التصنيفات، وحدات القياس، الماركات
-- ميزان المراجعة، قائمة الدخل، الميزانية العمومية
-- إدارة المستخدمين
+هذه الجداول لها foreign keys تمنع حذف الجداول الأخرى، مما يسبب أخطاء متسلسلة.
+
+### 3. تكرار الكود
+
+ملفا `seed-system` و `database-backup` يحتويان على نفس الكود بالكامل وهذا غير ضروري.
+
+### 4. النسخ الاحتياطي JSON غير مجدي
+
+النسخ بصيغة JSON لا يشمل بنية الجداول ولا sequences ولا يمكن استعادته مباشرة. البديل الأفضل هو **تصدير SQL dump** عبر أدوات Lovable Cloud مباشرة.  
+وماذا عن اذا قمت بفصل النظام عن lovable نهائيا كيف سيعمل النسخ لاحتياطي مستقبلا؟
 
 ---
 
-## ❌ المهام المتبقية
+## الحل المقترح
 
-### المرحلة 4: لوحة التحكم بالبيانات الحقيقية (أولوية عالية)
-- [ ] استبدال البيانات الثابتة (mock) ببيانات حقيقية من قاعدة البيانات
-- [ ] بطاقات الملخص: إجمالي المبيعات/المشتريات/الأرباح من الفواتير الفعلية
-- [ ] رسوم بيانية بالبيانات الحقيقية (مبيعات/مشتريات شهرية)
-- [ ] آخر الفواتير من جدول sales_invoices
-- [ ] تنبيهات المخزون من جدول products (quantity_on_hand < min_stock_level)
+### الملفات المتأثرة
 
-### المرحلة 5: صفحة الإعدادات (أولوية عالية)
-- [ ] إنشاء جدول company_settings في قاعدة البيانات
-- [ ] إعدادات الشركة: الاسم، الشعار، العنوان، الهاتف، الرقم الضريبي
-- [ ] إعدادات مالية: العملة الافتراضية، السنة المالية
-- [ ] إعدادات الفواتير: بادئة الترقيم، شروط الدفع الافتراضية
-- [ ] إعدادات النظام: اللغة، المنطقة الزمنية
 
-### المرحلة 6: صفحة التقارير (أولوية متوسطة)
-- [ ] تقرير المبيعات التفصيلي (بالفترة، العميل، المنتج)
-- [ ] تقرير المشتريات التفصيلي
-- [ ] تقرير حركة المخزون
-- [ ] تقرير أعمار الديون (العملاء والموردين)
-- [ ] تقرير الأرباح والخسائر
-- [ ] تصدير التقارير PDF/Excel
+| الملف                                         | التغيير                                          |
+| --------------------------------------------- | ------------------------------------------------ |
+| `supabase/functions/seed-system/index.ts`     | إعادة كتابة — تهيئة فقط (بدون action)            |
+| `supabase/functions/database-backup/index.ts` | إعادة كتابة — تصفير فقط + إضافة الجداول المفقودة |
+| `src/pages/SystemSetup.tsx`                   | إزالة قسم النسخ الاحتياطي/الاستعادة + تبسيط      |
 
-### المرحلة 7: تصدير البيانات (أولوية متوسطة)
-- [ ] تصدير CSV/Excel/PDF موحد لجميع الجداول
-- [ ] قالب PDF احترافي بالعربية مع شعار الشركة
 
-### المرحلة 8: تحسينات أمنية (أولوية عالية)
-- [ ] مراجعة شاملة لسياسات RLS
-- [ ] التأكد من أن جميع الجداول محمية بشكل صحيح
-- [ ] تسجيل الأحداث (audit log) للعمليات الحساسة
+### 1. إصلاح `seed-system/index.ts`
 
-### المرحلة 9: تحسينات إضافية (أولوية منخفضة)
-- [ ] إشعارات داخل التطبيق (تنبيهات المخزون، الفواتير المستحقة)
-- [ ] الوضع المظلم (Dark Mode)
-- [ ] تحسين الأداء وتحميل البيانات
-- [ ] طباعة الفواتير بتصميم احترافي
+- إزالة منطق backup/reset/action parsing بالكامل
+- الدالة تعمل مباشرة عند الاستدعاء: إنشاء المدير + شجرة الحسابات + إعدادات الشركة
+- **بدون حاجة لـ action** — هي دالة تهيئة فقط
+
+### 2. إصلاح `database-backup/index.ts`
+
+- إزالة منطق backup بالكامل
+- الإبقاء على reset فقط
+- إضافة الجداول الـ 4 المفقودة في أول قائمة الحذف (لأنها child tables):
+  - `sales_invoice_return_settlements`
+  - `purchase_invoice_return_settlements`
+  - `sales_return_payment_allocations`
+  - `purchase_return_payment_allocations`
+- تغيير اسمها المنطقي (تبقى `database-backup` كاسم الدالة لتجنب تغيير المسارات)
+
+### 3. تحديث `SystemSetup.tsx`
+
+- إزالة قسم "النسخ الاحتياطي والاستعادة" بالكامل (الكارد + الدوال + المتغيرات)
+- الإبقاء على قسمين فقط:
+  - **تهيئة البيانات الأساسية** (يستدعي `seed-system`)
+  - **تصفير قاعدة البيانات** (يستدعي `database-backup` مع `action: "reset"`)
+- تبسيط الكود وإزالة imports غير المستخدمة
+
+### 4. إصلاح CORS headers
+
+إضافة headers المطلوبة للعمل السليم مع Lovable Cloud:
+
+```
+x-supabase-client-platform, x-supabase-client-platform-version,
+x-supabase-client-runtime, x-supabase-client-runtime-version
+```
+
+---
+
+## التفاصيل التقنية
+
+ترتيب الحذف الصحيح عند التصفير (child-first):
+
+```text
+1. sales_invoice_return_settlements     (NEW)
+2. purchase_invoice_return_settlements  (NEW)
+3. sales_return_payment_allocations     (NEW)
+4. purchase_return_payment_allocations  (NEW)
+5. customer_payment_allocations
+6. supplier_payment_allocations
+7. inventory_adjustment_items
+8. inventory_movements
+9. sales_return_items
+10. purchase_return_items
+11. sales_invoice_items
+12. purchase_invoice_items
+... (باقي الجداول بنفس الترتيب الحالي)
+```
