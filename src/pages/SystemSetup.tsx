@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,8 +23,6 @@ import {
   Database,
   UserCog,
   Building2,
-  Download,
-  Upload,
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -34,20 +32,15 @@ export default function SystemSetup() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<string[]>([]);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
-  const [backupLoading, setBackupLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetResults, setResetResults] = useState<string[]>([]);
-  const restoreRef = useRef<HTMLInputElement>(null);
-  const [restoreLoading, setRestoreLoading] = useState(false);
 
   const handleSeedSystem = async () => {
     setLoading(true);
     setResults([]);
     setStatus("idle");
     try {
-      const { data, error } = await supabase.functions.invoke("seed-system", {
-        body: {}, // ✅ body فارغ بدل method فقط
-      });
+      const { data, error } = await supabase.functions.invoke("seed-system");
       if (error) throw error;
       setResults(data.results || []);
       setStatus("success");
@@ -61,86 +54,22 @@ export default function SystemSetup() {
     }
   };
 
-  const handleBackup = async () => {
-    setBackupLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("database-backup", {
-        body: { action: "backup" },
-      });
-      if (error) throw error;
-
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `backup_${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      toast({ title: "تم التصدير", description: "تم تحميل النسخة الاحتياطية بنجاح" });
-    } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
-    } finally {
-      setBackupLoading(false);
-    }
-  };
-
-  const handleRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setRestoreLoading(true);
-    try {
-      const text = await file.text();
-      const backupData = JSON.parse(text);
-
-      if (!backupData.backup || !backupData.version) {
-        throw new Error("ملف النسخة الاحتياطية غير صالح");
-      }
-
-      toast({
-        title: "ملاحظة",
-        description:
-          "استعادة النسخة الاحتياطية تتطلب تصفير قاعدة البيانات أولاً ثم إعادة إدخال البيانات. يرجى التواصل مع مدير النظام لتنفيذ هذه العملية على مستوى الخادم.",
-      });
-    } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
-    } finally {
-      setRestoreLoading(false);
-      if (restoreRef.current) restoreRef.current.value = "";
-    }
-  };
-
   const handleReset = async () => {
     setResetLoading(true);
     setResetResults([]);
     try {
-      const { data, error } = await supabase.functions.invoke("database-backup", {
-        body: { action: "reset" },
-      });
-
-      // ✅ التحقق من خطأ الـ function نفسها
+      const { data, error } = await supabase.functions.invoke("database-backup");
       if (error) throw error;
-
-      // ✅ التحقق من خطأ داخل الـ response
       if (data?.error) throw new Error(data.error);
 
       const results: string[] = data.results || [];
       setResetResults(results);
 
-      // ✅ تحقق هل في أخطاء داخل النتائج
       const hasErrors = results.some((r) => r.includes("❌"));
-
       if (hasErrors) {
-        toast({
-          title: "اكتمل التصفير مع بعض الأخطاء",
-          description: "راجع التفاصيل أدناه",
-          variant: "destructive",
-        });
+        toast({ title: "اكتمل التصفير مع بعض الأخطاء", description: "راجع التفاصيل أدناه", variant: "destructive" });
       } else {
-        toast({
-          title: "✅ تم التصفير بنجاح",
-          description: "تم إعادة بناء قاعدة البيانات من الصفر مع إنشاء حساب المدير",
-        });
+        toast({ title: "✅ تم التصفير بنجاح", description: "تم إعادة بناء قاعدة البيانات من الصفر" });
       }
     } catch (error: any) {
       const errMsg = error.message || "حدث خطأ غير متوقع";
@@ -158,7 +87,7 @@ export default function SystemSetup() {
           <Settings2 className="w-6 h-6" />
           إعداد النظام
         </h1>
-        <p className="text-muted-foreground mt-1">تهيئة البيانات الأساسية والنسخ الاحتياطي</p>
+        <p className="text-muted-foreground mt-1">تهيئة البيانات الأساسية وصيانة قاعدة البيانات</p>
       </div>
 
       {/* System Initialization */}
@@ -231,38 +160,6 @@ export default function SystemSetup() {
         </CardContent>
       </Card>
 
-      {/* Backup & Restore */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Database className="w-5 h-5" />
-            النسخ الاحتياطي والاستعادة
-          </CardTitle>
-          <CardDescription>تصدير واستعادة بيانات النظام كملف JSON</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button variant="outline" className="w-full gap-2" onClick={handleBackup} disabled={backupLoading}>
-            {backupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            إنشاء نسخة احتياطية (تحميل JSON)
-          </Button>
-
-          <div className="relative">
-            <input
-              ref={restoreRef}
-              type="file"
-              accept=".json"
-              onChange={handleRestore}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-              disabled={restoreLoading}
-            />
-            <Button variant="outline" className="w-full gap-2" disabled={restoreLoading}>
-              {restoreLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              استعادة نسخة احتياطية (رفع JSON)
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Database Reset */}
       <Card className="border-destructive/30">
         <CardHeader>
@@ -285,7 +182,6 @@ export default function SystemSetup() {
             <p className="text-muted-foreground mt-1">
               سيتم إعادة إنشاء: شجرة الحسابات الافتراضية (29 حساب) + حساب المدير (admin@system.com) + إعدادات الشركة.
             </p>
-            {/* ✅ تنبيه مهم للمستخدم */}
             <p className="text-amber-600 font-medium mt-2">
               ⚠️ بعد اكتمال التصفير ستحتاج لتسجيل الدخول مجدداً بـ admin@system.com
             </p>
@@ -312,7 +208,7 @@ export default function SystemSetup() {
                 <AlertDialogTitle>⚠️ تأكيد تصفير قاعدة البيانات</AlertDialogTitle>
                 <AlertDialogDescription>
                   هل أنت متأكد من تصفير قاعدة البيانات بالكامل؟ سيتم حذف جميع البيانات والمستخدمين وإعادة بناء القاعدة
-                  من الصفر. لا يمكن التراجع عن هذا الإجراء. يُنصح بأخذ نسخة احتياطية أولاً.
+                  من الصفر. لا يمكن التراجع عن هذا الإجراء.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="flex-row-reverse gap-2">
