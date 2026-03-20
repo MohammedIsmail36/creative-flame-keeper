@@ -1758,6 +1758,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_insert_profile: {
+        Args: { p_full_name: string; p_id: string }
+        Returns: undefined
+      }
+      admin_insert_user_role: {
+        Args: { p_role: string; p_user_id: string }
+        Returns: undefined
+      }
       get_avg_purchase_price: { Args: { _product_id: string }; Returns: number }
       get_avg_selling_price: { Args: { _product_id: string }; Returns: number }
       get_user_role: {
