@@ -47,14 +47,26 @@ const DEFAULT_ADMIN_EMAIL = "admin@system.com";
 const DEFAULT_ADMIN_PASSWORD = "admin123456";
 const DEFAULT_ADMIN_NAME = "مدير النظام";
 
+// الجداول التي تحتوي على عمود created_by يرتبط بـ auth.users
+const TABLES_WITH_CREATED_BY = [
+  "journal_entries",
+  "sales_invoices",
+  "purchase_invoices",
+  "sales_returns",
+  "purchase_returns",
+  "customer_payments",
+  "supplier_payments",
+  "expenses",
+  "inventory_adjustments",
+  "inventory_movements",
+];
+
 // ترتيب الحذف: الأبناء أولاً لتجنب أخطاء FK
 const ALL_TABLES_TRUNCATE = [
-  // الجداول الأربعة المفقودة سابقاً
   "sales_invoice_return_settlements",
   "purchase_invoice_return_settlements",
   "sales_return_payment_allocations",
   "purchase_return_payment_allocations",
-  // باقي الجداول
   "customer_payment_allocations",
   "supplier_payment_allocations",
   "inventory_adjustment_items",
@@ -94,7 +106,19 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const results: string[] = [];
 
-    // ── Step 1: حذف بيانات جميع الجداول ──
+    // ── Step 1: إزالة مراجع created_by لتجنب أخطاء FK عند حذف المستخدمين ──
+    for (const table of TABLES_WITH_CREATED_BY) {
+      const { error } = await supabase
+        .from(table)
+        .update({ created_by: null })
+        .not("created_by", "is", null);
+      if (error) {
+        results.push(`⚠️ خطأ في تنظيف created_by من ${table}: ${error.message}`);
+      }
+    }
+    results.push("✅ تم تنظيف مراجع المستخدمين من جميع الجداول");
+
+    // ── Step 2: حذف بيانات جميع الجداول ──
     for (const table of ALL_TABLES_TRUNCATE) {
       const { error } = await supabase.from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000");
       if (error) {
@@ -104,7 +128,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Step 2: حذف أدوار المستخدمين والملفات الشخصية ──
+    // ── Step 3: حذف أدوار المستخدمين والملفات الشخصية ──
     const { error: rolesErr } = await supabase
       .from("user_roles")
       .delete()
@@ -117,7 +141,7 @@ Deno.serve(async (req) => {
       .neq("id", "00000000-0000-0000-0000-000000000000");
     results.push(profilesErr ? `❌ خطأ في حذف الملفات الشخصية: ${profilesErr.message}` : "🗑️ تم حذف الملفات الشخصية");
 
-    // ── Step 3: حذف جميع مستخدمي Auth ──
+    // ── Step 4: حذف جميع مستخدمي Auth ──
     const { data: allUsers, error: listErr } = await supabase.auth.admin.listUsers();
     if (listErr) {
       results.push(`❌ خطأ في جلب المستخدمين: ${listErr.message}`);
@@ -136,9 +160,9 @@ Deno.serve(async (req) => {
       results.push("ℹ️ لا يوجد مستخدمون لحذفهم");
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // ── Step 4: إعادة إنشاء حساب المدير ──
+    // ── Step 5: إعادة إنشاء حساب المدير ──
     const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
       email: DEFAULT_ADMIN_EMAIL,
       password: DEFAULT_ADMIN_PASSWORD,
@@ -152,20 +176,22 @@ Deno.serve(async (req) => {
       const adminId = newUser.user.id;
       results.push(`✅ تم إنشاء حساب المدير: ${DEFAULT_ADMIN_EMAIL}`);
 
+      // إسناد دور admin
       const { error: roleErr } = await supabase.rpc("admin_insert_user_role", {
         p_user_id: adminId,
         p_role: "admin",
       });
       results.push(roleErr ? `❌ خطأ في إسناد الدور: ${roleErr.message}` : "✅ تم إسناد دور المدير");
 
+      // إنشاء الملف الشخصي
       const { error: profErr } = await supabase.rpc("admin_insert_profile", {
         p_id: adminId,
         p_full_name: DEFAULT_ADMIN_NAME,
       });
-      results.push(profErr ? `❌ خطأ في الملف الشخصي: ${profErr.message}` : "✅ تم إنشاء الملف الشخصي");
+      results.push(profErr ? `❌ خطأ في الملف الشخصي: ${profErr.message}` : "✅ تم إنشاء الملف الشخصي للمدير");
     }
 
-    // ── Step 5: إعادة إنشاء شجرة الحسابات ──
+    // ── Step 6: إعادة إنشاء شجرة الحسابات ──
     const codeToId: Record<string, string> = {};
     let accountsCount = 0;
     for (const acc of DEFAULT_ACCOUNTS) {
@@ -190,12 +216,13 @@ Deno.serve(async (req) => {
     }
     results.push(`✅ تم إضافة ${accountsCount} حساب في شجرة الحسابات`);
 
-    // ── Step 6: إعادة إنشاء إعدادات الشركة ──
+    // ── Step 7: إعادة إنشاء إعدادات الشركة ──
     const { error: settingsErr } = await supabase.from("company_settings").insert({ company_name: "شركتي" });
     results.push(settingsErr ? `❌ خطأ في إنشاء الإعدادات: ${settingsErr.message}` : "✅ تم إنشاء إعدادات الشركة");
 
     results.push("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     results.push("✅ تم تصفير قاعدة البيانات وإعادة البناء بنجاح");
+    results.push(`📧 بيانات الدخول: ${DEFAULT_ADMIN_EMAIL} / ${DEFAULT_ADMIN_PASSWORD}`);
 
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
