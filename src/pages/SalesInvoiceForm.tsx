@@ -821,6 +821,7 @@ export default function SalesInvoiceForm() {
                           step="0.01"
                           value={item.unit_price}
                           onChange={(e) => updateItem(i, "unit_price", +e.target.value)}
+                          onKeyDown={!showDiscount ? (e => handleLastFieldKeyDown(e, i)) : undefined}
                           className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
