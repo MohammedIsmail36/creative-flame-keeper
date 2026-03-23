@@ -48,21 +48,29 @@ export interface LookupComboboxProps {
  * This prevents "model 327" from matching items where "327" only appears
  * in the combined string but not in the relevant field.
  */
+/** Fields where we match from the start (prefix) vs anywhere (substring) */
+const PREFIX_FIELDS = new Set(["code", "model", "barcode"]);
+
 function smartFilter(itemValue: string, search: string, keywords?: string[]): number {
   // keywords[0] contains JSON-encoded searchFields if available
   if (keywords?.[0]) {
     try {
       const fields = JSON.parse(keywords[0]) as Record<string, string>;
       const terms = search.toLowerCase().trim().split(/\s+/);
-      const fieldValues = Object.values(fields).filter(Boolean).map(v => v.toLowerCase());
+      const entries = Object.entries(fields).filter(([, v]) => Boolean(v));
       
       let matchCount = 0;
       for (const term of terms) {
-        const matched = fieldValues.some(fv => fv.includes(term));
+        const matched = entries.some(([key, val]) => {
+          const v = val.toLowerCase();
+          // Code, model, barcode: prefix match only
+          if (PREFIX_FIELDS.has(key)) return v.startsWith(term);
+          // Name, brand: substring match
+          return v.includes(term);
+        });
         if (!matched) return 0;
         matchCount++;
       }
-      // Score: more terms matched = higher score
       return matchCount / terms.length;
     } catch {
       // fallback to default
