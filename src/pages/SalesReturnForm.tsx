@@ -543,7 +543,7 @@ export default function SalesReturnForm() {
                   </td>
                 </tr>
               ) : items.map((item, i) => (
-                <tr key={i} className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100">
+                <tr key={i} data-invoice-row={i} className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100">
                   <td className="py-2 px-3 text-center">
                     <span className="text-xs font-medium text-muted-foreground/40 tabular-nums">{i + 1}</span>
                   </td>
