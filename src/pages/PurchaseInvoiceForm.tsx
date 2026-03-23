@@ -117,6 +117,22 @@ export default function PurchaseInvoiceForm() {
 
   function addItem() {
     setItems(prev => [...prev, { product_id: "", product_name: "", quantity: 1, unit_price: 0, discount: 0, total: 0 }]);
+    // After render, open the new row's product combobox
+    setTimeout(() => {
+      const rows = document.querySelectorAll("[data-invoice-row]");
+      const lastRow = rows[rows.length - 1];
+      const comboBtn = lastRow?.querySelector("[role='combobox']") as HTMLButtonElement | null;
+      comboBtn?.click();
+    }, 50);
+  }
+
+  /** Handle Tab/Enter on last field of last row → auto-add new row */
+  function handleLastFieldKeyDown(e: React.KeyboardEvent, rowIndex: number) {
+    if (rowIndex !== items.length - 1) return;
+    if (e.key === "Tab" || e.key === "Enter") {
+      e.preventDefault();
+      addItem();
+    }
   }
 
   function updateItem(index: number, field: string, value: any) {
