@@ -773,6 +773,7 @@ export default function SalesInvoiceForm() {
                 items.map((item, i) => (
                   <tr
                     key={i}
+                    data-invoice-row={i}
                     className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100"
                   >
                     {/* Row number */}
