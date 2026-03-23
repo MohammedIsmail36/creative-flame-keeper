@@ -497,7 +497,7 @@ export default function PurchaseInvoiceForm() {
                   </td>
                   <td className="py-2 px-3">
                     {isEditable ? (
-                      <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", +e.target.value)} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full" />
+                      <Input type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", +e.target.value)} onKeyDown={!showDiscount ? (e => handleLastFieldKeyDown(e, i)) : undefined} className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full" />
                     ) : (
                       <span className="font-mono tabular-nums text-sm text-muted-foreground">{item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                     )}
