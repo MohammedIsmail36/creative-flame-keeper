@@ -53,7 +53,7 @@ export function productsToLookupItems(products: ProductWithBrand[], showQty = fa
     if (p.name) searchFields.name = p.name;
     if (p.model_number) searchFields.model = p.model_number;
     if (p.product_brands?.name) searchFields.brand = p.product_brands.name;
-    if (p.barcode) searchFields.barcode = p.barcode;
+    // barcode search deferred to POS implementation
 
     return { id: p.id, name, searchKeywords, searchFields };
   });

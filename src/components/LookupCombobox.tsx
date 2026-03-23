@@ -49,7 +49,7 @@ export interface LookupComboboxProps {
  * in the combined string but not in the relevant field.
  */
 /** Fields where we match from the start (prefix) vs anywhere (substring) */
-const PREFIX_FIELDS = new Set(["code", "model", "barcode"]);
+const PREFIX_FIELDS = new Set(["code", "model"]);
 
 function smartFilter(itemValue: string, search: string, keywords?: string[]): number {
   // keywords[0] contains JSON-encoded searchFields if available
