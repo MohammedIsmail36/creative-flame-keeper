@@ -21,6 +21,14 @@ export interface LookupItem {
   name: string;
   /** Extra keywords for search (won't show in display) */
   searchKeywords?: string;
+  /** Structured search fields for smarter filtering */
+  searchFields?: {
+    code?: string;
+    model?: string;
+    brand?: string;
+    name?: string;
+    barcode?: string;
+  };
 }
 
 export interface LookupComboboxProps {
@@ -32,6 +40,40 @@ export interface LookupComboboxProps {
   emptyMessage?: string;
   className?: string;
   disabled?: boolean;
+}
+
+/**
+ * Custom filter: if item has searchFields, match each field independently.
+ * A term must match at least one field. Multiple terms must all match.
+ * This prevents "model 327" from matching items where "327" only appears
+ * in the combined string but not in the relevant field.
+ */
+function smartFilter(itemValue: string, search: string, keywords?: string[]): number {
+  // keywords[0] contains JSON-encoded searchFields if available
+  if (keywords?.[0]) {
+    try {
+      const fields = JSON.parse(keywords[0]) as Record<string, string>;
+      const terms = search.toLowerCase().trim().split(/\s+/);
+      const fieldValues = Object.values(fields).filter(Boolean).map(v => v.toLowerCase());
+      
+      let matchCount = 0;
+      for (const term of terms) {
+        const matched = fieldValues.some(fv => fv.includes(term));
+        if (!matched) return 0;
+        matchCount++;
+      }
+      // Score: more terms matched = higher score
+      return matchCount / terms.length;
+    } catch {
+      // fallback to default
+    }
+  }
+  
+  // Default cmdk-like behavior
+  const val = itemValue.toLowerCase();
+  const s = search.toLowerCase().trim();
+  if (!s) return 1;
+  return val.includes(s) ? 1 : 0;
 }
 
 export function LookupCombobox({
@@ -46,11 +88,27 @@ export function LookupCombobox({
 }: LookupComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const selected = items.find((i) => i.id === value);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+
+  // Handle Tab key to select highlighted item and close
+  const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Tab" && open) {
+      // Find the currently highlighted [data-selected=true] item
+      const container = (e.target as HTMLElement).closest("[cmdk-root]");
+      const selectedEl = container?.querySelector("[cmdk-item][data-selected=true]");
+      if (selectedEl) {
+        // Trigger click on the selected item
+        (selectedEl as HTMLElement).click();
+      }
+      // Don't prevent default - let Tab naturally move focus to next field
+    }
+  }, [open]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -73,9 +131,14 @@ export function LookupCombobox({
         className="w-[--radix-popover-trigger-width] p-0 shadow-lg border-border/80"
         align="start"
         sideOffset={5}
+        onOpenAutoFocus={(e) => {
+          // Let command input auto-focus
+        }}
       >
-        <Command dir="rtl" className="rounded-md">
-          <CommandInput placeholder={searchPlaceholder} className="h-10 text-sm" />
+        <Command dir="rtl" className="rounded-md" filter={smartFilter}>
+          <div onKeyDown={handleKeyDown}>
+            <CommandInput placeholder={searchPlaceholder} className="h-10 text-sm" />
+          </div>
           <CommandList>
             <CommandEmpty>
               <div className="flex flex-col items-center gap-1.5">
@@ -91,6 +154,11 @@ export function LookupCombobox({
                     item.searchKeywords
                       ? `${item.name} ${item.searchKeywords}`
                       : item.name
+                  }
+                  keywords={
+                    item.searchFields
+                      ? [JSON.stringify(item.searchFields)]
+                      : undefined
                   }
                   onSelect={() => {
                     onValueChange(item.id === value ? "" : item.id);
