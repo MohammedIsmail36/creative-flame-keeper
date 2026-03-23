@@ -44,7 +44,7 @@ describe("productsToLookupItems", () => {
     {
       id: "1", code: "P001", name: "قميص",
       product_brands: { name: "زارا" }, model_number: "327",
-      quantity_on_hand: 50, selling_price: 150,
+      quantity_on_hand: 50, selling_price: 150, barcode: "123456",
     },
     {
       id: "2", code: "P002", name: "بنطلون",
@@ -71,6 +71,22 @@ describe("productsToLookupItems", () => {
     expect(items[0].searchKeywords).toContain("327");
     expect(items[0].searchKeywords).toContain("زارا");
     expect(items[0].searchKeywords).toContain("قميص");
+    expect(items[0].searchKeywords).toContain("123456");
+  });
+
+  it("should have structured searchFields", () => {
+    const items = productsToLookupItems(products);
+    expect(items[0].searchFields).toEqual({
+      code: "P001",
+      name: "قميص",
+      model: "327",
+      brand: "زارا",
+      barcode: "123456",
+    });
+    expect(items[1].searchFields).toEqual({
+      code: "P002",
+      name: "بنطلون",
+    });
   });
 
   it("should return correct IDs", () => {
