@@ -423,7 +423,7 @@ export default function PurchaseReturnForm() {
               {items.length === 0 ? (
                 <tr><td colSpan={colCount}><div className="flex flex-col items-center justify-center py-16 gap-3"><div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center"><ListChecks className="h-5 w-5 text-muted-foreground/40" /></div><p className="text-sm font-medium text-muted-foreground">لا توجد بنود بعد</p>{isEditable && <p className="text-xs text-muted-foreground/50">اضغط «إضافة بند جديد» للبدء</p>}</div></td></tr>
               ) : items.map((item, i) => (
-                <tr key={i} className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100">
+                <tr key={i} data-invoice-row={i} className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100">
                   <td className="py-2 px-3 text-center"><span className="text-xs font-medium text-muted-foreground/40 tabular-nums">{i + 1}</span></td>
                   <td className="py-2 px-3 min-w-0">
                     {isEditable ? <LookupCombobox items={productsToLookupItems(products)} value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)} placeholder="اختر المنتج" /> : <span className="font-medium text-sm block truncate" title={item.product_name}>{item.product_name}</span>}
