@@ -182,6 +182,20 @@ export default function SalesInvoiceForm() {
       ...prev,
       { product_id: "", product_name: "", quantity: 1, unit_price: 0, cost_price: 0, discount: 0, total: 0 },
     ]);
+    setTimeout(() => {
+      const rows = document.querySelectorAll("[data-invoice-row]");
+      const lastRow = rows[rows.length - 1];
+      const comboBtn = lastRow?.querySelector("[role='combobox']") as HTMLButtonElement | null;
+      comboBtn?.click();
+    }, 50);
+  }
+
+  function handleLastFieldKeyDown(e: React.KeyboardEvent, rowIndex: number) {
+    if (rowIndex !== items.length - 1) return;
+    if (e.key === "Tab" || e.key === "Enter") {
+      e.preventDefault();
+      addItem();
+    }
   }
 
   function updateItem(index: number, field: string, value: any) {
@@ -759,6 +773,7 @@ export default function SalesInvoiceForm() {
                 items.map((item, i) => (
                   <tr
                     key={i}
+                    data-invoice-row={i}
                     className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100"
                   >
                     {/* Row number */}
@@ -806,6 +821,7 @@ export default function SalesInvoiceForm() {
                           step="0.01"
                           value={item.unit_price}
                           onChange={(e) => updateItem(i, "unit_price", +e.target.value)}
+                          onKeyDown={!showDiscount ? (e => handleLastFieldKeyDown(e, i)) : undefined}
                           className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
@@ -825,6 +841,7 @@ export default function SalesInvoiceForm() {
                             step="0.01"
                             value={item.discount}
                             onChange={(e) => updateItem(i, "discount", +e.target.value)}
+                            onKeyDown={(e) => handleLastFieldKeyDown(e, i)}
                             className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                           />
                         ) : item.discount > 0 ? (
