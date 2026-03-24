@@ -138,6 +138,8 @@ export function LookupCombobox({
       <PopoverContent
         className="w-[--radix-popover-trigger-width] p-0 shadow-lg border-border/80"
         align="start"
+        side="bottom"
+        avoidCollisions={false}
         sideOffset={5}
         onOpenAutoFocus={(e) => {
           // Let command input auto-focus
