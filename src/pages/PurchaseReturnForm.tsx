@@ -170,9 +170,9 @@ export default function PurchaseReturnForm() {
       } else {
         await (supabase.from("purchase_returns" as any) as any).update(payload).eq("id", id);
         await (supabase.from("purchase_return_items" as any) as any).delete().eq("return_id", id);
-        const rows = items.map(i => ({
+        const rows = items.map((i, idx) => ({
           return_id: id, product_id: i.product_id, description: i.product_name,
-          quantity: i.quantity, unit_price: i.unit_price, discount: i.discount, total: i.total,
+          quantity: i.quantity, unit_price: i.unit_price, discount: i.discount, total: i.total, sort_order: idx,
         }));
         await (supabase.from("purchase_return_items" as any) as any).insert(rows);
         toast({ title: "تم التحديث", description: "تم تحديث مرتجع الشراء" });
