@@ -251,7 +251,7 @@ export default function PurchaseInvoiceForm() {
           .select("id")
           .single();
         if (error) throw error;
-        const rows = items.map((i) => ({
+        const rows = items.map((i, idx) => ({
           invoice_id: inv.id,
           product_id: i.product_id,
           description: i.product_name,
@@ -259,6 +259,7 @@ export default function PurchaseInvoiceForm() {
           unit_price: i.unit_price,
           discount: i.discount,
           total: i.total,
+          sort_order: idx,
         }));
         await (supabase.from("purchase_invoice_items" as any) as any).insert(rows);
         toast({ title: "تمت الإضافة", description: "تم إنشاء فاتورة الشراء كمسودة" });
