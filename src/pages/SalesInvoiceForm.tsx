@@ -668,6 +668,7 @@ export default function SalesInvoiceForm() {
           )}
         </div>
       </div>
+      </div>
 
       {/* ── Customer Details Card ── */}
       <div className="bg-card p-6 rounded-2xl border shadow-sm">

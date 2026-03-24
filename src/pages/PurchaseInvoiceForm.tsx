@@ -610,6 +610,7 @@ export default function PurchaseInvoiceForm() {
           )}
         </div>
       </div>
+      </div>
 
       {/* ── Supplier Details Card ── */}
       <div className="bg-card p-6 rounded-2xl border shadow-sm">
