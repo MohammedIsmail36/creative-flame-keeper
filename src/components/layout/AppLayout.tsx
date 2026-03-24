@@ -50,7 +50,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </Button>
             </div>
           </header>
-          <main className="flex-1 p-5 overflow-auto">
+          <main className="flex-1 p-5 overflow-y-auto relative">
             {children}
           </main>
         </div>
