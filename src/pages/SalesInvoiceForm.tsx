@@ -150,7 +150,7 @@ export default function SalesInvoiceForm() {
         const { data: itemsData } = await (supabase.from("sales_invoice_items" as any) as any)
           .select("*, products:product_id(name, code, purchase_price, model_number, product_brands(name))")
           .eq("invoice_id", id)
-          .order("created_at", { ascending: true });
+          .order("sort_order", { ascending: true });
         setItems(
           (itemsData || []).map((it: any) => ({
             id: it.id,
@@ -254,7 +254,7 @@ export default function SalesInvoiceForm() {
           .select("id")
           .single();
         if (error) throw error;
-        const rows = items.map((i) => ({
+        const rows = items.map((i, idx) => ({
           invoice_id: inv.id,
           product_id: i.product_id,
           description: i.product_name,
@@ -262,6 +262,7 @@ export default function SalesInvoiceForm() {
           unit_price: i.unit_price,
           discount: i.discount,
           total: i.total,
+          sort_order: idx,
         }));
         await (supabase.from("sales_invoice_items" as any) as any).insert(rows);
         toast({ title: "تمت الإضافة", description: "تم إنشاء فاتورة البيع كمسودة" });
@@ -270,7 +271,7 @@ export default function SalesInvoiceForm() {
         const { error } = await (supabase.from("sales_invoices" as any) as any).update(payload).eq("id", id);
         if (error) throw error;
         await (supabase.from("sales_invoice_items" as any) as any).delete().eq("invoice_id", id);
-        const rows = items.map((i) => ({
+        const rows = items.map((i, idx) => ({
           invoice_id: id,
           product_id: i.product_id,
           description: i.product_name,
@@ -278,6 +279,7 @@ export default function SalesInvoiceForm() {
           unit_price: i.unit_price,
           discount: i.discount,
           total: i.total,
+          sort_order: idx,
         }));
         await (supabase.from("sales_invoice_items" as any) as any).insert(rows);
         toast({ title: "تم التحديث", description: "تم تحديث فاتورة البيع" });

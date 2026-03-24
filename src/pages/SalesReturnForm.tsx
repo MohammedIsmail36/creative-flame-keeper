@@ -94,7 +94,7 @@ export default function SalesReturnForm() {
         setEditMode(ret.status === "draft");
 
         const { data: itemsData } = await (supabase.from("sales_return_items" as any) as any)
-          .select("*, products:product_id(name, code, purchase_price, model_number, product_brands(name))").eq("return_id", id).order("created_at", { ascending: true });
+          .select("*, products:product_id(name, code, purchase_price, model_number, product_brands(name))").eq("return_id", id).order("sort_order", { ascending: true });
         setItems((itemsData || []).map((it: any) => ({
           id: it.id, product_id: it.product_id || "", product_name: it.products ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number) : (it.description || ""),
           quantity: it.quantity, unit_price: it.unit_price, cost_price: it.products?.purchase_price || 0,
@@ -162,9 +162,9 @@ export default function SalesReturnForm() {
       if (isNew) {
         const { data: ret, error } = await (supabase.from("sales_returns" as any) as any).insert(payload).select("id").single();
         if (error) throw error;
-        const rows = items.map(i => ({
+        const rows = items.map((i, idx) => ({
           return_id: ret.id, product_id: i.product_id, description: i.product_name,
-          quantity: i.quantity, unit_price: i.unit_price, discount: i.discount, total: i.total,
+          quantity: i.quantity, unit_price: i.unit_price, discount: i.discount, total: i.total, sort_order: idx,
         }));
         await (supabase.from("sales_return_items" as any) as any).insert(rows);
         toast({ title: "تمت الإضافة", description: "تم إنشاء مرتجع البيع كمسودة" });
@@ -172,9 +172,9 @@ export default function SalesReturnForm() {
       } else {
         await (supabase.from("sales_returns" as any) as any).update(payload).eq("id", id);
         await (supabase.from("sales_return_items" as any) as any).delete().eq("return_id", id);
-        const rows = items.map(i => ({
+        const rows = items.map((i, idx) => ({
           return_id: id, product_id: i.product_id, description: i.product_name,
-          quantity: i.quantity, unit_price: i.unit_price, discount: i.discount, total: i.total,
+          quantity: i.quantity, unit_price: i.unit_price, discount: i.discount, total: i.total, sort_order: idx,
         }));
         await (supabase.from("sales_return_items" as any) as any).insert(rows);
         toast({ title: "تم التحديث", description: "تم تحديث مرتجع البيع" });

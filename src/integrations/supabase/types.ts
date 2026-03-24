@@ -898,6 +898,7 @@ export type Database = {
           invoice_id: string
           product_id: string | null
           quantity: number
+          sort_order: number
           total: number
           unit_price: number
         }
@@ -909,6 +910,7 @@ export type Database = {
           invoice_id: string
           product_id?: string | null
           quantity?: number
+          sort_order?: number
           total?: number
           unit_price?: number
         }
@@ -920,6 +922,7 @@ export type Database = {
           invoice_id?: string
           product_id?: string | null
           quantity?: number
+          sort_order?: number
           total?: number
           unit_price?: number
         }
@@ -1066,6 +1069,7 @@ export type Database = {
           product_id: string | null
           quantity: number
           return_id: string
+          sort_order: number
           total: number
           unit_price: number
         }
@@ -1077,6 +1081,7 @@ export type Database = {
           product_id?: string | null
           quantity?: number
           return_id: string
+          sort_order?: number
           total?: number
           unit_price?: number
         }
@@ -1088,6 +1093,7 @@ export type Database = {
           product_id?: string | null
           quantity?: number
           return_id?: string
+          sort_order?: number
           total?: number
           unit_price?: number
         }
@@ -1238,6 +1244,7 @@ export type Database = {
           invoice_id: string
           product_id: string | null
           quantity: number
+          sort_order: number
           total: number
           unit_price: number
         }
@@ -1249,6 +1256,7 @@ export type Database = {
           invoice_id: string
           product_id?: string | null
           quantity?: number
+          sort_order?: number
           total?: number
           unit_price?: number
         }
@@ -1260,6 +1268,7 @@ export type Database = {
           invoice_id?: string
           product_id?: string | null
           quantity?: number
+          sort_order?: number
           total?: number
           unit_price?: number
         }
@@ -1406,6 +1415,7 @@ export type Database = {
           product_id: string | null
           quantity: number
           return_id: string
+          sort_order: number
           total: number
           unit_price: number
         }
@@ -1417,6 +1427,7 @@ export type Database = {
           product_id?: string | null
           quantity?: number
           return_id: string
+          sort_order?: number
           total?: number
           unit_price?: number
         }
@@ -1428,6 +1439,7 @@ export type Database = {
           product_id?: string | null
           quantity?: number
           return_id?: string
+          sort_order?: number
           total?: number
           unit_price?: number
         }
