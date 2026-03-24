@@ -459,6 +459,7 @@ export default function SalesReturnForm() {
           )}
         </div>
       </div>
+      </div>
 
       {/* ── Entity Details Card ── */}
       <div className="bg-card p-6 rounded-2xl border shadow-sm">

@@ -370,6 +370,7 @@ export default function PurchaseReturnForm() {
           {!isNew && isDraft && canEdit && <Button size="sm" onClick={postReturn} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5"><CheckCircle className="h-4 w-4" />ترحيل المرتجع</Button>}
         </div>
       </div>
+      </div>
 
       {/* ── Entity Details Card ── */}
       <div className="bg-card p-6 rounded-2xl border shadow-sm">
