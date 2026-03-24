@@ -146,7 +146,8 @@ export default function PurchaseInvoiceForm() {
 
         const { data: itemsData } = await (supabase.from("purchase_invoice_items" as any) as any)
           .select("*, products:product_id(name, code, model_number, product_brands(name))")
-          .eq("invoice_id", id);
+          .eq("invoice_id", id)
+          .order("created_at", { ascending: true });
         setItems(
           (itemsData || []).map((it: any) => ({
             id: it.id,
