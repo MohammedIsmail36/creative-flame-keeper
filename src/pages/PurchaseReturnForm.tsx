@@ -93,7 +93,7 @@ export default function PurchaseReturnForm() {
         setEditMode(ret.status === "draft");
 
         const { data: itemsData } = await (supabase.from("purchase_return_items" as any) as any)
-          .select("*, products:product_id(name, code, model_number, product_brands(name))").eq("return_id", id);
+          .select("*, products:product_id(name, code, model_number, product_brands(name))").eq("return_id", id).order("created_at", { ascending: true });
         setItems((itemsData || []).map((it: any) => ({
           id: it.id, product_id: it.product_id || "", product_name: it.products ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number) : (it.description || ""),
           quantity: it.quantity, unit_price: it.unit_price, discount: it.discount, total: it.total,
