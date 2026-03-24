@@ -162,9 +162,9 @@ export default function SalesReturnForm() {
       if (isNew) {
         const { data: ret, error } = await (supabase.from("sales_returns" as any) as any).insert(payload).select("id").single();
         if (error) throw error;
-        const rows = items.map(i => ({
+        const rows = items.map((i, idx) => ({
           return_id: ret.id, product_id: i.product_id, description: i.product_name,
-          quantity: i.quantity, unit_price: i.unit_price, discount: i.discount, total: i.total,
+          quantity: i.quantity, unit_price: i.unit_price, discount: i.discount, total: i.total, sort_order: idx,
         }));
         await (supabase.from("sales_return_items" as any) as any).insert(rows);
         toast({ title: "تمت الإضافة", description: "تم إنشاء مرتجع البيع كمسودة" });
