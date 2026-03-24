@@ -93,7 +93,7 @@ export default function PurchaseReturnForm() {
         setEditMode(ret.status === "draft");
 
         const { data: itemsData } = await (supabase.from("purchase_return_items" as any) as any)
-          .select("*, products:product_id(name, code, model_number, product_brands(name))").eq("return_id", id);
+          .select("*, products:product_id(name, code, model_number, product_brands(name))").eq("return_id", id).order("created_at", { ascending: true });
         setItems((itemsData || []).map((it: any) => ({
           id: it.id, product_id: it.product_id || "", product_name: it.products ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number) : (it.description || ""),
           quantity: it.quantity, unit_price: it.unit_price, discount: it.discount, total: it.total,
@@ -337,8 +337,9 @@ export default function PurchaseReturnForm() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* ── Page Header ── */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      {/* ── Page Header (Sticky) ── */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm -mx-5 px-5 py-3 -mt-5 border-b border-border/40">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-black text-foreground tracking-tight">
@@ -368,6 +369,7 @@ export default function PurchaseReturnForm() {
           {isEditable && <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5"><Save className="h-4 w-4" />{saving ? "جاري الحفظ..." : "حفظ مسودة"}</Button>}
           {!isNew && isDraft && canEdit && <Button size="sm" onClick={postReturn} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5"><CheckCircle className="h-4 w-4" />ترحيل المرتجع</Button>}
         </div>
+      </div>
       </div>
 
       {/* ── Entity Details Card ── */}

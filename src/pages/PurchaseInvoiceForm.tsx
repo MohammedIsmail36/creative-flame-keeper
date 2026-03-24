@@ -146,7 +146,8 @@ export default function PurchaseInvoiceForm() {
 
         const { data: itemsData } = await (supabase.from("purchase_invoice_items" as any) as any)
           .select("*, products:product_id(name, code, model_number, product_brands(name))")
-          .eq("invoice_id", id);
+          .eq("invoice_id", id)
+          .order("created_at", { ascending: true });
         setItems(
           (itemsData || []).map((it: any) => ({
             id: it.id,
@@ -498,8 +499,9 @@ export default function PurchaseInvoiceForm() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto" dir="rtl">
-      {/* ── Page Header ── */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      {/* ── Page Header (Sticky) ── */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm -mx-5 px-5 py-3 -mt-5 border-b border-border/40">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-black text-foreground tracking-tight">
@@ -608,6 +610,7 @@ export default function PurchaseInvoiceForm() {
             </Button>
           )}
         </div>
+      </div>
       </div>
 
       {/* ── Supplier Details Card ── */}
