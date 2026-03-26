@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useParams } from "react-router-dom";
@@ -62,6 +63,7 @@ export default function ProductForm() {
   const [quantity, setQuantity] = useState(0);
   const [minStock, setMinStock] = useState(0);
   const [mainImageUrl, setMainImageUrl] = useState<string | null>(null);
+  const [isActive, setIsActive] = useState(true);
   const [galleryImages, setGalleryImages] = useState<{ id?: string; image_url: string }[]>([]);
   const [uploadingMain, setUploadingMain] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
@@ -106,6 +108,7 @@ export default function ProductForm() {
     setQuantity(data.quantity_on_hand);
     setMinStock(data.min_stock_level);
     setMainImageUrl(data.main_image_url || null);
+    setIsActive(data.is_active ?? true);
 
     const { data: imgs } = await (supabase.from("product_images" as any) as any)
       .select("*")
@@ -173,6 +176,7 @@ export default function ProductForm() {
       quantity_on_hand: isEdit ? undefined : quantity,
       min_stock_level: minStock,
       main_image_url: mainImageUrl,
+      ...(isEdit ? { is_active: isActive } : {}),
     };
 
     try {
@@ -633,6 +637,20 @@ export default function ProductForm() {
                   <span className="text-muted-foreground mr-2">
                     ({(((sellingPrice - purchasePrice) / purchasePrice) * 100).toFixed(1)}%)
                   </span>
+                </div>
+              </div>
+            )}
+
+            {/* Product Active Status - Edit mode only */}
+            {isEdit && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">حالة المنتج</h3>
+                <div className="flex items-center justify-between bg-muted/30 rounded-xl p-4">
+                  <div>
+                    <Label className="text-sm font-medium text-foreground">تفعيل المنتج</Label>
+                    <p className="text-xs text-muted-foreground mt-1">المنتجات غير النشطة لا تظهر في قوائم البيع أو الشراء أو التقارير</p>
+                  </div>
+                  <Switch checked={isActive} onCheckedChange={setIsActive} />
                 </div>
               </div>
             )}

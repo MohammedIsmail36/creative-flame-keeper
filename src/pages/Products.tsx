@@ -137,6 +137,7 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
+  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
   const [categories, setCategories] = useState<
     { id: string; name: string; parent_id: string | null; is_active: boolean }[]
   >([]);
@@ -150,7 +151,6 @@ export default function Products() {
     const { data, error } = await supabase
       .from("products")
       .select("*, product_categories(name), product_units(name), product_brands(name)" as any)
-      .eq("is_active", true)
       .order("code");
     if (error) {
       toast({ title: "خطأ", description: "فشل في جلب المنتجات", variant: "destructive" });
@@ -176,12 +176,14 @@ export default function Products() {
   const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
 
   const stats = useMemo(() => {
-    const total = products.length;
-    const available = products.filter((p) => p.quantity_on_hand > p.min_stock_level).length;
-    const lowStock = products.filter((p) => p.quantity_on_hand > 0 && p.quantity_on_hand <= p.min_stock_level).length;
-    const outOfStock = products.filter((p) => p.quantity_on_hand <= 0).length;
-    const totalValue = products.reduce((s, p) => s + p.quantity_on_hand * p.purchase_price, 0);
-    return { total, available, lowStock, outOfStock, totalValue };
+    const activeProducts = products.filter(p => p.is_active);
+    const total = activeProducts.length;
+    const available = activeProducts.filter((p) => p.quantity_on_hand > p.min_stock_level).length;
+    const lowStock = activeProducts.filter((p) => p.quantity_on_hand > 0 && p.quantity_on_hand <= p.min_stock_level).length;
+    const outOfStock = activeProducts.filter((p) => p.quantity_on_hand <= 0).length;
+    const totalValue = activeProducts.reduce((s, p) => s + p.quantity_on_hand * p.purchase_price, 0);
+    const inactive = products.filter(p => !p.is_active).length;
+    return { total, available, lowStock, outOfStock, totalValue, inactive };
   }, [products]);
 
   const matchingCategoryIds = useMemo(() => {
@@ -191,21 +193,23 @@ export default function Products() {
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
+      const matchesStatus = statusFilter === "all" || (statusFilter === "active" && p.is_active) || (statusFilter === "inactive" && !p.is_active);
       const matchesCategory = !matchingCategoryIds || (p.category_id && matchingCategoryIds.includes(p.category_id));
       const matchesStock =
         stockFilter === "all" ||
         (stockFilter === "low" && p.quantity_on_hand > 0 && p.quantity_on_hand <= p.min_stock_level) ||
         (stockFilter === "out" && p.quantity_on_hand <= 0);
-      return matchesCategory && matchesStock;
+      return matchesStatus && matchesCategory && matchesStock;
     });
-  }, [products, matchingCategoryIds, stockFilter]);
+  }, [products, matchingCategoryIds, stockFilter, statusFilter]);
 
-  const handleDelete = async (product: ProductRow) => {
-    const { error } = await supabase.from("products").update({ is_active: false }).eq("id", product.id);
+  const toggleProductStatus = async (product: ProductRow) => {
+    const newStatus = !product.is_active;
+    const { error } = await supabase.from("products").update({ is_active: newStatus }).eq("id", product.id);
     if (error) {
-      toast({ title: "خطأ", description: "فشل في حذف المنتج", variant: "destructive" });
+      toast({ title: "خطأ", description: "فشل في تحديث حالة المنتج", variant: "destructive" });
     } else {
-      toast({ title: "تم الحذف", description: "تم حذف المنتج بنجاح" });
+      toast({ title: newStatus ? "تم التفعيل" : "تم التعطيل", description: newStatus ? "تم تفعيل المنتج بنجاح" : "تم تعطيل المنتج بنجاح" });
       fetchProducts();
     }
   };
@@ -302,6 +306,13 @@ export default function Products() {
       ),
     },
     {
+      id: "active_status",
+      header: "النشاط",
+      cell: ({ row }) => row.original.is_active
+        ? <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">نشط</Badge>
+        : <Badge variant="secondary" className="bg-muted text-muted-foreground">غير نشط</Badge>,
+    },
+    {
       accessorKey: "code",
       header: ({ column }) => <DataTableColumnHeader column={column} title="كود الصنف" />,
       cell: ({ row }) => <span className="font-mono text-sm text-foreground">{row.original.code}</span>,
@@ -325,7 +336,7 @@ export default function Products() {
     },
     {
       id: "stock_status",
-      header: "الحالة",
+      header: "حالة المخزون",
       cell: ({ row }) => getStockBadge(row.original),
     },
     {
@@ -352,28 +363,32 @@ export default function Products() {
               <Pencil className="h-4 w-4" />
             </Button>
           )}
-          {canDelete && (
+          {canEdit && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                  className={`h-8 w-8 ${row.original.is_active ? "text-muted-foreground hover:text-destructive hover:bg-destructive/5" : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"}`}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  {row.original.is_active ? <Archive className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent dir="rtl">
                 <AlertDialogHeader>
-                  <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
-                  <AlertDialogDescription>هل أنت متأكد من حذف المنتج "{row.original.name}"؟</AlertDialogDescription>
+                  <AlertDialogTitle>{row.original.is_active ? "تعطيل المنتج" : "تفعيل المنتج"}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {row.original.is_active
+                      ? `هل تريد تعطيل منتج "${row.original.name}"؟ لن يظهر في الفواتير والتقارير.`
+                      : `هل تريد تفعيل منتج "${row.original.name}"؟ سيظهر مجدداً في الفواتير والتقارير.`}
+                  </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="flex-row-reverse gap-2">
                   <AlertDialogAction
-                    onClick={() => handleDelete(row.original)}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => toggleProductStatus(row.original)}
+                    className={row.original.is_active ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : "bg-emerald-600 text-white hover:bg-emerald-700"}
                   >
-                    حذف
+                    {row.original.is_active ? "تعطيل" : "تفعيل"}
                   </AlertDialogAction>
                   <AlertDialogCancel>إلغاء</AlertDialogCancel>
                 </AlertDialogFooter>
@@ -414,6 +429,13 @@ export default function Products() {
       iconBg: "bg-red-100 dark:bg-red-500/20",
       iconColor: "text-red-600 dark:text-red-400",
     },
+    ...(stats.inactive > 0 ? [{
+      label: "غير نشط",
+      value: stats.inactive,
+      icon: Archive,
+      iconBg: "bg-muted",
+      iconColor: "text-muted-foreground",
+    }] : []),
   ];
 
   return (
@@ -448,7 +470,7 @@ export default function Products() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${statCards.length > 4 ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
         {statCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
           <div key={label} className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4">
             <div className={`p-3 rounded-full ${iconBg}`}>
@@ -480,6 +502,16 @@ export default function Products() {
               <SelectContent>
                 <SelectItem value="all">كافة التصنيفات</SelectItem>
                 {renderCategoryOptions(categoryTree)}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+              <SelectTrigger className="w-40 bg-card border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">النشطة فقط</SelectItem>
+                <SelectItem value="inactive">غير النشطة</SelectItem>
+                <SelectItem value="all">الكل</SelectItem>
               </SelectContent>
             </Select>
             <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as any)}>

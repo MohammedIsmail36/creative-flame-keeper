@@ -138,6 +138,7 @@ const sections: MenuSection[] = [
       { title: "أرصدة الحسابات", url: "/reports/balances", icon: Calculator, roles: ["admin", "accountant"] },
       { title: "الأرباح والخسائر", url: "/reports/profit-loss", icon: DollarSign, roles: ["admin", "accountant"] },
       { title: "حركة المخزون", url: "/inventory-movements", icon: Package, roles: ["admin", "accountant"] },
+      { title: "دوران المخزون", url: "/reports/inventory-turnover", icon: TrendingUp, roles: ["admin", "accountant"] },
       { title: "تسوية المخزون", url: "/inventory-adjustments", icon: ClipboardCheck, roles: ["admin", "accountant"] },
     ],
   },

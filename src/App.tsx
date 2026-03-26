@@ -39,6 +39,7 @@ import ProductAnalyticsPage from "./pages/reports/ProductAnalyticsPage";
 import AccountBalancesPage from "./pages/reports/AccountBalancesPage";
 import ProfitLossPage from "./pages/reports/ProfitLossPage";
 import InventoryMovements from "./pages/InventoryMovements";
+import InventoryTurnoverPage from "./pages/reports/InventoryTurnoverPage";
 import InventoryAdjustments from "./pages/InventoryAdjustments";
 import InventoryAdjustmentForm from "./pages/InventoryAdjustmentForm";
 import TrialBalance from "./pages/TrialBalance";
@@ -116,6 +117,7 @@ const App = () => (
             <Route path="/customer-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><CustomerStatement /></AppLayout></ProtectedRoute>} />
             <Route path="/supplier-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><SupplierStatement /></AppLayout></ProtectedRoute>} />
             <Route path="/inventory-movements" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryMovements /></AppLayout></ProtectedRoute>} />
+            <Route path="/reports/inventory-turnover" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryTurnoverPage /></AppLayout></ProtectedRoute>} />
             <Route path="/inventory-adjustments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryAdjustments /></AppLayout></ProtectedRoute>} />
             <Route path="/inventory-adjustments/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryAdjustmentForm /></AppLayout></ProtectedRoute>} />
             <Route path="/inventory-adjustments/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryAdjustmentForm /></AppLayout></ProtectedRoute>} />
