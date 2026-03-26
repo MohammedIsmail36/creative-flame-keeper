@@ -429,7 +429,13 @@ export default function Products() {
       iconBg: "bg-red-100 dark:bg-red-500/20",
       iconColor: "text-red-600 dark:text-red-400",
     },
-  ];
+    ...(stats.inactive > 0 ? [{
+      label: "غير نشط",
+      value: stats.inactive,
+      icon: Archive,
+      iconBg: "bg-muted",
+      iconColor: "text-muted-foreground",
+    }] : []),
 
   return (
     <div className="space-y-6" dir="rtl">
