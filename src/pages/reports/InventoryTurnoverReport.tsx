@@ -724,7 +724,6 @@ export default function InventoryTurnoverReport() {
         searchPlaceholder="البحث بالاسم أو الكود..."
         isLoading={isLoading}
         emptyMessage="لا توجد بيانات"
-        rowClassName={(row) => row.original.actionPriority === 1 ? "bg-red-50/50 dark:bg-red-500/5" : undefined}
       />
     </div>
   );
