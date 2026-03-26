@@ -193,14 +193,15 @@ export default function Products() {
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
+      const matchesStatus = statusFilter === "all" || (statusFilter === "active" && p.is_active) || (statusFilter === "inactive" && !p.is_active);
       const matchesCategory = !matchingCategoryIds || (p.category_id && matchingCategoryIds.includes(p.category_id));
       const matchesStock =
         stockFilter === "all" ||
         (stockFilter === "low" && p.quantity_on_hand > 0 && p.quantity_on_hand <= p.min_stock_level) ||
         (stockFilter === "out" && p.quantity_on_hand <= 0);
-      return matchesCategory && matchesStock;
+      return matchesStatus && matchesCategory && matchesStock;
     });
-  }, [products, matchingCategoryIds, stockFilter]);
+  }, [products, matchingCategoryIds, stockFilter, statusFilter]);
 
   const handleDelete = async (product: ProductRow) => {
     const { error } = await supabase.from("products").update({ is_active: false }).eq("id", product.id);
