@@ -203,12 +203,13 @@ export default function Products() {
     });
   }, [products, matchingCategoryIds, stockFilter, statusFilter]);
 
-  const handleDelete = async (product: ProductRow) => {
-    const { error } = await supabase.from("products").update({ is_active: false }).eq("id", product.id);
+  const toggleProductStatus = async (product: ProductRow) => {
+    const newStatus = !product.is_active;
+    const { error } = await supabase.from("products").update({ is_active: newStatus }).eq("id", product.id);
     if (error) {
-      toast({ title: "خطأ", description: "فشل في حذف المنتج", variant: "destructive" });
+      toast({ title: "خطأ", description: "فشل في تحديث حالة المنتج", variant: "destructive" });
     } else {
-      toast({ title: "تم الحذف", description: "تم حذف المنتج بنجاح" });
+      toast({ title: newStatus ? "تم التفعيل" : "تم التعطيل", description: newStatus ? "تم تفعيل المنتج بنجاح" : "تم تعطيل المنتج بنجاح" });
       fetchProducts();
     }
   };
