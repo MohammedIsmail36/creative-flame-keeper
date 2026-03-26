@@ -522,16 +522,12 @@ export default function Products() {
                 <SelectItem value="low">مخزون منخفض</SelectItem>
                 <SelectItem value="out">نفذت الكمية</SelectItem>
               </SelectContent>
-            </Select>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">حالة المخزون</SelectItem>
-                <SelectItem value="low">مخزون منخفض</SelectItem>
-                <SelectItem value="out">نفذت الكمية</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
+        }
+      />
+    </div>
+  );
+}
         }
       />
     </div>
