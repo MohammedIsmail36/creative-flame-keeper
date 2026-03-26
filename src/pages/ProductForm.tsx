@@ -176,6 +176,7 @@ export default function ProductForm() {
       quantity_on_hand: isEdit ? undefined : quantity,
       min_stock_level: minStock,
       main_image_url: mainImageUrl,
+      ...(isEdit ? { is_active: isActive } : {}),
     };
 
     try {
