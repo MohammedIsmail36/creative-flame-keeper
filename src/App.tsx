@@ -39,6 +39,7 @@ import ProductAnalyticsPage from "./pages/reports/ProductAnalyticsPage";
 import AccountBalancesPage from "./pages/reports/AccountBalancesPage";
 import ProfitLossPage from "./pages/reports/ProfitLossPage";
 import InventoryMovements from "./pages/InventoryMovements";
+import InventoryTurnoverPage from "./pages/reports/InventoryTurnoverPage";
 import InventoryAdjustments from "./pages/InventoryAdjustments";
 import InventoryAdjustmentForm from "./pages/InventoryAdjustmentForm";
 import TrialBalance from "./pages/TrialBalance";
