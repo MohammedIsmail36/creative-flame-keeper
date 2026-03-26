@@ -63,6 +63,7 @@ export default function ProductForm() {
   const [quantity, setQuantity] = useState(0);
   const [minStock, setMinStock] = useState(0);
   const [mainImageUrl, setMainImageUrl] = useState<string | null>(null);
+  const [isActive, setIsActive] = useState(true);
   const [galleryImages, setGalleryImages] = useState<{ id?: string; image_url: string }[]>([]);
   const [uploadingMain, setUploadingMain] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
