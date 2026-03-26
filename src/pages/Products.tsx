@@ -176,12 +176,14 @@ export default function Products() {
   const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
 
   const stats = useMemo(() => {
-    const total = products.length;
-    const available = products.filter((p) => p.quantity_on_hand > p.min_stock_level).length;
-    const lowStock = products.filter((p) => p.quantity_on_hand > 0 && p.quantity_on_hand <= p.min_stock_level).length;
-    const outOfStock = products.filter((p) => p.quantity_on_hand <= 0).length;
-    const totalValue = products.reduce((s, p) => s + p.quantity_on_hand * p.purchase_price, 0);
-    return { total, available, lowStock, outOfStock, totalValue };
+    const activeProducts = products.filter(p => p.is_active);
+    const total = activeProducts.length;
+    const available = activeProducts.filter((p) => p.quantity_on_hand > p.min_stock_level).length;
+    const lowStock = activeProducts.filter((p) => p.quantity_on_hand > 0 && p.quantity_on_hand <= p.min_stock_level).length;
+    const outOfStock = activeProducts.filter((p) => p.quantity_on_hand <= 0).length;
+    const totalValue = activeProducts.reduce((s, p) => s + p.quantity_on_hand * p.purchase_price, 0);
+    const inactive = products.filter(p => !p.is_active).length;
+    return { total, available, lowStock, outOfStock, totalValue, inactive };
   }, [products]);
 
   const matchingCategoryIds = useMemo(() => {
