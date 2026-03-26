@@ -108,6 +108,7 @@ export default function ProductForm() {
     setQuantity(data.quantity_on_hand);
     setMinStock(data.min_stock_level);
     setMainImageUrl(data.main_image_url || null);
+    setIsActive(data.is_active ?? true);
 
     const { data: imgs } = await (supabase.from("product_images" as any) as any)
       .select("*")
