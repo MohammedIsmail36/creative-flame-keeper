@@ -137,6 +137,7 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
+  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
   const [categories, setCategories] = useState<
     { id: string; name: string; parent_id: string | null; is_active: boolean }[]
   >([]);
