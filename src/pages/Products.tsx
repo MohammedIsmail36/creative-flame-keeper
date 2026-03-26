@@ -503,8 +503,26 @@ export default function Products() {
                 {renderCategoryOptions(categoryTree)}
               </SelectContent>
             </Select>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+              <SelectTrigger className="w-40 bg-card border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">النشطة فقط</SelectItem>
+                <SelectItem value="inactive">غير النشطة</SelectItem>
+                <SelectItem value="all">الكل</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as any)}>
               <SelectTrigger className="w-40 bg-card border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">حالة المخزون</SelectItem>
+                <SelectItem value="low">مخزون منخفض</SelectItem>
+                <SelectItem value="out">نفذت الكمية</SelectItem>
+              </SelectContent>
+            </Select>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
