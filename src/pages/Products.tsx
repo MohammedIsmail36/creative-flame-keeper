@@ -151,7 +151,6 @@ export default function Products() {
     const { data, error } = await supabase
       .from("products")
       .select("*, product_categories(name), product_units(name), product_brands(name)" as any)
-      .eq("is_active", true)
       .order("code");
     if (error) {
       toast({ title: "خطأ", description: "فشل في جلب المنتجات", variant: "destructive" });
