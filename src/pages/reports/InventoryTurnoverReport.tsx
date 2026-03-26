@@ -492,8 +492,8 @@ export default function InventoryTurnoverReport() {
       <Card className="border shadow-sm">
         <CardContent className="py-3 px-4">
           <div className="flex flex-wrap items-center gap-3">
-            <DatePickerInput label="من" value={dateFrom} onChange={setDateFrom} />
-            <DatePickerInput label="إلى" value={dateTo} onChange={setDateTo} />
+            <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من" />
+            <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى" />
             <CategoryTreeSelect categories={categories} value={categoryFilter} onValueChange={setCategoryFilter} placeholder="كافة التصنيفات" className="w-48" />
             <Select value={turnoverFilter} onValueChange={(v) => { setTurnoverFilter(v as any); setMatrixFilter(null); }}>
               <SelectTrigger className="w-36 h-9"><SelectValue placeholder="فئة الدوران" /></SelectTrigger>
