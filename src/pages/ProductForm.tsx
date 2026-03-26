@@ -640,6 +640,20 @@ export default function ProductForm() {
                 </div>
               </div>
             )}
+
+            {/* Product Active Status - Edit mode only */}
+            {isEdit && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">حالة المنتج</h3>
+                <div className="flex items-center justify-between bg-muted/30 rounded-xl p-4">
+                  <div>
+                    <Label className="text-sm font-medium text-foreground">تفعيل المنتج</Label>
+                    <p className="text-xs text-muted-foreground mt-1">المنتجات غير النشطة لا تظهر في قوائم البيع أو الشراء أو التقارير</p>
+                  </div>
+                  <Switch checked={isActive} onCheckedChange={setIsActive} />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
