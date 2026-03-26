@@ -469,7 +469,7 @@ export default function Products() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${statCards.length > 4 ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
         {statCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
           <div key={label} className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4">
             <div className={`p-3 rounded-full ${iconBg}`}>
