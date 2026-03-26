@@ -306,6 +306,13 @@ export default function Products() {
       ),
     },
     {
+      id: "active_status",
+      header: "النشاط",
+      cell: ({ row }) => row.original.is_active
+        ? <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">نشط</Badge>
+        : <Badge variant="secondary" className="bg-muted text-muted-foreground">غير نشط</Badge>,
+    },
+    {
       accessorKey: "code",
       header: ({ column }) => <DataTableColumnHeader column={column} title="كود الصنف" />,
       cell: ({ row }) => <span className="font-mono text-sm text-foreground">{row.original.code}</span>,
@@ -329,7 +336,7 @@ export default function Products() {
     },
     {
       id: "stock_status",
-      header: "الحالة",
+      header: "حالة المخزون",
       cell: ({ row }) => getStockBadge(row.original),
     },
     {
@@ -356,28 +363,32 @@ export default function Products() {
               <Pencil className="h-4 w-4" />
             </Button>
           )}
-          {canDelete && (
+          {canEdit && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                  className={`h-8 w-8 ${row.original.is_active ? "text-muted-foreground hover:text-destructive hover:bg-destructive/5" : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"}`}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  {row.original.is_active ? <Archive className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent dir="rtl">
                 <AlertDialogHeader>
-                  <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
-                  <AlertDialogDescription>هل أنت متأكد من حذف المنتج "{row.original.name}"؟</AlertDialogDescription>
+                  <AlertDialogTitle>{row.original.is_active ? "تعطيل المنتج" : "تفعيل المنتج"}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {row.original.is_active
+                      ? `هل تريد تعطيل منتج "${row.original.name}"؟ لن يظهر في الفواتير والتقارير.`
+                      : `هل تريد تفعيل منتج "${row.original.name}"؟ سيظهر مجدداً في الفواتير والتقارير.`}
+                  </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="flex-row-reverse gap-2">
                   <AlertDialogAction
-                    onClick={() => handleDelete(row.original)}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => toggleProductStatus(row.original)}
+                    className={row.original.is_active ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : "bg-emerald-600 text-white hover:bg-emerald-700"}
                   >
-                    حذف
+                    {row.original.is_active ? "تعطيل" : "تفعيل"}
                   </AlertDialogAction>
                   <AlertDialogCancel>إلغاء</AlertDialogCancel>
                 </AlertDialogFooter>
