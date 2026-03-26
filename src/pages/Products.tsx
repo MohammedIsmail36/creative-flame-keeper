@@ -436,6 +436,7 @@ export default function Products() {
       iconBg: "bg-muted",
       iconColor: "text-muted-foreground",
     }] : []),
+  ];
 
   return (
     <div className="space-y-6" dir="rtl">
