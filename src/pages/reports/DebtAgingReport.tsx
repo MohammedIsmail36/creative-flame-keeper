@@ -14,11 +14,9 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { differenceInDays, format } from "date-fns";
 import { ar } from "date-fns/locale";
 import {
-  DollarSign,
   AlertTriangle,
   Users,
   Truck,
-  TrendingUp,
   Clock,
   Info,
 } from "lucide-react";
