@@ -866,9 +866,9 @@ export default function InventoryTurnoverReport() {
                 <BarChart2 className="h-3.5 w-3.5" />
                 <span>الفترة:</span>
               </div>
-              <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من" />
+              <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من" className="w-36 h-9" />
               <span className="text-muted-foreground text-xs">—</span>
-              <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى" />
+              <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى" className="w-36 h-9" />
 
               <div className="w-px h-5 bg-border mx-1" />
 
