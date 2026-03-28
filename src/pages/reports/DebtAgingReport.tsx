@@ -596,9 +596,9 @@ export default function DebtAgingReport() {
             <DataTable
               columns={entityColumns}
               data={customerData.entities}
-              searchKey="name"
+              showSearch
               searchPlaceholder="بحث بالاسم..."
-              rowClassName={getRowClassName}
+              emptyMessage="لا توجد ديون مستحقة للعملاء"
             />
           </TabsContent>
 
@@ -606,9 +606,9 @@ export default function DebtAgingReport() {
             <DataTable
               columns={entityColumns}
               data={supplierData.entities}
-              searchKey="name"
+              showSearch
               searchPlaceholder="بحث بالاسم..."
-              rowClassName={getRowClassName}
+              emptyMessage="لا توجد ديون مستحقة للموردين"
             />
           </TabsContent>
         </Tabs>
