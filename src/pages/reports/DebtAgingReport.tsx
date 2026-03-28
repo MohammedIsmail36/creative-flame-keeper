@@ -558,7 +558,7 @@ export default function DebtAgingReport() {
               </TabsTrigger>
             </TabsList>
 
-            <ExportMenu {...exportConfig} />
+            <ExportMenu config={exportConfig} />
           </div>
 
           {/* ── Chart ─────────────────────────────────────────────────── */}
