@@ -390,11 +390,7 @@ export default function DebtAgingReport() {
 
   // ── row class for critical ────────────────────────────────────────────────
 
-  const getRowClassName = (row: AgingEntity): string => {
-    if (row.severity === "critical") return "bg-red-50/60 dark:bg-red-500/5";
-    if (row.severity === "danger") return "bg-orange-50/40 dark:bg-orange-500/5";
-    return "";
-  };
+  // (row styling handled via column badges)
 
   // ── export config ─────────────────────────────────────────────────────────
 
