@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { round2 } from "@/lib/utils";
 import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -208,7 +209,7 @@ export default function PurchaseInvoiceForm() {
           item.unit_price = prod.purchase_price;
         }
       }
-      item.total = item.quantity * item.unit_price - item.discount;
+      item.total = round2(item.quantity * item.unit_price - item.discount);
       updated[index] = item;
       return updated;
     });
@@ -218,9 +219,9 @@ export default function PurchaseInvoiceForm() {
     setItems((prev) => prev.filter((_, i) => i !== index));
   }
 
-  const subtotal = items.reduce((s, i) => s + i.total, 0);
-  const taxAmount = showTax ? subtotal * (taxRate / 100) : 0;
-  const grandTotal = subtotal + taxAmount;
+  const subtotal = round2(items.reduce((s, i) => s + i.total, 0));
+  const taxAmount = round2(showTax ? subtotal * (taxRate / 100) : 0);
+  const grandTotal = round2(subtotal + taxAmount);
 
   async function handleSave() {
     if (!supplierId || items.length === 0) {

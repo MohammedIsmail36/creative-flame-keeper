@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
+import { round2 } from "@/lib/utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -211,7 +212,7 @@ export default function SalesInvoiceForm() {
           item.cost_price = prod.purchase_price;
         }
       }
-      item.total = item.quantity * item.unit_price - item.discount;
+      item.total = round2(item.quantity * item.unit_price - item.discount);
       updated[index] = item;
       return updated;
     });
@@ -221,9 +222,9 @@ export default function SalesInvoiceForm() {
     setItems((prev) => prev.filter((_, i) => i !== index));
   }
 
-  const subtotal = items.reduce((s, i) => s + i.total, 0);
-  const taxAmount = showTax ? subtotal * (taxRate / 100) : 0;
-  const grandTotal = subtotal + taxAmount;
+  const subtotal = round2(items.reduce((s, i) => s + i.total, 0));
+  const taxAmount = round2(showTax ? subtotal * (taxRate / 100) : 0);
+  const grandTotal = round2(subtotal + taxAmount);
 
   async function handleSave() {
     if (!customerId || items.length === 0) {
@@ -333,7 +334,7 @@ export default function SalesInvoiceForm() {
         const avgCost = Number(avgPrice) || 0;
         const effectiveCost = avgCost > 0 ? avgCost : item.cost_price;
         itemAvgCosts[item.product_id] = effectiveCost;
-        totalCost += effectiveCost * item.quantity;
+        totalCost += round2(effectiveCost * item.quantity);
       }
 
       const totalDebit = grandTotal + totalCost;

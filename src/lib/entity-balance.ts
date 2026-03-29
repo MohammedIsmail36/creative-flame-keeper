@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { round2 } from "@/lib/utils";
 
 type EntityType = "customer" | "supplier";
 type InvoiceType = "sales" | "purchase";
@@ -57,7 +58,7 @@ export async function recalculateEntityBalance(entityType: EntityType, entityId:
     }
   }
 
-  const calculatedBalance = postedInvoiceTotal - postedReturnTotal - normalPayments + refundPayments;
+  const calculatedBalance = round2(postedInvoiceTotal - postedReturnTotal - normalPayments + refundPayments);
 
   await (supabase.from(entityTable as any) as any)
     .update({ balance: calculatedBalance })
@@ -83,7 +84,7 @@ export async function recalculateInvoicePaidAmount(invoiceType: InvoiceType, inv
 
   const paymentTotal = (paymentAllocs || []).reduce((sum: number, row: any) => sum + toNumber(row.allocated_amount), 0);
   const settlementTotal = (settlements || []).reduce((sum: number, row: any) => sum + toNumber(row.settled_amount), 0);
-  const paidAmount = paymentTotal + settlementTotal;
+  const paidAmount = round2(paymentTotal + settlementTotal);
 
   await (supabase.from(invoiceTable as any) as any)
     .update({ paid_amount: paidAmount })

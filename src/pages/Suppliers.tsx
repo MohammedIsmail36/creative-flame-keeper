@@ -15,12 +15,16 @@ import { Plus, Pencil, Trash2, Truck, X, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import { getNextPostedNumber } from "@/lib/posted-number-utils";
+import { round2 } from "@/lib/utils";
 
 interface Supplier {
   id: string; code: string; name: string; phone: string | null; email: string | null;
   address: string | null; tax_number: string | null; contact_person: string | null;
   notes: string | null; balance: number; is_active: boolean; created_at: string;
 }
+
+const ACCOUNT_CODES = { SUPPLIERS: "2101", EQUITY: "3101" };
 
 export default function Suppliers() {
   const { role } = useAuth();
@@ -31,7 +35,7 @@ export default function Suppliers() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<Supplier | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ code: "", name: "", phone: "", email: "", address: "", tax_number: "", contact_person: "", notes: "" });
+  const [form, setForm] = useState({ code: "", name: "", phone: "", email: "", address: "", tax_number: "", contact_person: "", notes: "", opening_balance: "" });
   const [balanceFilter, setBalanceFilter] = useState("all");
 
   const canEdit = role === "admin" || role === "accountant";
@@ -55,16 +59,62 @@ export default function Suppliers() {
   const hasFilters = balanceFilter !== "all";
   const clearFilters = () => setBalanceFilter("all");
 
-  function openAdd() {
+  async function generateNextCode() {
+    const { data } = await (supabase.from("suppliers" as any) as any)
+      .select("code")
+      .ilike("code", "SUPP-%")
+      .order("code", { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) {
+      const lastNum = parseInt(data[0].code.replace("SUPP-", ""), 10) || 0;
+      return `SUPP-${String(lastNum + 1).padStart(3, "0")}`;
+    }
+    return "SUPP-001";
+  }
+
+  async function openAdd() {
     setEditItem(null);
-    setForm({ code: "", name: "", phone: "", email: "", address: "", tax_number: "", contact_person: "", notes: "" });
+    const nextCode = await generateNextCode();
+    setForm({ code: nextCode, name: "", phone: "", email: "", address: "", tax_number: "", contact_person: "", notes: "", opening_balance: "" });
     setDialogOpen(true);
   }
 
   function openEdit(s: Supplier) {
     setEditItem(s);
-    setForm({ code: s.code, name: s.name, phone: s.phone || "", email: s.email || "", address: s.address || "", tax_number: s.tax_number || "", contact_person: s.contact_person || "", notes: s.notes || "" });
+    setForm({ code: s.code, name: s.name, phone: s.phone || "", email: s.email || "", address: s.address || "", tax_number: s.tax_number || "", contact_person: s.contact_person || "", notes: s.notes || "", opening_balance: "" });
     setDialogOpen(true);
+  }
+
+  async function createOpeningBalanceJournalEntry(entityId: string, entityName: string, amount: number) {
+    const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [ACCOUNT_CODES.SUPPLIERS, ACCOUNT_CODES.EQUITY]);
+    const suppliersAcc = accounts?.find(a => a.code === ACCOUNT_CODES.SUPPLIERS);
+    const equityAcc = accounts?.find(a => a.code === ACCOUNT_CODES.EQUITY);
+    if (!suppliersAcc || !equityAcc) throw new Error("تأكد من وجود حسابات الموردين ورأس المال");
+
+    const roundedAmount = round2(amount);
+    const jePostedNum = await getNextPostedNumber("journal_entries");
+    const { data: je, error: jeError } = await supabase
+      .from("journal_entries")
+      .insert({
+        description: `رصيد افتتاحي - مورد: ${entityName}`,
+        entry_date: new Date().toISOString().split("T")[0],
+        total_debit: roundedAmount,
+        total_credit: roundedAmount,
+        status: "posted",
+        posted_number: jePostedNum,
+      } as any)
+      .select("id")
+      .single();
+    if (jeError) throw jeError;
+
+    // Supplier opening balance: Debit Equity (3101), Credit Suppliers (2101)
+    await supabase.from("journal_entry_lines").insert([
+      { journal_entry_id: je.id, account_id: equityAcc.id, debit: roundedAmount, credit: 0, description: `رصيد افتتاحي - مورد: ${entityName}` },
+      { journal_entry_id: je.id, account_id: suppliersAcc.id, debit: 0, credit: roundedAmount, description: `رصيد افتتاحي - مورد: ${entityName}` },
+    ] as any);
+
+    // Update supplier balance
+    await (supabase.from("suppliers" as any) as any).update({ balance: roundedAmount }).eq("id", entityId);
   }
 
   async function handleSave() {
@@ -79,14 +129,18 @@ export default function Suppliers() {
       address: form.address.trim() || null, tax_number: form.tax_number.trim() || null,
       contact_person: form.contact_person.trim() || null, notes: form.notes.trim() || null,
     };
+    const openingBalance = parseFloat(form.opening_balance) || 0;
     try {
       if (editItem) {
         const { error } = await (supabase.from("suppliers" as any) as any).update(payload).eq("id", editItem.id);
         if (error) throw error;
         toast({ title: "تم التحديث", description: "تم تعديل بيانات المورد" });
       } else {
-        const { error } = await (supabase.from("suppliers" as any) as any).insert(payload);
+        const { data: newSupplier, error } = await (supabase.from("suppliers" as any) as any).insert(payload).select("id").single();
         if (error) throw error;
+        if (openingBalance > 0) {
+          await createOpeningBalanceJournalEntry(newSupplier.id, form.name.trim(), openingBalance);
+        }
         toast({ title: "تمت الإضافة", description: "تم إضافة المورد بنجاح" });
       }
       setDialogOpen(false);
@@ -136,7 +190,7 @@ export default function Suppliers() {
       header: ({ column }) => <DataTableColumnHeader column={column} title="الرصيد" />,
       cell: ({ row }) => (
         <Badge variant={row.original.balance > 0 ? "destructive" : "secondary"}>
-          {row.original.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+          {round2(row.original.balance).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </Badge>
       ),
     },
@@ -198,7 +252,7 @@ export default function Suppliers() {
               sheetName: "الموردين",
               pdfTitle: "قائمة الموردين",
               headers: ["الكود", "الاسم", "الهاتف", "البريد", "الرصيد"],
-              rows: filtered.map(s => [s.code, s.name, s.phone || "", s.email || "", Number(s.balance).toLocaleString("en-US", { minimumFractionDigits: 2 })]),
+              rows: filtered.map(s => [s.code, s.name, s.phone || "", s.email || "", round2(Number(s.balance)).toLocaleString("en-US", { minimumFractionDigits: 2 })]),
               settings,
             }} disabled={loading} />
           </div>
@@ -213,7 +267,7 @@ export default function Suppliers() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>الكود *</Label><Input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} placeholder="S001" className="font-mono" /></div>
+              <div className="space-y-2"><Label>الكود *</Label><Input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} placeholder="SUPP-001" className="font-mono" /></div>
               <div className="space-y-2"><Label>الاسم *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="اسم المورد" /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -225,6 +279,13 @@ export default function Suppliers() {
               <div className="space-y-2"><Label>جهة الاتصال</Label><Input value={form.contact_person} onChange={e => setForm(p => ({ ...p, contact_person: e.target.value }))} placeholder="اسم المسؤول" /></div>
             </div>
             <div className="space-y-2"><Label>العنوان</Label><Input value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} placeholder="العنوان" /></div>
+            {!editItem && (
+              <div className="space-y-2">
+                <Label>الرصيد الافتتاحي</Label>
+                <Input type="number" min="0" step="0.01" value={form.opening_balance} onChange={e => setForm(p => ({ ...p, opening_balance: e.target.value }))} placeholder="0.00" className="font-mono" />
+                <p className="text-xs text-muted-foreground">سيتم إنشاء قيد افتتاحي تلقائياً إذا كان المبلغ أكبر من صفر</p>
+              </div>
+            )}
             <div className="space-y-2"><Label>ملاحظات</Label><Textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="ملاحظات (اختياري)" rows={2} /></div>
           </div>
           <DialogFooter className="flex-row-reverse gap-2">
