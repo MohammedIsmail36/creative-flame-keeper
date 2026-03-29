@@ -84,7 +84,7 @@ export async function recalculateInvoicePaidAmount(invoiceType: InvoiceType, inv
 
   const paymentTotal = (paymentAllocs || []).reduce((sum: number, row: any) => sum + toNumber(row.allocated_amount), 0);
   const settlementTotal = (settlements || []).reduce((sum: number, row: any) => sum + toNumber(row.settled_amount), 0);
-  const paidAmount = paymentTotal + settlementTotal;
+  const paidAmount = round2(paymentTotal + settlementTotal);
 
   await (supabase.from(invoiceTable as any) as any)
     .update({ paid_amount: paidAmount })
