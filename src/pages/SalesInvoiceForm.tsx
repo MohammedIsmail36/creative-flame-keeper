@@ -334,7 +334,7 @@ export default function SalesInvoiceForm() {
         const avgCost = Number(avgPrice) || 0;
         const effectiveCost = avgCost > 0 ? avgCost : item.cost_price;
         itemAvgCosts[item.product_id] = effectiveCost;
-        totalCost += effectiveCost * item.quantity;
+        totalCost += round2(effectiveCost * item.quantity);
       }
 
       const totalDebit = grandTotal + totalCost;
