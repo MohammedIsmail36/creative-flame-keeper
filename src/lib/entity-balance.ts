@@ -58,7 +58,7 @@ export async function recalculateEntityBalance(entityType: EntityType, entityId:
     }
   }
 
-  const calculatedBalance = postedInvoiceTotal - postedReturnTotal - normalPayments + refundPayments;
+  const calculatedBalance = round2(postedInvoiceTotal - postedReturnTotal - normalPayments + refundPayments);
 
   await (supabase.from(entityTable as any) as any)
     .update({ balance: calculatedBalance })
