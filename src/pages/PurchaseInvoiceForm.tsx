@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { round2 } from "@/lib/utils";
 import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
