@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { round2 } from "@/lib/utils";
 
 type EntityType = "customer" | "supplier";
 type InvoiceType = "sales" | "purchase";
