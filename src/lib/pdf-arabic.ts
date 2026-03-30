@@ -43,12 +43,20 @@ const C = {
   ink4: "#475569",
   ink5: "#64748b",
   ink6: "#94a3b8",
+  primary: "#ec5b13",
+  primaryLight: "#fff7ed",
+  primaryBorder: "#fed7aa",
   gold: "#d4a853",
   goldPale: "#fffbeb",
   goldLine: "#f0d990",
   goldMid: "#f0c96a",
   border: "#e2e8f0",
   bgSoft: "#f8fafc",
+  slate100: "#f1f5f9",
+  slate200: "#e2e8f0",
+  slate400: "#94a3b8",
+  slate500: "#64748b",
+  slate800: "#1e293b",
   white: "#ffffff",
   green: "#15803d",
   red: "#dc2626",
@@ -736,85 +744,365 @@ export interface InvoicePdfOptions {
 function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: string | null }) {
   const { title, settings, headers, rows, summaryCards, orientation = "portrait", logoData } = props;
   const currency = settings?.default_currency ?? "EGP";
-  const accent = C.gold; // التقارير ذهبية افتراضياً
+  const accent = C.primary;
 
-  // Badge للتقرير (وسط)
-  const badge = React.createElement(
+  // ── Report-specific styles matching invoice template ──
+  const rpt = StyleSheet.create({
+    page: {
+      fontFamily: "Tajawal",
+      fontSize: 9,
+      paddingBottom: 50,
+      backgroundColor: C.white,
+    },
+    // Light header matching template
+    header: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 14,
+      borderBottomWidth: 2,
+      borderBottomColor: `${accent}33`, // primary/20
+      marginBottom: 12,
+    },
+    headerRow: {
+      flexDirection: "row-reverse" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "flex-start" as const,
+    },
+    // Company info (right side)
+    companySection: {
+      flexDirection: "row-reverse" as const,
+      alignItems: "center" as const,
+      gap: 8,
+    },
+    companyIcon: {
+      width: 36,
+      height: 36,
+      backgroundColor: accent,
+      borderRadius: 4,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+    companyIconText: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: C.white,
+    },
+    companyName: {
+      fontSize: 16,
+      fontWeight: 700,
+      color: C.ink,
+      textAlign: "right" as const,
+    },
+    companyActivity: {
+      fontSize: 9,
+      color: C.slate500,
+      textAlign: "right" as const,
+      marginTop: 2,
+    },
+    // Report title (center/left)
+    titleSection: {
+      alignItems: "center" as const,
+    },
+    titleText: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: accent,
+      textAlign: "center" as const,
+    },
+    titleBadge: {
+      backgroundColor: `${accent}1a`, // primary/10
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 20,
+      marginTop: 6,
+    },
+    titleBadgeText: {
+      fontSize: 8,
+      fontWeight: 700,
+      color: accent,
+      textAlign: "center" as const,
+    },
+    // Date info
+    dateSection: {
+      alignItems: "flex-start" as const,
+    },
+    dateLabel: {
+      fontSize: 8,
+      fontWeight: 700,
+      color: C.slate400,
+      textAlign: "left" as const,
+    },
+    dateValue: {
+      fontSize: 9,
+      fontWeight: 700,
+      color: C.ink,
+      textAlign: "left" as const,
+      marginTop: 2,
+    },
+    // Summary cards
+    summaryRow: {
+      flexDirection: "row-reverse" as const,
+      gap: 8,
+      marginHorizontal: 24,
+      marginBottom: 12,
+    },
+    summaryCard: {
+      flex: 1,
+      backgroundColor: C.bgSoft,
+      borderWidth: 1,
+      borderColor: C.slate200,
+      borderRadius: 4,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      alignItems: "center" as const,
+    },
+    summaryCardLabel: {
+      fontSize: 7,
+      fontWeight: 700,
+      color: C.slate400,
+      textAlign: "center" as const,
+      marginBottom: 4,
+    },
+    summaryCardValue: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: accent,
+      textAlign: "center" as const,
+    },
+    // Light table styles
+    tableHeaderRow: {
+      flexDirection: "row-reverse" as const,
+      backgroundColor: C.slate100,
+      borderBottomWidth: 1,
+      borderBottomColor: C.slate200,
+    },
+    tableHeaderCell: {
+      fontSize: 8,
+      fontWeight: 700,
+      color: C.slate800,
+      textAlign: "center" as const,
+      paddingVertical: 8,
+      paddingHorizontal: 6,
+    },
+    tableRow: {
+      flexDirection: "row-reverse" as const,
+      borderBottomWidth: 0.5,
+      borderBottomColor: C.slate200,
+    },
+    tableRowEven: { backgroundColor: C.white },
+    tableRowOdd: { backgroundColor: "#fafafa" },
+    tableCell: {
+      fontSize: 8.5,
+      color: C.ink4,
+      textAlign: "center" as const,
+      paddingVertical: 6,
+      paddingHorizontal: 4,
+    },
+    tableCellName: {
+      fontSize: 8.5,
+      fontWeight: 500,
+      color: C.ink,
+      textAlign: "right" as const,
+      paddingVertical: 6,
+      paddingHorizontal: 6,
+    },
+    tableCellBold: {
+      fontSize: 8.5,
+      fontWeight: 700,
+      color: C.ink,
+      textAlign: "center" as const,
+      paddingVertical: 6,
+      paddingHorizontal: 4,
+    },
+    // Footer
+    footer: {
+      position: "absolute" as const,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      borderTopWidth: 1,
+      borderTopColor: C.slate200,
+      paddingHorizontal: 24,
+      paddingVertical: 8,
+      flexDirection: "row-reverse" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
+    },
+    footerContactRow: {
+      flexDirection: "row-reverse" as const,
+      gap: 12,
+    },
+    footerContactText: {
+      fontSize: 7,
+      color: C.slate500,
+    },
+    footerPagePill: {
+      backgroundColor: C.slate100,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 20,
+    },
+    footerPageText: {
+      fontSize: 7,
+      fontWeight: 700,
+      color: C.slate400,
+    },
+    recordCount: {
+      fontSize: 7,
+      color: C.slate500,
+      textAlign: "left" as const,
+      marginTop: 6,
+      paddingHorizontal: 24,
+    },
+  });
+
+  // ── Logo element ──
+  const logoEl = logoData
+    ? React.createElement(Image, { src: logoData, style: { width: 36, height: 36, borderRadius: 4 } })
+    : React.createElement(
+        View,
+        { style: rpt.companyIcon },
+        React.createElement(Text, { style: rpt.companyIconText },
+          (settings?.company_name ?? "N").charAt(0).toUpperCase(),
+        ),
+      );
+
+  // ── Build light DataTable for reports ──
+  const colWidths = buildColWidths(headers);
+  const colTypes = headers.map(detectColType);
+
+  const tableHeaderEl = React.createElement(
     View,
-    { style: base.badgeBlock },
-    React.createElement(Text, { style: base.badgeLabel }, "REPORT · تقرير"),
-    React.createElement(Text, { style: base.badgeNumber }, title),
-    React.createElement(
-      Text,
-      { style: { fontSize: 8, color: C.ink4, textAlign: "center" as const, marginTop: 2 } },
-      `${fmtDateFull(new Date())}  ·  ${currency}`,
+    { style: rpt.tableHeaderRow },
+    ...headers.map((h, i) =>
+      React.createElement(Text, { key: `h-${i}`, style: { ...rpt.tableHeaderCell, width: colWidths[i] } }, h),
     ),
   );
 
-  const summaryRow = summaryCards?.length
+  const tableBodyEls = rows.map((row, ri) =>
+    React.createElement(
+      View,
+      { key: `r-${ri}`, style: { ...rpt.tableRow, ...(ri % 2 === 0 ? rpt.tableRowEven : rpt.tableRowOdd) } },
+      ...row.map((cell, ci) => {
+        const colType = colTypes[ci];
+        const isLast = ci === row.length - 1;
+        const style = isLast
+          ? { ...rpt.tableCellBold, width: colWidths[ci] }
+          : colType === "wide"
+            ? { ...rpt.tableCellName, width: colWidths[ci] }
+            : { ...rpt.tableCell, width: colWidths[ci] };
+        return React.createElement(Text, { key: `c-${ri}-${ci}`, style }, String(cell));
+      }),
+    ),
+  );
+
+  // ── Footer contact info ──
+  const contactParts: string[] = [];
+  if (settings?.address) contactParts.push(settings.address);
+  if (settings?.phone) contactParts.push(settings.phone);
+  if (settings?.email) contactParts.push(settings.email);
+  if (settings?.website) contactParts.push(settings.website);
+
+  // ── Summary cards ──
+  const summaryEl = summaryCards?.length
     ? React.createElement(
         View,
-        {
-          style: {
-            flexDirection: "row-reverse" as const,
-            backgroundColor: C.goldPale,
-            borderWidth: 1,
-            borderColor: C.goldLine,
-            borderRadius: 2,
-            marginBottom: 12,
-          },
-        },
+        { style: rpt.summaryRow },
         ...summaryCards.map((card, i) =>
           React.createElement(
             View,
-            {
-              key: `sc-${i}`,
-              style: {
-                flex: 1,
-                alignItems: "center" as const,
-                paddingVertical: 8,
-                borderRightWidth: i > 0 ? 1 : 0,
-                borderRightColor: C.goldLine,
-              },
-            },
-            React.createElement(
-              Text,
-              { style: { fontSize: 7, color: C.amberDark, textAlign: "center" as const } },
-              card.label,
-            ),
-            React.createElement(
-              Text,
-              { style: { fontSize: 12, fontWeight: 700, color: C.amber, textAlign: "center" as const, marginTop: 3 } },
-              card.value,
-            ),
+            { key: `sc-${i}`, style: rpt.summaryCard },
+            React.createElement(Text, { style: rpt.summaryCardLabel }, card.label),
+            React.createElement(Text, { style: rpt.summaryCardValue }, card.value),
           ),
         ),
       )
     : null;
 
-  // Header معدل ليشمل Badge في المنتصف
   return React.createElement(
     Document,
     null,
     React.createElement(
       Page,
-      { size: "A4", orientation, style: base.page },
-      React.createElement(PdfHeader, { settings, logoData, accentColor: accent, badge }),
+      { size: "A4", orientation, style: rpt.page },
 
-      // React.createElement(LegalBar, { settings }),
+      // ── Header ──
       React.createElement(
         View,
-        { style: { ...base.body, marginTop: 12 } },
-        summaryRow,
-        React.createElement(Text, { style: base.sectionLabel }, "تفاصيل البيانات"),
-        React.createElement(DataTable, { headers, rows }),
+        { style: rpt.header },
         React.createElement(
-          Text,
-          { style: { fontSize: 7, color: C.ink6, textAlign: "left" as const, marginTop: 6 } },
-          `إجمالي السجلات: ${rows.length}`,
+          View,
+          { style: rpt.headerRow },
+          // Right: Company
+          React.createElement(
+            View,
+            { style: rpt.companySection },
+            logoEl,
+            React.createElement(
+              View,
+              null,
+              React.createElement(Text, { style: rpt.companyName }, settings?.company_name ?? "النظام المحاسبي"),
+              settings?.business_activity
+                ? React.createElement(Text, { style: rpt.companyActivity }, settings.business_activity)
+                : null,
+            ),
+          ),
+          // Center: Report title
+          React.createElement(
+            View,
+            { style: rpt.titleSection },
+            React.createElement(Text, { style: rpt.titleText }, title),
+            React.createElement(
+              View,
+              { style: rpt.titleBadge },
+              React.createElement(Text, { style: rpt.titleBadgeText }, `${fmtDateFull(new Date())}  ·  ${currency}`),
+            ),
+          ),
+          // Left: date
+          React.createElement(
+            View,
+            { style: rpt.dateSection },
+            React.createElement(Text, { style: rpt.dateLabel }, "تاريخ الاستخراج"),
+            React.createElement(Text, { style: rpt.dateValue }, fmtDateFull(new Date())),
+          ),
         ),
       ),
-      React.createElement(PdfFooter, { settings, accentColor: accent }),
+
+      // ── Summary Cards ──
+      summaryEl,
+
+      // ── Table ──
+      React.createElement(
+        View,
+        { style: { paddingHorizontal: 24 } },
+        tableHeaderEl,
+        ...tableBodyEls,
+      ),
+
+      // ── Record count ──
+      React.createElement(Text, { style: rpt.recordCount }, `إجمالي السجلات: ${rows.length}`),
+
+      // ── Footer ──
+      React.createElement(
+        View,
+        { style: rpt.footer, fixed: true },
+        React.createElement(
+          View,
+          { style: rpt.footerContactRow },
+          ...contactParts.map((p, i) =>
+            React.createElement(Text, { key: `fc-${i}`, style: rpt.footerContactText }, p),
+          ),
+        ),
+        React.createElement(
+          View,
+          { style: rpt.footerPagePill },
+          React.createElement(Text, {
+            style: rpt.footerPageText,
+            render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
+              `صفحة ${pageNumber} من ${totalPages}`,
+          }),
+        ),
+      ),
     ),
   );
 }
