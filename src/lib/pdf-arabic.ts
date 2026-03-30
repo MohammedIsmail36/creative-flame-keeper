@@ -1108,7 +1108,7 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 12. InvoiceDocument
+// 12. InvoiceDocument — Light theme matching template
 // ─────────────────────────────────────────────────────────────────────────────
 function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null }) {
   const {
@@ -1135,50 +1135,359 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
   } = props;
 
   const meta = TYPE_META[type] ?? TYPE_META.sales_invoice;
-  const accent = meta.stripe;
+  const accent = C.primary;
   const currency = settings?.default_currency ?? "EGP";
 
   const pillText =
     status === "posted" || status === "approved" ? "مؤكدة" : status === "draft" ? "مسودة" : (status ?? "");
   const pillColor = status === "posted" || status === "approved" ? C.green : status === "draft" ? C.orange : C.ink5;
 
-  // Badge (وسط)
-  const badge = React.createElement(
-    View,
-    { style: base.badgeBlock }, // center aligned
-    React.createElement(Text, { style: { ...base.badgeLabel, color: accent } }, meta.typeLabel),
-    React.createElement(Text, { style: base.badgeNumber }, `#${num}`),
-    pillText
-      ? React.createElement(
-          View,
-          {
-            style: {
-              marginTop: 4,
-              backgroundColor: `${pillColor}1a`,
-              paddingHorizontal: 8,
-              paddingVertical: 2,
-              borderRadius: 20,
-            },
-          },
-          React.createElement(Text, { style: { fontSize: 8, fontWeight: 700, color: pillColor } }, pillText),
-        )
-      : null,
-  );
+  // ── Styles ──
+  const s = StyleSheet.create({
+    page: {
+      fontFamily: "Tajawal",
+      fontSize: 9,
+      paddingBottom: 50,
+      backgroundColor: C.white,
+    },
+    // Light header
+    header: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 14,
+      borderBottomWidth: 2,
+      borderBottomColor: `${accent}33`,
+      marginBottom: 0,
+    },
+    headerRow: {
+      flexDirection: "row-reverse" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "flex-start" as const,
+    },
+    companySection: {
+      flexDirection: "row-reverse" as const,
+      alignItems: "center" as const,
+      gap: 8,
+    },
+    companyIcon: {
+      width: 36,
+      height: 36,
+      backgroundColor: accent,
+      borderRadius: 4,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+    companyIconText: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: C.white,
+    },
+    companyName: {
+      fontSize: 16,
+      fontWeight: 700,
+      color: C.ink,
+      textAlign: "right" as const,
+    },
+    companyActivity: {
+      fontSize: 9,
+      color: C.slate500,
+      textAlign: "right" as const,
+      marginTop: 2,
+    },
+    // Title center
+    titleSection: {
+      alignItems: "center" as const,
+    },
+    titleText: {
+      fontSize: 20,
+      fontWeight: 700,
+      color: accent,
+      textAlign: "center" as const,
+    },
+    titleBadge: {
+      backgroundColor: `${accent}1a`,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 20,
+      marginTop: 6,
+    },
+    titleBadgeText: {
+      fontSize: 9,
+      fontWeight: 700,
+      color: accent,
+      textAlign: "center" as const,
+    },
+    // Status pill
+    statusPill: {
+      marginTop: 6,
+      backgroundColor: `${pillColor}1a`,
+      paddingHorizontal: 10,
+      paddingVertical: 3,
+      borderRadius: 20,
+    },
+    statusText: {
+      fontSize: 8,
+      fontWeight: 700,
+      color: pillColor,
+    },
+    // Meta section
+    metaSection: {
+      flexDirection: "row-reverse" as const,
+      paddingHorizontal: 24,
+      paddingVertical: 10,
+      gap: 24,
+      marginBottom: 4,
+    },
+    metaGroup: {
+      flex: 1,
+    },
+    metaGroupLabel: {
+      fontSize: 8,
+      fontWeight: 700,
+      color: C.slate400,
+      textAlign: "right" as const,
+      marginBottom: 6,
+    },
+    partyBox: {
+      borderRightWidth: 3,
+      borderRightColor: accent,
+      paddingRight: 10,
+      paddingVertical: 4,
+    },
+    partyName: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: C.ink,
+      textAlign: "right" as const,
+    },
+    metaRow: {
+      flexDirection: "row-reverse" as const,
+      justifyContent: "flex-start" as const,
+      gap: 20,
+    },
+    metaItem: {
+      marginBottom: 4,
+    },
+    metaLabel: {
+      fontSize: 7,
+      fontWeight: 700,
+      color: C.slate400,
+      textAlign: "right" as const,
+    },
+    metaValue: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: C.ink,
+      textAlign: "right" as const,
+      marginTop: 2,
+    },
+    // Table
+    tableHeaderRow: {
+      flexDirection: "row-reverse" as const,
+      backgroundColor: C.slate100,
+      borderBottomWidth: 1,
+      borderBottomColor: C.slate200,
+    },
+    tableHeaderCell: {
+      fontSize: 8,
+      fontWeight: 700,
+      color: C.slate800,
+      textAlign: "center" as const,
+      paddingVertical: 8,
+      paddingHorizontal: 6,
+    },
+    tableRow: {
+      flexDirection: "row-reverse" as const,
+      borderBottomWidth: 0.5,
+      borderBottomColor: C.slate200,
+    },
+    tableCell: {
+      fontSize: 9,
+      color: C.ink4,
+      textAlign: "center" as const,
+      paddingVertical: 6,
+      paddingHorizontal: 4,
+    },
+    tableCellName: {
+      fontSize: 9,
+      fontWeight: 500,
+      color: C.ink,
+      textAlign: "right" as const,
+      paddingVertical: 6,
+      paddingHorizontal: 6,
+    },
+    tableCellBold: {
+      fontSize: 9,
+      fontWeight: 700,
+      color: C.ink,
+      textAlign: "center" as const,
+      paddingVertical: 6,
+      paddingHorizontal: 4,
+    },
+    // Bottom section
+    bottomGrid: {
+      flexDirection: "row" as const,
+      marginTop: 14,
+      paddingHorizontal: 24,
+      justifyContent: "space-between" as const,
+    },
+    // Notes col (left)
+    notesCol: {
+      width: "52%" as const,
+      paddingRight: 10,
+    },
+    statsBox: {
+      backgroundColor: C.bgSoft,
+      borderWidth: 1,
+      borderColor: C.slate200,
+      borderRadius: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginBottom: 8,
+    },
+    statsTitle: {
+      fontSize: 7,
+      fontWeight: 700,
+      color: C.slate400,
+      marginBottom: 6,
+      textAlign: "right" as const,
+    },
+    statsRow: {
+      flexDirection: "row-reverse" as const,
+      justifyContent: "space-between" as const,
+      paddingVertical: 3,
+    },
+    statsLabel: {
+      fontSize: 9,
+      fontWeight: 500,
+      color: C.slate500,
+    },
+    statsValue: {
+      fontSize: 9,
+      fontWeight: 700,
+      color: C.slate800,
+    },
+    notesBox: {
+      borderWidth: 1,
+      borderColor: C.slate200,
+      borderRightWidth: 3,
+      borderRightColor: accent,
+      borderRadius: 4,
+      padding: 10,
+    },
+    notesLabel: {
+      fontSize: 7,
+      fontWeight: 700,
+      color: accent,
+      marginBottom: 4,
+      textAlign: "right" as const,
+    },
+    notesText: {
+      fontSize: 8,
+      color: C.slate500,
+      lineHeight: 1.8,
+      textAlign: "right" as const,
+    },
+    // Totals col (right)
+    totalsCol: {
+      width: "46%" as const,
+    },
+    totalRow: {
+      flexDirection: "row-reverse" as const,
+      justifyContent: "space-between" as const,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+      borderBottomWidth: 0.5,
+      borderBottomColor: C.slate200,
+    },
+    totalLabel: {
+      fontSize: 9,
+      fontWeight: 500,
+      color: C.slate500,
+      textAlign: "right" as const,
+    },
+    totalValue: {
+      fontSize: 9,
+      fontWeight: 700,
+      color: C.ink,
+      textAlign: "left" as const,
+    },
+    grandRow: {
+      flexDirection: "row-reverse" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
+      backgroundColor: C.slate100,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      marginTop: 4,
+    },
+    grandLabel: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: accent,
+      textAlign: "right" as const,
+    },
+    grandValue: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: accent,
+      textAlign: "left" as const,
+    },
+    // Footer
+    footer: {
+      position: "absolute" as const,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      borderTopWidth: 1,
+      borderTopColor: C.slate200,
+      paddingHorizontal: 24,
+      paddingVertical: 8,
+      flexDirection: "row-reverse" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
+    },
+    footerContactRow: {
+      flexDirection: "row-reverse" as const,
+      gap: 12,
+    },
+    footerContactText: {
+      fontSize: 7,
+      color: C.slate500,
+    },
+    footerPagePill: {
+      backgroundColor: C.slate100,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 20,
+    },
+    footerPageText: {
+      fontSize: 7,
+      fontWeight: 700,
+      color: C.slate400,
+    },
+  });
 
-  // Meta Bar
-  // إزالة العملة
-  const metaDefs: { label: string; value: string }[] = [{ label: "تاريخ الفاتورة", value: fmtDate(date) }];
-  if (reference) metaDefs.push({ label: "المرجع", value: reference });
+  // ── Logo ──
+  const logoEl = logoData
+    ? React.createElement(Image, { src: logoData, style: { width: 36, height: 36, borderRadius: 4 } })
+    : React.createElement(
+        View,
+        { style: s.companyIcon },
+        React.createElement(Text, { style: s.companyIconText },
+          (settings?.company_name ?? "N").charAt(0).toUpperCase(),
+        ),
+      );
 
-  const colHeaders: string[] = ["#", "الوصف", "الكمية", "سعر الوحدة"];
+  // ── Table data ──
+  const colHeaders: string[] = ["#", "البند / الوصف", "الكمية", "السعر"];
   if (showDiscount) colHeaders.push("الخصم");
-  colHeaders.push(`الإجمالي (${currency})`);
-
+  colHeaders.push("المجموع");
   const colWidths = showDiscount ? ["5%", "38%", "10%", "16%", "11%", "20%"] : ["5%", "42%", "11%", "20%", "22%"];
 
-  const tableRows: (string | number)[][] = items.map((item, idx) => {
+  const tableRows = items.map((item, idx) => {
     const row: (string | number)[] = [
-      String(idx + 1).padStart(2, "0"),
+      String(idx + 1),
       item.name,
       fmtNum(item.quantity),
       fmtNum(item.unitPrice),
@@ -1190,58 +1499,64 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
 
   const totalQty = items.reduce((a, i) => a + i.quantity, 0);
 
+  // ── Meta defs ──
+  const metaDefs: { label: string; value: string }[] = [{ label: "تاريخ الإصدار", value: fmtDate(date) }];
+  if (dueDate) metaDefs.push({ label: "تاريخ الاستحقاق", value: fmtDate(dueDate) });
+  if (reference) metaDefs.push({ label: "المرجع", value: reference });
+
+  // ── Footer contact ──
+  const contactParts: string[] = [];
+  if (settings?.address) contactParts.push(settings.address);
+  if (settings?.phone) contactParts.push(settings.phone);
+  if (settings?.email) contactParts.push(settings.email);
+  if (settings?.website) contactParts.push(settings.website);
+
+  // ── Totals elements ──
   const totalsEls: React.ReactNode[] = [];
   totalsEls.push(
     React.createElement(
       View,
-      { key: "sub", style: inv.totalRow },
-      React.createElement(Text, { style: inv.totalValue }, fmtNum(subtotal)),
-      React.createElement(Text, { style: inv.totalLabel }, "المجموع الفرعي"),
+      { key: "sub", style: s.totalRow },
+      React.createElement(Text, { style: s.totalLabel }, "الإجمالي الفرعي"),
+      React.createElement(Text, { style: s.totalValue }, `${fmtNum(subtotal)} ${currency}`),
     ),
   );
-
-  if (showTax && taxRate > 0) {
-    totalsEls.push(
-      React.createElement(
-        View,
-        { key: "tax", style: inv.totalRow },
-        React.createElement(Text, { style: inv.totalValue }, fmtNum(taxAmount)),
-        React.createElement(Text, { style: inv.totalLabel }, `ضريبة القيمة المضافة ${taxRate}%`),
-      ),
-    );
-  }
-
   if (showDiscount && discountTotal && discountTotal > 0) {
     totalsEls.push(
       React.createElement(
         View,
-        { key: "disc", style: inv.totalRow },
-        React.createElement(Text, { style: { ...inv.totalValue, color: C.red } }, `− ${fmtNum(discountTotal)}`),
-        React.createElement(Text, { style: inv.totalLabel }, "الخصم"),
+        { key: "disc", style: s.totalRow },
+        React.createElement(Text, { style: s.totalLabel }, "إجمالي الخصم"),
+        React.createElement(Text, { style: { ...s.totalValue, color: C.red } }, `${fmtNum(discountTotal)} ${currency}`),
       ),
     );
   }
-
+  if (showTax && taxRate > 0) {
+    totalsEls.push(
+      React.createElement(
+        View,
+        { key: "tax", style: s.totalRow },
+        React.createElement(Text, { style: s.totalLabel }, `ضريبة ${taxRate}%`),
+        React.createElement(Text, { style: s.totalValue }, `${fmtNum(taxAmount)} ${currency}`),
+      ),
+    );
+  }
+  // Grand total
   totalsEls.push(
     React.createElement(
       View,
-      { key: "grand", style: { ...inv.grandRow, borderTopColor: accent } },
-      React.createElement(Text, { style: inv.grandValue }, `${fmtNum(grandTotal)} ${currency}`),
-      React.createElement(Text, { style: inv.grandLabel }, "الإجمالي المستحق"),
+      { key: "grand", style: s.grandRow },
+      React.createElement(Text, { style: s.grandLabel }, "الإجمالي"),
+      React.createElement(Text, { style: s.grandValue }, `${fmtNum(grandTotal)} ${currency}`),
     ),
   );
-
   if (paidAmount !== undefined && paidAmount > 0) {
     totalsEls.push(
       React.createElement(
         View,
-        { key: "paid", style: inv.totalRow },
-        React.createElement(
-          Text,
-          { style: { ...inv.totalValue, color: C.green, fontWeight: 700 } },
-          `${fmtNum(paidAmount)} ${currency}`,
-        ),
-        React.createElement(Text, { style: { ...inv.totalLabel, color: C.green } }, "المدفوع"),
+        { key: "paid", style: s.totalRow },
+        React.createElement(Text, { style: { ...s.totalLabel, color: C.green } }, "المدفوع"),
+        React.createElement(Text, { style: { ...s.totalValue, color: C.green } }, `${fmtNum(paidAmount)} ${currency}`),
       ),
     );
     const balance = grandTotal - paidAmount;
@@ -1249,13 +1564,9 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
       totalsEls.push(
         React.createElement(
           View,
-          { key: "bal", style: { ...inv.totalRow, borderBottomWidth: 0 } },
-          React.createElement(
-            Text,
-            { style: { ...inv.totalValue, color: C.red, fontWeight: 700 } },
-            `${fmtNum(balance)} ${currency}`,
-          ),
-          React.createElement(Text, { style: { ...inv.totalLabel, color: C.red } }, "المتبقي"),
+          { key: "bal", style: { ...s.totalRow, borderBottomWidth: 0 } },
+          React.createElement(Text, { style: { ...s.totalLabel, color: C.red } }, "المتبقي"),
+          React.createElement(Text, { style: { ...s.totalValue, color: C.red } }, `${fmtNum(balance)} ${currency}`),
         ),
       );
     }
@@ -1266,92 +1577,193 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
     null,
     React.createElement(
       Page,
-      { size: "A4", style: base.page },
-      // Header with badge inline
-      React.createElement(PdfHeader, { settings, logoData, accentColor: accent, badge }),
+      { size: "A4", style: s.page },
 
-      // Meta Bar
+      // ── Header ──
       React.createElement(
         View,
-        { style: inv.metaBar },
+        { style: s.header },
         React.createElement(
           View,
-          { style: inv.clientBox },
-          React.createElement(Text, { style: { ...inv.clientLabel, color: accent } }, partyLabel),
-          // تم إزالة الخط التحتي هنا
-          React.createElement(Text, { style: inv.clientName }, partyName),
-        ),
-        ...metaDefs.map((m, i) =>
+          { style: s.headerRow },
+          // Right: Company
           React.createElement(
             View,
-            { key: `meta-${i}`, style: inv.metaCell },
-            React.createElement(Text, { style: inv.metaLabel }, m.label),
-            React.createElement(Text, { style: inv.metaValue }, m.value),
-          ),
-        ),
-      ),
-
-      // Body
-      React.createElement(
-        View,
-        { style: base.body },
-        React.createElement(Text, { style: base.sectionLabel }, "تفاصيل البنود"),
-        React.createElement(DataTable, { headers: colHeaders, rows: tableRows, colWidths }),
-
-        // Bottom Grid: Row (Summary Left, Totals Right)
-        React.createElement(
-          View,
-          { style: inv.bottomGrid },
-
-          // 1. Summary Col (Left visually in RTL context)
-          React.createElement(
-            View,
-            { style: inv.summaryCol },
+            { style: s.companySection },
+            logoEl,
             React.createElement(
               View,
-              { style: { ...inv.summaryBar, borderColor: accent } }, // لون ديناميكي
-              React.createElement(Text, { style: inv.summaryLabel }, "منتجات: "),
-              React.createElement(Text, { style: inv.summaryValue }, String(items.length)),
-              React.createElement(View, {
-                style: { width: 1, height: 14, backgroundColor: C.border, marginHorizontal: 10 },
-              }),
-              React.createElement(Text, { style: inv.summaryLabel }, "وحدات: "),
-              React.createElement(Text, { style: inv.summaryValue }, fmtNum(totalQty)),
+              null,
+              React.createElement(Text, { style: s.companyName }, settings?.company_name ?? "النظام المحاسبي"),
+              settings?.business_activity
+                ? React.createElement(Text, { style: s.companyActivity }, settings.business_activity)
+                : null,
             ),
-            notes
+          ),
+          // Center: Invoice type + number
+          React.createElement(
+            View,
+            { style: s.titleSection },
+            React.createElement(Text, { style: s.titleText }, meta.label),
+            React.createElement(
+              View,
+              { style: s.titleBadge },
+              React.createElement(Text, { style: s.titleBadgeText }, `#${num}`),
+            ),
+            pillText
               ? React.createElement(
                   View,
-                  { style: { ...inv.notesBox, borderRightColor: accent } }, // لون ديناميكي
-                  React.createElement(Text, { style: { ...inv.notesLabel, color: accent } }, "ملاحظات وشروط الدفع"), // لون ديناميكي
-                  React.createElement(Text, { style: inv.notesText }, notes),
+                  { style: s.statusPill },
+                  React.createElement(Text, { style: s.statusText }, pillText),
                 )
               : null,
           ),
+        ),
+      ),
 
-          // 2. Totals Col (Right visually)
+      // ── Meta: Party + dates ──
+      React.createElement(
+        View,
+        { style: s.metaSection },
+        // Party info
+        React.createElement(
+          View,
+          { style: s.metaGroup },
+          React.createElement(Text, { style: s.metaGroupLabel }, partyLabel),
           React.createElement(
             View,
-            { style: inv.totalsCol },
-            React.createElement(
-              View,
-              { style: { borderWidth: 1, borderColor: C.border, borderRadius: 2, width: "100%" } },
-              ...totalsEls,
+            { style: s.partyBox },
+            React.createElement(Text, { style: s.partyName }, partyName),
+          ),
+        ),
+        // Date info
+        React.createElement(
+          View,
+          { style: { ...s.metaGroup, alignItems: "flex-end" as const } },
+          React.createElement(
+            View,
+            { style: s.metaRow },
+            ...metaDefs.map((m, i) =>
+              React.createElement(
+                View,
+                { key: `m-${i}`, style: s.metaItem },
+                React.createElement(Text, { style: s.metaLabel }, m.label),
+                React.createElement(Text, { style: s.metaValue }, m.value),
+              ),
             ),
           ),
         ),
       ),
 
+      // ── Table ──
+      React.createElement(
+        View,
+        { style: { paddingHorizontal: 24, marginBottom: 10 } },
+        // Header
+        React.createElement(
+          View,
+          { style: s.tableHeaderRow },
+          ...colHeaders.map((h, i) =>
+            React.createElement(Text, { key: `h-${i}`, style: { ...s.tableHeaderCell, width: colWidths[i] } }, h),
+          ),
+        ),
+        // Rows
+        ...tableRows.map((row, ri) =>
+          React.createElement(
+            View,
+            { key: `r-${ri}`, style: { ...s.tableRow, backgroundColor: ri % 2 === 0 ? C.white : "#fafafa" } },
+            ...row.map((cell, ci) => {
+              const isName = ci === 1;
+              const isLast = ci === row.length - 1;
+              const cellStyle = isLast
+                ? { ...s.tableCellBold, width: colWidths[ci] }
+                : isName
+                  ? { ...s.tableCellName, width: colWidths[ci] }
+                  : { ...s.tableCell, width: colWidths[ci] };
+              return React.createElement(Text, { key: `c-${ri}-${ci}`, style: cellStyle }, String(cell));
+            }),
+          ),
+        ),
+      ),
+
+      // ── Bottom: Notes + Totals ──
+      React.createElement(
+        View,
+        { style: s.bottomGrid },
+        // Notes col (left visually)
+        React.createElement(
+          View,
+          { style: s.notesCol },
+          // Stats box
+          React.createElement(
+            View,
+            { style: s.statsBox },
+            React.createElement(Text, { style: s.statsTitle }, "ملخص البنود"),
+            React.createElement(
+              View,
+              { style: s.statsRow },
+              React.createElement(Text, { style: s.statsLabel }, "عدد المنتجات"),
+              React.createElement(Text, { style: s.statsValue }, `${items.length} منتج`),
+            ),
+            React.createElement(
+              View,
+              { style: s.statsRow },
+              React.createElement(Text, { style: s.statsLabel }, "إجمالي الوحدات"),
+              React.createElement(Text, { style: s.statsValue }, `${fmtNum(totalQty)} وحدة`),
+            ),
+          ),
+          // Notes
+          notes
+            ? React.createElement(
+                View,
+                { style: s.notesBox },
+                React.createElement(Text, { style: s.notesLabel }, "ملاحظات وشروط"),
+                React.createElement(Text, { style: s.notesText }, notes),
+              )
+            : null,
+        ),
+        // Totals col (right visually)
+        React.createElement(
+          View,
+          { style: s.totalsCol },
+          React.createElement(
+            View,
+            { style: { borderWidth: 1, borderColor: C.slate200, borderRadius: 4, overflow: "hidden" as const } },
+            ...totalsEls,
+          ),
+        ),
+      ),
+
+      // ── Invoice notes from settings ──
       settings?.invoice_notes
         ? React.createElement(
             Text,
-            {
-              style: { fontSize: 7, color: C.ink6, textAlign: "center" as const, marginTop: 4, paddingHorizontal: 30 },
-            },
+            { style: { fontSize: 7, color: C.slate500, textAlign: "center" as const, marginTop: 8, paddingHorizontal: 24 } },
             settings.invoice_notes,
           )
         : null,
 
-      React.createElement(PdfFooter, { settings, accentColor: accent }),
+      // ── Footer ──
+      React.createElement(
+        View,
+        { style: s.footer, fixed: true },
+        React.createElement(
+          View,
+          { style: s.footerContactRow },
+          ...contactParts.map((p, i) =>
+            React.createElement(Text, { key: `fc-${i}`, style: s.footerContactText }, p),
+          ),
+        ),
+        React.createElement(
+          View,
+          { style: s.footerPagePill },
+          React.createElement(Text, {
+            style: s.footerPageText,
+            render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
+              `صفحة ${pageNumber} من ${totalPages}`,
+          }),
+        ),
+      ),
     ),
   );
 }
