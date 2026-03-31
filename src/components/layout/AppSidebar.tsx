@@ -207,6 +207,7 @@ function CollapsibleSection({ section, userRole }: { section: MenuSection; userR
 
 export function AppSidebar() {
   const { settings } = useSettings();
+  const { role } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
