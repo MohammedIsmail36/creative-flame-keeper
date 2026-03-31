@@ -132,7 +132,7 @@ const sections: MenuSection[] = [
       { title: "الميزانية العمومية", url: "/balance-sheet", icon: BarChart3, roles: ["admin", "accountant"] },
       { title: "تحليلات النمو", url: "/reports/growth", icon: TrendingUp, roles: ["admin", "accountant"] },
       { title: "تحليل المنتجات", url: "/reports/products", icon: Award, roles: ["admin", "accountant"] },
-      { title: "تقرير المبيعات", url: "/reports/sales", icon: BarChart3, roles: ["admin", "accountant"] },
+      { title: "تقرير المبيعات", url: "/reports/sales", icon: BarChart3, roles: ["admin", "accountant", "sales"] },
       { title: "تقرير المشتريات", url: "/reports/purchases", icon: ShoppingCart, roles: ["admin", "accountant"] },
       { title: "تقرير المخزون", url: "/reports/inventory", icon: Package, roles: ["admin", "accountant"] },
       { title: "أعمار الديون", url: "/reports/aging", icon: Clock, roles: ["admin", "accountant"] },
