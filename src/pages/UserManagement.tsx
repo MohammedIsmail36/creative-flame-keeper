@@ -139,18 +139,22 @@ export default function UserManagement() {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newPassword.length < 6) {
+      toast({ title: "خطأ", description: "كلمة المرور يجب أن تكون 6 أحرف على الأقل", variant: "destructive" });
+      return;
+    }
     setAddLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
-        email: newEmail,
-        password: newPassword,
-        options: { data: { full_name: newFullName }, emailRedirectTo: window.location.origin },
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("create-user", {
+        body: { email: newEmail, password: newPassword, full_name: newFullName, role: newRole },
       });
-      if (error) throw error;
-      toast({ title: "تم إنشاء الحساب", description: "تم إرسال رابط التأكيد إلى البريد الإلكتروني للمستخدم الجديد." });
+      if (res.error) throw new Error(res.error.message || "فشل في إنشاء المستخدم");
+      if (res.data?.error) throw new Error(res.data.error);
+      toast({ title: "تم إنشاء الحساب", description: "تم إنشاء حساب المستخدم وتفعيله بنجاح." });
       setAddDialogOpen(false);
       setNewEmail(""); setNewPassword(""); setNewFullName(""); setNewRole("sales");
-      setTimeout(() => fetchUsers(), 1500);
+      setTimeout(() => fetchUsers(), 1000);
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
     } finally {
