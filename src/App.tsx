@@ -106,7 +106,7 @@ const App = () => (
             <Route path="/trial-balance" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><TrialBalance /></AppLayout></ProtectedRoute>} />
             <Route path="/income-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><IncomeStatement /></AppLayout></ProtectedRoute>} />
             <Route path="/balance-sheet" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><BalanceSheet /></AppLayout></ProtectedRoute>} />
-            <Route path="/reports/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><SalesReportPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/reports/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesReportPage /></AppLayout></ProtectedRoute>} />
             <Route path="/reports/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchasesReportPage /></AppLayout></ProtectedRoute>} />
             <Route path="/reports/inventory" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryReportPage /></AppLayout></ProtectedRoute>} />
             <Route path="/reports/aging" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><DebtAgingReportPage /></AppLayout></ProtectedRoute>} />
