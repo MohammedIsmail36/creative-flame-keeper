@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
+import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useLocation } from "react-router-dom";
 import {
