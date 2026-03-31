@@ -268,7 +268,7 @@ export function AppSidebar() {
 
         {/* Collapsible sections */}
         {sections.map((section) => (
-          <CollapsibleSection key={section.label} section={section} />
+          <CollapsibleSection key={section.label} section={section} userRole={role} />
         ))}
 
         {/* Fiscal Year Closing - conditional */}
