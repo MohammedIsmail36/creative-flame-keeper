@@ -157,11 +157,11 @@ function CollapsibleSection({ section, userRole }: { section: MenuSection; userR
   // Filter items by role
   const visibleItems = section.items.filter(item => userRole && item.roles.includes(userRole as AppRole));
   
-  // Hide entire section if no visible items
-  if (visibleItems.length === 0) return null;
-  
   const isActive = visibleItems.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + "/"));
   const [open, setOpen] = useState(isActive);
+
+  // Hide entire section if no visible items
+  if (visibleItems.length === 0) return null;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
