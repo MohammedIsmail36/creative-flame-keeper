@@ -94,7 +94,7 @@ const sections: MenuSection[] = [
     icon: Wallet,
     colorVar: "var(--cat-purchases)",
     items: [
-      { title: "المصروفات", url: "/expenses", icon: Receipt, roles: ["admin", "accountant"] },
+      { title: "المصروفات", url: "/expenses", icon: Receipt, roles: ["admin", "accountant", "sales"] },
       { title: "أنواع المصروفات", url: "/expense-types", icon: Receipt, roles: ["admin", "accountant"] },
     ],
   },
