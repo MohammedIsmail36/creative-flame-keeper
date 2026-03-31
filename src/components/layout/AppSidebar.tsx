@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
+import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useLocation } from "react-router-dom";
 import {
@@ -93,7 +94,7 @@ const sections: MenuSection[] = [
     icon: Wallet,
     colorVar: "var(--cat-purchases)",
     items: [
-      { title: "المصروفات", url: "/expenses", icon: Receipt, roles: ["admin", "accountant"] },
+      { title: "المصروفات", url: "/expenses", icon: Receipt, roles: ["admin", "accountant", "sales"] },
       { title: "أنواع المصروفات", url: "/expense-types", icon: Receipt, roles: ["admin", "accountant"] },
     ],
   },
@@ -131,7 +132,7 @@ const sections: MenuSection[] = [
       { title: "الميزانية العمومية", url: "/balance-sheet", icon: BarChart3, roles: ["admin", "accountant"] },
       { title: "تحليلات النمو", url: "/reports/growth", icon: TrendingUp, roles: ["admin", "accountant"] },
       { title: "تحليل المنتجات", url: "/reports/products", icon: Award, roles: ["admin", "accountant"] },
-      { title: "تقرير المبيعات", url: "/reports/sales", icon: BarChart3, roles: ["admin", "accountant"] },
+      { title: "تقرير المبيعات", url: "/reports/sales", icon: BarChart3, roles: ["admin", "accountant", "sales"] },
       { title: "تقرير المشتريات", url: "/reports/purchases", icon: ShoppingCart, roles: ["admin", "accountant"] },
       { title: "تقرير المخزون", url: "/reports/inventory", icon: Package, roles: ["admin", "accountant"] },
       { title: "أعمار الديون", url: "/reports/aging", icon: Clock, roles: ["admin", "accountant"] },
@@ -150,10 +151,17 @@ const settingsItems: MenuItem[] = [
   { title: "إعداد النظام", url: "/system-setup", icon: Settings, roles: ["admin"] },
 ];
 
-function CollapsibleSection({ section }: { section: MenuSection }) {
+function CollapsibleSection({ section, userRole }: { section: MenuSection; userRole: string | null }) {
   const location = useLocation();
-  const isActive = section.items.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + "/"));
+  
+  // Filter items by role
+  const visibleItems = section.items.filter(item => userRole && item.roles.includes(userRole as AppRole));
+  
+  const isActive = visibleItems.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + "/"));
   const [open, setOpen] = useState(isActive);
+
+  // Hide entire section if no visible items
+  if (visibleItems.length === 0) return null;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -175,21 +183,19 @@ function CollapsibleSection({ section }: { section: MenuSection }) {
         <CollapsibleContent>
           <SidebarGroupContent className="pr-9 pt-0.5 pb-1">
             <SidebarMenu>
-              {section.items.map((item) => (
-                <RoleGuard key={item.title} allowedRoles={item.roles}>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild className="h-8">
-                      <NavLink
-                        to={item.url}
-                        end={item.url === "/"}
-                        className="text-muted-foreground hover:text-foreground hover:bg-muted/50 text-[13px]"
-                        activeClassName="text-primary bg-accent font-semibold"
-                      >
-                        <span>{item.title}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </RoleGuard>
+              {visibleItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild className="h-8">
+                    <NavLink
+                      to={item.url}
+                      end={item.url === "/"}
+                      className="text-muted-foreground hover:text-foreground hover:bg-muted/50 text-[13px]"
+                      activeClassName="text-primary bg-accent font-semibold"
+                    >
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -201,6 +207,7 @@ function CollapsibleSection({ section }: { section: MenuSection }) {
 
 export function AppSidebar() {
   const { settings } = useSettings();
+  const { role } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
@@ -261,7 +268,7 @@ export function AppSidebar() {
 
         {/* Collapsible sections */}
         {sections.map((section) => (
-          <CollapsibleSection key={section.label} section={section} />
+          <CollapsibleSection key={section.label} section={section} userRole={role} />
         ))}
 
         {/* Fiscal Year Closing - conditional */}

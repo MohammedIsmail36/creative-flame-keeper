@@ -106,7 +106,7 @@ const App = () => (
             <Route path="/trial-balance" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><TrialBalance /></AppLayout></ProtectedRoute>} />
             <Route path="/income-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><IncomeStatement /></AppLayout></ProtectedRoute>} />
             <Route path="/balance-sheet" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><BalanceSheet /></AppLayout></ProtectedRoute>} />
-            <Route path="/reports/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><SalesReportPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/reports/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesReportPage /></AppLayout></ProtectedRoute>} />
             <Route path="/reports/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchasesReportPage /></AppLayout></ProtectedRoute>} />
             <Route path="/reports/inventory" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryReportPage /></AppLayout></ProtectedRoute>} />
             <Route path="/reports/aging" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><DebtAgingReportPage /></AppLayout></ProtectedRoute>} />
@@ -127,9 +127,9 @@ const App = () => (
             <Route path="/system-setup" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout><SystemSetup /></AppLayout></ProtectedRoute>} />
             <Route path="/fiscal-year-closing" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><FiscalYearClosing /></AppLayout></ProtectedRoute>} />
             <Route path="/expense-types" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ExpenseTypes /></AppLayout></ProtectedRoute>} />
-            <Route path="/expenses" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Expenses /></AppLayout></ProtectedRoute>} />
-            <Route path="/expenses/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ExpenseForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/expenses/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ExpenseForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/expenses" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Expenses /></AppLayout></ProtectedRoute>} />
+            <Route path="/expenses/new" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><ExpenseForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/expenses/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><ExpenseForm /></AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </SettingsProvider>
