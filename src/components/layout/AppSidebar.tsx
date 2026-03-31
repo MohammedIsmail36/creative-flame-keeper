@@ -151,9 +151,16 @@ const settingsItems: MenuItem[] = [
   { title: "إعداد النظام", url: "/system-setup", icon: Settings, roles: ["admin"] },
 ];
 
-function CollapsibleSection({ section }: { section: MenuSection }) {
+function CollapsibleSection({ section, userRole }: { section: MenuSection; userRole: string | null }) {
   const location = useLocation();
-  const isActive = section.items.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + "/"));
+  
+  // Filter items by role
+  const visibleItems = section.items.filter(item => userRole && item.roles.includes(userRole as AppRole));
+  
+  // Hide entire section if no visible items
+  if (visibleItems.length === 0) return null;
+  
+  const isActive = visibleItems.some(item => location.pathname === item.url || location.pathname.startsWith(item.url + "/"));
   const [open, setOpen] = useState(isActive);
 
   return (
@@ -176,21 +183,19 @@ function CollapsibleSection({ section }: { section: MenuSection }) {
         <CollapsibleContent>
           <SidebarGroupContent className="pr-9 pt-0.5 pb-1">
             <SidebarMenu>
-              {section.items.map((item) => (
-                <RoleGuard key={item.title} allowedRoles={item.roles}>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild className="h-8">
-                      <NavLink
-                        to={item.url}
-                        end={item.url === "/"}
-                        className="text-muted-foreground hover:text-foreground hover:bg-muted/50 text-[13px]"
-                        activeClassName="text-primary bg-accent font-semibold"
-                      >
-                        <span>{item.title}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </RoleGuard>
+              {visibleItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild className="h-8">
+                    <NavLink
+                      to={item.url}
+                      end={item.url === "/"}
+                      className="text-muted-foreground hover:text-foreground hover:bg-muted/50 text-[13px]"
+                      activeClassName="text-primary bg-accent font-semibold"
+                    >
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
