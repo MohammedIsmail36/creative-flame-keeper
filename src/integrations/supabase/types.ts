@@ -76,6 +76,7 @@ export type Database = {
           default_currency: string
           email: string | null
           enable_fiscal_year_closing: boolean
+          enable_return_days_limit: boolean
           expense_prefix: string
           fiscal_year_start: string
           id: string
@@ -110,6 +111,7 @@ export type Database = {
           default_currency?: string
           email?: string | null
           enable_fiscal_year_closing?: boolean
+          enable_return_days_limit?: boolean
           expense_prefix?: string
           fiscal_year_start?: string
           id?: string
@@ -144,6 +146,7 @@ export type Database = {
           default_currency?: string
           email?: string | null
           enable_fiscal_year_closing?: boolean
+          enable_return_days_limit?: boolean
           expense_prefix?: string
           fiscal_year_start?: string
           id?: string

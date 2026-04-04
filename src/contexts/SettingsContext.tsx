@@ -30,6 +30,7 @@ export interface CompanySettings {
   journal_entry_prefix: string;
   expense_prefix: string;
   return_days_limit: number;
+  enable_return_days_limit: boolean;
   enable_fiscal_year_closing: boolean;
   monthly_sales_target: number;
 }
