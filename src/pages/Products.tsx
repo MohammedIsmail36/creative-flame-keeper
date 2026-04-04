@@ -4,7 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,7 +74,12 @@ interface CategoryNode {
 }
 
 function buildCategoryTree(
-  flat: { id: string; name: string; parent_id: string | null; is_active: boolean }[],
+  flat: {
+    id: string;
+    name: string;
+    parent_id: string | null;
+    is_active: boolean;
+  }[],
 ): CategoryNode[] {
   const map = new Map<string, CategoryNode>();
   flat.forEach((c) => map.set(c.id, { ...c, children: [] }));
@@ -103,14 +114,19 @@ function getDescendantIds(tree: CategoryNode[], targetId: string): string[] {
   return ids;
 }
 
-function renderCategoryOptions(nodes: CategoryNode[], depth = 0): React.ReactNode[] {
+function renderCategoryOptions(
+  nodes: CategoryNode[],
+  depth = 0,
+): React.ReactNode[] {
   const result: React.ReactNode[] = [];
   for (const node of nodes) {
     const prefix = depth > 0 ? "─ ".repeat(depth) : "";
     result.push(
       <SelectItem key={node.id} value={node.id}>
         <span className="flex items-center gap-1">
-          {depth > 0 && <ChevronLeft className="h-3 w-3 text-muted-foreground inline" />}
+          {depth > 0 && (
+            <ChevronLeft className="h-3 w-3 text-muted-foreground inline" />
+          )}
           {prefix}
           {node.name}
         </span>
@@ -121,12 +137,23 @@ function renderCategoryOptions(nodes: CategoryNode[], depth = 0): React.ReactNod
   return result;
 }
 
-const productGlobalFilter: FilterFn<ProductRow> = (row, _columnId, filterValue) => {
+const productGlobalFilter: FilterFn<ProductRow> = (
+  row,
+  _columnId,
+  filterValue,
+) => {
   const search = (filterValue as string).toLowerCase();
   const p = row.original;
   const categoryName = (p as any).product_categories?.name || p.category || "";
   const brandName = (p as any).product_brands?.name || "";
-  const fields = [p.name, p.code, p.barcode, p.model_number, categoryName, brandName];
+  const fields = [
+    p.name,
+    p.code,
+    p.barcode,
+    p.model_number,
+    categoryName,
+    brandName,
+  ];
   return fields.some((f) => f && f.toLowerCase().includes(search));
 };
 
@@ -137,7 +164,9 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
-  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
+  const [statusFilter, setStatusFilter] = useState<
+    "active" | "inactive" | "all"
+  >("active");
   const [categories, setCategories] = useState<
     { id: string; name: string; parent_id: string | null; is_active: boolean }[]
   >([]);
@@ -150,10 +179,16 @@ export default function Products() {
     setLoading(true);
     const { data, error } = await supabase
       .from("products")
-      .select("*, product_categories(name), product_units(name), product_brands(name)" as any)
+      .select(
+        "*, product_categories(name), product_units(name), product_brands(name)" as any,
+      )
       .order("code");
     if (error) {
-      toast({ title: "خطأ", description: "فشل في جلب المنتجات", variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: "فشل في جلب المنتجات",
+        variant: "destructive",
+      });
     } else {
       setProducts((data || []) as any);
     }
@@ -173,16 +208,28 @@ export default function Products() {
     fetchCategories();
   }, []);
 
-  const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
+  const categoryTree = useMemo(
+    () => buildCategoryTree(categories),
+    [categories],
+  );
 
   const stats = useMemo(() => {
-    const activeProducts = products.filter(p => p.is_active);
+    const activeProducts = products.filter((p) => p.is_active);
     const total = activeProducts.length;
-    const available = activeProducts.filter((p) => p.quantity_on_hand > p.min_stock_level).length;
-    const lowStock = activeProducts.filter((p) => p.quantity_on_hand > 0 && p.quantity_on_hand <= p.min_stock_level).length;
-    const outOfStock = activeProducts.filter((p) => p.quantity_on_hand <= 0).length;
-    const totalValue = activeProducts.reduce((s, p) => s + p.quantity_on_hand * p.purchase_price, 0);
-    const inactive = products.filter(p => !p.is_active).length;
+    const available = activeProducts.filter(
+      (p) => p.quantity_on_hand > p.min_stock_level,
+    ).length;
+    const lowStock = activeProducts.filter(
+      (p) => p.quantity_on_hand > 0 && p.quantity_on_hand <= p.min_stock_level,
+    ).length;
+    const outOfStock = activeProducts.filter(
+      (p) => p.quantity_on_hand <= 0,
+    ).length;
+    const totalValue = activeProducts.reduce(
+      (s, p) => s + p.quantity_on_hand * p.purchase_price,
+      0,
+    );
+    const inactive = products.filter((p) => !p.is_active).length;
     return { total, available, lowStock, outOfStock, totalValue, inactive };
   }, [products]);
 
@@ -193,11 +240,18 @@ export default function Products() {
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      const matchesStatus = statusFilter === "all" || (statusFilter === "active" && p.is_active) || (statusFilter === "inactive" && !p.is_active);
-      const matchesCategory = !matchingCategoryIds || (p.category_id && matchingCategoryIds.includes(p.category_id));
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && p.is_active) ||
+        (statusFilter === "inactive" && !p.is_active);
+      const matchesCategory =
+        !matchingCategoryIds ||
+        (p.category_id && matchingCategoryIds.includes(p.category_id));
       const matchesStock =
         stockFilter === "all" ||
-        (stockFilter === "low" && p.quantity_on_hand > 0 && p.quantity_on_hand <= p.min_stock_level) ||
+        (stockFilter === "low" &&
+          p.quantity_on_hand > 0 &&
+          p.quantity_on_hand <= p.min_stock_level) ||
         (stockFilter === "out" && p.quantity_on_hand <= 0);
       return matchesStatus && matchesCategory && matchesStock;
     });
@@ -205,21 +259,38 @@ export default function Products() {
 
   const toggleProductStatus = async (product: ProductRow) => {
     const newStatus = !product.is_active;
-    const { error } = await supabase.from("products").update({ is_active: newStatus }).eq("id", product.id);
+    const { error } = await supabase
+      .from("products")
+      .update({ is_active: newStatus })
+      .eq("id", product.id);
     if (error) {
-      toast({ title: "خطأ", description: "فشل في تحديث حالة المنتج", variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: "فشل في تحديث حالة المنتج",
+        variant: "destructive",
+      });
     } else {
-      toast({ title: newStatus ? "تم التفعيل" : "تم التعطيل", description: newStatus ? "تم تفعيل المنتج بنجاح" : "تم تعطيل المنتج بنجاح" });
+      toast({
+        title: newStatus ? "تم التفعيل" : "تم التعطيل",
+        description: newStatus
+          ? "تم تفعيل المنتج بنجاح"
+          : "تم تعطيل المنتج بنجاح",
+      });
       fetchProducts();
     }
   };
 
   const formatNum = (val: number) =>
-    Number(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    Number(val).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   const formatCurrency = (val: number) => `${formatNum(val)} EGP`;
 
-  const getCategoryName = (p: ProductRow) => (p as any).product_categories?.name || p.category || "-";
-  const getBrandName = (p: ProductRow) => (p as any).product_brands?.name || "-";
+  const getCategoryName = (p: ProductRow) =>
+    (p as any).product_categories?.name || p.category || "-";
+  const getBrandName = (p: ProductRow) =>
+    (p as any).product_brands?.name || "-";
 
   const getStockBadge = (product: ProductRow) => {
     if (product.quantity_on_hand <= 0)
@@ -279,7 +350,9 @@ export default function Products() {
   const columns: ColumnDef<ProductRow, any>[] = [
     {
       id: "product_info",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="المنتج" />,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="المنتج" />
+      ),
       accessorKey: "name",
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
@@ -295,10 +368,16 @@ export default function Products() {
             </div>
           )}
           <div>
-            <p className="text-sm font-bold text-foreground">{row.original.name}</p>
+            <p className="text-sm font-bold text-foreground">
+              {row.original.name}
+            </p>
             <p className="text-xs text-muted-foreground">
-              {getBrandName(row.original) !== "-" ? getBrandName(row.original) : ""}
-              {row.original.model_number && getBrandName(row.original) !== "-" ? " - " : ""}
+              {getBrandName(row.original) !== "-"
+                ? getBrandName(row.original)
+                : ""}
+              {row.original.model_number && getBrandName(row.original) !== "-"
+                ? " - "
+                : ""}
               {row.original.model_number || ""}
             </p>
           </div>
@@ -308,31 +387,61 @@ export default function Products() {
     {
       id: "active_status",
       header: "النشاط",
-      cell: ({ row }) => row.original.is_active
-        ? <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">نشط</Badge>
-        : <Badge variant="secondary" className="bg-muted text-muted-foreground">غير نشط</Badge>,
+      cell: ({ row }) =>
+        row.original.is_active ? (
+          <Badge
+            variant="secondary"
+            className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+          >
+            نشط
+          </Badge>
+        ) : (
+          <Badge variant="secondary" className="bg-muted text-muted-foreground">
+            غير نشط
+          </Badge>
+        ),
     },
     {
       accessorKey: "code",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="كود الصنف" />,
-      cell: ({ row }) => <span className="font-mono text-sm text-foreground">{row.original.code}</span>,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="كود الصنف" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono text-sm text-foreground">
+          {row.original.code}
+        </span>
+      ),
     },
     {
       id: "category",
       header: "التصنيف",
-      cell: ({ row }) => <span className="text-sm text-muted-foreground">{getCategoryName(row.original)}</span>,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {getCategoryName(row.original)}
+        </span>
+      ),
     },
     {
       accessorKey: "selling_price",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="سعر الوحدة" />,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="سعر الوحدة" />
+      ),
       cell: ({ row }) => (
-        <span className="text-sm font-bold text-foreground">{formatCurrency(row.original.selling_price)}</span>
+        <span className="text-sm font-bold text-foreground">
+          {formatCurrency(row.original.selling_price)}
+        </span>
       ),
     },
     {
       accessorKey: "quantity_on_hand",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="الكمية" />,
-      cell: ({ row }) => <span className="text-sm text-foreground">{row.original.quantity_on_hand} وحدة</span>,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="الكمية" />
+      ),
+      cell: ({ row }) => (
+        <span className="text-sm text-foreground">
+          {row.original.quantity_on_hand} وحدة
+        </span>
+      ),
     },
     {
       id: "stock_status",
@@ -344,7 +453,10 @@ export default function Products() {
       header: "الإجراءات",
       enableHiding: false,
       cell: ({ row }) => (
-        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex items-center gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Button
             variant="ghost"
             size="icon"
@@ -371,12 +483,18 @@ export default function Products() {
                   size="icon"
                   className={`h-8 w-8 ${row.original.is_active ? "text-muted-foreground hover:text-destructive hover:bg-destructive/5" : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"}`}
                 >
-                  {row.original.is_active ? <Archive className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                  {row.original.is_active ? (
+                    <Archive className="h-4 w-4" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent dir="rtl">
                 <AlertDialogHeader>
-                  <AlertDialogTitle>{row.original.is_active ? "تعطيل المنتج" : "تفعيل المنتج"}</AlertDialogTitle>
+                  <AlertDialogTitle>
+                    {row.original.is_active ? "تعطيل المنتج" : "تفعيل المنتج"}
+                  </AlertDialogTitle>
                   <AlertDialogDescription>
                     {row.original.is_active
                       ? `هل تريد تعطيل منتج "${row.original.name}"؟ لن يظهر في الفواتير والتقارير.`
@@ -386,7 +504,11 @@ export default function Products() {
                 <AlertDialogFooter className="flex-row-reverse gap-2">
                   <AlertDialogAction
                     onClick={() => toggleProductStatus(row.original)}
-                    className={row.original.is_active ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : "bg-emerald-600 text-white hover:bg-emerald-700"}
+                    className={
+                      row.original.is_active
+                        ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        : "bg-emerald-600 text-white hover:bg-emerald-700"
+                    }
                   >
                     {row.original.is_active ? "تعطيل" : "تفعيل"}
                   </AlertDialogAction>
@@ -429,37 +551,51 @@ export default function Products() {
       iconBg: "bg-red-100 dark:bg-red-500/20",
       iconColor: "text-red-600 dark:text-red-400",
     },
-    ...(stats.inactive > 0 ? [{
-      label: "غير نشط",
-      value: stats.inactive,
-      icon: Archive,
-      iconBg: "bg-muted",
-      iconColor: "text-muted-foreground",
-    }] : []),
+    ...(stats.inactive > 0
+      ? [
+          {
+            label: "غير نشط",
+            value: stats.inactive,
+            icon: Archive,
+            iconBg: "bg-muted",
+            iconColor: "text-muted-foreground",
+          },
+        ]
+      : []),
   ];
 
   return (
     <div className="space-y-6" dir="rtl">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-foreground flex items-center">
-            <div className="bg-primary/10 p-2 rounded-lg ml-3">
-              <Package className="h-5 w-5 text-primary" />
-            </div>
-            إدارة المخزون والمنتجات
-          </h2>
-          <p className="text-muted-foreground text-sm mt-1">عرض وتتبع كافة الأصناف المتوفرة في المخازن.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 sticky top-16 z-10 bg-background backdrop-blur-sm border-b border-border py-4">
+        {/* Title, Description and icon */}
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Package className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">إدارة المخزون والمنتجات</h1>
+            <p className="text-sm text-muted-foreground"> عرض وتتبع كافة الأصناف المتوفرة في المخازن.</p>
+          </div>
         </div>
+
+        {/* Action Buttons */}
         <div className="flex items-center gap-3">
           {canEdit && (
             <>
-              <Button variant="outline" className="gap-2 shadow-sm" onClick={() => navigate("/products/import")}>
+              <Button
+                variant="outline"
+                className="gap-2 shadow-sm"
+                onClick={() => navigate("/products/import")}
+              >
                 <Upload className="h-4 w-4" />
                 استيراد البيانات
               </Button>
               <ExportMenu config={exportConfig} disabled={loading} />
-              <Button className="gap-2 shadow-md shadow-primary/20 font-bold" onClick={() => navigate("/products/new")}>
+              <Button
+                className="gap-2 shadow-md shadow-primary/20 font-bold"
+                onClick={() => navigate("/products/new")}
+              >
                 <Plus className="h-4 w-4" />
                 إضافة منتج جديد
               </Button>
@@ -470,15 +606,22 @@ export default function Products() {
       </div>
 
       {/* Quick Stats */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${statCards.length > 4 ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
+      <div
+        className={`grid grid-cols-1 sm:grid-cols-2 ${statCards.length > 4 ? "md:grid-cols-5" : "md:grid-cols-4"} gap-4`}
+      >
         {statCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
-          <div key={label} className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4">
+          <div
+            key={label}
+            className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4"
+          >
             <div className={`p-3 rounded-full ${iconBg}`}>
               <Icon className={`h-5 w-5 ${iconColor}`} />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="text-xl font-black text-foreground">{value.toLocaleString()}</p>
+              <p className="text-xl font-black text-foreground">
+                {value.toLocaleString()}
+              </p>
             </div>
           </div>
         ))}
@@ -504,7 +647,10 @@ export default function Products() {
                 {renderCategoryOptions(categoryTree)}
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v as any)}
+            >
               <SelectTrigger className="w-40 bg-card border-border">
                 <SelectValue />
               </SelectTrigger>
@@ -514,7 +660,10 @@ export default function Products() {
                 <SelectItem value="all">الكل</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as any)}>
+            <Select
+              value={stockFilter}
+              onValueChange={(v) => setStockFilter(v as any)}
+            >
               <SelectTrigger className="w-40 bg-card border-border">
                 <SelectValue />
               </SelectTrigger>

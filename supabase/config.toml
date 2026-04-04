@@ -1,1 +1,18 @@
 project_id = "ejfoidwbeygzzkbonbmq"
+
+# Required for supabase functions serve
+[api]
+port = 54321
+
+[db]
+port = 54322
+major_version = 14
+
+[auth]
+site_url = "http://localhost:9999"
+
+[studio]
+port = 54323
+
+[inbucket]
+port = 9000

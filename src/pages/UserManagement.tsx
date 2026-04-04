@@ -315,7 +315,7 @@ export default function UserManagement() {
   return (
     <div className="space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 sticky top-16 z-10 bg-background backdrop-blur-sm border-b border-border py-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Users className="h-5 w-5 text-primary" />

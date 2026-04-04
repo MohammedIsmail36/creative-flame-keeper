@@ -1,618 +1,421 @@
-# دليل التثبيت على البيئة المحلية (Windows / WSL)
+# دليل التشغيل المحلي (Windows + WSL) — نسخة محدثة
 
-هذا الدليل يشرح كيفية تشغيل النظام المحاسبي بالكامل على جهازك المحلي، مستقلاً تماماً عن أي خدمة خارجية.
+هذا الدليل مخصص لهذا المشروع تحديدًا، ومبني على التشغيل الفعلي الذي نجح بدون الأخطاء التي واجهناها.
 
 ---
 
 ## جدول المحتويات
 
 1. [المتطلبات](#المتطلبات)
-2. [تفعيل WSL2 و Docker](#الخطوة-1-تفعيل-wsl2-و-docker)
-3. [استنساخ المشروع](#الخطوة-2-استنساخ-المشروع)
-4. [إعداد Supabase Docker محلياً](#الخطوة-3-إعداد-supabase-docker-محلياً)
-5. [إنشاء قاعدة البيانات](#الخطوة-4-إنشاء-قاعدة-البيانات)
-6. [تعديلات الكود](#الخطوة-5-تعديلات-الكود)
-7. [نشر Edge Functions محلياً](#الخطوة-6-نشر-edge-functions-محلياً)
-8. [تشغيل الواجهة](#الخطوة-7-تشغيل-الواجهة)
-9. [تهيئة النظام](#الخطوة-8-تهيئة-النظام)
-10. [أوامر التطوير اليومية](#أوامر-التطوير-اليومية)
-11. [حل المشاكل الشائعة](#حل-المشاكل-الشائعة)
-12. [هيكل المشروع](#هيكل-المشروع)
+2. [التحقق السريع](#التحقق-السريع)
+3. [استخدام Supabase CLI الصحيح](#استخدام-supabase-cli-الصحيح)
+4. [تهيئة `supabase/config.toml`](#تهيئة-supabaseconfigtoml)
+5. [تشغيل Supabase محليًا](#تشغيل-supabase-محليًا)
+6. [إعداد متغيرات البيئة](#إعداد-متغيرات-البيئة)
+7. [تشغيل Edge Functions](#تشغيل-edge-functions)
+8. [تشغيل الواجهة](#تشغيل-الواجهة)
+9. [إنشاء حساب المدير المحلي](#إنشاء-حساب-المدير-المحلي)
+10. [تهيئة النظام الأساسية](#تهيئة-النظام-الأساسية)
+11. [أوامر العمل اليومية](#أوامر-العمل-اليومية)
+12. [حل المشاكل الشائعة](#حل-المشاكل-الشائعة)
 
 ---
 
 ## المتطلبات
 
-| المكون | الإصدار المطلوب | أمر التثبيت / الرابط |
-|--------|----------------|---------------------|
-| Windows 10/11 | 64-bit | — |
-| WSL2 | Ubuntu 22.04+ | `wsl --install` |
-| Docker Desktop | v4.25+ | [تحميل](https://docs.docker.com/desktop/install/windows-install/) |
-| Node.js | v18+ (يُفضل v20 LTS) | [تحميل](https://nodejs.org/) |
-| Git | أحدث إصدار | [تحميل](https://git-scm.com/download/win) |
-| Supabase CLI | أحدث إصدار | `npm install -g supabase` |
+| المكون | المطلوب |
+|---|---|
+| Windows 10/11 | مع WSL2 |
+| Ubuntu على WSL | 22.04+ |
+| Docker Desktop | مفعّل معه WSL Integration |
+| Node.js | 18+ (يفضل 20 LTS) |
 
-> **ملاحظة**: جميع الأوامر التالية تُنفَّذ داخل WSL (Ubuntu terminal) ما لم يُذكر خلاف ذلك.
+> كل الأوامر في هذا الدليل تُنفّذ داخل WSL (Ubuntu terminal) ما لم يُذكر غير ذلك.
 
 ---
 
-## الخطوة 1: تفعيل WSL2 و Docker
-
-### 1.1 تثبيت WSL2
-
-افتح **PowerShell كمسؤول** (Run as Administrator):
-
-```powershell
-wsl --install
-```
-
-أعد تشغيل الجهاز، ثم تأكد:
-
-```powershell
-wsl --list --verbose
-```
-
-يجب أن ترى:
-```
-  NAME      STATE    VERSION
-* Ubuntu    Running  2
-```
-
-إذا كان VERSION يظهر 1، حوّله:
-```powershell
-wsl --set-version Ubuntu 2
-```
-
-### 1.2 تثبيت Docker Desktop
-
-1. حمّل Docker Desktop من [الرابط الرسمي](https://docs.docker.com/desktop/install/windows-install/)
-2. أثناء التثبيت، **فعّل خيار** `Use WSL 2 based engine`
-3. بعد التثبيت:
-   - افتح Docker Desktop
-   - اذهب إلى **Settings → Resources → WSL Integration**
-   - فعّل **Ubuntu**
-   - اضغط **Apply & Restart**
-
-تأكد من عمل Docker داخل WSL:
+## التحقق السريع
 
 ```bash
 docker --version
-# مثال: Docker version 27.x.x
-
-docker compose version
-# مثال: Docker Compose version v2.x.x
+node -v
+npm -v
 ```
 
-> ⚠️ **مهم**: استخدم `docker compose` (بمسافة) وليس `docker-compose` (بشرطة). الصيغة القديمة لم تعد مدعومة.
+إذا كان Docker يعمل داخل WSL، نكمل.
 
 ---
 
-## الخطوة 2: استنساخ المشروع
+## استخدام Supabase CLI الصحيح
+
+### مهم جدًا
+
+إذا كان الأمر التالي يعرض نسخة قديمة (مثل `1.8.0`):
 
 ```bash
-cd ~
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git
-cd YOUR_REPO
+supabase --version
 ```
 
-> استبدل `YOUR_USERNAME/YOUR_REPO` بالمسار الفعلي لمستودعك على GitHub.
-> إذا لم تربط المشروع بـ GitHub بعد، افعل ذلك من إعدادات Lovable أولاً.
+فلا تستخدمها مع Docker الحديث.
 
-تحقق من وجود الملفات الأساسية:
+استخدم دائمًا نسخة حديثة عبر `npx`:
 
 ```bash
-ls public/full-schema.sql        # ملف بنية قاعدة البيانات
-ls supabase/functions/            # Edge Functions
-ls src/                           # كود الواجهة
+npx --yes supabase@latest --version
+```
+
+> هذا يتجنب خطأ:
+> `client version 1.41 is too old. Minimum supported API version is 1.44`
+
+اختياري (تنظيف):
+
+```bash
+# اختياري إذا كانت نسخة apt القديمة تسبب لخبطة
+sudo apt remove -y supabase
 ```
 
 ---
 
-## الخطوة 3: إعداد Supabase Docker محلياً
+## تهيئة `supabase/config.toml`
 
-### 3.1 تحميل Supabase Docker
+تأكد أن الملف `supabase/config.toml` يحتوي على هذا الهيكل (خصوصًا المنفذ `54322`):
 
-```bash
-cd ~
-git clone --depth 1 https://github.com/supabase/supabase
-cd supabase/docker
+```toml
+project_id = "ejfoidwbeygzzkbonbmq"
+
+# Required for supabase functions serve
+[api]
+port = 54321
+
+[db]
+port = 54322
+major_version = 14
+
+[auth]
+site_url = "http://localhost:9999"
+
+[studio]
+port = 54323
+
+[inbucket]
+port = 9000
 ```
 
-### 3.2 إعداد متغيرات البيئة
-
-```bash
-cp .env.example .env
-```
-
-### 3.3 توليد مفاتيح JWT
-
-أولاً، ثبّت أداة التوليد:
-
-```bash
-npm install -g jsonwebtoken
-```
-
-اختر **JWT_SECRET** عشوائي (64 حرف على الأقل):
-
-```bash
-# توليد سر عشوائي
-openssl rand -base64 64 | tr -d '\n' ; echo
-```
-
-انسخ الناتج واحفظه — هذا هو `JWT_SECRET` الخاص بك.
-
-الآن ولّد المفاتيح:
-
-```bash
-# توليد ANON_KEY
-node -e "
-const jwt = require('jsonwebtoken');
-const SECRET = 'ضع_JWT_SECRET_هنا';
-const payload = {
-  role: 'anon',
-  iss: 'supabase',
-  iat: Math.floor(Date.now()/1000),
-  exp: Math.floor(Date.now()/1000) + (10 * 365 * 24 * 60 * 60)
-};
-console.log(jwt.sign(payload, SECRET));
-"
-```
-
-```bash
-# توليد SERVICE_ROLE_KEY
-node -e "
-const jwt = require('jsonwebtoken');
-const SECRET = 'ضع_JWT_SECRET_هنا';
-const payload = {
-  role: 'service_role',
-  iss: 'supabase',
-  iat: Math.floor(Date.now()/1000),
-  exp: Math.floor(Date.now()/1000) + (10 * 365 * 24 * 60 * 60)
-};
-console.log(jwt.sign(payload, SECRET));
-"
-```
-
-> **احفظ هذه القيم الثلاث** (JWT_SECRET, ANON_KEY, SERVICE_ROLE_KEY) — ستحتاجها في عدة أماكن.
-
-### 3.4 تعديل ملف `.env`
-
-افتح الملف `~/supabase/docker/.env` وعدّل القيم التالية:
-
-```env
-############
-# Secrets — غيّر هذه القيم إلزامياً
-############
-POSTGRES_PASSWORD=كلمة_مرور_قوية_هنا
-JWT_SECRET=المفتاح_العشوائي_الذي_ولّدته
-ANON_KEY=eyJhbGciOiJIUzI1NiIs...
-SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIs...
-
-############
-# Dashboard — بيانات دخول لوحة تحكم Supabase Studio
-############
-DASHBOARD_USERNAME=admin
-DASHBOARD_PASSWORD=كلمة_مرور_قوية
-
-############
-# General
-############
-SITE_URL=http://localhost:8080
-STUDIO_DEFAULT_ORGANIZATION=شركتي
-STUDIO_DEFAULT_PROJECT=النظام المحاسبي
-
-############
-# Auth — إعدادات المصادقة
-############
-GOTRUE_SITE_URL=http://localhost:8080
-GOTRUE_EXTERNAL_EMAIL_ENABLED=true
-GOTRUE_MAILER_AUTOCONFIRM=true
-```
-
-> **`GOTRUE_MAILER_AUTOCONFIRM=true`**: في البيئة المحلية نفعّل التأكيد التلقائي لأنه لا يوجد خادم بريد. في الإنتاج يجب تعطيله.
-
-### 3.5 تشغيل Supabase
-
-```bash
-cd ~/supabase/docker
-docker compose up -d
-```
-
-انتظر حتى تعمل جميع الحاويات (قد يستغرق 2-5 دقائق في المرة الأولى):
-
-```bash
-docker compose ps
-```
-
-يجب أن ترى هذه الخدمات بحالة `Up`:
-
-| الخدمة | الوظيفة | المنفذ |
-|--------|---------|--------|
-| `supabase-db` | PostgreSQL | 5432 |
-| `supabase-kong` | API Gateway | 8000 |
-| `supabase-auth` | GoTrue (المصادقة) | 9999 |
-| `supabase-rest` | PostgREST (API) | 3000 |
-| `supabase-storage` | تخزين الملفات | 5000 |
-| `supabase-studio` | لوحة التحكم | 8000 |
-
-**اختبر الوصول**:
-- لوحة التحكم: [http://localhost:8000](http://localhost:8000)
-- API: `curl http://localhost:8000/rest/v1/ -H "apikey: ANON_KEY_هنا"`
+ملاحظات مهمة:
+- لا تضف `auth.port` (غير مدعوم في CLI v2).
+- استخدام `db.port = 54322` يمنع التعارض مع أي PostgreSQL آخر شغال على `5432`.
 
 ---
 
-## الخطوة 4: إنشاء قاعدة البيانات
+## تشغيل Supabase محليًا
 
-### 4.1 تطبيق الـ Schema
+من جذر المشروع:
 
 ```bash
 cd ~/YOUR_REPO
-psql -h localhost -p 5432 -U postgres -d postgres -f public/full-schema.sql
+npx --yes supabase@latest start
 ```
 
-سيُطلب منك كلمة المرور — أدخل `POSTGRES_PASSWORD` الذي اخترته.
-
-**أو** عبر Supabase Studio:
-1. افتح [http://localhost:8000](http://localhost:8000)
-2. سجّل الدخول بـ `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD`
-3. اذهب إلى **SQL Editor**
-4. انسخ محتوى `public/full-schema.sql` والصقه
-5. اضغط **Run**
-
-### 4.2 التحقق من الجداول
+ثم تحقق من الحالة:
 
 ```bash
-psql -h localhost -p 5432 -U postgres -d postgres -c "\dt public.*"
+npx --yes supabase@latest status
 ```
 
-يجب أن ترى **22+ جدول** تشمل:
+ستحصل على:
+- `Project URL` (عادة `http://127.0.0.1:54321`)
+- `Publishable key` (`sb_publishable_...`)
+- `Secret key` (`sb_secret_...`)
+- `Database URL` (عادة على `54322`)
 
-```
-accounts                              product_categories
-company_settings                      product_brands
-customers                             product_units
-suppliers                             product_images
-products                              profiles
-sales_invoices                        user_roles
-sales_invoice_items                   inventory_movements
-purchase_invoices                     inventory_adjustments
-purchase_invoice_items                inventory_adjustment_items
-sales_returns                         expenses
-sales_return_items                    expense_types
-purchase_returns                      journal_entries
-purchase_return_items                 journal_entry_lines
-customer_payments                     customer_payment_allocations
-supplier_payments                     supplier_payment_allocations
-sales_invoice_return_settlements      purchase_invoice_return_settlements
-sales_return_payment_allocations      purchase_return_payment_allocations
-```
-
-### 4.3 التحقق من الدوال والأنواع
-
-```bash
-# التحقق من الدوال
-psql -h localhost -p 5432 -U postgres -d postgres -c "\df public.*"
-
-# التحقق من الـ Enums
-psql -h localhost -p 5432 -U postgres -d postgres -c "\dT+ public.*"
-```
-
-الدوال المتوقعة:
-- `has_role(uuid, app_role)` — فحص صلاحيات المستخدم
-- `get_user_role(uuid)` — جلب دور المستخدم
-- `admin_insert_user_role(uuid, text)` — إسناد دور
-- `admin_insert_profile(uuid, text)` — إنشاء ملف شخصي
-- `get_avg_purchase_price(uuid)` — متوسط سعر الشراء
-- `get_avg_selling_price(uuid)` — متوسط سعر البيع
+> انسخ مفاتيح `Publishable` و `Secret` لأننا سنستخدمها بعد قليل.
 
 ---
 
-## الخطوة 5: تعديلات الكود
+## إعداد متغيرات البيئة
 
-### 5.1 إزالة lovable-tagger
+### 1) ملف الواجهة: `.env.local` (في جذر المشروع)
+
+```env
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ضع_مفتاحك_هنا
+```
+
+### 2) ملف Edge Functions: `supabase/.env.local`
+
+```env
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_ضع_مفتاحك_هنا
+```
+
+ملاحظات:
+- استخدم `127.0.0.1:54321` وليس `localhost:8000`.
+- بعد تعديل `.env.local` يجب إعادة تشغيل `npm run dev`.
+
+---
+
+## تشغيل Edge Functions
+
+في Terminal منفصل:
 
 ```bash
 cd ~/YOUR_REPO
-npm uninstall lovable-tagger
+npx --yes supabase@latest functions serve --env-file supabase/.env.local
 ```
 
-### 5.2 تعديل `vite.config.ts`
+---
 
-افتح الملف واستبدل محتواه بالكامل:
+## تشغيل الواجهة
 
-```typescript
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-
-export default defineConfig({
-  server: {
-    host: "::",
-    port: 8080,
-    hmr: {
-      overlay: false,
-    },
-  },
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-});
-```
-
-### 5.3 إنشاء ملف `.env.local`
-
-أنشئ ملف `.env.local` في **جذر المشروع** (بجانب `package.json`):
-
-```env
-VITE_SUPABASE_URL=http://localhost:8000
-VITE_SUPABASE_PUBLISHABLE_KEY=الـ_ANON_KEY_الذي_ولّدته_في_الخطوة_3.3
-```
-
-> ⚠️ **مهم**: لا تعدّل ملف `.env` الأصلي — ملف `.env.local` يأخذ الأولوية تلقائياً في Vite.
-
-### 5.4 التحقق من ملف `src/integrations/supabase/client.ts`
-
-تأكد أن الملف يقرأ من متغيرات البيئة (يجب أن يكون كذلك بالفعل):
-
-```typescript
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-```
-
-### 5.5 تثبيت التبعيات
+في Terminal منفصل:
 
 ```bash
+cd ~/YOUR_REPO
 npm install
-```
-
----
-
-## الخطوة 6: نشر Edge Functions محلياً
-
-### 6.1 إعداد ملف بيئة الدوال
-
-أنشئ ملف `supabase/.env.local`:
-
-```env
-SUPABASE_URL=http://localhost:8000
-SUPABASE_SERVICE_ROLE_KEY=الـ_SERVICE_ROLE_KEY_الذي_ولّدته
-SUPABASE_ANON_KEY=الـ_ANON_KEY_الذي_ولّدته
-```
-
-### 6.2 تشغيل الدوال
-
-```bash
-cd ~/YOUR_REPO
-supabase functions serve --env-file supabase/.env.local
-```
-
-> هذا يشغل جميع الدوال على المنفذ `54321`.
-
-### 6.3 الدوال المتوفرة
-
-| الدالة | الوظيفة | الاستدعاء |
-|--------|---------|-----------|
-| `seed-system` | تهيئة النظام (مدير + حسابات + إعدادات) | `POST /functions/v1/seed-system` |
-| `database-backup` | تصفير وإعادة بناء قاعدة البيانات | `POST /functions/v1/database-backup` |
-
----
-
-## الخطوة 7: تشغيل الواجهة
-
-افتح **terminal جديد** (اترك Edge Functions تعمل في الأول):
-
-```bash
-cd ~/YOUR_REPO
 npm run dev
 ```
 
-الواجهة متاحة على: **[http://localhost:8080](http://localhost:8080)**
+الواجهة عادة على:
+
+- `http://localhost:8080`
 
 ---
 
-## الخطوة 8: تهيئة النظام
+## إنشاء حساب المدير المحلي
 
-### الطريقة 1: عبر Edge Function (موصى بها)
+بعد `supabase start` قاعدة البيانات تكون نظيفة غالبًا، لذلك تسجيل الدخول قد يفشل بـ `400` إذا لم يوجد مستخدم.
+
+### الخطوة 1: إنشاء مستخدم الأدمن عبر Auth API
 
 ```bash
-curl -X POST http://localhost:54321/functions/v1/seed-system \
-  -H "Authorization: Bearer SERVICE_ROLE_KEY_هنا" \
-  -H "Content-Type: application/json"
+PUBLISHABLE_KEY="sb_publishable_ضع_مفتاحك_هنا"
+
+cat > /tmp/admin-signup.json <<'JSON'
+{
+  "email": "admin@system.com",
+  "password": "admin123456",
+  "data": {
+    "full_name": "System Admin"
+  }
+}
+JSON
+
+curl -sS -X POST "http://127.0.0.1:54321/auth/v1/signup" \
+  -H "apikey: ${PUBLISHABLE_KEY}" \
+  -H "Authorization: Bearer ${PUBLISHABLE_KEY}" \
+  -H "Content-Type: application/json" \
+  --data-binary @/tmp/admin-signup.json
 ```
 
-هذا الأمر ينشئ تلقائياً:
-- ✅ حساب المدير: `admin@system.com` / `admin123456`
-- ✅ شجرة الحسابات المحاسبية الكاملة (29 حساب)
-- ✅ إعدادات الشركة الافتراضية
+### الخطوة 2: إسناد دور `admin` وإنشاء `profile`
 
-### الطريقة 2: عبر الواجهة
+افتح Supabase Studio:
 
-1. افتح [http://localhost:8080](http://localhost:8080)
-2. سجّل الدخول بـ: `admin@system.com` / `admin123456`
-3. اذهب إلى **إعداد النظام** → **تهيئة البيانات الأساسية**
+- `http://127.0.0.1:54323`
+- SQL Editor
 
-> ⚠️ **مهم**: غيّر كلمة مرور المدير بعد أول تسجيل دخول.
+ثم نفّذ:
+
+```sql
+insert into public.user_roles(user_id, role)
+select id, 'admin'::app_role
+from auth.users
+where email = 'admin@system.com'
+on conflict (user_id, role) do nothing;
+
+insert into public.profiles(id, full_name)
+select id, 'System Admin'
+from auth.users
+where email = 'admin@system.com'
+on conflict (id) do update set full_name = excluded.full_name;
+```
+
+بيانات الدخول:
+- البريد: `admin@system.com`
+- كلمة المرور: `admin123456`
+
+> غيّر كلمة المرور بعد أول دخول.
 
 ---
 
-## أوامر التطوير اليومية
+## تهيئة النظام الأساسية
+
+إذا أردت تشغيل دالة التهيئة:
 
 ```bash
-# ═══════════════════════════════════════
-# 🟢 بدء العمل
-# ═══════════════════════════════════════
+SERVICE_ROLE_KEY="sb_secret_ضع_مفتاحك_هنا"
 
-# 1. تشغيل Supabase (إذا كان متوقفاً)
-cd ~/supabase/docker && docker compose up -d
+curl -sS -X POST "http://127.0.0.1:54321/functions/v1/seed-system" \
+  -H "apikey: ${SERVICE_ROLE_KEY}" \
+  -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
 
-# 2. تشغيل Edge Functions (في terminal منفصل)
-cd ~/YOUR_REPO && supabase functions serve --env-file supabase/.env.local
+ملاحظة:
+- دالة `seed-system` في هذا المشروع تُنشئ/تحدّث دور المدير والملف الشخصي مباشرة، لذلك لا تحتاج أي RPC إضافي.
 
-# 3. تشغيل الواجهة (في terminal آخر)
-cd ~/YOUR_REPO && npm run dev
+---
 
-# ═══════════════════════════════════════
-# 🔴 إنهاء العمل
-# ═══════════════════════════════════════
+## أوامر العمل اليومية
 
-# إيقاف Supabase
-cd ~/supabase/docker && docker compose down
+### بدء العمل
 
-# ═══════════════════════════════════════
-# 🔧 أوامر مفيدة
-# ═══════════════════════════════════════
+```bash
+cd ~/YOUR_REPO
+npx --yes supabase@latest start
+npx --yes supabase@latest status
+npx --yes supabase@latest functions serve --env-file supabase/.env.local
+npm run dev
+```
 
-# إعادة تشغيل Supabase
-cd ~/supabase/docker && docker compose restart
+### إنهاء العمل
 
-# مشاهدة سجلات قاعدة البيانات
-cd ~/supabase/docker && docker compose logs -f supabase-db
+```bash
+cd ~/YOUR_REPO
+npx --yes supabase@latest stop
+```
 
-# مشاهدة سجلات المصادقة
-cd ~/supabase/docker && docker compose logs -f supabase-auth
+### إعادة تهيئة كاملة (تحذف بيانات Supabase المحلية)
 
-# الدخول إلى PostgreSQL مباشرة
-psql -h localhost -p 5432 -U postgres -d postgres
-
-# نسخة احتياطية يدوية
-pg_dump -h localhost -p 5432 -U postgres -Fc postgres > backup_$(date +%Y%m%d).dump
-
-# استعادة نسخة احتياطية
-pg_restore -h localhost -p 5432 -U postgres -d postgres --clean backup_YYYYMMDD.dump
+```bash
+cd ~/YOUR_REPO
+npx --yes supabase@latest stop --all --no-backup --yes
+npx --yes supabase@latest start
 ```
 
 ---
 
 ## حل المشاكل الشائعة
 
-### ❌ Docker Desktop لا يبدأ
+### ❌ `client version 1.41 is too old`
 
-**السبب**: Virtualization غير مفعّل في BIOS.
+السبب: نسخة Supabase CLI قديمة (غالبًا من apt).
 
-**الحل**:
-1. أعد تشغيل الجهاز وادخل BIOS (عادةً F2 أو Del)
-2. فعّل **Intel VT-x** أو **AMD-V**
-3. تأكد من تفعيل WSL2:
-   ```powershell
-   wsl --set-default-version 2
-   ```
+الحل:
 
----
-
-### ❌ خطأ `connection refused` عند الاتصال بقاعدة البيانات
-
-**الحل**:
 ```bash
-# تأكد أن Docker يعمل
-cd ~/supabase/docker && docker compose ps
+npx --yes supabase@latest start
+```
 
-# تأكد أن supabase-db بحالة Up
-# إذا كان بحالة Exit، أعد التشغيل:
-docker compose restart supabase-db
+ولا تستخدم النسخة القديمة `supabase` مباشرة.
 
-# انتظر 10 ثوانٍ ثم جرّب مرة أخرى
+---
+
+### ❌ `failed to parse config` و `auth has invalid keys: port`
+
+السبب: وجود `auth.port` في `supabase/config.toml`.
+
+الحل: احذف `auth.port`، واترك فقط:
+
+```toml
+[auth]
+site_url = "http://localhost:9999"
 ```
 
 ---
 
-### ❌ Edge Functions لا تعمل
+### ❌ `FATAL: Tenant or user not found` عند تشغيل Supabase
 
-**الحل**:
+السبب: تعارض على المنفذ `5432` مع خدمة أخرى.
+
+الحل:
+- اجعل `db.port = 54322` في `supabase/config.toml`.
+- أعد التشغيل:
+
 ```bash
-# تأكد من تثبيت Supabase CLI
-supabase --version
-
-# تأكد من وجود ملف البيئة
-cat supabase/.env.local
-
-# تأكد من أن SERVICE_ROLE_KEY صحيح — جرّب:
-curl http://localhost:8000/rest/v1/ \
-  -H "apikey: ANON_KEY_هنا" \
-  -H "Authorization: Bearer ANON_KEY_هنا"
-# يجب أن يعود 200 OK
+npx --yes supabase@latest stop --all --no-backup --yes
+npx --yes supabase@latest start
 ```
 
 ---
 
-### ❌ الواجهة لا تتصل بالـ API
+### ❌ `POST http://localhost:8000/auth/v1/token 500`
 
-**الحل**:
+السبب: الواجهة تتجه إلى عنوان قديم `localhost:8000`.
+
+الحل في `.env.local`:
+
+```env
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+```
+
+ثم:
+
 ```bash
-# تأكد أن .env.local موجود في جذر المشروع
-cat .env.local
-# يجب أن يحتوي:
-# VITE_SUPABASE_URL=http://localhost:8000
-# VITE_SUPABASE_PUBLISHABLE_KEY=...
-
-# تأكد أن Kong (API Gateway) يعمل
-curl http://localhost:8000
-# يجب أن يعود صفحة أو JSON
-
-# أعد تشغيل الواجهة بعد تعديل .env.local
-# (Vite يحتاج إعادة تشغيل لقراءة متغيرات البيئة الجديدة)
+npm run dev
 ```
 
 ---
 
-### ❌ خطأ `CORS` في المتصفح
+### ❌ `POST .../auth/v1/token?grant_type=password 400`
 
-**السبب**: عادةً لا يحدث في بيئة Docker المحلية لأن Supabase يسمح بجميع الأصول.
+السبب: لا يوجد مستخدم في `auth.users` بعد التهيئة.
 
-**الحل** إذا حدث:
-1. تحقق من أن `SITE_URL` في `~/supabase/docker/.env` مضبوط على `http://localhost:8080`
-2. أعد تشغيل Kong:
-   ```bash
-   cd ~/supabase/docker && docker compose restart supabase-kong
-   ```
+الحل:
+- أنشئ `admin@system.com` بخطوة "إنشاء حساب المدير المحلي".
 
 ---
 
-### ❌ تسجيل الدخول يفشل بعد seed-system
+### ❌ `Missing authorization header` عند استدعاء Function
 
-**السبب**: `GOTRUE_MAILER_AUTOCONFIRM` غير مفعّل.
+الحل:
+- تأكد من إرسال الهيدرَين معًا:
+  - `apikey`
+  - `Authorization: Bearer ...`
+- وتأكد أن `SERVICE_ROLE_KEY` ليس فارغًا.
 
-**الحل**:
+---
+
+### ❌ `Unchecked runtime.lastError` في Console
+
+غالبًا من إضافة متصفح (Extension) وليس من التطبيق.
+
+الحل: اختبر في نافذة Incognito بدون إضافات أو تجاهل الرسالة إن كان التطبيق يعمل.
+
+---
+
+### ❌ تشوّه الأحرف العربية بعد `db reset` أو `seed`
+
+السبب الأكثر شيوعًا:
+- تعديل ملفات `supabase/functions` من PowerShell بأوامر تكتب بترميز غير UTF-8.
+- أو وجود نسخة قديمة/معدلة من ملفات التهيئة العربية.
+
+الحل المعتمد في هذا المشروع:
+- ملفات التهيئة أصبحت موحّدة في:
+  - `supabase/functions/_shared/system-defaults.ts`
+- الدوال تستخدم استيراد محلي:
+  - `npm:@supabase/supabase-js@2`
+  - بدون `esm.sh`
+
+تأكد من الترميز:
+
 ```bash
-# تأكد من وجود هذا السطر في ~/supabase/docker/.env:
-# GOTRUE_MAILER_AUTOCONFIRM=true
+file -bi supabase/functions/_shared/system-defaults.ts
+file -bi supabase/functions/seed-system/index.ts
+file -bi supabase/functions/database-backup/index.ts
+```
 
-# ثم أعد تشغيل Auth:
-cd ~/supabase/docker && docker compose restart supabase-auth
+يجب أن يظهر `charset=utf-8`.
+
+إذا عدّلت من PowerShell، استخدم دائمًا:
+
+```powershell
+Set-Content -Encoding utf8 ...
+```
+
+ثم أعد التصفير والتشغيل:
+
+```bash
+npx --yes supabase@latest db reset
+npx --yes supabase@latest functions serve --env-file supabase/.env.local
 ```
 
 ---
 
-## هيكل المشروع
+## ملاحظات نهائية
 
-```
-YOUR_REPO/
-├── public/
-│   └── full-schema.sql          # بنية قاعدة البيانات الكاملة
-├── src/
-│   ├── components/              # مكونات React
-│   │   ├── auth/                # مكونات المصادقة (ProtectedRoute, RoleGuard)
-│   │   ├── layout/              # التخطيط (Sidebar, Breadcrumb)
-│   │   └── ui/                  # مكونات shadcn/ui
-│   ├── contexts/                # AuthContext, SettingsContext
-│   ├── hooks/                   # Custom hooks
-│   ├── integrations/supabase/   # client.ts + types.ts (لا تعدّلهما يدوياً)
-│   ├── lib/                     # أدوات مساعدة (export, pdf, utils)
-│   └── pages/                   # صفحات التطبيق
-│       └── reports/             # صفحات التقارير
-├── supabase/
-│   └── functions/
-│       ├── seed-system/         # دالة تهيئة النظام
-│       ├── database-backup/     # دالة النسخ الاحتياطي
-│       └── _shared/             # ملفات مشتركة (CORS headers)
-├── docs/
-│   ├── LOCAL_SETUP_GUIDE.md     # ← أنت هنا
-│   └── PRODUCTION_DEPLOY_GUIDE.md
-├── .env                         # متغيرات Lovable (لا تُستخدم محلياً)
-├── .env.local                   # متغيرات البيئة المحلية (أنت تنشئه)
-├── package.json
-├── vite.config.ts
-└── tailwind.config.ts
-```
+- هذا المشروع يعتمد على `supabase/migrations`، لذا عادة لا تحتاج تطبيق `public/full-schema.sql` يدويًا عند استخدام `supabase start`.
+- إذا عدّلت متغيرات البيئة (`.env.local`)، أعد تشغيل Vite دائمًا.
+
