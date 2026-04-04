@@ -188,7 +188,8 @@ export default function SalesReturnForm() {
 
   async function postReturn() {
     try {
-      // Validate: check sold quantity in the last N days for each item
+      // Validate: check sold quantity in the last N days for each item (if enabled)
+      if (settings?.enable_return_days_limit !== false) {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - returnDaysLimit);
       const cutoffStr = cutoffDate.toISOString().split("T")[0];
@@ -246,6 +247,7 @@ export default function SalesReturnForm() {
           return;
         }
       }
+      } // end enable_return_days_limit check
 
       const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [ACCOUNT_CODES.CUSTOMERS, ACCOUNT_CODES.REVENUE, ACCOUNT_CODES.COGS, ACCOUNT_CODES.INVENTORY]);
       const customersAcc = accounts?.find(a => a.code === ACCOUNT_CODES.CUSTOMERS);

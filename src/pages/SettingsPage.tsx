@@ -313,9 +313,19 @@ export default function SettingsPage() {
                 <Input type="number" min={0} max={100} value={settings.tax_rate} onChange={(e) => updateField("tax_rate", Number(e.target.value))} className="rounded-lg" />
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-bold">مدة الاسترجاع (أيام)</Label>
-                <Input type="number" min={1} max={365} value={settings.return_days_limit || 30} onChange={(e) => updateField("return_days_limit", Number(e.target.value))} className="rounded-lg" />
-                <p className="text-xs text-muted-foreground">الحد الأقصى لعدد الأيام المسموح بها لإرجاع المبيعات</p>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-bold">مدة الاسترجاع (أيام)</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="enable_return_days_limit" className="text-xs text-muted-foreground">تفعيل التحقق</Label>
+                    <Switch id="enable_return_days_limit" checked={settings.enable_return_days_limit ?? true} onCheckedChange={(v) => updateField("enable_return_days_limit" as any, v)} />
+                  </div>
+                </div>
+                <Input type="number" min={1} max={365} value={settings.return_days_limit || 30} onChange={(e) => updateField("return_days_limit", Number(e.target.value))} className="rounded-lg" disabled={!(settings.enable_return_days_limit ?? true)} />
+                {settings.enable_return_days_limit === false ? (
+                  <p className="text-xs text-amber-600">⚠ التحقق من فترة الاسترجاع معطل — يمكن إرجاع أي صنف بدون قيود زمنية</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">الحد الأقصى لعدد الأيام المسموح بها لإرجاع المبيعات</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-bold">هدف المبيعات الشهري</Label>
