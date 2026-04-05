@@ -119,6 +119,7 @@ export default function SalesInvoiceForm() {
   const [status, setStatus] = useState("draft");
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [editMode, setEditMode] = useState(true);
+  const [invoiceDiscount, setInvoiceDiscount] = useState(0);
 
   useEffect(() => {
     loadData();
