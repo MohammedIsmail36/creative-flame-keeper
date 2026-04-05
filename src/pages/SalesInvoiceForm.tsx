@@ -544,6 +544,7 @@ export default function SalesInvoiceForm() {
         total: i.total,
       })),
       subtotal,
+      discountTotal: discountMode === 'invoice' ? invoiceDiscount : totalDiscount,
       taxAmount,
       taxRate,
       grandTotal,
@@ -551,6 +552,7 @@ export default function SalesInvoiceForm() {
       showDiscount,
       settings,
       status,
+      invoiceDiscount: discountMode === 'invoice' ? invoiceDiscount : undefined,
     });
   }
 
