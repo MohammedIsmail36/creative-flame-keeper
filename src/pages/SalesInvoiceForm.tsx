@@ -865,7 +865,8 @@ export default function SalesInvoiceForm() {
                             value={item.discount}
                             onChange={(e) => updateItem(i, "discount", +e.target.value)}
                             onKeyDown={(e) => handleLastFieldKeyDown(e, i)}
-                            className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
+                            disabled={discountMode === 'invoice'}
+                            className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full disabled:opacity-40"
                           />
                         ) : item.discount > 0 ? (
                           <span className="inline-flex items-center text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-800 font-mono tabular-nums">
