@@ -938,11 +938,13 @@ export default function SalesInvoiceForm() {
               </div>
               {/* Separator */}
               <div className="w-px h-4 bg-border/60" />
-              {showDiscount && totalDiscount > 0 && (
+              {showDiscount && (totalDiscount > 0 || invoiceDiscount > 0) && (
                 <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
-                  <span className="text-xs text-muted-foreground">إجمالي الخصم</span>
+                  <span className="text-xs text-muted-foreground">
+                    {discountMode === 'invoice' ? 'خصم الفاتورة' : 'خصم السطور'}
+                  </span>
                   <span className="text-xs font-mono font-semibold tabular-nums text-green-600 dark:text-green-400">
-                    -{formatCurrency(totalDiscount)}
+                    -{formatCurrency(discountMode === 'invoice' ? invoiceDiscount : totalDiscount)}
                   </span>
                 </div>
               )}
