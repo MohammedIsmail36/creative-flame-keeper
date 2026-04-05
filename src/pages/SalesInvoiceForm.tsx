@@ -148,6 +148,7 @@ export default function SalesInvoiceForm() {
         setReference(inv.reference || "");
         setStatus(inv.status);
         setEditMode(inv.status === "draft");
+        setInvoiceDiscount(Number(inv.discount) || 0);
 
         const { data: itemsData } = await (supabase.from("sales_invoice_items" as any) as any)
           .select("*, products:product_id(name, code, purchase_price, model_number, product_brands(name))")
