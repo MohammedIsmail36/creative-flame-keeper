@@ -727,6 +727,7 @@ export interface InvoicePdfOptions {
   items: { name: string; quantity: number; unitPrice: number; discount: number; total: number }[];
   subtotal: number;
   discountTotal?: number;
+  invoiceDiscount?: number;
   taxAmount?: number;
   taxRate?: number;
   grandTotal: number;
