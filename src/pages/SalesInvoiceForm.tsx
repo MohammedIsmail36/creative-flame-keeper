@@ -225,8 +225,12 @@ export default function SalesInvoiceForm() {
   }
 
   const subtotal = round2(items.reduce((s, i) => s + i.total, 0));
-  const taxAmount = round2(showTax ? subtotal * (taxRate / 100) : 0);
-  const grandTotal = round2(subtotal + taxAmount);
+  const hasLineDiscount = items.some((i) => i.discount > 0);
+  const hasInvoiceDiscount = invoiceDiscount > 0;
+  const discountMode: 'line' | 'invoice' | 'none' = hasLineDiscount ? 'line' : hasInvoiceDiscount ? 'invoice' : 'none';
+  const afterDiscount = round2(subtotal - invoiceDiscount);
+  const taxAmount = round2(showTax ? afterDiscount * (taxRate / 100) : 0);
+  const grandTotal = round2(afterDiscount + taxAmount);
 
   async function handleSave() {
     if (!customerId || items.length === 0) {
