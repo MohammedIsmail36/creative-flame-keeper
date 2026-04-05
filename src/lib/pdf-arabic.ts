@@ -1123,6 +1123,7 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
     items,
     subtotal,
     discountTotal,
+    invoiceDiscount,
     taxAmount = 0,
     taxRate = 0,
     grandTotal,
