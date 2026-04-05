@@ -286,7 +286,7 @@ export default function SalesInvoiceForm() {
         const { error } = await (supabase.from("sales_invoices" as any) as any).update(payload).eq("id", id);
         if (error) throw error;
         await (supabase.from("sales_invoice_items" as any) as any).delete().eq("invoice_id", id);
-        const rows = items.map((i, idx) => ({
+        const rows = itemsWithNet.map((i, idx) => ({
           invoice_id: id,
           product_id: i.product_id,
           description: i.product_name,
@@ -294,6 +294,7 @@ export default function SalesInvoiceForm() {
           unit_price: i.unit_price,
           discount: i.discount,
           total: i.total,
+          net_total: i.net_total,
           sort_order: idx,
         }));
         await (supabase.from("sales_invoice_items" as any) as any).insert(rows);
