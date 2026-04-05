@@ -1245,6 +1245,7 @@ export type Database = {
           discount: number
           id: string
           invoice_id: string
+          net_total: number
           product_id: string | null
           quantity: number
           sort_order: number
@@ -1257,6 +1258,7 @@ export type Database = {
           discount?: number
           id?: string
           invoice_id: string
+          net_total?: number
           product_id?: string | null
           quantity?: number
           sort_order?: number
@@ -1269,6 +1271,7 @@ export type Database = {
           discount?: number
           id?: string
           invoice_id?: string
+          net_total?: number
           product_id?: string | null
           quantity?: number
           sort_order?: number

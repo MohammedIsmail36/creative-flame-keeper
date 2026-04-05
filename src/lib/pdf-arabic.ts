@@ -727,6 +727,7 @@ export interface InvoicePdfOptions {
   items: { name: string; quantity: number; unitPrice: number; discount: number; total: number }[];
   subtotal: number;
   discountTotal?: number;
+  invoiceDiscount?: number;
   taxAmount?: number;
   taxRate?: number;
   grandTotal: number;
@@ -1122,6 +1123,7 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
     items,
     subtotal,
     discountTotal,
+    invoiceDiscount,
     taxAmount = 0,
     taxRate = 0,
     grandTotal,
@@ -1522,11 +1524,14 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
     ),
   );
   if (showDiscount && discountTotal && discountTotal > 0) {
+    const discLabel = invoiceDiscount && invoiceDiscount > 0
+      ? `خصم على الفاتورة${subtotal > 0 ? ` (${((invoiceDiscount / subtotal) * 100).toFixed(1)}%)` : ''}`
+      : "إجمالي الخصم";
     totalsEls.push(
       React.createElement(
         View,
         { key: "disc", style: s.totalRow },
-        React.createElement(Text, { style: s.totalLabel }, "إجمالي الخصم"),
+        React.createElement(Text, { style: s.totalLabel }, discLabel),
         React.createElement(Text, { style: { ...s.totalValue, color: C.red } }, `${fmtNum(discountTotal)} ${currency}`),
       ),
     );
