@@ -997,14 +997,52 @@ export default function SalesInvoiceForm() {
           <div className="space-y-1 mt-2">
             <div className="flex justify-between items-center py-2.5 border-b border-border/50">
               <span className="font-mono tabular-nums text-sm font-medium">{formatCurrency(subtotal)}</span>
-              <span className="text-sm text-muted-foreground">المجموع قبل الضريبة</span>
+              <span className="text-sm text-muted-foreground">المجموع الفرعي</span>
             </div>
-            {showDiscount && totalDiscount > 0 && (
+            {/* Line discounts display */}
+            {showDiscount && discountMode === 'line' && totalDiscount > 0 && (
               <div className="flex justify-between items-center py-2.5 border-b border-border/50">
                 <span className="font-mono tabular-nums text-sm font-medium text-green-600 dark:text-green-400">
                   -{formatCurrency(totalDiscount)}
                 </span>
-                <span className="text-sm text-muted-foreground">إجمالي الخصومات</span>
+                <span className="text-sm text-muted-foreground">خصم السطور</span>
+              </div>
+            )}
+            {/* Invoice-level discount input */}
+            {showDiscount && isEditable && (
+              <div className="flex justify-between items-center py-2.5 border-b border-border/50 gap-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={invoiceDiscount || ''}
+                    onChange={(e) => setInvoiceDiscount(round2(+e.target.value || 0))}
+                    disabled={discountMode === 'line'}
+                    placeholder="0.00"
+                    className="font-mono tabular-nums text-center w-28 h-8 rounded-md disabled:opacity-40"
+                  />
+                  {invoiceDiscount > 0 && subtotal > 0 && (
+                    <span className="text-xs text-muted-foreground font-mono tabular-nums">
+                      ({((invoiceDiscount / subtotal) * 100).toFixed(1)}%)
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">خصم الفاتورة</span>
+              </div>
+            )}
+            {/* Invoice discount display (non-edit mode) */}
+            {showDiscount && !isEditable && invoiceDiscount > 0 && (
+              <div className="flex justify-between items-center py-2.5 border-b border-border/50">
+                <span className="font-mono tabular-nums text-sm font-medium text-green-600 dark:text-green-400">
+                  -{formatCurrency(invoiceDiscount)}
+                  {subtotal > 0 && (
+                    <span className="text-xs text-muted-foreground mr-1">
+                      ({((invoiceDiscount / subtotal) * 100).toFixed(1)}%)
+                    </span>
+                  )}
+                </span>
+                <span className="text-sm text-muted-foreground">خصم الفاتورة</span>
               </div>
             )}
             {showTax && (
