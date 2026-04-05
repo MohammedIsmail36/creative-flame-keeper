@@ -243,11 +243,18 @@ export default function SalesInvoiceForm() {
     }
     setSaving(true);
     try {
+      // Calculate net_total for each item
+      const discountPercent = discountMode === 'invoice' && subtotal > 0 ? invoiceDiscount / subtotal : 0;
+      const itemsWithNet = items.map((i) => ({
+        ...i,
+        net_total: discountMode === 'invoice' ? round2(i.total * (1 - discountPercent)) : i.total,
+      }));
+
       const payload: any = {
         customer_id: customerId,
         invoice_date: invoiceDate,
         subtotal,
-        discount: 0,
+        discount: invoiceDiscount,
         tax: taxAmount,
         total: grandTotal,
         notes: notes.trim() || null,
