@@ -145,6 +145,7 @@ export default function PurchaseInvoiceForm() {
         setReference(inv.reference || "");
         setStatus(inv.status);
         setEditMode(inv.status === "draft");
+        setInvoiceDiscount(Number(inv.discount) || 0);
 
         const { data: itemsData } = await (supabase.from("purchase_invoice_items" as any) as any)
           .select("*, products:product_id(name, code, model_number, product_brands(name))")
@@ -221,8 +222,12 @@ export default function PurchaseInvoiceForm() {
   }
 
   const subtotal = round2(items.reduce((s, i) => s + i.total, 0));
-  const taxAmount = round2(showTax ? subtotal * (taxRate / 100) : 0);
-  const grandTotal = round2(subtotal + taxAmount);
+  const hasLineDiscount = items.some((i) => i.discount > 0);
+  const hasInvoiceDiscount = invoiceDiscount > 0;
+  const discountMode: 'line' | 'invoice' | 'none' = hasLineDiscount ? 'line' : hasInvoiceDiscount ? 'invoice' : 'none';
+  const afterDiscount = round2(subtotal - invoiceDiscount);
+  const taxAmount = round2(showTax ? afterDiscount * (taxRate / 100) : 0);
+  const grandTotal = round2(afterDiscount + taxAmount);
 
   async function handleSave() {
     if (!supplierId || items.length === 0) {
@@ -235,11 +240,18 @@ export default function PurchaseInvoiceForm() {
     }
     setSaving(true);
     try {
+      // Calculate net_total for each item
+      const discountPercent = discountMode === 'invoice' && subtotal > 0 ? invoiceDiscount / subtotal : 0;
+      const itemsWithNet = items.map((i) => ({
+        ...i,
+        net_total: discountMode === 'invoice' ? round2(i.total * (1 - discountPercent)) : i.total,
+      }));
+
       const payload: any = {
         supplier_id: supplierId,
         invoice_date: invoiceDate,
         subtotal,
-        discount: 0,
+        discount: invoiceDiscount,
         tax: taxAmount,
         total: grandTotal,
         notes: notes.trim() || null,
