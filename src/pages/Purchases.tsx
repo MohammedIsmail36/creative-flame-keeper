@@ -15,8 +15,19 @@ import { ExportMenu } from "@/components/ExportMenu";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 
 interface Invoice {
-  id: string; invoice_number: number; posted_number: number | null; supplier_id: string | null; supplier_name?: string;
-  invoice_date: string; status: string; subtotal: number; discount: number; tax: number; total: number; paid_amount: number; notes: string | null;
+  id: string;
+  invoice_number: number;
+  posted_number: number | null;
+  supplier_id: string | null;
+  supplier_name?: string;
+  invoice_date: string;
+  status: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  paid_amount: number;
+  notes: string | null;
 }
 
 const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل", cancelled: "ملغي" };
@@ -34,18 +45,21 @@ export default function Purchases() {
   const [dateTo, setDateTo] = useState("");
   const canEdit = role === "admin" || role === "accountant";
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    fetchAll();
+  }, []);
 
   async function fetchAll() {
     setLoading(true);
     const { data } = await (supabase.from("purchase_invoices" as any) as any)
-      .select("*, suppliers:supplier_id(name)").order("invoice_number", { ascending: false });
+      .select("*, suppliers:supplier_id(name)")
+      .order("invoice_number", { ascending: false });
     setInvoices((data || []).map((inv: any) => ({ ...inv, supplier_name: inv.suppliers?.name })));
     setLoading(false);
   }
 
   const filtered = useMemo(() => {
-    return invoices.filter(i => {
+    return invoices.filter((i) => {
       if (statusFilter !== "all" && i.status !== statusFilter) return false;
       if (dateFrom && i.invoice_date < dateFrom) return false;
       if (dateTo && i.invoice_date > dateTo) return false;
@@ -54,13 +68,21 @@ export default function Purchases() {
   }, [invoices, statusFilter, dateFrom, dateTo]);
 
   const hasFilters = statusFilter !== "all" || dateFrom || dateTo;
-  const clearFilters = () => { setStatusFilter("all"); setDateFrom(""); setDateTo(""); };
+  const clearFilters = () => {
+    setStatusFilter("all");
+    setDateFrom("");
+    setDateTo("");
+  };
 
   const columns: ColumnDef<Invoice, any>[] = [
     {
       accessorKey: "invoice_number",
       header: ({ column }) => <DataTableColumnHeader column={column} title="رقم الفاتورة" />,
-      cell: ({ row }) => <span className="font-mono">{formatDisplayNumber(prefix, row.original.posted_number, row.original.invoice_number, row.original.status)}</span>,
+      cell: ({ row }) => (
+        <span className="font-mono">
+          {formatDisplayNumber(prefix, row.original.posted_number, row.original.invoice_number, row.original.status)}
+        </span>
+      ),
     },
     {
       accessorKey: "supplier_name",
@@ -80,14 +102,23 @@ export default function Purchases() {
     {
       accessorKey: "status",
       header: "الحالة",
-      cell: ({ row }) => <Badge variant={statusColors[row.original.status] as any}>{statusLabels[row.original.status]}</Badge>,
+      cell: ({ row }) => (
+        <Badge variant={statusColors[row.original.status] as any}>{statusLabels[row.original.status]}</Badge>
+      ),
     },
     {
       id: "actions",
       header: "عرض",
       enableHiding: false,
       cell: ({ row }) => (
-        <Button variant="ghost" size="icon" onClick={e => { e.stopPropagation(); navigate(`/purchases/${row.original.id}`); }}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/purchases/${row.original.id}`);
+          }}
+        >
           <Eye className="h-4 w-4" />
         </Button>
       ),
@@ -96,39 +127,80 @@ export default function Purchases() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between sticky top-16 z-10 bg-background backdrop-blur-sm border-b border-border py-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
             <ShoppingCart className="h-6 w-6 text-primary" />
           </div>
           <div>
             <h1 className="text-3xl font-extrabold text-foreground">فواتير الشراء</h1>
-            <p className="text-sm text-muted-foreground">{invoices.length} فاتورة</p>
+            <p className="text-sm text-muted-foreground">إدارة فواتير المشتريات</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <ExportMenu config={{
-            filenamePrefix: "فواتير-الشراء",
-            sheetName: "فواتير الشراء",
-            pdfTitle: "فواتير الشراء",
-            headers: ["رقم الفاتورة", "المورد", "التاريخ", "الإجمالي", "الحالة"],
-            rows: filtered.map(i => [formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status), i.supplier_name || "—", i.invoice_date, formatCurrency(i.total), statusLabels[i.status] || i.status]),
-            settings: null,
-            pdfOrientation: "landscape",
-          }} disabled={loading} />
-          {canEdit && <Button onClick={() => navigate("/purchases/new")} className="gap-2 shadow-md shadow-primary/20 font-bold"><Plus className="h-4 w-4" />فاتورة جديدة</Button>}
+          <ExportMenu
+            config={{
+              filenamePrefix: "فواتير-الشراء",
+              sheetName: "فواتير الشراء",
+              pdfTitle: "فواتير الشراء",
+              headers: ["رقم الفاتورة", "المورد", "التاريخ", "الإجمالي", "الحالة"],
+              rows: filtered.map((i) => [
+                formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status),
+                i.supplier_name || "—",
+                i.invoice_date,
+                formatCurrency(i.total),
+                statusLabels[i.status] || i.status,
+              ]),
+              settings: null,
+              pdfOrientation: "landscape",
+            }}
+            disabled={loading}
+          />
+          {canEdit && (
+            <Button onClick={() => navigate("/purchases/new")} className="gap-2 shadow-md shadow-primary/20 font-bold">
+              <Plus className="h-4 w-4" />
+              فاتورة جديدة
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "الكل", value: invoices.length, filter: "all", icon: ShoppingCart, color: "bg-primary/10 text-primary" },
-          { label: "مسودة", value: invoices.filter(i => i.status === "draft").length, filter: "draft", icon: Clock, color: "bg-amber-500/10 text-amber-600" },
-          { label: "مُرحّل", value: invoices.filter(i => i.status === "posted").length, filter: "posted", icon: CheckCircle, color: "bg-emerald-500/10 text-emerald-600" },
-          { label: "إجمالي المشتريات", value: formatCurrency(invoices.filter(i => i.status === "posted").reduce((s, i) => s + i.total, 0)), filter: "", icon: DollarSign, color: "bg-blue-500/10 text-blue-600" },
+          {
+            label: "الكل",
+            value: invoices.length,
+            filter: "all",
+            icon: ShoppingCart,
+            color: "bg-primary/10 text-primary",
+          },
+          {
+            label: "مسودة",
+            value: invoices.filter((i) => i.status === "draft").length,
+            filter: "draft",
+            icon: Clock,
+            color: "bg-amber-500/10 text-amber-600",
+          },
+          {
+            label: "مُرحّل",
+            value: invoices.filter((i) => i.status === "posted").length,
+            filter: "posted",
+            icon: CheckCircle,
+            color: "bg-emerald-500/10 text-emerald-600",
+          },
+          {
+            label: "إجمالي المشتريات",
+            value: formatCurrency(invoices.filter((i) => i.status === "posted").reduce((s, i) => s + i.total, 0)),
+            filter: "",
+            icon: DollarSign,
+            color: "bg-blue-500/10 text-blue-600",
+          },
         ].map(({ label, value, filter, icon: Icon, color }) => (
-          <button key={label} onClick={() => filter && setStatusFilter(filter)}
-            className={`rounded-xl border p-4 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}>
+          <button
+            key={label}
+            onClick={() => filter && setStatusFilter(filter)}
+            className={`rounded-xl border p-4 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}
+          >
             <div className="flex items-center justify-between mb-2">
               <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
                 <Icon className="h-4 w-4" />
@@ -160,10 +232,25 @@ export default function Purchases() {
                 <SelectItem value="cancelled">ملغي</SelectItem>
               </SelectContent>
             </Select>
-            <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-[150px] h-9 text-sm" />
-            <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-[150px] h-9 text-sm" />
+            <DatePickerInput
+              value={dateFrom}
+              onChange={setDateFrom}
+              placeholder="من تاريخ"
+              className="w-[150px] h-9 text-sm"
+            />
+            <DatePickerInput
+              value={dateTo}
+              onChange={setDateTo}
+              placeholder="إلى تاريخ"
+              className="w-[150px] h-9 text-sm"
+            />
             {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1 text-muted-foreground hover:text-foreground">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 gap-1 text-muted-foreground hover:text-foreground"
+              >
                 <X className="h-3.5 w-3.5" />
                 مسح الفلاتر
               </Button>
