@@ -26,19 +26,10 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
-          <header className="h-12 border-b border-border/60 bg-card flex items-center px-4 gap-3">
+          <header className="h-16 border-b border-border/60 bg-card flex items-center px-4 gap-3">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
             <AppBreadcrumb />
             <div className="flex-1" />
-            {/* Search */}
-            <div className="relative hidden md:block">
-              <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder="بحث سريع ..."
-                className="w-48 h-8 pr-8 text-xs bg-muted/50 border-border/60 focus:bg-card"
-                readOnly
-              />
-            </div>
             {/* User */}
             <div className="flex items-center gap-2">
               <button
