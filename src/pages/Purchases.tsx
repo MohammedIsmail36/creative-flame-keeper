@@ -134,7 +134,7 @@ export default function Purchases() {
           </div>
           <div>
             <h1 className="text-3xl font-extrabold text-foreground">فواتير الشراء</h1>
-            <p className="text-sm text-muted-foreground">إدارة فواتير المشتريات</p>
+            <p className="text-sm text-muted-foreground"> إدارة وتوثيق فواتير المشتريات بدقة وسهولة</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
