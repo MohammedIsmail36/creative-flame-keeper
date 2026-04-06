@@ -360,8 +360,12 @@ export default function PurchaseInvoiceForm() {
         .update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum })
         .eq("id", id);
 
+      // Calculate net_total for inventory movements
+      const postDiscountPercent = discountMode === 'invoice' && subtotal > 0 ? invoiceDiscount / subtotal : 0;
+
       for (const item of items) {
         if (!item.product_id) continue;
+        const itemNetTotal = discountMode === 'invoice' ? round2(item.total * (1 - postDiscountPercent)) : item.total;
         const { data: prod } = await supabase
           .from("products")
           .select("quantity_on_hand")
@@ -377,8 +381,8 @@ export default function PurchaseInvoiceForm() {
           product_id: item.product_id,
           movement_type: "purchase",
           quantity: item.quantity,
-          unit_cost: item.unit_price,
-          total_cost: item.total,
+          unit_cost: round2(itemNetTotal / item.quantity),
+          total_cost: itemNetTotal,
           reference_id: id,
           reference_type: "purchase_invoice",
           movement_date: invoiceDate,
