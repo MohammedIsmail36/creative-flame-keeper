@@ -490,6 +490,8 @@ export default function PurchaseInvoiceForm() {
         total: i.total,
       })),
       subtotal,
+      discountTotal: items.reduce((s, i) => s + i.discount, 0),
+      invoiceDiscount: invoiceDiscount > 0 ? invoiceDiscount : undefined,
       taxAmount,
       taxRate,
       grandTotal,
