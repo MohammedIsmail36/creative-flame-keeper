@@ -115,6 +115,7 @@ export default function PurchaseInvoiceForm() {
   const [reference, setReference] = useState("");
   const [status, setStatus] = useState("draft");
   const [items, setItems] = useState<InvoiceItem[]>([]);
+  const [invoiceDiscount, setInvoiceDiscount] = useState(0);
   const [editMode, setEditMode] = useState(true);
 
   useEffect(() => {
