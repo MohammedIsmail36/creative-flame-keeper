@@ -41,7 +41,10 @@ export function AppLayout({ children }: AppLayoutProps) {
             </div>
             {/* User */}
             <div className="flex items-center gap-2">
-              <button onClick={() => navigate("/profile")} className="flex items-center gap-1.5 text-xs hover:text-primary transition-colors cursor-pointer">
+              <button
+                onClick={() => navigate("/profile")}
+                className="flex items-center gap-1.5 text-xs hover:text-primary transition-colors cursor-pointer"
+              >
                 <User className="w-3.5 h-3.5 text-muted-foreground" />
                 <span className="font-medium hidden sm:inline">{fullName || "مستخدم"}</span>
               </button>
@@ -50,9 +53,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </Button>
             </div>
           </header>
-          <main className="flex-1 p-5 overflow-y-auto relative">
-            {children}
-          </main>
+          <main className="px-6 pb-6">{children}</main>
         </div>
       </div>
     </SidebarProvider>
