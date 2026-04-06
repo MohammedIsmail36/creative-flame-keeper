@@ -503,117 +503,116 @@ export default function PurchaseInvoiceForm() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto" dir="rtl">
       {/* ── Page Header (Sticky) ── */}
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm -mx-5 px-5 py-3 -mt-5 border-b border-border/40">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-black text-foreground tracking-tight">
-              {isNew ? "إنشاء فاتورة مشتريات" : "فاتورة مشتريات"}
-            </h1>
-            {displayNumber && (
-              <span className="text-sm font-semibold text-muted-foreground border border-border px-3 py-1 rounded-lg bg-muted/50 font-mono tabular-nums">
-                {displayNumber}
-              </span>
+      <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-sm -mx-5 px-5 py-3 -mt-5 border-b border-border/40">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-black text-foreground tracking-tight">
+                {isNew ? "إنشاء فاتورة مشتريات" : "فاتورة مشتريات"}
+              </h1>
+              {displayNumber && (
+                <span className="text-sm font-semibold text-muted-foreground border border-border px-3 py-1 rounded-lg bg-muted/50 font-mono tabular-nums">
+                  {displayNumber}
+                </span>
+              )}
+              {!isNew && (
+                <Badge variant={statusColors[status] as any} className="text-xs px-3 py-1">
+                  {statusLabels[status]}
+                </Badge>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {!isNew && isDraft && canEdit && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    حذف
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent dir="rtl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>حذف الفاتورة المسودة</AlertDialogTitle>
+                    <AlertDialogDescription>هل أنت متأكد من حذف هذه الفاتورة؟</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="flex-row-reverse gap-2">
+                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteDraft}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      حذف
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            {!isNew && status === "posted" && canEdit && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+                  >
+                    <Ban className="h-4 w-4" />
+                    إلغاء
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent dir="rtl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>إلغاء الفاتورة المرحّلة</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد المورد.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="flex-row-reverse gap-2">
+                    <AlertDialogCancel>تراجع</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleCancelPosted}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      إلغاء الفاتورة
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             {!isNew && (
-              <Badge variant={statusColors[status] as any} className="text-xs px-3 py-1">
-                {statusLabels[status]}
-              </Badge>
+              <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5">
+                <Printer className="h-4 w-4" />
+                طباعة
+              </Button>
+            )}
+            {!isNew && isDraft && canEdit && !editMode && (
+              <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="gap-1.5">
+                <Pencil className="h-4 w-4" />
+                تعديل
+              </Button>
+            )}
+            {isEditable && (
+              <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+                <Save className="h-4 w-4" />
+                {saving ? "جاري الحفظ..." : "حفظ مسودة"}
+              </Button>
+            )}
+            {!isNew && isDraft && canEdit && (
+              <Button
+                size="sm"
+                onClick={postInvoice}
+                className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5"
+              >
+                <CheckCircle className="h-4 w-4" />
+                إصدار الفاتورة
+              </Button>
             )}
           </div>
-          <p className="text-muted-foreground mt-1.5 text-sm">إدارة وتوثيق مشتريات المنشأة بدقة وسهولة</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {!isNew && isDraft && canEdit && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  حذف
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>حذف الفاتورة المسودة</AlertDialogTitle>
-                  <AlertDialogDescription>هل أنت متأكد من حذف هذه الفاتورة؟</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteDraft}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    حذف
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-          {!isNew && status === "posted" && canEdit && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
-                >
-                  <Ban className="h-4 w-4" />
-                  إلغاء
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>إلغاء الفاتورة المرحّلة</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد المورد.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogCancel>تراجع</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleCancelPosted}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    إلغاء الفاتورة
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-          {!isNew && (
-            <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5">
-              <Printer className="h-4 w-4" />
-              طباعة
-            </Button>
-          )}
-          {!isNew && isDraft && canEdit && !editMode && (
-            <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="gap-1.5">
-              <Pencil className="h-4 w-4" />
-              تعديل
-            </Button>
-          )}
-          {isEditable && (
-            <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
-              <Save className="h-4 w-4" />
-              {saving ? "جاري الحفظ..." : "حفظ مسودة"}
-            </Button>
-          )}
-          {!isNew && isDraft && canEdit && (
-            <Button
-              size="sm"
-              onClick={postInvoice}
-              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5"
-            >
-              <CheckCircle className="h-4 w-4" />
-              إصدار الفاتورة
-            </Button>
-          )}
-        </div>
-      </div>
       </div>
 
       {/* ── Supplier Details Card ── */}
