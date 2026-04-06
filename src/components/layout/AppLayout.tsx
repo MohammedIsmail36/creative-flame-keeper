@@ -26,7 +26,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
-          <header className="h-16 border-b border-border/60 bg-card flex items-center px-4 gap-3 sticky top-0">
+          <header className="h-16 border-b border-border/60 bg-card flex items-center px-4 gap-3 sticky top-0 z-50">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
             <AppBreadcrumb />
             <div className="flex-1" />
