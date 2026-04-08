@@ -252,6 +252,7 @@ export default function Dashboard() {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalSalesReturns, setTotalSalesReturns] = useState(0);
   const [totalPurchaseReturns, setTotalPurchaseReturns] = useState(0);
+  const [totalCOGS, setTotalCOGS] = useState(0);
   const [salesChange, setSalesChange] = useState<number | null>(null);
   const [purchasesChange, setPurchasesChange] = useState<number | null>(null);
   const [expensesChange, setExpensesChange] = useState<number | null>(null);
@@ -295,7 +296,7 @@ export default function Dashboard() {
     const cy = now.getFullYear();
     const ys = `${cy}-01-01`;
     const ye = `${cy}-12-31`;
-    const [sR, pR, eR, srR, prR] = await Promise.all([
+    const [sR, pR, eR, srR, prR, cogsR] = await Promise.all([
       supabase
         .from("sales_invoices")
         .select("total, invoice_date")
@@ -316,6 +317,12 @@ export default function Dashboard() {
         .lte("expense_date", ye),
       supabase.from("sales_returns").select("total").eq("status", "posted"),
       supabase.from("purchase_returns").select("total").eq("status", "posted"),
+      supabase
+        .from("inventory_movements")
+        .select("total_cost, movement_date")
+        .eq("movement_type", "sale")
+        .gte("movement_date", ys)
+        .lte("movement_date", ye),
     ]);
     const sales = sR.data || [];
     const purchases = pR.data || [];
@@ -326,6 +333,7 @@ export default function Dashboard() {
     setTotalExpenses(sum(expenses));
     setTotalSalesReturns(sum(srR.data || []));
     setTotalPurchaseReturns(sum(prR.data || []));
+    setTotalCOGS((cogsR.data || []).reduce((s, i) => s + Number(i.total_cost || 0), 0));
     setCurrentMonthSales(
       sales
         .filter((i) => {
@@ -711,7 +719,8 @@ export default function Dashboard() {
   // ── Derived ─────────────────────────────────────────────────────────────────
   const netSales = totalSales - totalSalesReturns;
   const netPurchases = totalPurchases - totalPurchaseReturns;
-  const netProfit = netSales - netPurchases - totalExpenses;
+  const grossProfit = netSales - totalCOGS;
+  const netProfit = grossProfit - totalExpenses;
   const profitMargin = netSales > 0 ? ((netProfit / netSales) * 100).toFixed(1) : "0";
 
   // ── UI helpers ───────────────────────────────────────────────────────────────
