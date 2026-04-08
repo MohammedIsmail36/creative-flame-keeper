@@ -719,7 +719,8 @@ export default function Dashboard() {
   // ── Derived ─────────────────────────────────────────────────────────────────
   const netSales = totalSales - totalSalesReturns;
   const netPurchases = totalPurchases - totalPurchaseReturns;
-  const netProfit = netSales - netPurchases - totalExpenses;
+  const grossProfit = netSales - totalCOGS;
+  const netProfit = grossProfit - totalExpenses;
   const profitMargin = netSales > 0 ? ((netProfit / netSales) * 100).toFixed(1) : "0";
 
   // ── UI helpers ───────────────────────────────────────────────────────────────
