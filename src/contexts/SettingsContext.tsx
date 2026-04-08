@@ -73,11 +73,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const formatCurrency = useCallback(
     (val: number) => {
+      const isNegative = val < 0;
       const formatted = Math.abs(val).toLocaleString("en-US", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
-      return `${formatted} ${currency}`;
+      return `${isNegative ? "-" : ""}${formatted} ${currency}`;
     },
     [currency]
   );
