@@ -1,91 +1,62 @@
 
 
-# إضافة خصم على مستوى الفاتورة (فواتير المبيعات فقط)
+# نتائج اختبار التقارير بعد تعديلات الخصومات
 
-## ملخص
-إضافة نوع ثاني من الخصم (خصم إجمالي على الفاتورة) مع قيد أنه لا يمكن الجمع بين خصم السطر وخصم الفاتورة في نفس الفاتورة. يتم حساب نسبة خصم الفاتورة تلقائياً وتخزينها في عمود `net_total` لكل سطر للاستفادة منها لاحقاً في المرتجعات.
+## البيانات الحية — التحقق الأساسي ✅
 
-## قاعدة أساسية
-- إذا أدخل المستخدم خصم على أي سطر → يُقفل حقل خصم الفاتورة
-- إذا أدخل المستخدم خصم فاتورة → تُقفل حقول خصم السطور
-- لا يمكن الجمع بين النوعين في نفس الفاتورة
+| الفحص | النتيجة | التفاصيل |
+|---|---|---|
+| توازن ميزان المراجعة | ✅ متوازن | مدين 128,035.25 = دائن 128,035.25 |
+| رصيد العميل | ✅ صحيح | مسجل 3,250 = مجموع الفواتير 3,250 |
+| رصيد المورد | ✅ صحيح | مسجل 122,925.25 = مجموع الفواتير 122,925.25 |
+| كمية المخزون (منتج اختبار) | ✅ صحيح | مسجل 58 = محسوب 58 |
+| `get_avg_selling_price` | ✅ صحيح | (1000+950+1300)/30 = 108.33 — يستخدم `net_total` |
+| `get_avg_purchase_price` | ✅ صحيح | 62.00 — يستخدم `inventory_movements` |
+| القيود المحاسبية | ✅ صحيحة | كل قيد متوازن، و`total` في header الفاتورة يعكس القيمة بعد الخصم |
+| INV-0003 (خصم فاتورة 200) | ✅ صحيح | subtotal=1500, discount=200, total=1300, net_total مجموع=1300 |
 
-## التغييرات المطلوبة
+---
 
-### 1. Migration — إضافة عمود `net_total`
-```sql
-ALTER TABLE sales_invoice_items ADD COLUMN net_total numeric NOT NULL DEFAULT 0;
-UPDATE sales_invoice_items SET net_total = total WHERE net_total = 0;
-```
-عمود `discount` موجود بالفعل في `sales_invoices` (حالياً يُحفظ دائماً 0) — سنستخدمه لخصم الفاتورة.
+## المشاكل المكتشفة — 5 مواقع تستخدم `item.total` بدلاً من `item.net_total`
 
-### 2. تحديث `SalesInvoiceForm.tsx`
+عند التجميع بالمنتج، تجلب التقارير `total` من جدول البنود (القيمة **قبل** خصم الفاتورة) بدلاً من `net_total` (القيمة **بعد** الخصم). هذا يعني أن إيرادات المنتج تظهر أعلى من الواقع عند وجود خصم فاتورة.
 
-**State جديد:**
-- `invoiceDiscount` — قيمة الخصم الإجمالي (رقم)
-- `discountMode` — محسوب تلقائياً: `'line'` إذا وُجد خصم سطر، `'invoice'` إذا وُجد خصم فاتورة، `'none'` إذا لا يوجد خصم
+| # | الملف | السطر | المشكلة | الأثر |
+|---|---|---|---|---|
+| 1 | `SalesReport.tsx` | 304 | `revenue += item.total` | تقرير المبيعات بالمنتج: إيرادات مبالغ فيها |
+| 2 | `PurchasesReport.tsx` | 290 | `cost += item.total` | تقرير المشتريات بالمنتج: تكاليف مبالغ فيها |
+| 3 | `ProductAnalytics.tsx` | 225 | `revenue += item.total` | تحليل المنتجات: إيرادات وأرباح خاطئة |
+| 4 | `Dashboard.tsx` | 549, 656 | `amount += item.total` | لوحة التحكم: المنتجات/التصنيفات الأكثر مبيعاً |
+| 5 | `GrowthAnalytics.tsx` | 289 | `total += item.total` | رسم pie chart للمنتجات غير دقيق |
 
-**حسابات:**
-```text
-subtotal       = Σ (quantity × unit_price - line_discount)   ← كما هو
-afterDiscount  = subtotal - invoiceDiscount
-taxAmount      = afterDiscount × taxRate (إذا مفعّل)
-grandTotal     = afterDiscount + taxAmount
-```
+ملاحظة: KPIs الرئيسية (إجمالي المبيعات، صافي المبيعات) في SalesReport و GrowthAnalytics **صحيحة** لأنها تستخدم `invoice.total` من header الفاتورة (وهو بالفعل بعد الخصم).
 
-**حساب net_total لكل سطر (عند الحفظ):**
-```text
-إذا كان خصم فاتورة:
-  discountPercent = invoiceDiscount / subtotal
-  net_total = total - (total × discountPercent)    // = total × (1 - discountPercent)
-إذا كان خصم سطر:
-  net_total = total    // (الخصم مطبق بالفعل في total)
-```
+## خطة الإصلاح
 
-**واجهة المستخدم:**
-- إضافة حقل "خصم إجمالي على الفاتورة" في قسم ملخص الفاتورة
-- يُعطَّل إذا كان هناك أي خصم سطر > 0
-- حقول خصم السطور تُعطَّل إذا كان خصم الفاتورة > 0
-- عرض نسبة الخصم المحسوبة تلقائياً بجانب الحقل
+### التعديل 1: إضافة `net_total` للاستعلامات
+كل الاستعلامات التي تجلب `sales_invoice_items` أو `purchase_invoice_items` تحتاج إضافة `net_total` في select.
 
-**الحفظ:**
-- حفظ `invoiceDiscount` في `sales_invoices.discount`
-- حفظ `net_total` لكل سطر في `sales_invoice_items.net_total`
+### التعديل 2: استبدال `item.total` بـ `item.net_total` في 5 مواقع
 
-**التحميل:**
-- قراءة `discount` من الفاتورة وتعيينه لـ `invoiceDiscount`
+1. **`SalesReport.tsx`** — السطر 41: إضافة `net_total` للـ select، السطر 304: `revenue += Number(item.net_total || item.total)`
+2. **`PurchasesReport.tsx`** — السطر 39: إضافة `net_total` للـ select، السطر 290: `cost += Number(item.net_total || item.total)`
+3. **`ProductAnalytics.tsx`** — السطر 123: إضافة `net_total` للـ select، السطر 225: `revenue += Number(item.net_total || item.total)`
+4. **`Dashboard.tsx`** — السطر 538: إضافة `net_total` للـ select، السطور 549 و 656: استخدام `net_total`
+5. **`GrowthAnalytics.tsx`** — السطر 141: إضافة `net_total` للـ select، السطر 289: استخدام `net_total`
 
-**الاعتماد (postInvoice):**
-- `grandTotal` يُحسب بعد خصم الفاتورة — القيد المحاسبي يستخدمه تلقائياً
-- COGS لا يتغير (يبقى = متوسط سعر الشراء × الكمية)
+يُستخدم `|| item.total` كـ fallback للبيانات القديمة التي قد لا يكون فيها `net_total`.
 
-### 3. تحديث دالة `get_avg_selling_price`
-```sql
-CREATE OR REPLACE FUNCTION get_avg_selling_price(_product_id uuid)
-RETURNS numeric AS $$
-  SELECT COALESCE(
-    CASE WHEN SUM(si.quantity) > 0 
-    THEN SUM(si.net_total) / SUM(si.quantity) 
-    ELSE 0 END, 0)
-  FROM sales_invoice_items si
-  JOIN sales_invoices s ON s.id = si.invoice_id
-  WHERE si.product_id = _product_id AND s.status = 'posted'
-$$ LANGUAGE sql STABLE;
-```
-
-### 4. تحديث طباعة PDF (`pdf-arabic.ts`)
-- عرض سطر "خصم إجمالي" في ملخص الفاتورة إذا كانت قيمته > 0
-- تمرير `invoiceDiscount` ضمن بيانات الطباعة
-
-## ما لا يتغير
-- المرتجعات (`SalesReturnForm.tsx`) — بدون أي تعديل
-- فواتير المشتريات — مرحلة لاحقة
-- COGS — يبقى = متوسط سعر الشراء × الكمية
+### التعديل 3: تصحيح حساب الربح في Dashboard
+السطر 657: `c.profit += Number(item.total) - Number(prod.purchase_price) * Number(item.quantity)` — يحسب الربح باستخدام `item.total` (خطأ). يجب أن يكون `item.net_total`.
 
 ## الملفات المتأثرة
-| الملف | التعديل |
+| الملف | نوع التعديل |
 |---|---|
-| Migration جديد | `net_total` + تحديث البيانات + تعديل الدالة |
-| `SalesInvoiceForm.tsx` | خصم فاتورة + قفل متبادل + حساب net_total |
-| `pdf-arabic.ts` | عرض خصم الفاتورة |
+| `src/pages/reports/SalesReport.tsx` | select + حساب revenue |
+| `src/pages/reports/PurchasesReport.tsx` | select + حساب cost |
+| `src/pages/reports/ProductAnalytics.tsx` | select + حساب revenue |
+| `src/pages/Dashboard.tsx` | select + حساب amount + profit |
+| `src/pages/reports/GrowthAnalytics.tsx` | select + حساب total |
+
+لا حاجة لتعديل قاعدة البيانات — البيانات مخزنة بشكل صحيح.
 
