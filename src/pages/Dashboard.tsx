@@ -623,7 +623,7 @@ export default function Dashboard() {
 
   const fetchTopCategories = async () => {
     const { data: items } = await (supabase.from("sales_invoice_items") as any).select(
-      "product_id, quantity, total, invoice_id",
+      "product_id, quantity, total, net_total, invoice_id",
     );
     if (!items?.length) {
       setTopCategories([]);
