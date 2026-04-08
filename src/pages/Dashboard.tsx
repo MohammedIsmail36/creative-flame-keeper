@@ -296,7 +296,7 @@ export default function Dashboard() {
     const cy = now.getFullYear();
     const ys = `${cy}-01-01`;
     const ye = `${cy}-12-31`;
-    const [sR, pR, eR, srR, prR] = await Promise.all([
+    const [sR, pR, eR, srR, prR, cogsR] = await Promise.all([
       supabase
         .from("sales_invoices")
         .select("total, invoice_date")
@@ -317,6 +317,12 @@ export default function Dashboard() {
         .lte("expense_date", ye),
       supabase.from("sales_returns").select("total").eq("status", "posted"),
       supabase.from("purchase_returns").select("total").eq("status", "posted"),
+      supabase
+        .from("inventory_movements")
+        .select("total_cost, movement_date")
+        .eq("movement_type", "sale")
+        .gte("movement_date", ys)
+        .lte("movement_date", ye),
     ]);
     const sales = sR.data || [];
     const purchases = pR.data || [];
@@ -327,6 +333,7 @@ export default function Dashboard() {
     setTotalExpenses(sum(expenses));
     setTotalSalesReturns(sum(srR.data || []));
     setTotalPurchaseReturns(sum(prR.data || []));
+    setTotalCOGS((cogsR.data || []).reduce((s, i) => s + Number(i.total_cost || 0), 0));
     setCurrentMonthSales(
       sales
         .filter((i) => {
