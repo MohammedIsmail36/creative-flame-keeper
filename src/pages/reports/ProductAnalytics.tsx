@@ -120,7 +120,7 @@ export default function ProductAnalytics() {
       const { data, error } = await supabase
         .from("sales_invoice_items")
         .select(
-          "quantity, total, unit_price, product_id, product:products(name, code, category_id, quantity_on_hand, min_stock_level, purchase_price, category:product_categories(name)), invoice:sales_invoices!inner(invoice_date, status)",
+          "quantity, total, net_total, unit_price, product_id, product:products(name, code, category_id, quantity_on_hand, min_stock_level, purchase_price, category:product_categories(name)), invoice:sales_invoices!inner(invoice_date, status)",
         )
         .gte("invoice.invoice_date", dateFrom)
         .lte("invoice.invoice_date", dateTo)
@@ -222,7 +222,7 @@ export default function ProductAnalytics() {
         };
       }
       metrics[id].soldQty += Number(item.quantity);
-      metrics[id].revenue += Number(item.total);
+      metrics[id].revenue += Number(item.net_total || item.total);
     });
 
     returnItems?.forEach((item: any) => {

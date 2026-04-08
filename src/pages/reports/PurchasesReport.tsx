@@ -36,7 +36,7 @@ export default function PurchasesReport() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("purchase_invoices")
-        .select("id, invoice_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, supplier_id, posted_number, supplier:suppliers(name), items:purchase_invoice_items(quantity, total, product_id, product:products(name))")
+        .select("id, invoice_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, supplier_id, posted_number, supplier:suppliers(name), items:purchase_invoice_items(quantity, total, net_total, product_id, product:products(name))")
         .gte("invoice_date", dateFrom)
         .lte("invoice_date", dateTo)
         .order("invoice_date", { ascending: false });
@@ -287,7 +287,7 @@ export default function PurchasesReport() {
         const name = item.product?.name || item.description || "منتج محذوف";
         if (!map[pid]) map[pid] = { name, qtyPurchased: 0, qtyReturned: 0, cost: 0 };
         map[pid].qtyPurchased += Number(item.quantity);
-        map[pid].cost += Number(item.total);
+        map[pid].cost += Number(item.net_total || item.total);
       });
     });
     Object.keys(map).forEach(pid => {
