@@ -252,6 +252,7 @@ export default function Dashboard() {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalSalesReturns, setTotalSalesReturns] = useState(0);
   const [totalPurchaseReturns, setTotalPurchaseReturns] = useState(0);
+  const [totalCOGS, setTotalCOGS] = useState(0);
   const [salesChange, setSalesChange] = useState<number | null>(null);
   const [purchasesChange, setPurchasesChange] = useState<number | null>(null);
   const [expensesChange, setExpensesChange] = useState<number | null>(null);
