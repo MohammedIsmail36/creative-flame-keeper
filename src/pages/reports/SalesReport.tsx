@@ -38,7 +38,7 @@ export default function SalesReport() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales_invoices")
-        .select("id, invoice_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, customer_id, customer:customers(name), items:sales_invoice_items(quantity, total, product_id, product:products(name))")
+        .select("id, invoice_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, customer_id, customer:customers(name), items:sales_invoice_items(quantity, total, net_total, product_id, product:products(name))")
         .gte("invoice_date", dateFrom)
         .lte("invoice_date", dateTo)
         .order("invoice_date", { ascending: false });
@@ -301,7 +301,7 @@ export default function SalesReport() {
         const name = item.product?.name || item.description || "منتج محذوف";
         if (!map[pid]) map[pid] = { name, qtySold: 0, qtyReturned: 0, revenue: 0 };
         map[pid].qtySold += Number(item.quantity);
-        map[pid].revenue += Number(item.total);
+        map[pid].revenue += Number(item.net_total || item.total);
       });
     });
     Object.keys(map).forEach(pid => {

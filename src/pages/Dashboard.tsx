@@ -535,7 +535,7 @@ export default function Dashboard() {
 
   const fetchTopProducts = async () => {
     const { data: items } = await (supabase.from("sales_invoice_items") as any).select(
-      "product_id, quantity, total, invoice_id",
+      "product_id, quantity, total, net_total, invoice_id",
     );
     if (!items?.length) return;
     const iIds = [...new Set(items.map((i: any) => i.invoice_id))] as string[];
@@ -546,7 +546,7 @@ export default function Dashboard() {
       if (!posted.has(item.invoice_id) || !item.product_id) return;
       const c = g.get(item.product_id) || { qty: 0, amount: 0 };
       c.qty += Number(item.quantity);
-      c.amount += Number(item.total);
+      c.amount += Number(item.net_total || item.total);
       g.set(item.product_id, c);
     });
     const pIds = [...g.keys()] as string[];
@@ -623,7 +623,7 @@ export default function Dashboard() {
 
   const fetchTopCategories = async () => {
     const { data: items } = await (supabase.from("sales_invoice_items") as any).select(
-      "product_id, quantity, total, invoice_id",
+      "product_id, quantity, total, net_total, invoice_id",
     );
     if (!items?.length) {
       setTopCategories([]);
@@ -653,8 +653,8 @@ export default function Dashboard() {
       if (!prod) return;
       const cat = prod.category_id ? cm.get(prod.category_id) || "بدون تصنيف" : "بدون تصنيف";
       const c = g.get(cat) || { sales: 0, profit: 0 };
-      c.sales += Number(item.total);
-      c.profit += Number(item.total) - Number(prod.purchase_price) * Number(item.quantity);
+      c.sales += Number(item.net_total || item.total);
+      c.profit += Number(item.net_total || item.total) - Number(prod.purchase_price) * Number(item.quantity);
       g.set(cat, c);
     });
     setTopCategories(

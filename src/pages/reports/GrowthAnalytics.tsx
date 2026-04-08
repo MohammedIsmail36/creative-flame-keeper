@@ -138,7 +138,7 @@ export default function GrowthAnalytics() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales_invoice_items")
-        .select("quantity, total, product:products(name), invoice:sales_invoices!inner(invoice_date, status)")
+        .select("quantity, total, net_total, product:products(name), invoice:sales_invoices!inner(invoice_date, status)")
         .gte("invoice.invoice_date", dateFrom)
         .lte("invoice.invoice_date", dateTo)
         .eq("invoice.status", "posted");
@@ -286,7 +286,7 @@ export default function GrowthAnalytics() {
     topProducts?.forEach((item: any) => {
       const name = item.product?.name || "أخرى";
       if (!productMap[name]) productMap[name] = { name, total: 0 };
-      productMap[name].total += Number(item.total);
+      productMap[name].total += Number(item.net_total || item.total);
     });
     return Object.values(productMap).sort((a, b) => b.total - a.total).slice(0, 6);
   }, [topProducts]);
