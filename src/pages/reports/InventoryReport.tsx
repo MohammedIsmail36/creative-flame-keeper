@@ -175,7 +175,7 @@ export default function InventoryReport() {
       if (Number(p.quantity_on_hand) <= Number(p.min_stock_level) && p.is_active) map[cat].lowCount++;
     });
     return Object.values(map).sort((a, b) => b.purchaseValue - a.purchaseValue);
-  }, [filtered]);
+  }, [filtered, avgCostMap]);
 
   const categoryColumns = useMemo<ColumnDef<any, any>[]>(() => [
     { accessorKey: "name", header: "التصنيف", footer: () => <span className="font-bold">الإجمالي</span> },
