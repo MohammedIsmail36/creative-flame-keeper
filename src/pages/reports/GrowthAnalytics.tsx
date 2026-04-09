@@ -427,7 +427,7 @@ export default function GrowthAnalytics() {
 
   // --- Export ---
   const getExportData = () => {
-    const headers = ["الشهر", "صافي المبيعات (قبل الضريبة)", "تكلفة البضاعة المباعة", "المصروفات", "مجمل الربح", "صافي الربح"];
+    const headers = ["الشهر", "صافي المبيعات", "تكلفة البضاعة المباعة", "المصروفات", "مجمل الربح", "صافي الربح"];
     const rows = chartData.map((m) => [m.month, m.sales, m.cogs, m.expenses, m.grossProfit, m.netProfit]);
     return { headers, rows };
   };
@@ -450,7 +450,7 @@ export default function GrowthAnalytics() {
       headers,
       rows: rows.map((r) => [r[0], ...r.slice(1).map((v) => fmtN(Number(v)))]),
       summaryCards: [
-        { label: "صافي المبيعات (قبل الضريبة)", value: fmtN(netSales) },
+        { label: "صافي المبيعات", value: fmtN(netSales) },
         { label: "مرتجعات المبيعات", value: fmtN(totalSalesReturns) },
         { label: "تكلفة البضاعة المباعة", value: fmtN(cogs) },
         { label: "مجمل الربح", value: fmtN(grossProfit) },
@@ -470,7 +470,7 @@ export default function GrowthAnalytics() {
   const kpiCards = [
     {
       label: "صافي المبيعات",
-      formula: "إجمالي المبيعات (قبل الضريبة) − مرتجعات المبيعات",
+      formula: "إجمالي المبيعات − مرتجعات المبيعات",
       value: fmt(netSales),
       growth: calcGrowth(netSales, prevNetSales),
       icon: DollarSign,
@@ -501,7 +501,7 @@ export default function GrowthAnalytics() {
     },
     {
       label: "مجمل الربح",
-      formula: "صافي المبيعات (قبل الضريبة) − تكلفة البضاعة المباعة (COGS)",
+      formula: "صافي المبيعات − تكلفة البضاعة المباعة (COGS)",
       value: fmt(grossProfit),
       growth: calcGrowth(grossProfit, prevGrossProfit),
       icon: BarChart3,
@@ -661,7 +661,7 @@ export default function GrowthAnalytics() {
           { label: "نسبة المرتجعات", value: returnRate.toFixed(1) + "%", formula: "مرتجعات المبيعات ÷ إجمالي المبيعات × 100", color: returnRate > 10 ? "text-destructive" : "text-success", icon: RotateCcw },
           { label: "نسبة المصروفات", value: expenseRate.toFixed(1) + "%", formula: "المصروفات ÷ صافي المبيعات × 100", color: expenseRate > 30 ? "text-destructive" : "text-success", icon: Receipt },
           { label: "نسبة التحصيل", value: collectionRate.toFixed(1) + "%", formula: "المبالغ المحصلة ÷ صافي المبيعات (شامل الضريبة) × 100", color: collectionRate > 80 ? "text-success" : "text-destructive", icon: DollarSign },
-          { label: "متوسط قيمة الفاتورة", value: fmt(avgInvoice), formula: "إجمالي المبيعات (قبل الضريبة) ÷ عدد الفواتير", color: "text-primary", icon: Receipt },
+          { label: "متوسط قيمة الفاتورة", value: fmt(avgInvoice), formula: "إجمالي المبيعات ÷ عدد الفواتير", color: "text-primary", icon: Receipt },
         ].map((item) => (
           <Card key={item.label} className="border-border/60 shadow-none">
             <CardContent className="p-4 text-center">
@@ -683,7 +683,7 @@ export default function GrowthAnalytics() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-primary" />
-              الإيرادات مقابل التكلفة (قبل الضريبة)
+              الإيرادات مقابل التكلفة
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -771,7 +771,7 @@ export default function GrowthAnalytics() {
             {[
               { label: "عملاء تعاملوا خلال الفترة", value: String(uniqueCustomerCount), icon: Users, color: "text-cat-accounting" },
               { label: "عدد فواتير المبيعات", value: String(salesData?.length ?? 0), icon: Receipt, color: "text-primary" },
-              { label: "متوسط قيمة الفاتورة (قبل الضريبة)", value: fmt(avgInvoice), icon: DollarSign, color: "text-success" },
+              { label: "متوسط قيمة الفاتورة", value: fmt(avgInvoice), icon: DollarSign, color: "text-success" },
               { label: "نسبة التحصيل", value: collectionRate.toFixed(1) + "%", icon: Percent, color: collectionRate > 80 ? "text-success" : "text-destructive" },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between">
@@ -793,7 +793,7 @@ export default function GrowthAnalytics() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-success" />
-              ملخص المبيعات (قبل الضريبة)
+              ملخص المبيعات
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -827,7 +827,7 @@ export default function GrowthAnalytics() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-primary" />
-              ملخص المشتريات (قبل الضريبة)
+              ملخص المشتريات
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
