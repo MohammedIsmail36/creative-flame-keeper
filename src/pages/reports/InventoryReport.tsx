@@ -23,7 +23,7 @@ export default function InventoryReport() {
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "zero" | "active">("all");
 
   // ── Query: Products with brand & category ──
-  const { data: products = [], isLoading } = useQuery({
+  const { data: products = [], isLoading: loadingProducts } = useQuery({
     queryKey: ["inventory-report-products-v2"],
     queryFn: async () => {
       const { data, error } = await (supabase.from("products") as any)
@@ -34,6 +34,37 @@ export default function InventoryReport() {
     },
   });
 
+  // Fetch inventory movements to calculate weighted average cost
+  const { data: movements = [], isLoading: loadingMovements } = useQuery({
+    queryKey: ["inventory-report-movements"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inventory_movements")
+        .select("product_id, quantity, total_cost")
+        .in("movement_type", ["purchase", "opening_balance"]);
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const isLoading = loadingProducts || loadingMovements;
+
+  // Build avg cost map from movements
+  const avgCostMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const agg = new Map<string, { qty: number; cost: number }>();
+    movements.forEach((m: any) => {
+      const c = agg.get(m.product_id) || { qty: 0, cost: 0 };
+      c.qty += Number(m.quantity);
+      c.cost += Number(m.total_cost);
+      agg.set(m.product_id, c);
+    });
+    agg.forEach((v, pid) => {
+      map.set(pid, v.qty > 0 ? v.cost / v.qty : 0);
+    });
+    return map;
+  }, [movements]);
+
   // ── Filtered products ──
   const filtered = useMemo(() => {
     let list = products;
@@ -43,18 +74,21 @@ export default function InventoryReport() {
     return list;
   }, [products, stockFilter]);
 
-  // ── KPI (always from all active products) ──
+  // ── KPI (always from all active products, using weighted avg cost) ──
   const kpi = useMemo(() => {
     const active = products.filter(p => p.is_active);
     const totalItems = active.length;
     const totalQty = active.reduce((s, p) => s + Number(p.quantity_on_hand), 0);
-    const purchaseValue = active.reduce((s, p) => s + Number(p.quantity_on_hand) * Number(p.purchase_price), 0);
+    const purchaseValue = active.reduce((s, p) => {
+      const avgCost = avgCostMap.get(p.id) ?? Number(p.purchase_price);
+      return s + Number(p.quantity_on_hand) * avgCost;
+    }, 0);
     const sellingValue = active.reduce((s, p) => s + Number(p.quantity_on_hand) * Number(p.selling_price), 0);
     const expectedProfit = sellingValue - purchaseValue;
     const lowStock = active.filter(p => Number(p.quantity_on_hand) <= Number(p.min_stock_level) && Number(p.quantity_on_hand) > 0).length;
     const zeroStock = active.filter(p => Number(p.quantity_on_hand) === 0).length;
     return { totalItems, totalQty, purchaseValue, sellingValue, expectedProfit, lowStock, zeroStock };
-  }, [products]);
+  }, [products, avgCostMap]);
 
   // ═══ GROUPING: By Product (default) ═══
   const productColumns = useMemo<ColumnDef<any, any>[]>(() => [
