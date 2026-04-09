@@ -811,8 +811,8 @@ export default function Dashboard() {
       accent: "bg-amber-500",
     },
     {
-      label: netProfit >= 0 ? "صافي الربح" : "صافي الخسارة",
-      value: Math.abs(netProfit),
+      label: "صافي الربح",
+      value: netProfit,
       extraLabel: `${netProfit >= 0 ? "هامش الربح" : "هامش الخسارة"} ${profitMargin}%`,
       icon: netProfit >= 0 ? TrendingUp : TrendingDown,
       iconBg: netProfit >= 0 ? "bg-emerald-500/10" : "bg-destructive/10",
