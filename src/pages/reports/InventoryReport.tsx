@@ -272,17 +272,18 @@ export default function InventoryReport() {
         filenamePrefix: "تقرير-المخزون",
         sheetName: "المخزون",
         pdfTitle: "تقرير المخزون",
-        headers: ["الكود", "المنتج", "التصنيف", "الكمية", "الحد الأدنى", "سعر الشراء", "سعر البيع", "قيمة المخزون", "الحالة"],
+        headers: ["الكود", "المنتج", "التصنيف", "الكمية", "الحد الأدنى", "متوسط سعر الشراء", "سعر البيع", "قيمة المخزون", "الحالة"],
         rows: filtered.map((p: any) => {
           const qty = Number(p.quantity_on_hand);
           const min = Number(p.min_stock_level);
+          const avgCost = avgCostMap.get(p.id) ?? Number(p.purchase_price);
           return [
             p.code,
             formatProductDisplay(p.name, p.product_brands?.name, p.model_number),
             p.product_categories?.name || "بدون تصنيف",
             qty, min,
-            Number(p.purchase_price), Number(p.selling_price),
-            qty * Number(p.purchase_price),
+            avgCost, Number(p.selling_price),
+            qty * avgCost,
             qty === 0 ? "نفد" : qty <= min ? "منخفض" : "طبيعي",
           ];
         }),
