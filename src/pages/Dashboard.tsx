@@ -428,26 +428,31 @@ export default function Dashboard() {
     );
   };
 
-  const fetchCharts = async () => {
+  const fetchCharts = async (closingDate?: string | null) => {
     const y = new Date().getFullYear();
+    const chartStart = closingDate ? (() => {
+      const d = new Date(closingDate);
+      d.setDate(d.getDate() + 1);
+      return d.toISOString().slice(0, 10);
+    })() : `${y}-01-01`;
     const [sR, pR, eR] = await Promise.all([
       supabase
         .from("sales_invoices")
         .select("invoice_date, total")
         .eq("status", "posted")
-        .gte("invoice_date", `${y}-01-01`)
+        .gte("invoice_date", chartStart)
         .lte("invoice_date", `${y}-12-31`),
       supabase
         .from("purchase_invoices")
         .select("invoice_date, total")
         .eq("status", "posted")
-        .gte("invoice_date", `${y}-01-01`)
+        .gte("invoice_date", chartStart)
         .lte("invoice_date", `${y}-12-31`),
       supabase
         .from("expenses")
         .select("expense_date, amount")
         .eq("status", "posted")
-        .gte("expense_date", `${y}-01-01`)
+        .gte("expense_date", chartStart)
         .lte("expense_date", `${y}-12-31`),
     ]);
     const m: MonthlyData[] = MONTH_NAMES.map((n) => ({ name: n, مبيعات: 0, مشتريات: 0 }));
