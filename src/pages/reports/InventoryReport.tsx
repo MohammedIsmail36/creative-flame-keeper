@@ -235,7 +235,7 @@ export default function InventoryReport() {
       if (Number(p.quantity_on_hand) <= Number(p.min_stock_level) && p.is_active) map[brand].lowCount++;
     });
     return Object.values(map).sort((a, b) => b.purchaseValue - a.purchaseValue);
-  }, [filtered]);
+  }, [filtered, avgCostMap]);
 
   // Brand uses same columns as category
   const brandColumns = categoryColumns;
@@ -244,11 +244,11 @@ export default function InventoryReport() {
   const chartData = useMemo(() => {
     if (groupBy === "product") {
       return [...filtered]
-        .sort((a, b) => (Number(b.quantity_on_hand) * Number(b.purchase_price)) - (Number(a.quantity_on_hand) * Number(a.purchase_price)))
+        .sort((a, b) => (Number(b.quantity_on_hand) * (avgCostMap.get(b.id) ?? Number(b.purchase_price))) - (Number(a.quantity_on_hand) * (avgCostMap.get(a.id) ?? Number(a.purchase_price))))
         .slice(0, 10)
         .map(p => ({
           name: p.name.length > 14 ? p.name.substring(0, 14) + "…" : p.name,
-          "قيمة المخزون": Number(p.quantity_on_hand) * Number(p.purchase_price),
+          "قيمة المخزون": Number(p.quantity_on_hand) * (avgCostMap.get(p.id) ?? Number(p.purchase_price)),
         }));
     }
     const data = groupBy === "category" ? categoryData : brandData;
