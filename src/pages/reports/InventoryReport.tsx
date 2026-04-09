@@ -126,8 +126,8 @@ export default function InventoryReport() {
     },
     {
       id: "purchase_price",
-      header: "سعر الشراء",
-      accessorFn: (r: any) => Number(r.purchase_price),
+      header: "متوسط سعر الشراء",
+      accessorFn: (r: any) => avgCostMap.get(r.id) ?? Number(r.purchase_price),
       cell: ({ getValue }) => fmt(getValue() as number),
     },
     {
@@ -139,10 +139,13 @@ export default function InventoryReport() {
     {
       id: "stock_value",
       header: "قيمة المخزون",
-      accessorFn: (r: any) => Number(r.quantity_on_hand) * Number(r.purchase_price),
+      accessorFn: (r: any) => Number(r.quantity_on_hand) * (avgCostMap.get(r.id) ?? Number(r.purchase_price)),
       cell: ({ getValue }) => <span className="font-mono">{fmt(getValue() as number)}</span>,
       footer: ({ table }) => {
-        const total = table.getFilteredRowModel().rows.reduce((s, r) => s + Number(r.original.quantity_on_hand) * Number(r.original.purchase_price), 0);
+        const total = table.getFilteredRowModel().rows.reduce((s, r) => {
+          const cost = avgCostMap.get(r.original.id) ?? Number(r.original.purchase_price);
+          return s + Number(r.original.quantity_on_hand) * cost;
+        }, 0);
         return <span className="font-bold font-mono">{fmt(total)}</span>;
       },
     },
@@ -157,7 +160,7 @@ export default function InventoryReport() {
         return <Badge variant="secondary">طبيعي</Badge>;
       },
     },
-  ], []);
+  ], [avgCostMap]);
 
   // ═══ GROUPING: By Category ═══
   const categoryData = useMemo(() => {
