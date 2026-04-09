@@ -256,7 +256,7 @@ export default function InventoryReport() {
       name: d.name.length > 14 ? d.name.substring(0, 14) + "…" : d.name,
       "قيمة المخزون": d.purchaseValue,
     }));
-  }, [groupBy, filtered, categoryData, brandData]);
+  }, [groupBy, filtered, categoryData, brandData, avgCostMap]);
 
   // ── Export config ──
   const exportConfig = useMemo(() => {
