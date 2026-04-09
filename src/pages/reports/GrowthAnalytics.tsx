@@ -43,7 +43,7 @@ export default function GrowthAnalytics() {
 
   // --- Data Queries ---
 
-  // Sales invoices: select subtotal (ex-VAT), tax, total, paid_amount
+  // Sales invoices
   const { data: salesData, isLoading: loadingSales, isError: errorSales } = useQuery({
     queryKey: ["growth-sales", dateFrom, dateTo],
     queryFn: async () => {
@@ -329,7 +329,7 @@ export default function GrowthAnalytics() {
     return list;
   }, [grossMargin, returnRate, expenseRate, netProfit, netSales, formatCurrency]);
 
-  // --- Monthly chart data (ex-VAT) ---
+  // --- Monthly chart data ---
   const chartData = useMemo(() => {
     const monthlyData: Record<string, { month: string; sales: number; cogs: number; purchases: number; expenses: number; grossProfit: number; netProfit: number }> = {};
     for (let i = months - 1; i >= 0; i--) {
@@ -340,11 +340,11 @@ export default function GrowthAnalytics() {
     }
     salesData?.forEach((inv) => {
       const key = inv.invoice_date.substring(0, 7);
-      if (monthlyData[key]) monthlyData[key].sales += Number(inv.subtotal);
+      if (monthlyData[key]) monthlyData[key].sales += Number(inv.total);
     });
     salesReturnsData?.forEach((ret) => {
       const key = ret.return_date.substring(0, 7);
-      if (monthlyData[key]) monthlyData[key].sales -= Number(ret.subtotal);
+      if (monthlyData[key]) monthlyData[key].sales -= Number(ret.total);
     });
     cogsData?.forEach((m) => {
       const key = m.movement_date.substring(0, 7);
@@ -355,11 +355,11 @@ export default function GrowthAnalytics() {
     });
     purchasesData?.forEach((inv) => {
       const key = inv.invoice_date.substring(0, 7);
-      if (monthlyData[key]) monthlyData[key].purchases += Number(inv.subtotal);
+      if (monthlyData[key]) monthlyData[key].purchases += Number(inv.total);
     });
     purchaseReturnsData?.forEach((ret) => {
       const key = ret.return_date.substring(0, 7);
-      if (monthlyData[key]) monthlyData[key].purchases -= Number(ret.subtotal);
+      if (monthlyData[key]) monthlyData[key].purchases -= Number(ret.total);
     });
     expensesData?.forEach((exp) => {
       const key = exp.expense_date.substring(0, 7);
@@ -786,7 +786,7 @@ export default function GrowthAnalytics() {
         </Card>
       </div>
 
-      {/* Summary Table: Sales vs Purchases side by side (ex-VAT) */}
+      {/* Summary Table: Sales vs Purchases side by side */}
       <div className="grid md:grid-cols-2 gap-4">
         {/* Sales Summary */}
         <Card className="border-border/60 shadow-none">
