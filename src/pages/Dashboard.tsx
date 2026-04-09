@@ -315,25 +315,30 @@ export default function Dashboard() {
         .eq("status", "posted")
         .gte("expense_date", ys)
         .lte("expense_date", ye),
-      supabase.from("sales_returns").select("total").eq("status", "posted"),
-      supabase.from("purchase_returns").select("total").eq("status", "posted"),
+      supabase.from("sales_returns").select("total, return_date").eq("status", "posted")
+        .gte("return_date", ys).lte("return_date", ye),
+      supabase.from("purchase_returns").select("total, return_date").eq("status", "posted")
+        .gte("return_date", ys).lte("return_date", ye),
       supabase
         .from("inventory_movements")
-        .select("total_cost, movement_date")
-        .eq("movement_type", "sale")
+        .select("total_cost, movement_date, movement_type")
+        .in("movement_type", ["sale", "sale_return"])
         .gte("movement_date", ys)
         .lte("movement_date", ye),
     ]);
     const sales = sR.data || [];
     const purchases = pR.data || [];
     const expenses = eR.data || [];
+    const cogsMovements = cogsR.data || [];
     const sum = (a: any[]) => a.reduce((s, i) => s + Number(i.total || i.amount || 0), 0);
     setTotalSales(sum(sales));
     setTotalPurchases(sum(purchases));
     setTotalExpenses(sum(expenses));
     setTotalSalesReturns(sum(srR.data || []));
     setTotalPurchaseReturns(sum(prR.data || []));
-    setTotalCOGS((cogsR.data || []).reduce((s, i) => s + Number(i.total_cost || 0), 0));
+    const saleCost = cogsMovements.filter(m => m.movement_type === "sale").reduce((s, i) => s + Number(i.total_cost || 0), 0);
+    const returnCost = cogsMovements.filter(m => m.movement_type === "sale_return").reduce((s, i) => s + Number(i.total_cost || 0), 0);
+    setTotalCOGS(saleCost - returnCost);
     setCurrentMonthSales(
       sales
         .filter((i) => {
