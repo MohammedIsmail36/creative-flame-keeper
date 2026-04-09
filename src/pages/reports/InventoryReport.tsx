@@ -230,7 +230,7 @@ export default function InventoryReport() {
       if (!map[brand]) map[brand] = { name: brand, count: 0, qty: 0, purchaseValue: 0, sellingValue: 0, lowCount: 0 };
       map[brand].count++;
       map[brand].qty += Number(p.quantity_on_hand);
-      map[brand].purchaseValue += Number(p.quantity_on_hand) * Number(p.purchase_price);
+      map[brand].purchaseValue += Number(p.quantity_on_hand) * (avgCostMap.get(p.id) ?? Number(p.purchase_price));
       map[brand].sellingValue += Number(p.quantity_on_hand) * Number(p.selling_price);
       if (Number(p.quantity_on_hand) <= Number(p.min_stock_level) && p.is_active) map[brand].lowCount++;
     });
