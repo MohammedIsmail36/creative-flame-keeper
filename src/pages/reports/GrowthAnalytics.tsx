@@ -451,7 +451,7 @@ export default function GrowthAnalytics() {
       rows: rows.map((r) => [r[0], ...r.slice(1).map((v) => fmtN(Number(v)))]),
       summaryCards: [
         { label: "صافي المبيعات (قبل الضريبة)", value: fmtN(netSales) },
-        { label: "مرتجعات المبيعات", value: fmtN(totalSalesReturnsExVat) },
+        { label: "مرتجعات المبيعات", value: fmtN(totalSalesReturns) },
         { label: "تكلفة البضاعة المباعة", value: fmtN(cogs) },
         { label: "مجمل الربح", value: fmtN(grossProfit) },
         { label: "المصروفات التشغيلية", value: fmtN(totalExpenses) },
@@ -801,7 +801,7 @@ export default function GrowthAnalytics() {
               <tbody>
                 <tr className="border-b border-border/40">
                   <td className="px-5 py-3 text-muted-foreground">إجمالي المبيعات</td>
-                  <td className="px-5 py-3 text-left font-semibold">{fmt(totalSalesExVat)}</td>
+                  <td className="px-5 py-3 text-left font-semibold">{fmt(totalSales)}</td>
                   <td className="px-5 py-3 text-left text-xs text-muted-foreground">{salesData?.length ?? 0} فاتورة</td>
                 </tr>
                 <tr className="border-b border-border/40 bg-muted/30">
@@ -809,7 +809,7 @@ export default function GrowthAnalytics() {
                     <RotateCcw className="w-3.5 h-3.5 text-destructive" />
                     مرتجعات المبيعات
                   </td>
-                  <td className="px-5 py-3 text-left font-semibold text-destructive">({fmt(totalSalesReturnsExVat)})</td>
+                  <td className="px-5 py-3 text-left font-semibold text-destructive">({fmt(totalSalesReturns)})</td>
                   <td className="px-5 py-3 text-left text-xs text-muted-foreground">{salesReturnsData?.length ?? 0} مرتجع</td>
                 </tr>
                 <tr className="bg-success/5">
@@ -835,7 +835,7 @@ export default function GrowthAnalytics() {
               <tbody>
                 <tr className="border-b border-border/40">
                   <td className="px-5 py-3 text-muted-foreground">إجمالي المشتريات</td>
-                  <td className="px-5 py-3 text-left font-semibold">{fmt(totalPurchasesExVat)}</td>
+                  <td className="px-5 py-3 text-left font-semibold">{fmt(totalPurchases)}</td>
                   <td className="px-5 py-3 text-left text-xs text-muted-foreground">{purchasesData?.length ?? 0} فاتورة</td>
                 </tr>
                 <tr className="border-b border-border/40 bg-muted/30">
@@ -843,7 +843,7 @@ export default function GrowthAnalytics() {
                     <RotateCcw className="w-3.5 h-3.5 text-success" />
                     مرتجعات المشتريات
                   </td>
-                  <td className="px-5 py-3 text-left font-semibold text-success">({fmt(totalPurchaseReturnsExVat)})</td>
+                  <td className="px-5 py-3 text-left font-semibold text-success">({fmt(totalPurchaseReturns)})</td>
                   <td className="px-5 py-3 text-left text-xs text-muted-foreground">{purchaseReturnsData?.length ?? 0} مرتجع</td>
                 </tr>
                 <tr className="bg-primary/5">
