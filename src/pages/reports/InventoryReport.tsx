@@ -23,7 +23,7 @@ export default function InventoryReport() {
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "zero" | "active">("all");
 
   // ── Query: Products with brand & category ──
-  const { data: products = [], isLoading } = useQuery({
+  const { data: products = [], isLoading: loadingProducts } = useQuery({
     queryKey: ["inventory-report-products-v2"],
     queryFn: async () => {
       const { data, error } = await (supabase.from("products") as any)
@@ -34,6 +34,37 @@ export default function InventoryReport() {
     },
   });
 
+  // Fetch inventory movements to calculate weighted average cost
+  const { data: movements = [], isLoading: loadingMovements } = useQuery({
+    queryKey: ["inventory-report-movements"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inventory_movements")
+        .select("product_id, quantity, total_cost")
+        .in("movement_type", ["purchase", "opening_balance"]);
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const isLoading = loadingProducts || loadingMovements;
+
+  // Build avg cost map from movements
+  const avgCostMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const agg = new Map<string, { qty: number; cost: number }>();
+    movements.forEach((m: any) => {
+      const c = agg.get(m.product_id) || { qty: 0, cost: 0 };
+      c.qty += Number(m.quantity);
+      c.cost += Number(m.total_cost);
+      agg.set(m.product_id, c);
+    });
+    agg.forEach((v, pid) => {
+      map.set(pid, v.qty > 0 ? v.cost / v.qty : 0);
+    });
+    return map;
+  }, [movements]);
+
   // ── Filtered products ──
   const filtered = useMemo(() => {
     let list = products;
@@ -43,18 +74,21 @@ export default function InventoryReport() {
     return list;
   }, [products, stockFilter]);
 
-  // ── KPI (always from all active products) ──
+  // ── KPI (always from all active products, using weighted avg cost) ──
   const kpi = useMemo(() => {
     const active = products.filter(p => p.is_active);
     const totalItems = active.length;
     const totalQty = active.reduce((s, p) => s + Number(p.quantity_on_hand), 0);
-    const purchaseValue = active.reduce((s, p) => s + Number(p.quantity_on_hand) * Number(p.purchase_price), 0);
+    const purchaseValue = active.reduce((s, p) => {
+      const avgCost = avgCostMap.get(p.id) ?? Number(p.purchase_price);
+      return s + Number(p.quantity_on_hand) * avgCost;
+    }, 0);
     const sellingValue = active.reduce((s, p) => s + Number(p.quantity_on_hand) * Number(p.selling_price), 0);
     const expectedProfit = sellingValue - purchaseValue;
     const lowStock = active.filter(p => Number(p.quantity_on_hand) <= Number(p.min_stock_level) && Number(p.quantity_on_hand) > 0).length;
     const zeroStock = active.filter(p => Number(p.quantity_on_hand) === 0).length;
     return { totalItems, totalQty, purchaseValue, sellingValue, expectedProfit, lowStock, zeroStock };
-  }, [products]);
+  }, [products, avgCostMap]);
 
   // ═══ GROUPING: By Product (default) ═══
   const productColumns = useMemo<ColumnDef<any, any>[]>(() => [
@@ -92,8 +126,8 @@ export default function InventoryReport() {
     },
     {
       id: "purchase_price",
-      header: "سعر الشراء",
-      accessorFn: (r: any) => Number(r.purchase_price),
+      header: "متوسط سعر الشراء",
+      accessorFn: (r: any) => avgCostMap.get(r.id) ?? Number(r.purchase_price),
       cell: ({ getValue }) => fmt(getValue() as number),
     },
     {
@@ -105,10 +139,13 @@ export default function InventoryReport() {
     {
       id: "stock_value",
       header: "قيمة المخزون",
-      accessorFn: (r: any) => Number(r.quantity_on_hand) * Number(r.purchase_price),
+      accessorFn: (r: any) => Number(r.quantity_on_hand) * (avgCostMap.get(r.id) ?? Number(r.purchase_price)),
       cell: ({ getValue }) => <span className="font-mono">{fmt(getValue() as number)}</span>,
       footer: ({ table }) => {
-        const total = table.getFilteredRowModel().rows.reduce((s, r) => s + Number(r.original.quantity_on_hand) * Number(r.original.purchase_price), 0);
+        const total = table.getFilteredRowModel().rows.reduce((s, r) => {
+          const cost = avgCostMap.get(r.original.id) ?? Number(r.original.purchase_price);
+          return s + Number(r.original.quantity_on_hand) * cost;
+        }, 0);
         return <span className="font-bold font-mono">{fmt(total)}</span>;
       },
     },
@@ -123,7 +160,7 @@ export default function InventoryReport() {
         return <Badge variant="secondary">طبيعي</Badge>;
       },
     },
-  ], []);
+  ], [avgCostMap]);
 
   // ═══ GROUPING: By Category ═══
   const categoryData = useMemo(() => {
@@ -133,12 +170,12 @@ export default function InventoryReport() {
       if (!map[cat]) map[cat] = { name: cat, count: 0, qty: 0, purchaseValue: 0, sellingValue: 0, lowCount: 0 };
       map[cat].count++;
       map[cat].qty += Number(p.quantity_on_hand);
-      map[cat].purchaseValue += Number(p.quantity_on_hand) * Number(p.purchase_price);
+      map[cat].purchaseValue += Number(p.quantity_on_hand) * (avgCostMap.get(p.id) ?? Number(p.purchase_price));
       map[cat].sellingValue += Number(p.quantity_on_hand) * Number(p.selling_price);
       if (Number(p.quantity_on_hand) <= Number(p.min_stock_level) && p.is_active) map[cat].lowCount++;
     });
     return Object.values(map).sort((a, b) => b.purchaseValue - a.purchaseValue);
-  }, [filtered]);
+  }, [filtered, avgCostMap]);
 
   const categoryColumns = useMemo<ColumnDef<any, any>[]>(() => [
     { accessorKey: "name", header: "التصنيف", footer: () => <span className="font-bold">الإجمالي</span> },
@@ -193,12 +230,12 @@ export default function InventoryReport() {
       if (!map[brand]) map[brand] = { name: brand, count: 0, qty: 0, purchaseValue: 0, sellingValue: 0, lowCount: 0 };
       map[brand].count++;
       map[brand].qty += Number(p.quantity_on_hand);
-      map[brand].purchaseValue += Number(p.quantity_on_hand) * Number(p.purchase_price);
+      map[brand].purchaseValue += Number(p.quantity_on_hand) * (avgCostMap.get(p.id) ?? Number(p.purchase_price));
       map[brand].sellingValue += Number(p.quantity_on_hand) * Number(p.selling_price);
       if (Number(p.quantity_on_hand) <= Number(p.min_stock_level) && p.is_active) map[brand].lowCount++;
     });
     return Object.values(map).sort((a, b) => b.purchaseValue - a.purchaseValue);
-  }, [filtered]);
+  }, [filtered, avgCostMap]);
 
   // Brand uses same columns as category
   const brandColumns = categoryColumns;
@@ -207,11 +244,11 @@ export default function InventoryReport() {
   const chartData = useMemo(() => {
     if (groupBy === "product") {
       return [...filtered]
-        .sort((a, b) => (Number(b.quantity_on_hand) * Number(b.purchase_price)) - (Number(a.quantity_on_hand) * Number(a.purchase_price)))
+        .sort((a, b) => (Number(b.quantity_on_hand) * (avgCostMap.get(b.id) ?? Number(b.purchase_price))) - (Number(a.quantity_on_hand) * (avgCostMap.get(a.id) ?? Number(a.purchase_price))))
         .slice(0, 10)
         .map(p => ({
           name: p.name.length > 14 ? p.name.substring(0, 14) + "…" : p.name,
-          "قيمة المخزون": Number(p.quantity_on_hand) * Number(p.purchase_price),
+          "قيمة المخزون": Number(p.quantity_on_hand) * (avgCostMap.get(p.id) ?? Number(p.purchase_price)),
         }));
     }
     const data = groupBy === "category" ? categoryData : brandData;
@@ -219,7 +256,7 @@ export default function InventoryReport() {
       name: d.name.length > 14 ? d.name.substring(0, 14) + "…" : d.name,
       "قيمة المخزون": d.purchaseValue,
     }));
-  }, [groupBy, filtered, categoryData, brandData]);
+  }, [groupBy, filtered, categoryData, brandData, avgCostMap]);
 
   // ── Export config ──
   const exportConfig = useMemo(() => {
@@ -235,17 +272,18 @@ export default function InventoryReport() {
         filenamePrefix: "تقرير-المخزون",
         sheetName: "المخزون",
         pdfTitle: "تقرير المخزون",
-        headers: ["الكود", "المنتج", "التصنيف", "الكمية", "الحد الأدنى", "سعر الشراء", "سعر البيع", "قيمة المخزون", "الحالة"],
+        headers: ["الكود", "المنتج", "التصنيف", "الكمية", "الحد الأدنى", "متوسط سعر الشراء", "سعر البيع", "قيمة المخزون", "الحالة"],
         rows: filtered.map((p: any) => {
           const qty = Number(p.quantity_on_hand);
           const min = Number(p.min_stock_level);
+          const avgCost = avgCostMap.get(p.id) ?? Number(p.purchase_price);
           return [
             p.code,
             formatProductDisplay(p.name, p.product_brands?.name, p.model_number),
             p.product_categories?.name || "بدون تصنيف",
             qty, min,
-            Number(p.purchase_price), Number(p.selling_price),
-            qty * Number(p.purchase_price),
+            avgCost, Number(p.selling_price),
+            qty * avgCost,
             qty === 0 ? "نفد" : qty <= min ? "منخفض" : "طبيعي",
           ];
         }),

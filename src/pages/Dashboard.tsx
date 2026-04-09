@@ -272,29 +272,53 @@ export default function Dashboard() {
   const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
   const [topCategories, setTopCategories] = useState<TopCategory[]>([]);
   const [stagnantItems, setStagnantItems] = useState<StagnantItem[]>([]);
+  const [lastClosingDate, setLastClosingDate] = useState<string | null>(null);
 
+  // Fetch last fiscal year closing date first, then load everything
   useEffect(() => {
-    fetchKPIs().finally(() => setLoadingKPIs(false));
-    fetchSecondaryKPIs().finally(() => setLoadingSecondary(false));
-    fetchCharts().finally(() => setLoadingCharts(false));
-    Promise.all([fetchLiquidity(), fetchExpensesByType(), fetchRecentActivities()]).finally(() =>
-      setLoadingRight(false),
-    );
-    Promise.all([
-      fetchUnpaidInvoices(),
-      fetchTopProducts(),
-      fetchLowStock(),
-      fetchBalances(),
-      fetchTopCategories(),
-      fetchStagnantStock(),
-    ]).finally(() => setLoadingTables(false));
-  }, []);
+    (async () => {
+      let closingDate: string | null = null;
+      if (settings?.enable_fiscal_year_closing) {
+        const { data: closingEntries } = await supabase
+          .from("journal_entries")
+          .select("entry_date")
+          .like("description", "%قيد إقفال السنة المالية%")
+          .in("status", ["posted", "approved"])
+          .order("entry_date", { ascending: false })
+          .limit(1);
+        if (closingEntries && closingEntries.length > 0) {
+          closingDate = closingEntries[0].entry_date;
+          setLastClosingDate(closingDate);
+        }
+      }
+      // Now load data with the closing date awareness
+      fetchKPIs(closingDate).finally(() => setLoadingKPIs(false));
+      fetchSecondaryKPIs().finally(() => setLoadingSecondary(false));
+      fetchCharts(closingDate).finally(() => setLoadingCharts(false));
+      Promise.all([fetchLiquidity(), fetchExpensesByType(), fetchRecentActivities()]).finally(() =>
+        setLoadingRight(false),
+      );
+      Promise.all([
+        fetchUnpaidInvoices(),
+        fetchTopProducts(),
+        fetchLowStock(),
+        fetchBalances(),
+        fetchTopCategories(),
+        fetchStagnantStock(),
+      ]).finally(() => setLoadingTables(false));
+    })();
+  }, [settings?.enable_fiscal_year_closing]);
 
-  const fetchKPIs = async () => {
+  const fetchKPIs = async (closingDate?: string | null) => {
     const now = new Date();
     const cm = now.getMonth();
     const cy = now.getFullYear();
-    const ys = `${cy}-01-01`;
+    // If fiscal year closing exists, start from day after closing; otherwise Jan 1
+    const ys = closingDate ? (() => {
+      const d = new Date(closingDate);
+      d.setDate(d.getDate() + 1);
+      return d.toISOString().slice(0, 10);
+    })() : `${cy}-01-01`;
     const ye = `${cy}-12-31`;
     const [sR, pR, eR, srR, prR, cogsR] = await Promise.all([
       supabase
@@ -370,41 +394,65 @@ export default function Dashboard() {
   };
 
   const fetchSecondaryKPIs = async () => {
-    const [cR, sR, pR] = await Promise.all([
+    const [cR, sR, pR, movR] = await Promise.all([
       supabase.from("customers").select("balance"),
       supabase.from("suppliers").select("balance"),
-      supabase.from("products").select("quantity_on_hand, min_stock_level, purchase_price").eq("is_active", true),
+      supabase.from("products").select("id, quantity_on_hand, min_stock_level, purchase_price").eq("is_active", true),
+      // Fetch all purchase/opening movements to calculate weighted avg cost per product
+      supabase.from("inventory_movements").select("product_id, quantity, total_cost").in("movement_type", ["purchase", "opening_balance"]),
     ]);
     const products = pR.data || [];
+    const movements = movR.data || [];
     setReceivables((cR.data || []).filter((c) => Number(c.balance) > 0).reduce((s, c) => s + Number(c.balance), 0));
     setPayables((sR.data || []).filter((s) => Number(s.balance) > 0).reduce((s2, s) => s2 + Number(s.balance), 0));
-    setInventoryValue(products.reduce((s, p) => s + Number(p.quantity_on_hand) * Number(p.purchase_price), 0));
+    // Calculate inventory value using weighted average cost from movements
+    const avgCostMap = new Map<string, number>();
+    const prodMovements = new Map<string, { totalQty: number; totalCost: number }>();
+    movements.forEach((m: any) => {
+      const pid = m.product_id;
+      const c = prodMovements.get(pid) || { totalQty: 0, totalCost: 0 };
+      c.totalQty += Number(m.quantity);
+      c.totalCost += Number(m.total_cost);
+      prodMovements.set(pid, c);
+    });
+    prodMovements.forEach((v, pid) => {
+      avgCostMap.set(pid, v.totalQty > 0 ? v.totalCost / v.totalQty : 0);
+    });
+    setInventoryValue(products.reduce((s, p) => {
+      const avgCost = avgCostMap.get(p.id) ?? Number(p.purchase_price);
+      return s + Number(p.quantity_on_hand) * avgCost;
+    }, 0));
     setLowStockCount(
       products.filter((p) => Number(p.quantity_on_hand) <= Number(p.min_stock_level) && Number(p.min_stock_level) > 0)
         .length,
     );
   };
 
-  const fetchCharts = async () => {
+  const fetchCharts = async (closingDate?: string | null) => {
     const y = new Date().getFullYear();
+    const chartStart = closingDate ? (() => {
+      const d = new Date(closingDate);
+      d.setDate(d.getDate() + 1);
+      return d.toISOString().slice(0, 10);
+    })() : `${y}-01-01`;
     const [sR, pR, eR] = await Promise.all([
       supabase
         .from("sales_invoices")
         .select("invoice_date, total")
         .eq("status", "posted")
-        .gte("invoice_date", `${y}-01-01`)
+        .gte("invoice_date", chartStart)
         .lte("invoice_date", `${y}-12-31`),
       supabase
         .from("purchase_invoices")
         .select("invoice_date, total")
         .eq("status", "posted")
-        .gte("invoice_date", `${y}-01-01`)
+        .gte("invoice_date", chartStart)
         .lte("invoice_date", `${y}-12-31`),
       supabase
         .from("expenses")
         .select("expense_date, amount")
         .eq("status", "posted")
-        .gte("expense_date", `${y}-01-01`)
+        .gte("expense_date", chartStart)
         .lte("expense_date", `${y}-12-31`),
     ]);
     const m: MonthlyData[] = MONTH_NAMES.map((n) => ({ name: n, مبيعات: 0, مشتريات: 0 }));
