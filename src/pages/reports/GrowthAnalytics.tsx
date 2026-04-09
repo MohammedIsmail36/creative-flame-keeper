@@ -253,7 +253,10 @@ export default function GrowthAnalytics() {
     },
   });
 
-  // --- Calculations (all ex-VAT using subtotal) ---
+  // --- Calculations ---
+  // Use `total` to match journal entries (Income Statement source of truth)
+  // The posting engine records `total` as revenue, so we must use the same
+  // to ensure Growth Analytics matches the Income Statement exactly.
   const calcCogs = (data: any[] | null | undefined) => {
     if (!data) return 0;
     const saleCost = data.filter(d => d.movement_type === "sale").reduce((s, i) => s + Number(i.total_cost), 0);
@@ -261,30 +264,25 @@ export default function GrowthAnalytics() {
     return saleCost - returnCost;
   };
 
-  // Use subtotal (ex-VAT) for performance metrics
-  const totalSalesExVat = salesData?.reduce((s, i) => s + Number(i.subtotal), 0) ?? 0;
-  const prevTotalSalesExVat = prevSalesData?.reduce((s, i) => s + Number(i.subtotal), 0) ?? 0;
-  const totalSalesInclVat = salesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const totalSales = salesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const prevTotalSales = prevSalesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
   const totalSalesTax = salesData?.reduce((s, i) => s + Number(i.tax), 0) ?? 0;
   const totalPaidSales = salesData?.reduce((s, i) => s + Number(i.paid_amount), 0) ?? 0;
 
-  const totalSalesReturnsExVat = salesReturnsData?.reduce((s, i) => s + Number(i.subtotal), 0) ?? 0;
-  const prevTotalSalesReturnsExVat = prevSalesReturnsData?.reduce((s, i) => s + Number(i.subtotal), 0) ?? 0;
-  const totalSalesReturnsInclVat = salesReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const totalSalesReturns = salesReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const prevTotalSalesReturns = prevSalesReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
 
-  const netSales = totalSalesExVat - totalSalesReturnsExVat;
-  const prevNetSales = prevTotalSalesExVat - prevTotalSalesReturnsExVat;
+  const netSales = totalSales - totalSalesReturns;
+  const prevNetSales = prevTotalSales - prevTotalSalesReturns;
 
-  const totalPurchasesExVat = purchasesData?.reduce((s, i) => s + Number(i.subtotal), 0) ?? 0;
-  const prevTotalPurchasesExVat = prevPurchasesData?.reduce((s, i) => s + Number(i.subtotal), 0) ?? 0;
-  const totalPurchasesInclVat = purchasesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const totalPurchases = purchasesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const prevTotalPurchases = prevPurchasesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
 
-  const totalPurchaseReturnsExVat = purchaseReturnsData?.reduce((s, i) => s + Number(i.subtotal), 0) ?? 0;
-  const prevTotalPurchaseReturnsExVat = prevPurchaseReturnsData?.reduce((s, i) => s + Number(i.subtotal), 0) ?? 0;
-  const totalPurchaseReturnsInclVat = purchaseReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const totalPurchaseReturns = purchaseReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const prevTotalPurchaseReturns = prevPurchaseReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
 
-  const netPurchases = totalPurchasesExVat - totalPurchaseReturnsExVat;
-  const prevNetPurchases = prevTotalPurchasesExVat - prevTotalPurchaseReturnsExVat;
+  const netPurchases = totalPurchases - totalPurchaseReturns;
+  const prevNetPurchases = prevTotalPurchases - prevTotalPurchaseReturns;
 
   const totalExpenses = expensesData?.reduce((s, i) => s + Number(i.amount), 0) ?? 0;
   const prevTotalExpenses = prevExpensesData?.reduce((s, i) => s + Number(i.amount), 0) ?? 0;
@@ -293,7 +291,7 @@ export default function GrowthAnalytics() {
   const cogs = calcCogs(cogsData);
   const prevCogs = calcCogs(prevCogsData);
 
-  // Gross Profit = Net Sales (ex-VAT) - COGS
+  // Gross Profit = Net Sales - COGS (matches Income Statement)
   const grossProfit = netSales - cogs;
   const prevGrossProfit = prevNetSales - prevCogs;
   const grossMargin = netSales > 0 ? (grossProfit / netSales) * 100 : 0;
@@ -304,11 +302,11 @@ export default function GrowthAnalytics() {
   const netMargin = netSales > 0 ? (netProfit / netSales) * 100 : 0;
 
   // Ratios
-  const returnRate = totalSalesExVat > 0 ? (totalSalesReturnsExVat / totalSalesExVat) * 100 : 0;
+  const returnRate = totalSales > 0 ? (totalSalesReturns / totalSales) * 100 : 0;
   const expenseRate = netSales > 0 ? (totalExpenses / netSales) * 100 : 0;
-  const collectionRate = (netSales > 0 && totalPaidSales > 0) ? (totalPaidSales / (totalSalesInclVat - totalSalesReturnsInclVat)) * 100 : 0;
+  const collectionRate = (netSales > 0 && totalPaidSales > 0) ? (totalPaidSales / netSales) * 100 : 0;
 
-  const avgInvoice = salesData?.length ? totalSalesExVat / salesData.length : 0;
+  const avgInvoice = salesData?.length ? totalSales / salesData.length : 0;
 
   // Customer count in period
   const uniqueCustomerCount = useMemo(() => {
