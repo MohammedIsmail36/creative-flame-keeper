@@ -394,15 +394,34 @@ export default function Dashboard() {
   };
 
   const fetchSecondaryKPIs = async () => {
-    const [cR, sR, pR] = await Promise.all([
+    const [cR, sR, pR, movR] = await Promise.all([
       supabase.from("customers").select("balance"),
       supabase.from("suppliers").select("balance"),
-      supabase.from("products").select("quantity_on_hand, min_stock_level, purchase_price").eq("is_active", true),
+      supabase.from("products").select("id, quantity_on_hand, min_stock_level, purchase_price").eq("is_active", true),
+      // Fetch all purchase/opening movements to calculate weighted avg cost per product
+      supabase.from("inventory_movements").select("product_id, quantity, total_cost").in("movement_type", ["purchase", "opening_balance"]),
     ]);
     const products = pR.data || [];
+    const movements = movR.data || [];
     setReceivables((cR.data || []).filter((c) => Number(c.balance) > 0).reduce((s, c) => s + Number(c.balance), 0));
     setPayables((sR.data || []).filter((s) => Number(s.balance) > 0).reduce((s2, s) => s2 + Number(s.balance), 0));
-    setInventoryValue(products.reduce((s, p) => s + Number(p.quantity_on_hand) * Number(p.purchase_price), 0));
+    // Calculate inventory value using weighted average cost from movements
+    const avgCostMap = new Map<string, number>();
+    const prodMovements = new Map<string, { totalQty: number; totalCost: number }>();
+    movements.forEach((m: any) => {
+      const pid = m.product_id;
+      const c = prodMovements.get(pid) || { totalQty: 0, totalCost: 0 };
+      c.totalQty += Number(m.quantity);
+      c.totalCost += Number(m.total_cost);
+      prodMovements.set(pid, c);
+    });
+    prodMovements.forEach((v, pid) => {
+      avgCostMap.set(pid, v.totalQty > 0 ? v.totalCost / v.totalQty : 0);
+    });
+    setInventoryValue(products.reduce((s, p) => {
+      const avgCost = avgCostMap.get(p.id) ?? Number(p.purchase_price);
+      return s + Number(p.quantity_on_hand) * avgCost;
+    }, 0));
     setLowStockCount(
       products.filter((p) => Number(p.quantity_on_hand) <= Number(p.min_stock_level) && Number(p.min_stock_level) > 0)
         .length,
