@@ -272,29 +272,53 @@ export default function Dashboard() {
   const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
   const [topCategories, setTopCategories] = useState<TopCategory[]>([]);
   const [stagnantItems, setStagnantItems] = useState<StagnantItem[]>([]);
+  const [lastClosingDate, setLastClosingDate] = useState<string | null>(null);
 
+  // Fetch last fiscal year closing date first, then load everything
   useEffect(() => {
-    fetchKPIs().finally(() => setLoadingKPIs(false));
-    fetchSecondaryKPIs().finally(() => setLoadingSecondary(false));
-    fetchCharts().finally(() => setLoadingCharts(false));
-    Promise.all([fetchLiquidity(), fetchExpensesByType(), fetchRecentActivities()]).finally(() =>
-      setLoadingRight(false),
-    );
-    Promise.all([
-      fetchUnpaidInvoices(),
-      fetchTopProducts(),
-      fetchLowStock(),
-      fetchBalances(),
-      fetchTopCategories(),
-      fetchStagnantStock(),
-    ]).finally(() => setLoadingTables(false));
-  }, []);
+    (async () => {
+      let closingDate: string | null = null;
+      if (settings?.enable_fiscal_year_closing) {
+        const { data: closingEntries } = await supabase
+          .from("journal_entries")
+          .select("entry_date")
+          .like("description", "%قيد إقفال السنة المالية%")
+          .in("status", ["posted", "approved"])
+          .order("entry_date", { ascending: false })
+          .limit(1);
+        if (closingEntries && closingEntries.length > 0) {
+          closingDate = closingEntries[0].entry_date;
+          setLastClosingDate(closingDate);
+        }
+      }
+      // Now load data with the closing date awareness
+      fetchKPIs(closingDate).finally(() => setLoadingKPIs(false));
+      fetchSecondaryKPIs().finally(() => setLoadingSecondary(false));
+      fetchCharts(closingDate).finally(() => setLoadingCharts(false));
+      Promise.all([fetchLiquidity(), fetchExpensesByType(), fetchRecentActivities()]).finally(() =>
+        setLoadingRight(false),
+      );
+      Promise.all([
+        fetchUnpaidInvoices(),
+        fetchTopProducts(),
+        fetchLowStock(),
+        fetchBalances(),
+        fetchTopCategories(),
+        fetchStagnantStock(),
+      ]).finally(() => setLoadingTables(false));
+    })();
+  }, [settings?.enable_fiscal_year_closing]);
 
-  const fetchKPIs = async () => {
+  const fetchKPIs = async (closingDate?: string | null) => {
     const now = new Date();
     const cm = now.getMonth();
     const cy = now.getFullYear();
-    const ys = `${cy}-01-01`;
+    // If fiscal year closing exists, start from day after closing; otherwise Jan 1
+    const ys = closingDate ? (() => {
+      const d = new Date(closingDate);
+      d.setDate(d.getDate() + 1);
+      return d.toISOString().slice(0, 10);
+    })() : `${cy}-01-01`;
     const ye = `${cy}-12-31`;
     const [sR, pR, eR, srR, prR, cogsR] = await Promise.all([
       supabase
