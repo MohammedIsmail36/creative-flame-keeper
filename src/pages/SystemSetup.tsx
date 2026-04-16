@@ -1,6 +1,13 @@
 import { useState } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -27,6 +34,10 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+// ─── Edge function names ───
+const FN_SEED_SYSTEM = "seed-system";
+const FN_DATABASE_BACKUP = "database-backup";
+
 export default function SystemSetup() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -40,15 +51,23 @@ export default function SystemSetup() {
     setResults([]);
     setStatus("idle");
     try {
-      const { data, error } = await supabase.functions.invoke("seed-system");
+      const { data, error } = await supabase.functions.invoke(FN_SEED_SYSTEM);
       if (error) throw error;
       setResults(data.results || []);
       setStatus("success");
-      toast({ title: "تمت التهيئة بنجاح", description: "تم تطبيق الإعدادات الافتراضية للنظام" });
+      toast({
+        title: "تمت التهيئة بنجاح",
+        description: "تم تطبيق الإعدادات الافتراضية للنظام",
+      });
     } catch (error: any) {
+      console.error("Seed system error:", error.message);
       setStatus("error");
-      setResults([`خطأ: ${error.message}`]);
-      toast({ title: "خطأ في التهيئة", description: error.message, variant: "destructive" });
+      setResults(["خطأ: حدث خطأ أثناء تهيئة النظام. يرجى المحاولة مرة أخرى."]);
+      toast({
+        title: "خطأ في التهيئة",
+        description: "حدث خطأ أثناء تهيئة النظام. يرجى المحاولة مرة أخرى.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -58,7 +77,8 @@ export default function SystemSetup() {
     setResetLoading(true);
     setResetResults([]);
     try {
-      const { data, error } = await supabase.functions.invoke("database-backup");
+      const { data, error } =
+        await supabase.functions.invoke(FN_DATABASE_BACKUP);
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
@@ -67,14 +87,27 @@ export default function SystemSetup() {
 
       const hasErrors = results.some((r) => r.includes("❌"));
       if (hasErrors) {
-        toast({ title: "اكتمل التصفير مع بعض الأخطاء", description: "راجع التفاصيل أدناه", variant: "destructive" });
+        toast({
+          title: "اكتمل التصفير مع بعض الأخطاء",
+          description: "راجع التفاصيل أدناه",
+          variant: "destructive",
+        });
       } else {
-        toast({ title: "✅ تم التصفير بنجاح", description: "تم إعادة بناء قاعدة البيانات من الصفر" });
+        toast({
+          title: "✅ تم التصفير بنجاح",
+          description: "تم إعادة بناء قاعدة البيانات من الصفر",
+        });
       }
     } catch (error: any) {
-      const errMsg = error.message || "حدث خطأ غير متوقع";
+      console.error("Database reset error:", error.message);
+      const errMsg =
+        "حدث خطأ أثناء تصفير قاعدة البيانات. يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني.";
       setResetResults([`❌ ${errMsg}`]);
-      toast({ title: "خطأ في التصفير", description: errMsg, variant: "destructive" });
+      toast({
+        title: "خطأ في التصفير",
+        description: errMsg,
+        variant: "destructive",
+      });
     } finally {
       setResetLoading(false);
     }
@@ -82,20 +115,19 @@ export default function SystemSetup() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6" dir="rtl">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Settings2 className="w-6 h-6" />
-          إعداد النظام
-        </h1>
-        <p className="text-muted-foreground mt-1">تهيئة البيانات الأساسية وصيانة قاعدة البيانات</p>
-      </div>
+      <PageHeader
+        icon={Settings2}
+        title="إعداد النظام"
+        description="تهيئة البيانات الأساسية وصيانة قاعدة البيانات"
+      />
 
       {/* System Initialization */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">تهيئة البيانات الأساسية</CardTitle>
           <CardDescription>
-            إنشاء البيانات الافتراضية إذا لم تكن موجودة (آمن ولن يؤثر على البيانات الحالية)
+            إنشاء البيانات الافتراضية إذا لم تكن موجودة (آمن ولن يؤثر على
+            البيانات الحالية)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -105,7 +137,11 @@ export default function SystemSetup() {
               <div>
                 <p className="font-medium">حساب المدير الافتراضي</p>
                 <p className="text-sm text-muted-foreground">
-                  إنشاء حساب أدمن (<code className="text-xs bg-muted px-1 rounded">admin@system.com</code>)
+                  إنشاء حساب أدمن (
+                  <code className="text-xs bg-muted px-1 rounded">
+                    admin@system.com
+                  </code>
+                  )
                 </p>
               </div>
             </div>
@@ -119,7 +155,12 @@ export default function SystemSetup() {
             </div>
           </div>
 
-          <Button onClick={handleSeedSystem} disabled={loading} size="lg" className="w-full">
+          <Button
+            onClick={handleSeedSystem}
+            disabled={loading}
+            size="lg"
+            className="w-full"
+          >
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 ml-2 animate-spin" />
@@ -135,7 +176,10 @@ export default function SystemSetup() {
 
           {results.length > 0 && (
             <div className="space-y-2">
-              <Badge variant={status === "success" ? "default" : "destructive"} className="gap-1">
+              <Badge
+                variant={status === "success" ? "default" : "destructive"}
+                className="gap-1"
+              >
                 {status === "success" ? (
                   <CheckCircle2 className="w-3.5 h-3.5" />
                 ) : (
@@ -168,28 +212,36 @@ export default function SystemSetup() {
             تصفير قاعدة البيانات
           </CardTitle>
           <CardDescription>
-            حذف جميع البيانات بالكامل وإعادة بناء قاعدة البيانات من الصفر مع إنشاء شجرة الحسابات الافتراضية وحساب المدير
-            وإعدادات الشركة. هذا الإجراء لا يمكن التراجع عنه!
+            حذف جميع البيانات بالكامل وإعادة بناء قاعدة البيانات من الصفر مع
+            إنشاء شجرة الحسابات الافتراضية وحساب المدير وإعدادات الشركة. هذا
+            الإجراء لا يمكن التراجع عنه!
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm">
             <p className="font-medium text-destructive mb-1">⚠️ تحذير هام</p>
             <p className="text-muted-foreground">
-              سيتم حذف جميع البيانات بالكامل: المنتجات، العملاء، الموردين، الفواتير، المدفوعات، حركات المخزون، القيود،
-              شجرة الحسابات، المستخدمين، وإعدادات الشركة.
+              سيتم حذف جميع البيانات بالكامل: المنتجات، العملاء، الموردين،
+              الفواتير، المدفوعات، حركات المخزون، القيود، شجرة الحسابات،
+              المستخدمين، وإعدادات الشركة.
             </p>
             <p className="text-muted-foreground mt-1">
-              سيتم إعادة إنشاء: شجرة الحسابات الافتراضية (29 حساب) + حساب المدير (admin@system.com) + إعدادات الشركة.
+              سيتم إعادة إنشاء: شجرة الحسابات الافتراضية (29 حساب) + حساب المدير
+              (admin@system.com) + إعدادات الشركة.
             </p>
             <p className="text-amber-600 font-medium mt-2">
-              ⚠️ بعد اكتمال التصفير ستحتاج لتسجيل الدخول مجدداً بـ admin@system.com
+              ⚠️ بعد اكتمال التصفير ستحتاج لتسجيل الدخول مجدداً بـ
+              admin@system.com
             </p>
           </div>
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="w-full gap-2" disabled={resetLoading}>
+              <Button
+                variant="destructive"
+                className="w-full gap-2"
+                disabled={resetLoading}
+              >
                 {resetLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -205,10 +257,13 @@ export default function SystemSetup() {
             </AlertDialogTrigger>
             <AlertDialogContent dir="rtl">
               <AlertDialogHeader>
-                <AlertDialogTitle>⚠️ تأكيد تصفير قاعدة البيانات</AlertDialogTitle>
+                <AlertDialogTitle>
+                  ⚠️ تأكيد تصفير قاعدة البيانات
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  هل أنت متأكد من تصفير قاعدة البيانات بالكامل؟ سيتم حذف جميع البيانات والمستخدمين وإعادة بناء القاعدة
-                  من الصفر. لا يمكن التراجع عن هذا الإجراء.
+                  هل أنت متأكد من تصفير قاعدة البيانات بالكامل؟ سيتم حذف جميع
+                  البيانات والمستخدمين وإعادة بناء القاعدة من الصفر. لا يمكن
+                  التراجع عن هذا الإجراء.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="flex-row-reverse gap-2">

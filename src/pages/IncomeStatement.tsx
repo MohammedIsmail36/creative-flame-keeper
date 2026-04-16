@@ -1,14 +1,35 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Download, CalendarIcon, X, ArrowUpRight, ArrowDownRight, Scale, CheckCircle, AlertTriangle, Shield, FileBarChart, Info } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Download,
+  CalendarIcon,
+  X,
+  ArrowUpRight,
+  ArrowDownRight,
+  Scale,
+  CheckCircle,
+  AlertTriangle,
+  Shield,
+  FileBarChart,
+  Info,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FISCAL_CLOSING_DESCRIPTION_PREFIX } from "@/lib/constants";
 
 interface Account {
   id: string;
@@ -36,13 +57,27 @@ export default function IncomeStatement() {
   const fetchData = async () => {
     setLoading(true);
     const [accountsRes, linesRes] = await Promise.all([
-      supabase.from("accounts").select("id, code, name, account_type").eq("is_active", true).eq("is_parent", false).order("code"),
-      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entries!inner(entry_date, status, description)").in("journal_entries.status", ["posted", "approved"]),
+      supabase
+        .from("accounts")
+        .select("id, code, name, account_type")
+        .eq("is_active", true)
+        .eq("is_parent", false)
+        .order("code"),
+      supabase
+        .from("journal_entry_lines")
+        .select(
+          "account_id, debit, credit, journal_entries!inner(entry_date, status, description)",
+        )
+        .in("journal_entries.status", ["posted", "approved"]),
     ]);
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
     if (linesRes.data) setLines(linesRes.data);
     if (accountsRes.error || linesRes.error) {
-      toast({ title: "خطأ", description: "فشل في جلب البيانات", variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: "فشل في جلب البيانات",
+        variant: "destructive",
+      });
     }
 
     // Find last closing entry date if fiscal year closing is enabled
@@ -50,7 +85,7 @@ export default function IncomeStatement() {
       const { data: closingEntries } = await supabase
         .from("journal_entries")
         .select("entry_date")
-        .like("description", "%قيد إقفال السنة المالية%")
+        .like("description", `%${FISCAL_CLOSING_DESCRIPTION_PREFIX}%`)
         .in("status", ["posted", "approved"])
         .order("entry_date", { ascending: false })
         .limit(1);
@@ -63,196 +98,384 @@ export default function IncomeStatement() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  const { revenueRows, expenseRows, totalRevenue, totalExpenses, netIncome } = useMemo(() => {
-    let filtered = lines.filter((l: any) => {
-      const d = (l.journal_entries as any)?.entry_date;
-      if (!d) return false;
-      if (dateFrom && d < format(dateFrom, "yyyy-MM-dd")) return false;
-      if (dateTo && d > format(dateTo, "yyyy-MM-dd")) return false;
-      return true;
-    });
-
-    // If fiscal year closing is enabled and there's a closing entry,
-    // only show entries after the last closing date (exclude closing entry itself)
-    if (settings?.enable_fiscal_year_closing && lastClosingDate && !dateFrom) {
-      filtered = filtered.filter((l: any) => {
+  const { revenueRows, expenseRows, totalRevenue, totalExpenses, netIncome } =
+    useMemo(() => {
+      let filtered = lines.filter((l: any) => {
         const d = (l.journal_entries as any)?.entry_date;
-        const desc = (l.journal_entries as any)?.description || "";
-        if (desc.includes("قيد إقفال السنة المالية")) return false;
-        return d > lastClosingDate;
+        if (!d) return false;
+        if (dateFrom && d < format(dateFrom, "yyyy-MM-dd")) return false;
+        if (dateTo && d > format(dateTo, "yyyy-MM-dd")) return false;
+        return true;
       });
-    }
 
-    const totals = new Map<string, number>();
-    filtered.forEach((l: any) => {
-      const existing = totals.get(l.account_id) || 0;
-      const acc = accounts.find(a => a.id === l.account_id);
-      if (!acc) return;
-      if (acc.account_type === "revenue") {
-        totals.set(l.account_id, existing + (Number(l.credit) - Number(l.debit)));
-      } else if (acc.account_type === "expense") {
-        totals.set(l.account_id, existing + (Number(l.debit) - Number(l.credit)));
+      // If fiscal year closing is enabled and there's a closing entry,
+      // only show entries after the last closing date (exclude closing entry itself)
+      if (
+        settings?.enable_fiscal_year_closing &&
+        lastClosingDate &&
+        !dateFrom
+      ) {
+        filtered = filtered.filter((l: any) => {
+          const d = (l.journal_entries as any)?.entry_date;
+          const desc = (l.journal_entries as any)?.description || "";
+          if (desc.includes(FISCAL_CLOSING_DESCRIPTION_PREFIX)) return false;
+          return d > lastClosingDate;
+        });
       }
-    });
 
-    const revenueRows: IncomeRow[] = [];
-    const expenseRows: IncomeRow[] = [];
+      const totals = new Map<string, number>();
+      filtered.forEach((l: any) => {
+        const existing = totals.get(l.account_id) || 0;
+        const acc = accounts.find((a) => a.id === l.account_id);
+        if (!acc) return;
+        if (acc.account_type === "revenue") {
+          totals.set(
+            l.account_id,
+            existing + (Number(l.credit) - Number(l.debit)),
+          );
+        } else if (acc.account_type === "expense") {
+          totals.set(
+            l.account_id,
+            existing + (Number(l.debit) - Number(l.credit)),
+          );
+        }
+      });
 
-    accounts.forEach((acc) => {
-      const amount = totals.get(acc.id);
-      if (amount === undefined || amount === 0) return;
-      if (acc.account_type === "revenue") revenueRows.push({ account: acc, amount });
-      else if (acc.account_type === "expense") expenseRows.push({ account: acc, amount });
-    });
+      const revenueRows: IncomeRow[] = [];
+      const expenseRows: IncomeRow[] = [];
 
-    const totalRevenue = revenueRows.reduce((s, r) => s + r.amount, 0);
-    const totalExpenses = expenseRows.reduce((s, r) => s + r.amount, 0);
+      accounts.forEach((acc) => {
+        const amount = totals.get(acc.id);
+        if (amount === undefined || amount === 0) return;
+        if (acc.account_type === "revenue")
+          revenueRows.push({ account: acc, amount });
+        else if (acc.account_type === "expense")
+          expenseRows.push({ account: acc, amount });
+      });
 
-    return { revenueRows, expenseRows, totalRevenue, totalExpenses, netIncome: totalRevenue - totalExpenses };
-  }, [accounts, lines, dateFrom, dateTo, settings?.enable_fiscal_year_closing, lastClosingDate]);
+      const totalRevenue = revenueRows.reduce((s, r) => s + r.amount, 0);
+      const totalExpenses = expenseRows.reduce((s, r) => s + r.amount, 0);
+
+      return {
+        revenueRows,
+        expenseRows,
+        totalRevenue,
+        totalExpenses,
+        netIncome: totalRevenue - totalExpenses,
+      };
+    }, [
+      accounts,
+      lines,
+      dateFrom,
+      dateTo,
+      settings?.enable_fiscal_year_closing,
+      lastClosingDate,
+    ]);
 
   const profitMargin = totalRevenue > 0 ? (netIncome / totalRevenue) * 100 : 0;
-  const formatNum = (val: number) => Math.abs(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatNum = (val: number) =>
+    Math.abs(val).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   const formatCurrency = (val: number) => `${formatNum(val)} ${currency}`;
 
   const handleExportPDF = async () => {
     const { exportReportPdf } = await import("@/lib/pdf-arabic");
     const allRows: (string | number)[][] = [];
-    revenueRows.forEach((r) => allRows.push([r.account.code, r.account.name, "إيرادات", formatNum(r.amount)]));
+    revenueRows.forEach((r) =>
+      allRows.push([
+        r.account.code,
+        r.account.name,
+        "إيرادات",
+        formatNum(r.amount),
+      ]),
+    );
     allRows.push(["", "إجمالي الإيرادات", "", formatNum(totalRevenue)]);
-    expenseRows.forEach((r) => allRows.push([r.account.code, r.account.name, "مصروفات", formatNum(r.amount)]));
+    expenseRows.forEach((r) =>
+      allRows.push([
+        r.account.code,
+        r.account.name,
+        "مصروفات",
+        formatNum(r.amount),
+      ]),
+    );
     allRows.push(["", "إجمالي المصروفات", "", formatNum(totalExpenses)]);
-    allRows.push(["", netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", "", formatNum(netIncome)]);
+    allRows.push([
+      "",
+      netIncome >= 0 ? "صافي الربح" : "صافي الخسارة",
+      "",
+      formatNum(netIncome),
+    ]);
     await exportReportPdf({
-      title: "قائمة الدخل", settings,
+      title: "قائمة الدخل",
+      settings,
       headers: ["الكود", "الحساب", "النوع", `المبلغ (${currency})`],
       rows: allRows,
       summaryCards: [
         { label: "إجمالي الإيرادات", value: formatCurrency(totalRevenue) },
         { label: "إجمالي المصروفات", value: formatCurrency(totalExpenses) },
-        { label: netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", value: formatCurrency(Math.abs(netIncome)) },
+        {
+          label: netIncome >= 0 ? "صافي الربح" : "صافي الخسارة",
+          value: formatCurrency(Math.abs(netIncome)),
+        },
       ],
       filename: "Income_Statement",
     });
-    toast({ title: "تم التصدير", description: "تم تصدير قائمة الدخل بصيغة PDF" });
+    toast({
+      title: "تم التصدير",
+      description: "تم تصدير قائمة الدخل بصيغة PDF",
+    });
     setExportMenuOpen(false);
   };
 
   const handleExportExcel = async () => {
     const { exportToExcel } = await import("@/lib/excel-export");
     const data: any[] = [];
-    data.push({ "القسم": "الإيرادات", "الكود": "", "الحساب": "", "المبلغ": "" });
-    revenueRows.forEach((r) => data.push({ "القسم": "", "الكود": r.account.code, "الحساب": r.account.name, "المبلغ": r.amount }));
-    data.push({ "القسم": "", "الكود": "", "الحساب": "إجمالي الإيرادات", "المبلغ": totalRevenue });
-    data.push({ "القسم": "", "الكود": "", "الحساب": "", "المبلغ": "" });
-    data.push({ "القسم": "المصروفات", "الكود": "", "الحساب": "", "المبلغ": "" });
-    expenseRows.forEach((r) => data.push({ "القسم": "", "الكود": r.account.code, "الحساب": r.account.name, "المبلغ": r.amount }));
-    data.push({ "القسم": "", "الكود": "", "الحساب": "إجمالي المصروفات", "المبلغ": totalExpenses });
-    data.push({ "القسم": "", "الكود": "", "الحساب": "", "المبلغ": "" });
-    data.push({ "القسم": "", "الكود": "", "الحساب": netIncome >= 0 ? "صافي الربح" : "صافي الخسارة", "المبلغ": netIncome });
+    data.push({ القسم: "الإيرادات", الكود: "", الحساب: "", المبلغ: "" });
+    revenueRows.forEach((r) =>
+      data.push({
+        القسم: "",
+        الكود: r.account.code,
+        الحساب: r.account.name,
+        المبلغ: r.amount,
+      }),
+    );
+    data.push({
+      القسم: "",
+      الكود: "",
+      الحساب: "إجمالي الإيرادات",
+      المبلغ: totalRevenue,
+    });
+    data.push({ القسم: "", الكود: "", الحساب: "", المبلغ: "" });
+    data.push({ القسم: "المصروفات", الكود: "", الحساب: "", المبلغ: "" });
+    expenseRows.forEach((r) =>
+      data.push({
+        القسم: "",
+        الكود: r.account.code,
+        الحساب: r.account.name,
+        المبلغ: r.amount,
+      }),
+    );
+    data.push({
+      القسم: "",
+      الكود: "",
+      الحساب: "إجمالي المصروفات",
+      المبلغ: totalExpenses,
+    });
+    data.push({ القسم: "", الكود: "", الحساب: "", المبلغ: "" });
+    data.push({
+      القسم: "",
+      الكود: "",
+      الحساب: netIncome >= 0 ? "صافي الربح" : "صافي الخسارة",
+      المبلغ: netIncome,
+    });
     await exportToExcel(data, "Income Statement", "Income_Statement.xlsx");
-    toast({ title: "تم التصدير", description: "تم تصدير قائمة الدخل بصيغة Excel" });
+    toast({
+      title: "تم التصدير",
+      description: "تم تصدير قائمة الدخل بصيغة Excel",
+    });
     setExportMenuOpen(false);
   };
 
   return (
     <div className="space-y-8" dir="rtl">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary/10">
-            <FileBarChart className="h-7 w-7 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-extrabold text-foreground">قائمة الدخل</h1>
-            <p className="text-muted-foreground mt-1">بيان الإيرادات والمصروفات للفترة المحددة</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader
+        icon={FileBarChart}
+        title="قائمة الدخل"
+        description="بيان الإيرادات والمصروفات للفترة المحددة"
+        actions={<>
           {/* Date filter */}
           <div className="flex items-center gap-2 bg-card p-1.5 rounded-xl border shadow-sm">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" className={cn("gap-2 text-sm", !dateFrom && "text-muted-foreground")}>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "gap-2 text-sm",
+                    !dateFrom && "text-muted-foreground",
+                  )}
+                >
                   <CalendarIcon className="h-4 w-4" />
                   {dateFrom ? format(dateFrom, "yyyy-MM-dd") : "من تاريخ"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
+                <Calendar
+                  mode="single"
+                  selected={dateFrom}
+                  onSelect={setDateFrom}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
               </PopoverContent>
             </Popover>
             <span className="text-xs text-muted-foreground">إلى</span>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" className={cn("gap-2 text-sm", !dateTo && "text-muted-foreground")}>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "gap-2 text-sm",
+                    !dateTo && "text-muted-foreground",
+                  )}
+                >
                   <CalendarIcon className="h-4 w-4" />
                   {dateTo ? format(dateTo, "yyyy-MM-dd") : "إلى تاريخ"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
+                <Calendar
+                  mode="single"
+                  selected={dateTo}
+                  onSelect={setDateTo}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
               </PopoverContent>
             </Popover>
             {(dateFrom || dateTo) && (
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  setDateFrom(undefined);
+                  setDateTo(undefined);
+                }}
+                aria-label="مسح التاريخ"
+              >
                 <X className="h-3.5 w-3.5" />
               </Button>
             )}
           </div>
           {/* Export */}
           <div className="relative">
-            <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
+            <Button
+              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
+              onClick={() => setExportMenuOpen(!exportMenuOpen)}
+            >
               <Download className="h-4 w-4" />
               تصدير
             </Button>
             {exportMenuOpen && (
               <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-xl shadow-lg p-1 min-w-[140px]">
-                <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors">PDF تصدير</button>
-                <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors">Excel تصدير</button>
+                <button
+                  onClick={handleExportPDF}
+                  className="w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors"
+                >
+                  PDF تصدير
+                </button>
+                <button
+                  onClick={handleExportExcel}
+                  className="w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors"
+                >
+                  Excel تصدير
+                </button>
               </div>
             )}
           </div>
-        </div>
-      </div>
+        </>}
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KpiCard icon={<ArrowUpRight className="h-5 w-5" />} iconBg="bg-emerald-500/10 text-emerald-600" label="إجمالي الإيرادات" value={formatCurrency(totalRevenue)} />
-        <KpiCard icon={<ArrowDownRight className="h-5 w-5" />} iconBg="bg-red-500/10 text-red-600" label="إجمالي المصروفات" value={formatCurrency(totalExpenses)} />
-        <KpiCard icon={netIncome >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />} iconBg={cn(netIncome >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600")} label={netIncome >= 0 ? "صافي الربح" : "صافي الخسارة"} value={formatCurrency(netIncome)} />
-        <KpiCard icon={<Scale className="h-5 w-5" />} iconBg="bg-blue-500/10 text-blue-600" label="هامش الربح" value={`${profitMargin.toFixed(1)}%`} />
+        <KpiCard
+          icon={<ArrowUpRight className="h-5 w-5" />}
+          iconBg="bg-emerald-500/10 text-emerald-600"
+          label="إجمالي الإيرادات"
+          value={formatCurrency(totalRevenue)}
+        />
+        <KpiCard
+          icon={<ArrowDownRight className="h-5 w-5" />}
+          iconBg="bg-red-500/10 text-red-600"
+          label="إجمالي المصروفات"
+          value={formatCurrency(totalExpenses)}
+        />
+        <KpiCard
+          icon={
+            netIncome >= 0 ? (
+              <TrendingUp className="h-5 w-5" />
+            ) : (
+              <TrendingDown className="h-5 w-5" />
+            )
+          }
+          iconBg={cn(
+            netIncome >= 0
+              ? "bg-emerald-500/10 text-emerald-600"
+              : "bg-red-500/10 text-red-600",
+          )}
+          label={netIncome >= 0 ? "صافي الربح" : "صافي الخسارة"}
+          value={formatCurrency(netIncome)}
+        />
+        <KpiCard
+          icon={<Scale className="h-5 w-5" />}
+          iconBg="bg-blue-500/10 text-blue-600"
+          label="هامش الربح"
+          value={`${profitMargin.toFixed(1)}%`}
+        />
       </div>
 
       {/* Net Income Indicator Bar */}
       <div className="bg-card p-4 rounded-xl flex items-center justify-center gap-8 border shadow-sm">
         <div className="text-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest">إجمالي الإيرادات</p>
-          <p className="text-xl font-bold text-foreground">{formatCurrency(totalRevenue)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">
+            إجمالي الإيرادات
+          </p>
+          <p className="text-xl font-bold text-foreground">
+            {formatCurrency(totalRevenue)}
+          </p>
         </div>
         <div className="text-center px-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest">−</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">
+            −
+          </p>
           <p className="text-xl font-bold text-foreground">−</p>
         </div>
         <div className="text-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest">إجمالي المصروفات</p>
-          <p className="text-xl font-bold text-foreground">{formatCurrency(totalExpenses)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">
+            إجمالي المصروفات
+          </p>
+          <p className="text-xl font-bold text-foreground">
+            {formatCurrency(totalExpenses)}
+          </p>
         </div>
         <div className="text-center px-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest">=</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">
+            =
+          </p>
           <p className="text-xl font-bold text-foreground">=</p>
         </div>
         <div className="text-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest">{netIncome >= 0 ? "صافي الربح" : "صافي الخسارة"}</p>
-          <p className={cn("text-xl font-bold", netIncome >= 0 ? "text-emerald-600" : "text-destructive")}>{formatCurrency(netIncome)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">
+            {netIncome >= 0 ? "صافي الربح" : "صافي الخسارة"}
+          </p>
+          <p
+            className={cn(
+              "text-xl font-bold",
+              netIncome >= 0 ? "text-emerald-600" : "text-destructive",
+            )}
+          >
+            {formatCurrency(netIncome)}
+          </p>
         </div>
-        <div className={cn(
-          "hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold",
-          netIncome >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive"
-        )}>
-          {netIncome >= 0 ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+        <div
+          className={cn(
+            "hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold",
+            netIncome >= 0
+              ? "bg-emerald-500/10 text-emerald-600"
+              : "bg-destructive/10 text-destructive",
+          )}
+        >
+          {netIncome >= 0 ? (
+            <CheckCircle className="h-3.5 w-3.5" />
+          ) : (
+            <AlertTriangle className="h-3.5 w-3.5" />
+          )}
           {netIncome >= 0 ? "ربح" : "خسارة"}
         </div>
       </div>
@@ -262,13 +485,18 @@ export default function IncomeStatement() {
         <Alert className="border-blue-500/30 bg-blue-500/5">
           <Info className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-sm text-blue-700 dark:text-blue-400">
-            البيانات المعروضة للفترة الجارية فقط بعد آخر إقفال بتاريخ <span className="font-bold">{lastClosingDate}</span>
+            البيانات المعروضة للفترة الجارية فقط بعد آخر إقفال بتاريخ{" "}
+            <span className="font-bold">{lastClosingDate}</span>
           </AlertDescription>
         </Alert>
       )}
 
       {loading ? (
-        <div className="p-12 text-center text-muted-foreground">جاري التحميل...</div>
+        <div className="p-6 space-y-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-full" />
+          ))}
+        </div>
       ) : (
         /* Two Column Layout */
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -282,20 +510,33 @@ export default function IncomeStatement() {
             </div>
             <div className="p-6">
               {revenueRows.length === 0 ? (
-                <p className="text-center text-muted-foreground text-sm py-8">لا توجد إيرادات</p>
+                <p className="text-center text-muted-foreground text-sm py-8">
+                  لا توجد إيرادات
+                </p>
               ) : (
                 <div className="space-y-4">
                   {revenueRows.map((row) => (
-                    <div key={row.account.id} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{row.account.name}</span>
-                      <span className="font-medium text-emerald-600 font-mono">{formatCurrency(row.amount)}</span>
+                    <div
+                      key={row.account.id}
+                      className="flex justify-between text-sm"
+                    >
+                      <span className="text-muted-foreground">
+                        {row.account.name}
+                      </span>
+                      <span className="font-medium text-emerald-600 font-mono">
+                        {formatCurrency(row.amount)}
+                      </span>
                     </div>
                   ))}
                 </div>
               )}
               <div className="mt-8 pt-4 border-t-2 flex justify-between items-center">
-                <span className="font-bold text-foreground">إجمالي الإيرادات</span>
-                <span className="text-lg font-black text-emerald-600 font-mono">{formatCurrency(totalRevenue)}</span>
+                <span className="font-bold text-foreground">
+                  إجمالي الإيرادات
+                </span>
+                <span className="text-lg font-black text-emerald-600 font-mono">
+                  {formatCurrency(totalRevenue)}
+                </span>
               </div>
             </div>
           </div>
@@ -310,38 +551,62 @@ export default function IncomeStatement() {
             </div>
             <div className="p-6">
               {expenseRows.length === 0 ? (
-                <p className="text-center text-muted-foreground text-sm py-8">لا توجد مصروفات</p>
+                <p className="text-center text-muted-foreground text-sm py-8">
+                  لا توجد مصروفات
+                </p>
               ) : (
                 <div className="space-y-4">
                   {expenseRows.map((row) => (
-                    <div key={row.account.id} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{row.account.name}</span>
-                      <span className="font-medium text-red-600 font-mono">{formatCurrency(row.amount)}</span>
+                    <div
+                      key={row.account.id}
+                      className="flex justify-between text-sm"
+                    >
+                      <span className="text-muted-foreground">
+                        {row.account.name}
+                      </span>
+                      <span className="font-medium text-red-600 font-mono">
+                        {formatCurrency(row.amount)}
+                      </span>
                     </div>
                   ))}
                 </div>
               )}
               <div className="mt-8 pt-4 border-t-2 flex justify-between items-center">
-                <span className="font-bold text-foreground">إجمالي المصروفات</span>
-                <span className="text-lg font-black text-red-600 font-mono">{formatCurrency(totalExpenses)}</span>
+                <span className="font-bold text-foreground">
+                  إجمالي المصروفات
+                </span>
+                <span className="text-lg font-black text-red-600 font-mono">
+                  {formatCurrency(totalExpenses)}
+                </span>
               </div>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
 
-function KpiCard({ icon, iconBg, label, value }: { icon: React.ReactNode; iconBg: string; label: string; value: string }) {
+function KpiCard({
+  icon,
+  iconBg,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="bg-card p-6 rounded-xl shadow-sm border">
       <div className="flex justify-between items-start mb-4">
         <div className={cn("p-2 rounded-lg", iconBg)}>{icon}</div>
       </div>
       <p className="text-sm text-muted-foreground font-medium">{label}</p>
-      <h3 className="text-2xl font-black text-foreground mt-1 font-mono">{value}</h3>
+      <h3 className="text-2xl font-black text-foreground mt-1 font-mono">
+        {value}
+      </h3>
     </div>
   );
 }

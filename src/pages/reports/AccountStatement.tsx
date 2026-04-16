@@ -1,9 +1,23 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
+import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/DatePickerInput";
@@ -36,9 +50,14 @@ interface AccountStatementProps {
   defaultEntityId?: string;
 }
 
-export default function AccountStatement({ defaultEntityType, defaultEntityId }: AccountStatementProps = {}) {
+export default function AccountStatement({
+  defaultEntityType,
+  defaultEntityId,
+}: AccountStatementProps = {}) {
   const { formatCurrency, settings } = useSettings();
-  const [entityType, setEntityType] = useState<EntityType>(defaultEntityType || "customer");
+  const [entityType, setEntityType] = useState<EntityType>(
+    defaultEntityType || "customer",
+  );
   const [entities, setEntities] = useState<Entity[]>([]);
   const [selectedEntity, setSelectedEntity] = useState(defaultEntityId || "");
   const [dateFrom, setDateFrom] = useState("");
@@ -78,16 +97,17 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
     if (!selectedEntity) return;
     setLoading(true);
 
-    const entity = entities.find(e => e.id === selectedEntity);
+    const entity = entities.find((e) => e.id === selectedEntity);
     setEntityName(entity?.name || "");
 
     const allLines: StatementLine[] = [];
 
     if (entityType === "customer") {
       // Sales invoices
+      const salesPrefix = settings?.sales_invoice_prefix || "INV-";
       let q = supabase
         .from("sales_invoices")
-        .select("invoice_number, invoice_date, total, status")
+        .select("invoice_number, posted_number, invoice_date, total, status")
         .eq("customer_id", selectedEntity)
         .eq("status", "posted")
         .order("invoice_date");
@@ -95,11 +115,16 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
       if (dateTo) q = q.lte("invoice_date", dateTo);
       const { data: invoices } = await q;
 
-      (invoices || []).forEach(inv => {
+      (invoices || []).forEach((inv: any) => {
         allLines.push({
           date: inv.invoice_date,
           type: "فاتورة مبيعات",
-          reference: `#${inv.invoice_number}`,
+          reference: formatDisplayNumber(
+            salesPrefix,
+            inv.posted_number,
+            inv.invoice_number,
+            inv.status,
+          ),
           description: "فاتورة مبيعات",
           debit: Number(inv.total),
           credit: 0,
@@ -108,9 +133,10 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
       });
 
       // Sales returns
+      const salesReturnPrefix = settings?.sales_return_prefix || "SRN-";
       let qr = supabase
         .from("sales_returns")
-        .select("return_number, return_date, total, status")
+        .select("return_number, posted_number, return_date, total, status")
         .eq("customer_id", selectedEntity)
         .eq("status", "posted")
         .order("return_date");
@@ -118,11 +144,16 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
       if (dateTo) qr = qr.lte("return_date", dateTo);
       const { data: returns } = await qr;
 
-      (returns || []).forEach(ret => {
+      (returns || []).forEach((ret: any) => {
         allLines.push({
           date: ret.return_date,
           type: "مرتجع مبيعات",
-          reference: `#${ret.return_number}`,
+          reference: formatDisplayNumber(
+            salesReturnPrefix,
+            ret.posted_number,
+            ret.return_number,
+            ret.status,
+          ),
           description: "مرتجع مبيعات",
           debit: 0,
           credit: Number(ret.total),
@@ -131,9 +162,12 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
       });
 
       // Customer payments
+      const custPayPrefix = settings?.customer_payment_prefix || "CPV-";
       let qp = supabase
         .from("customer_payments")
-        .select("id, payment_number, payment_date, amount, status")
+        .select(
+          "id, payment_number, posted_number, payment_date, amount, status",
+        )
         .eq("customer_id", selectedEntity)
         .eq("status", "posted")
         .order("payment_date");
@@ -149,7 +183,9 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
           .from("sales_return_payment_allocations")
           .select("payment_id")
           .in("payment_id", custPaymentIds);
-        custRefundIds = new Set((returnAllocs || []).map((a: any) => a.payment_id));
+        custRefundIds = new Set(
+          (returnAllocs || []).map((a: any) => a.payment_id),
+        );
       }
 
       (payments || []).forEach((pay: any) => {
@@ -157,7 +193,12 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
         allLines.push({
           date: pay.payment_date,
           type: isRefund ? "رد مبلغ لعميل" : "سند قبض",
-          reference: `#${pay.payment_number}`,
+          reference: formatDisplayNumber(
+            custPayPrefix,
+            pay.posted_number,
+            pay.payment_number,
+            pay.status,
+          ),
           description: isRefund ? "رد مبلغ مرتجع للعميل" : "تحصيل من العميل",
           debit: isRefund ? Number(pay.amount) : 0,
           credit: isRefund ? 0 : Number(pay.amount),
@@ -166,9 +207,10 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
       });
     } else {
       // Purchase invoices
+      const purchasePrefix = settings?.purchase_invoice_prefix || "PUR-";
       let q = supabase
         .from("purchase_invoices")
-        .select("invoice_number, invoice_date, total, status")
+        .select("invoice_number, posted_number, invoice_date, total, status")
         .eq("supplier_id", selectedEntity)
         .eq("status", "posted")
         .order("invoice_date");
@@ -176,11 +218,16 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
       if (dateTo) q = q.lte("invoice_date", dateTo);
       const { data: invoices } = await q;
 
-      (invoices || []).forEach(inv => {
+      (invoices || []).forEach((inv: any) => {
         allLines.push({
           date: inv.invoice_date,
           type: "فاتورة مشتريات",
-          reference: `#${inv.invoice_number}`,
+          reference: formatDisplayNumber(
+            purchasePrefix,
+            inv.posted_number,
+            inv.invoice_number,
+            inv.status,
+          ),
           description: "فاتورة مشتريات",
           debit: 0,
           credit: Number(inv.total),
@@ -189,9 +236,10 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
       });
 
       // Purchase returns
+      const purchaseReturnPrefix = settings?.purchase_return_prefix || "PRN-";
       let qr = supabase
         .from("purchase_returns")
-        .select("return_number, return_date, total, status")
+        .select("return_number, posted_number, return_date, total, status")
         .eq("supplier_id", selectedEntity)
         .eq("status", "posted")
         .order("return_date");
@@ -199,11 +247,16 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
       if (dateTo) qr = qr.lte("return_date", dateTo);
       const { data: returns } = await qr;
 
-      (returns || []).forEach(ret => {
+      (returns || []).forEach((ret: any) => {
         allLines.push({
           date: ret.return_date,
           type: "مرتجع مشتريات",
-          reference: `#${ret.return_number}`,
+          reference: formatDisplayNumber(
+            purchaseReturnPrefix,
+            ret.posted_number,
+            ret.return_number,
+            ret.status,
+          ),
           description: "مرتجع مشتريات",
           debit: Number(ret.total),
           credit: 0,
@@ -212,9 +265,12 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
       });
 
       // Supplier payments
+      const supPayPrefix = settings?.supplier_payment_prefix || "SPV-";
       let qp = supabase
         .from("supplier_payments")
-        .select("id, payment_number, payment_date, amount, status")
+        .select(
+          "id, payment_number, posted_number, payment_date, amount, status",
+        )
         .eq("supplier_id", selectedEntity)
         .eq("status", "posted")
         .order("payment_date");
@@ -230,7 +286,9 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
           .from("purchase_return_payment_allocations")
           .select("payment_id")
           .in("payment_id", supPaymentIds);
-        supRefundIds = new Set((returnAllocs || []).map((a: any) => a.payment_id));
+        supRefundIds = new Set(
+          (returnAllocs || []).map((a: any) => a.payment_id),
+        );
       }
 
       (payments || []).forEach((pay: any) => {
@@ -238,7 +296,12 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
         allLines.push({
           date: pay.payment_date,
           type: isRefund ? "مبلغ مسترد من مورد" : "سند صرف",
-          reference: `#${pay.payment_number}`,
+          reference: formatDisplayNumber(
+            supPayPrefix,
+            pay.posted_number,
+            pay.payment_number,
+            pay.status,
+          ),
           description: isRefund ? "استلام مبلغ مرتجع من المورد" : "دفعة للمورد",
           debit: isRefund ? 0 : Number(pay.amount),
           credit: isRefund ? Number(pay.amount) : 0,
@@ -252,7 +315,7 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
 
     // Calculate running balance
     let balance = 0;
-    allLines.forEach(line => {
+    allLines.forEach((line) => {
       balance += line.debit - line.credit;
       line.runningBalance = balance;
     });
@@ -269,10 +332,23 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
     exportToExcel({
       filename: `كشف_حساب_${entityName}`,
       sheetName: "كشف حساب",
-      headers: ["التاريخ", "النوع", "المرجع", "البيان", "مدين", "دائن", "الرصيد"],
-      rows: lines.map(l => [
-        l.date, l.type, l.reference, l.description,
-        l.debit || "", l.credit || "", l.runningBalance,
+      headers: [
+        "التاريخ",
+        "النوع",
+        "المرجع",
+        "البيان",
+        "مدين",
+        "دائن",
+        "الرصيد",
+      ],
+      rows: lines.map((l) => [
+        l.date,
+        l.type,
+        l.reference,
+        l.description,
+        l.debit || "",
+        l.credit || "",
+        l.runningBalance,
       ]),
     });
   };
@@ -281,17 +357,36 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
     await exportReportPdf({
       title: `كشف حساب: ${entityName}`,
       settings,
-      headers: ["التاريخ", "النوع", "المرجع", "البيان", "مدين", "دائن", "الرصيد"],
-      rows: lines.map(l => [
-        l.date, l.type, l.reference, l.description,
+      headers: [
+        "التاريخ",
+        "النوع",
+        "المرجع",
+        "البيان",
+        "مدين",
+        "دائن",
+        "الرصيد",
+      ],
+      rows: lines.map((l) => [
+        l.date,
+        l.type,
+        l.reference,
+        l.description,
         l.debit ? formatCurrency(l.debit) : "-",
         l.credit ? formatCurrency(l.credit) : "-",
-        l.runningBalance >= 0 ? formatCurrency(l.runningBalance) : `(${formatCurrency(Math.abs(l.runningBalance))})`,
+        l.runningBalance >= 0
+          ? formatCurrency(l.runningBalance)
+          : `(${formatCurrency(Math.abs(l.runningBalance))})`,
       ]),
       summaryCards: [
         { label: "إجمالي المدين", value: formatCurrency(totalDebit) },
         { label: "إجمالي الدائن", value: formatCurrency(totalCredit) },
-        { label: "الرصيد النهائي", value: finalBalance >= 0 ? formatCurrency(finalBalance) : `(${formatCurrency(Math.abs(finalBalance))})` },
+        {
+          label: "الرصيد النهائي",
+          value:
+            finalBalance >= 0
+              ? formatCurrency(finalBalance)
+              : `(${formatCurrency(Math.abs(finalBalance))})`,
+        },
       ],
       orientation: "landscape",
       filename: `كشف_حساب_${entityName}`,
@@ -306,34 +401,66 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
             <div>
               <Label className="text-xs">نوع الحساب</Label>
-              <Select value={entityType} onValueChange={(v) => setEntityType(v as EntityType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={entityType}
+                onValueChange={(v) => setEntityType(v as EntityType)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="customer"><span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" />عميل</span></SelectItem>
-                  <SelectItem value="supplier"><span className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" />مورد</span></SelectItem>
+                  <SelectItem value="customer">
+                    <span className="flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5" />
+                      عميل
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="supplier">
+                    <span className="flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5" />
+                      مورد
+                    </span>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-xs">{entityType === "customer" ? "العميل" : "المورد"}</Label>
+              <Label className="text-xs">
+                {entityType === "customer" ? "العميل" : "المورد"}
+              </Label>
               <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-                <SelectTrigger><SelectValue placeholder="اختر..." /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر..." />
+                </SelectTrigger>
                 <SelectContent>
-                  {entities.map(e => (
-                    <SelectItem key={e.id} value={e.id}>{e.code} - {e.name}</SelectItem>
+                  {entities.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.code} - {e.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label className="text-xs">من تاريخ</Label>
-              <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" />
+              <DatePickerInput
+                value={dateFrom}
+                onChange={setDateFrom}
+                placeholder="من تاريخ"
+              />
             </div>
             <div>
               <Label className="text-xs">إلى تاريخ</Label>
-              <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" />
+              <DatePickerInput
+                value={dateTo}
+                onChange={setDateTo}
+                placeholder="إلى تاريخ"
+              />
             </div>
-            <Button onClick={fetchStatement} disabled={!selectedEntity || loading}>
+            <Button
+              onClick={fetchStatement}
+              disabled={!selectedEntity || loading}
+            >
               {loading ? "جاري التحميل..." : "عرض الكشف"}
             </Button>
           </div>
@@ -348,20 +475,28 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
             <Card>
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">إجمالي المدين</p>
-                <p className="text-xl font-bold text-primary">{formatCurrency(totalDebit)}</p>
+                <p className="text-xl font-bold text-primary">
+                  {formatCurrency(totalDebit)}
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">إجمالي الدائن</p>
-                <p className="text-xl font-bold text-warning">{formatCurrency(totalCredit)}</p>
+                <p className="text-xl font-bold text-warning">
+                  {formatCurrency(totalCredit)}
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">الرصيد النهائي</p>
-                <p className={`text-xl font-bold ${finalBalance >= 0 ? "text-success" : "text-destructive"}`}>
-                  {finalBalance >= 0 ? formatCurrency(finalBalance) : `(${formatCurrency(Math.abs(finalBalance))})`}
+                <p
+                  className={`text-xl font-bold ${finalBalance >= 0 ? "text-success" : "text-destructive"}`}
+                >
+                  {finalBalance >= 0
+                    ? formatCurrency(finalBalance)
+                    : `(${formatCurrency(Math.abs(finalBalance))})`}
                 </p>
               </CardContent>
             </Card>
@@ -370,17 +505,21 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
           {/* Export buttons */}
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleExportExcel}>
-              <FileSpreadsheet className="w-4 h-4 ml-1" />Excel
+              <FileSpreadsheet className="w-4 h-4 ml-1" />
+              Excel
             </Button>
             <Button variant="outline" size="sm" onClick={handleExportPdf}>
-              <FileDown className="w-4 h-4 ml-1" />PDF
+              <FileDown className="w-4 h-4 ml-1" />
+              PDF
             </Button>
           </div>
 
           {/* Table */}
           <Card>
             <CardHeader className="py-3 border-b bg-muted/30">
-              <CardTitle className="text-base">كشف حساب: {entityName}</CardTitle>
+              <CardTitle className="text-base">
+                كشف حساب: {entityName}
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -398,24 +537,48 @@ export default function AccountStatement({ defaultEntityType, defaultEntityId }:
                 <TableBody>
                   {lines.map((line, i) => (
                     <TableRow key={i}>
-                      <TableCell className="text-sm">{line.date}</TableCell>
+                      <TableCell className="text-sm">
+                        {new Date(line.date).toLocaleDateString("en-GB")}
+                      </TableCell>
                       <TableCell className="text-sm">{line.type}</TableCell>
-                      <TableCell className="text-sm font-mono">{line.reference}</TableCell>
-                      <TableCell className="text-sm">{line.description}</TableCell>
-                      <TableCell className="text-sm">{line.debit ? formatCurrency(line.debit) : "-"}</TableCell>
-                      <TableCell className="text-sm">{line.credit ? formatCurrency(line.credit) : "-"}</TableCell>
-                      <TableCell className={`text-sm font-bold ${line.runningBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {line.runningBalance >= 0 ? formatCurrency(line.runningBalance) : `(${formatCurrency(Math.abs(line.runningBalance))})`}
+                      <TableCell className="text-sm font-mono">
+                        {line.reference}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {line.description}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {line.debit ? formatCurrency(line.debit) : "-"}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {line.credit ? formatCurrency(line.credit) : "-"}
+                      </TableCell>
+                      <TableCell
+                        className={`text-sm font-bold ${line.runningBalance >= 0 ? "text-green-600" : "text-red-600"}`}
+                      >
+                        {line.runningBalance >= 0
+                          ? formatCurrency(line.runningBalance)
+                          : `(${formatCurrency(Math.abs(line.runningBalance))})`}
                       </TableCell>
                     </TableRow>
                   ))}
                   {/* Totals row */}
                   <TableRow className="bg-muted/30 font-bold">
-                    <TableCell colSpan={4} className="text-sm">الإجمالي</TableCell>
-                    <TableCell className="text-sm">{formatCurrency(totalDebit)}</TableCell>
-                    <TableCell className="text-sm">{formatCurrency(totalCredit)}</TableCell>
-                    <TableCell className={`text-sm ${finalBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {finalBalance >= 0 ? formatCurrency(finalBalance) : `(${formatCurrency(Math.abs(finalBalance))})`}
+                    <TableCell colSpan={4} className="text-sm">
+                      الإجمالي
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {formatCurrency(totalDebit)}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {formatCurrency(totalCredit)}
+                    </TableCell>
+                    <TableCell
+                      className={`text-sm ${finalBalance >= 0 ? "text-green-600" : "text-red-600"}`}
+                    >
+                      {finalBalance >= 0
+                        ? formatCurrency(finalBalance)
+                        : `(${formatCurrency(Math.abs(finalBalance))})`}
                     </TableCell>
                   </TableRow>
                 </TableBody>

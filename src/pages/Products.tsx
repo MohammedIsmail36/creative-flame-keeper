@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -40,6 +41,11 @@ import {
 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import {
+  buildCategoryTree,
+  getDescendantIds,
+  CategoryNode,
+} from "@/lib/category-utils";
 
 interface ProductRow {
   id: string;
@@ -63,55 +69,6 @@ interface ProductRow {
   product_categories?: { name: string } | null;
   product_units?: { name: string } | null;
   product_brands?: { name: string } | null;
-}
-
-interface CategoryNode {
-  id: string;
-  name: string;
-  parent_id: string | null;
-  is_active: boolean;
-  children: CategoryNode[];
-}
-
-function buildCategoryTree(
-  flat: {
-    id: string;
-    name: string;
-    parent_id: string | null;
-    is_active: boolean;
-  }[],
-): CategoryNode[] {
-  const map = new Map<string, CategoryNode>();
-  flat.forEach((c) => map.set(c.id, { ...c, children: [] }));
-  const roots: CategoryNode[] = [];
-  map.forEach((node) => {
-    if (node.parent_id && map.has(node.parent_id)) {
-      map.get(node.parent_id)!.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  });
-  return roots;
-}
-
-function getDescendantIds(tree: CategoryNode[], targetId: string): string[] {
-  const ids: string[] = [];
-  function collect(nodes: CategoryNode[]) {
-    for (const n of nodes) {
-      if (n.id === targetId) {
-        collectAll(n);
-        return true;
-      }
-      if (collect(n.children)) return true;
-    }
-    return false;
-  }
-  function collectAll(node: CategoryNode) {
-    ids.push(node.id);
-    node.children.forEach(collectAll);
-  }
-  collect(tree);
-  return ids;
 }
 
 function renderCategoryOptions(
@@ -220,7 +177,7 @@ export default function Products() {
       (p) => p.quantity_on_hand > p.min_stock_level,
     ).length;
     const lowStock = activeProducts.filter(
-      (p) => p.quantity_on_hand > 0 && p.quantity_on_hand <= p.min_stock_level,
+      (p) => p.quantity_on_hand > 0 && p.quantity_on_hand < p.min_stock_level,
     ).length;
     const outOfStock = activeProducts.filter(
       (p) => p.quantity_on_hand <= 0,
@@ -251,7 +208,7 @@ export default function Products() {
         stockFilter === "all" ||
         (stockFilter === "low" &&
           p.quantity_on_hand > 0 &&
-          p.quantity_on_hand <= p.min_stock_level) ||
+          p.quantity_on_hand < p.min_stock_level) ||
         (stockFilter === "out" && p.quantity_on_hand <= 0);
       return matchesStatus && matchesCategory && matchesStock;
     });
@@ -299,7 +256,7 @@ export default function Products() {
           نفذت الكمية
         </span>
       );
-    if (product.quantity_on_hand <= product.min_stock_level)
+    if (product.quantity_on_hand < product.min_stock_level)
       return (
         <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
           مخزون منخفض
@@ -347,180 +304,194 @@ export default function Products() {
     [filteredProducts, settings],
   );
 
-  const columns: ColumnDef<ProductRow, any>[] = [
-    {
-      id: "product_info",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="المنتج" />
-      ),
-      accessorKey: "name",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3">
-          {row.original.main_image_url ? (
-            <img
-              src={row.original.main_image_url}
-              alt={row.original.name}
-              className="h-10 w-10 rounded-lg object-cover border border-border"
-            />
-          ) : (
-            <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center border border-border">
-              <Package className="h-5 w-5 text-muted-foreground" />
-            </div>
-          )}
-          <div>
-            <p className="text-sm font-bold text-foreground">
-              {row.original.name}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {getBrandName(row.original) !== "-"
-                ? getBrandName(row.original)
-                : ""}
-              {row.original.model_number && getBrandName(row.original) !== "-"
-                ? " - "
-                : ""}
-              {row.original.model_number || ""}
-            </p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "active_status",
-      header: "النشاط",
-      cell: ({ row }) =>
-        row.original.is_active ? (
-          <Badge
-            variant="secondary"
-            className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
-          >
-            نشط
-          </Badge>
-        ) : (
-          <Badge variant="secondary" className="bg-muted text-muted-foreground">
-            غير نشط
-          </Badge>
+  const columns = useMemo<ColumnDef<ProductRow, any>[]>(
+    () => [
+      {
+        id: "product_info",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="المنتج" />
         ),
-    },
-    {
-      accessorKey: "code",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="كود الصنف" />
-      ),
-      cell: ({ row }) => (
-        <span className="font-mono text-sm text-foreground">
-          {row.original.code}
-        </span>
-      ),
-    },
-    {
-      id: "category",
-      header: "التصنيف",
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {getCategoryName(row.original)}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "selling_price",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="سعر الوحدة" />
-      ),
-      cell: ({ row }) => (
-        <span className="text-sm font-bold text-foreground">
-          {formatCurrency(row.original.selling_price)}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "quantity_on_hand",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="الكمية" />
-      ),
-      cell: ({ row }) => (
-        <span className="text-sm text-foreground">
-          {row.original.quantity_on_hand} وحدة
-        </span>
-      ),
-    },
-    {
-      id: "stock_status",
-      header: "حالة المخزون",
-      cell: ({ row }) => getStockBadge(row.original),
-    },
-    {
-      id: "actions",
-      header: "الإجراءات",
-      enableHiding: false,
-      cell: ({ row }) => (
-        <div
-          className="flex items-center gap-1"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
-            onClick={() => navigate(`/products/${row.original.id}`)}
+        accessorKey: "name",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            {row.original.main_image_url ? (
+              <img
+                src={row.original.main_image_url}
+                alt={row.original.name}
+                className="h-10 w-10 rounded-lg object-cover border border-border"
+              />
+            ) : (
+              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center border border-border">
+                <Package className="h-5 w-5 text-muted-foreground" />
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-bold text-foreground">
+                {row.original.name}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {getBrandName(row.original) !== "-"
+                  ? getBrandName(row.original)
+                  : ""}
+                {row.original.model_number && getBrandName(row.original) !== "-"
+                  ? " - "
+                  : ""}
+                {row.original.model_number || ""}
+              </p>
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "active_status",
+        meta: { hideOnMobile: true },
+        header: "النشاط",
+        cell: ({ row }) =>
+          row.original.is_active ? (
+            <Badge
+              variant="secondary"
+              className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+            >
+              نشط
+            </Badge>
+          ) : (
+            <Badge
+              variant="secondary"
+              className="bg-muted text-muted-foreground"
+            >
+              غير نشط
+            </Badge>
+          ),
+      },
+      {
+        accessorKey: "code",
+        meta: { hideOnMobile: true },
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="كود الصنف" />
+        ),
+        cell: ({ row }) => (
+          <span className="font-mono text-sm text-foreground">
+            {row.original.code}
+          </span>
+        ),
+      },
+      {
+        id: "category",
+        meta: { hideOnMobile: true },
+        header: "التصنيف",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {getCategoryName(row.original)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "selling_price",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="سعر الوحدة" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm font-bold text-foreground">
+            {formatCurrency(row.original.selling_price)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "quantity_on_hand",
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="الكمية" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm text-foreground">
+            {row.original.quantity_on_hand} {row.original.product_units?.name || row.original.unit || "وحدة"}
+          </span>
+        ),
+      },
+      {
+        id: "stock_status",
+        header: "حالة المخزون",
+        cell: ({ row }) => getStockBadge(row.original),
+      },
+      {
+        id: "actions",
+        header: "الإجراءات",
+        enableHiding: false,
+        cell: ({ row }) => (
+          <div
+            className="flex items-center gap-1"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Eye className="h-4 w-4" />
-          </Button>
-          {canEdit && (
             <Button
               variant="ghost"
               size="icon"
+              aria-label="عرض المنتج"
               className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
-              onClick={() => navigate(`/products/${row.original.id}/edit`)}
+              onClick={() => navigate(`/products/${row.original.id}`)}
             >
-              <Pencil className="h-4 w-4" />
+              <Eye className="h-4 w-4" />
             </Button>
-          )}
-          {canEdit && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`h-8 w-8 ${row.original.is_active ? "text-muted-foreground hover:text-destructive hover:bg-destructive/5" : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"}`}
-                >
-                  {row.original.is_active ? (
-                    <Archive className="h-4 w-4" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {row.original.is_active ? "تعطيل المنتج" : "تفعيل المنتج"}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {row.original.is_active
-                      ? `هل تريد تعطيل منتج "${row.original.name}"؟ لن يظهر في الفواتير والتقارير.`
-                      : `هل تريد تفعيل منتج "${row.original.name}"؟ سيظهر مجدداً في الفواتير والتقارير.`}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogAction
-                    onClick={() => toggleProductStatus(row.original)}
-                    className={
-                      row.original.is_active
-                        ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        : "bg-emerald-600 text-white hover:bg-emerald-700"
+            {canEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="تعديل المنتج"
+                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                onClick={() => navigate(`/products/${row.original.id}/edit`)}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+            {canEdit && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={
+                      row.original.is_active ? "أرشفة المنتج" : "تفعيل المنتج"
                     }
+                    className={`h-8 w-8 ${row.original.is_active ? "text-muted-foreground hover:text-destructive hover:bg-destructive/5" : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"}`}
                   >
-                    {row.original.is_active ? "تعطيل" : "تفعيل"}
-                  </AlertDialogAction>
-                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
-      ),
-    },
-  ];
+                    {row.original.is_active ? (
+                      <Archive className="h-4 w-4" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent dir="rtl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {row.original.is_active ? "تعطيل المنتج" : "تفعيل المنتج"}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {row.original.is_active
+                        ? `هل تريد تعطيل منتج "${row.original.name}"؟ لن يظهر في الفواتير والتقارير.`
+                        : `هل تريد تفعيل منتج "${row.original.name}"؟ سيظهر مجدداً في الفواتير والتقارير.`}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="flex-row-reverse gap-2">
+                    <AlertDialogAction
+                      onClick={() => toggleProductStatus(row.original)}
+                      className={
+                        row.original.is_active
+                          ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          : "bg-emerald-600 text-white hover:bg-emerald-700"
+                      }
+                    >
+                      {row.original.is_active ? "تعطيل" : "تفعيل"}
+                    </AlertDialogAction>
+                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+        ),
+      },
+    ],
+    [canEdit, canDelete],
+  );
 
   const statCards = [
     {
@@ -566,44 +537,38 @@ export default function Products() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 sticky top-16 z-10 bg-background backdrop-blur-sm border-b border-border py-4">
-        {/* Title, Description and icon */}
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Package className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">إدارة المخزون والمنتجات</h1>
-            <p className="text-sm text-muted-foreground"> عرض وتتبع كافة الأصناف المتوفرة في المخازن.</p>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-3">
-          {canEdit && (
-            <>
-              <Button
-                variant="outline"
-                className="gap-2 shadow-sm"
-                onClick={() => navigate("/products/import")}
-              >
-                <Upload className="h-4 w-4" />
-                استيراد البيانات
-              </Button>
+      <PageHeader
+        icon={Package}
+        title="إدارة المخزون والمنتجات"
+        description="عرض وتتبع كافة الأصناف المتوفرة في المخازن."
+        actions={
+          <>
+            {canEdit && (
+              <>
+                <Button
+                  variant="outline"
+                  className="gap-2 shadow-sm"
+                  onClick={() => navigate("/products/import")}
+                >
+                  <Upload className="h-4 w-4" />
+                  استيراد البيانات
+                </Button>
+                <ExportMenu config={exportConfig} disabled={loading} />
+                <Button
+                  className="gap-2 shadow-md shadow-primary/20 font-bold"
+                  onClick={() => navigate("/products/new")}
+                >
+                  <Plus className="h-4 w-4" />
+                  إضافة منتج جديد
+                </Button>
+              </>
+            )}
+            {!canEdit && (
               <ExportMenu config={exportConfig} disabled={loading} />
-              <Button
-                className="gap-2 shadow-md shadow-primary/20 font-bold"
-                onClick={() => navigate("/products/new")}
-              >
-                <Plus className="h-4 w-4" />
-                إضافة منتج جديد
-              </Button>
-            </>
-          )}
-          {!canEdit && <ExportMenu config={exportConfig} disabled={loading} />}
-        </div>
-      </div>
+            )}
+          </>
+        }
+      />
 
       {/* Quick Stats */}
       <div
@@ -620,7 +585,7 @@ export default function Products() {
             <div>
               <p className="text-xs text-muted-foreground">{label}</p>
               <p className="text-xl font-black text-foreground">
-                {value.toLocaleString()}
+                {value.toLocaleString("en-US")}
               </p>
             </div>
           </div>

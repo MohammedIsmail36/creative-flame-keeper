@@ -26,14 +26,6 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: "Amiri";
-  src: url("/fonts/Amiri-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
 @layer base {
   :root {
     --background: 0 0% 98%;
@@ -181,7 +173,7 @@
   .font-mono,
   .tabular-nums,
   td .font-mono {
-    font-family: 'Amiri', 'Tajawal', system-ui, sans-serif;
+    font-family: 'Tajawal', system-ui, sans-serif;
     font-variant-numeric: tabular-nums lining-nums;
     font-weight: 600;
     letter-spacing: 0.02em;

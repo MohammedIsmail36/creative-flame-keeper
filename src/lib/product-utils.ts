@@ -23,7 +23,11 @@ export function formatProductName(p: ProductWithBrand): string {
  * Simple formatter: اسم المنتج - الماركة - الموديل
  * Works with any inline product data without needing the full ProductWithBrand type.
  */
-export function formatProductDisplay(name: string, brandName?: string | null, modelNumber?: string | null): string {
+export function formatProductDisplay(
+  name: string,
+  brandName?: string | null,
+  modelNumber?: string | null,
+): string {
   const extra = [brandName, modelNumber].filter(Boolean);
   if (extra.length > 0) return `${name} - ${extra.join(" - ")}`;
   return name;
@@ -32,8 +36,11 @@ export function formatProductDisplay(name: string, brandName?: string | null, mo
 /**
  * Convert products array to LookupCombobox items with structured search fields
  */
-export function productsToLookupItems(products: ProductWithBrand[], showQty = false): LookupItem[] {
-  return products.map(p => {
+export function productsToLookupItems(
+  products: ProductWithBrand[],
+  showQty = false,
+): LookupItem[] {
+  return products.map((p) => {
     let name = formatProductName(p);
     if (showQty && p.quantity_on_hand != null) {
       name += ` (${p.quantity_on_hand})`;
@@ -45,7 +52,9 @@ export function productsToLookupItems(products: ProductWithBrand[], showQty = fa
       p.product_brands?.name,
       p.name,
       p.barcode,
-    ].filter(Boolean).join(" ");
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     // Structured fields for smart filtering
     const searchFields: Record<string, string> = {};
@@ -53,12 +62,14 @@ export function productsToLookupItems(products: ProductWithBrand[], showQty = fa
     if (p.name) searchFields.name = p.name;
     if (p.model_number) searchFields.model = p.model_number;
     if (p.product_brands?.name) searchFields.brand = p.product_brands.name;
-    // barcode search deferred to POS implementation
+    if (p.barcode) searchFields.barcode = p.barcode;
 
     return { id: p.id, name, searchKeywords, searchFields };
   });
 }
 
 /** Common select fields for product queries that include brand info */
-export const PRODUCT_SELECT_FIELDS = "id, code, name, barcode, model_number, selling_price, purchase_price, quantity_on_hand, product_brands(name)";
-export const PRODUCT_SELECT_FIELDS_BASIC = "id, code, name, barcode, model_number, purchase_price, product_brands(name)";
+export const PRODUCT_SELECT_FIELDS =
+  "id, code, name, barcode, model_number, selling_price, purchase_price, quantity_on_hand, product_brands(name)";
+export const PRODUCT_SELECT_FIELDS_BASIC =
+  "id, code, name, barcode, model_number, purchase_price, product_brands(name)";

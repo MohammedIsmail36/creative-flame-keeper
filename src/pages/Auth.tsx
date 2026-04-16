@@ -3,7 +3,14 @@ import { useNavigate, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Calculator, Eye, EyeOff, CheckCircle, Lock, ShieldCheck } from "lucide-react";
+import {
+  Calculator,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  Lock,
+  ShieldCheck,
+} from "lucide-react";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -35,7 +42,10 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       if (error) throw error;
       navigate("/");
     } catch (error: any) {
@@ -50,7 +60,10 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden font-tajawal" dir="rtl">
+    <div
+      className="flex h-screen w-full overflow-hidden font-tajawal"
+      dir="rtl"
+    >
       {/* Login Form Section */}
       <section className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 md:p-24 bg-card">
         <div className="w-full max-w-md animate-fade-in">
@@ -60,17 +73,26 @@ export default function Auth() {
               <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
                 <Calculator className="w-7 h-7 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-extrabold text-foreground tracking-tight">النظام المحاسبي</span>
+              <span className="text-2xl font-extrabold text-foreground tracking-tight">
+                النظام المحاسبي
+              </span>
             </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">تسجيل الدخول</h2>
-            <p className="text-muted-foreground">مرحباً بك مجدداً! يرجى إدخال بياناتك للدخول</p>
+            <h2 className="text-2xl font-bold text-foreground mb-2">
+              تسجيل الدخول
+            </h2>
+            <p className="text-muted-foreground">
+              مرحباً بك مجدداً! يرجى إدخال بياناتك للدخول
+            </p>
           </div>
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-foreground mb-2"
+              >
                 البريد الإلكتروني
               </label>
               <input
@@ -87,7 +109,10 @@ export default function Auth() {
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-foreground mb-2"
+              >
                 كلمة المرور
               </label>
               <div className="relative">
@@ -106,8 +131,15 @@ export default function Auth() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 mr-4 pl-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={
+                    showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"
+                  }
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -123,7 +155,9 @@ export default function Auth() {
 
             {/* Footer */}
             <div className="text-center mt-8 pt-6 border-t border-border">
-              <p className="text-sm text-muted-foreground">© 2026 جميع الحقوق محفوظة</p>
+              <p className="text-sm text-muted-foreground">
+                © 2026 جميع الحقوق محفوظة
+              </p>
             </div>
           </form>
         </div>
@@ -133,17 +167,31 @@ export default function Auth() {
       <section className="hidden lg:flex lg:w-1/2 bg-[hsl(213,65%,16%)] relative overflow-hidden flex-col items-center justify-center p-12 text-primary-foreground">
         {/* Decorative background */}
         <div className="absolute inset-0 opacity-10 pointer-events-none">
-          <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <svg
+            className="w-full h-full"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
             <circle cx="10" cy="10" r="20" fill="currentColor" />
             <circle cx="90" cy="90" r="30" fill="currentColor" />
-            <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="0.5" />
+            <circle
+              cx="50"
+              cy="50"
+              r="40"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="0.5"
+            />
           </svg>
         </div>
 
         <div className="relative z-10 text-center max-w-md">
-          <h1 className="text-4xl font-extrabold mb-6 leading-tight">نظام محاسبي متطور لإدارة أعمالك</h1>
+          <h1 className="text-4xl font-extrabold mb-6 leading-tight">
+            نظام محاسبي متطور لإدارة أعمالك
+          </h1>
           <p className="text-xl text-blue-100 font-light mb-12">
-            نحن نوفر لك حلولاً مالية ذكية وموثوقة تساعدك على التركيز على نمو أعمالك بينما نتولى نحن الأرقام.
+            نحن نوفر لك حلولاً مالية ذكية وموثوقة تساعدك على التركيز على نمو
+            أعمالك بينما نتولى نحن الأرقام.
           </p>
 
           {/* Feature Highlights */}

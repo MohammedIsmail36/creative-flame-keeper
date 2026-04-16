@@ -14,7 +14,16 @@
  */
 
 import React from "react";
-import { Document, Page, Text, View, Image, StyleSheet, Font, pdf } from "@react-pdf/renderer";
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  Image,
+  StyleSheet,
+  Font,
+  pdf,
+} from "@react-pdf/renderer";
 import type { CompanySettings } from "@/contexts/SettingsContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,7 +78,11 @@ const C = {
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-const fmtNum = (v: number): string => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtNum = (v: number): string =>
+  v.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const fmtDate = (d: string): string => {
   if (!d) return "";
@@ -81,7 +94,11 @@ const fmtDate = (d: string): string => {
 };
 
 const fmtDateFull = (d: Date): string =>
-  d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 
 async function loadLogoBase64(url: string): Promise<string | null> {
   try {
@@ -93,7 +110,8 @@ async function loadLogoBase64(url: string): Promise<string | null> {
       r.onerror = () => resolve(null);
       r.readAsDataURL(blob);
     });
-  } catch {
+  } catch (e) {
+    console.warn("فشل تحميل الخط:", e);
     return null;
   }
 }
@@ -454,36 +472,70 @@ const inv = StyleSheet.create({
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. مكون Footer
 // ─────────────────────────────────────────────────────────────────────────────
-function PdfFooter({ settings, accentColor = C.gold }: { settings: CompanySettings | null; accentColor?: string }) {
+function PdfFooter({
+  settings,
+  accentColor = C.gold,
+}: {
+  settings: CompanySettings | null;
+  accentColor?: string;
+}) {
   const tags: string[] = [];
   if (settings?.address) tags.push(settings.address);
   if (settings?.email) tags.push(settings.email);
   if (settings?.phone) tags.push(settings.phone);
   if (settings?.tax_number) tags.push(`VAT: ${settings.tax_number}`);
-  if (settings?.commercial_register) tags.push(`C.R: ${settings.commercial_register}`);
+  if (settings?.commercial_register)
+    tags.push(`C.R: ${settings.commercial_register}`);
 
   return React.createElement(
     View,
     { style: base.footerFixed, fixed: true },
-    React.createElement(View, { style: { ...base.footerStripe, backgroundColor: accentColor } }),
+    React.createElement(View, {
+      style: { ...base.footerStripe, backgroundColor: accentColor },
+    }),
     React.createElement(
       View,
       { style: base.footerContent },
-      React.createElement(Text, { style: base.footerText }, fmtDateFull(new Date())),
-      React.createElement(Text, { style: base.footerCenter }, tags.join("  ·  ")),
+      React.createElement(
+        Text,
+        { style: base.footerText },
+        fmtDateFull(new Date()),
+      ),
+      React.createElement(
+        Text,
+        { style: base.footerCenter },
+        tags.join("  ·  "),
+      ),
       React.createElement(Text, {
         style: base.footerText,
-        render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
-          `${pageNumber} / ${totalPages}`,
+        render: ({
+          pageNumber,
+          totalPages,
+        }: {
+          pageNumber: number;
+          totalPages: number;
+        }) => `${pageNumber} / ${totalPages}`,
       }),
     ),
     settings?.invoice_footer
       ? React.createElement(
           View,
-          { style: { backgroundColor: C.bgSoft, paddingHorizontal: 30, paddingBottom: 3 } },
+          {
+            style: {
+              backgroundColor: C.bgSoft,
+              paddingHorizontal: 30,
+              paddingBottom: 3,
+            },
+          },
           React.createElement(
             Text,
-            { style: { fontSize: 6.5, color: C.ink6, textAlign: "center" as const } },
+            {
+              style: {
+                fontSize: 6.5,
+                color: C.ink6,
+                textAlign: "center" as const,
+              },
+            },
             settings.invoice_footer,
           ),
         )
@@ -526,7 +578,14 @@ function PdfHeader({
         },
         React.createElement(
           Text,
-          { style: { fontSize: 20, fontWeight: 700, color: C.white, fontFamily: "Tajawal" } },
+          {
+            style: {
+              fontSize: 20,
+              fontWeight: 700,
+              color: C.white,
+              fontFamily: "Tajawal",
+            },
+          },
           (s?.company_name ?? "N").charAt(0).toUpperCase(),
         ),
       );
@@ -534,7 +593,9 @@ function PdfHeader({
   return React.createElement(
     View,
     null,
-    React.createElement(View, { style: { ...base.goldStripe, backgroundColor: accentColor } }),
+    React.createElement(View, {
+      style: { ...base.goldStripe, backgroundColor: accentColor },
+    }),
     React.createElement(
       View,
       { style: base.header },
@@ -542,9 +603,25 @@ function PdfHeader({
       React.createElement(
         View,
         { style: base.companyBlock },
-        React.createElement(Text, { style: base.companyName }, s?.company_name ?? "النظام المحاسبي"),
-        s?.company_name_en ? React.createElement(Text, { style: base.companyNameEn }, s.company_name_en) : null,
-        s?.business_activity ? React.createElement(Text, { style: base.companyActivity }, s.business_activity) : null,
+        React.createElement(
+          Text,
+          { style: base.companyName },
+          s?.company_name ?? "النظام المحاسبي",
+        ),
+        s?.company_name_en
+          ? React.createElement(
+              Text,
+              { style: base.companyNameEn },
+              s.company_name_en,
+            )
+          : null,
+        s?.business_activity
+          ? React.createElement(
+              Text,
+              { style: base.companyActivity },
+              s.business_activity,
+            )
+          : null,
       ),
       // وسط: Badge
       badge ?? null,
@@ -634,7 +711,12 @@ function buildColWidths(headers: string[]): string[] {
   const scale = 100 / (rawTotal || headers.length * 15);
 
   return types.map((t) => {
-    const pct = t === "wide" ? rawWide * scale : t === "narrow" ? rawNarrow * scale : rawMedium * scale;
+    const pct =
+      t === "wide"
+        ? rawWide * scale
+        : t === "narrow"
+          ? rawNarrow * scale
+          : rawMedium * scale;
     return `${Math.round(pct)}%`;
   });
 }
@@ -655,14 +737,21 @@ function DataTable({
     View,
     { style: tbl.headerRow },
     ...headers.map((h, i) =>
-      React.createElement(Text, { key: `h-${i}`, style: { ...tbl.headerCell, width: colWidths[i] } }, h),
+      React.createElement(
+        Text,
+        { key: `h-${i}`, style: { ...tbl.headerCell, width: colWidths[i] } },
+        h,
+      ),
     ),
   );
 
   const bodyRows = rows.map((row, ri) =>
     React.createElement(
       View,
-      { key: `r-${ri}`, style: { ...tbl.row, ...(ri % 2 === 0 ? tbl.rowOdd : tbl.rowEven) } },
+      {
+        key: `r-${ri}`,
+        style: { ...tbl.row, ...(ri % 2 === 0 ? tbl.rowOdd : tbl.rowEven) },
+      },
       ...row.map((cell, ci) => {
         const colType = colTypes[ci];
         const isLast = ci === row.length - 1;
@@ -670,18 +759,27 @@ function DataTable({
         if (isLast)
           return React.createElement(
             Text,
-            { key: `c-${ri}-${ci}`, style: { ...tbl.cellBold, width: colWidths[ci] } },
+            {
+              key: `c-${ri}-${ci}`,
+              style: { ...tbl.cellBold, width: colWidths[ci] },
+            },
             String(cell),
           );
         if (colType === "wide")
           return React.createElement(
             Text,
-            { key: `c-${ri}-${ci}`, style: { ...tbl.cellName, width: colWidths[ci] } },
+            {
+              key: `c-${ri}-${ci}`,
+              style: { ...tbl.cellName, width: colWidths[ci] },
+            },
             String(cell),
           );
         return React.createElement(
           Text,
-          { key: `c-${ri}-${ci}`, style: { ...tbl.cellNum, width: colWidths[ci] } },
+          {
+            key: `c-${ri}-${ci}`,
+            style: { ...tbl.cellNum, width: colWidths[ci] },
+          },
           String(cell),
         );
       }),
@@ -694,13 +792,36 @@ function DataTable({
 // ─────────────────────────────────────────────────────────────────────────────
 // 9. أنواع الفاتورة
 // ─────────────────────────────────────────────────────────────────────────────
-type InvoiceType = "sales_invoice" | "purchase_invoice" | "sales_return" | "purchase_return";
+type InvoiceType =
+  | "sales_invoice"
+  | "purchase_invoice"
+  | "sales_return"
+  | "purchase_return";
 
-const TYPE_META: Record<InvoiceType, { label: string; typeLabel: string; stripe: string }> = {
-  sales_invoice: { label: "فاتورة مبيعات", typeLabel: "INVOICE · فاتورة مبيعات ", stripe: C.gold },
-  purchase_invoice: { label: "فاتورة مشتريات", typeLabel: "INVOICE · فاتورة مشتريات", stripe: C.gold },
-  sales_return: { label: "مرتجع مبيعات", typeLabel: "RETURN · مرتجع مبيعات", stripe: C.gold },
-  purchase_return: { label: "مرتجع مشتريات", typeLabel: "RETURN · مرتجع مشتريات", stripe: C.gold },
+const TYPE_META: Record<
+  InvoiceType,
+  { label: string; typeLabel: string; stripe: string }
+> = {
+  sales_invoice: {
+    label: "فاتورة مبيعات",
+    typeLabel: "INVOICE · فاتورة مبيعات ",
+    stripe: C.gold,
+  },
+  purchase_invoice: {
+    label: "فاتورة مشتريات",
+    typeLabel: "INVOICE · فاتورة مشتريات",
+    stripe: C.gold,
+  },
+  sales_return: {
+    label: "مرتجع مبيعات",
+    typeLabel: "RETURN · مرتجع مبيعات",
+    stripe: C.gold,
+  },
+  purchase_return: {
+    label: "مرتجع مشتريات",
+    typeLabel: "RETURN · مرتجع مشتريات",
+    stripe: C.gold,
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -712,6 +833,15 @@ export interface ReportPdfOptions {
   headers: string[];
   rows: (string | number)[][];
   summaryCards?: { label: string; value: string }[];
+  methodologyTitle?: string;
+  methodologyLines?: string[];
+  reconciliationTitle?: string;
+  reconciliationRows?: {
+    label: string;
+    value: string;
+    tone?: "neutral" | "positive" | "negative" | "primary";
+  }[];
+  tableTitle?: string;
   orientation?: "portrait" | "landscape";
   filename: string;
 }
@@ -724,7 +854,13 @@ export interface InvoicePdfOptions {
   partyLabel: string;
   reference?: string;
   notes?: string;
-  items: { name: string; quantity: number; unitPrice: number; discount: number; total: number }[];
+  items: {
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    discount: number;
+    total: number;
+  }[];
   subtotal: number;
   discountTotal?: number;
   invoiceDiscount?: number;
@@ -742,8 +878,23 @@ export interface InvoicePdfOptions {
 // ─────────────────────────────────────────────────────────────────────────────
 // 11. ReportDocument
 // ─────────────────────────────────────────────────────────────────────────────
-function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: string | null }) {
-  const { title, settings, headers, rows, summaryCards, orientation = "portrait", logoData } = props;
+function ReportDocument(
+  props: Omit<ReportPdfOptions, "filename"> & { logoData: string | null },
+) {
+  const {
+    title,
+    settings,
+    headers,
+    rows,
+    summaryCards,
+    methodologyTitle,
+    methodologyLines,
+    reconciliationTitle,
+    reconciliationRows,
+    tableTitle,
+    orientation = "portrait",
+    logoData,
+  } = props;
   const currency = settings?.default_currency ?? "EGP";
   const accent = C.primary;
 
@@ -840,21 +991,69 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
       textAlign: "left" as const,
       marginTop: 2,
     },
-    // Summary cards
+    methodologyBox: {
+      marginHorizontal: 24,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: `${accent}33`,
+      backgroundColor: `${accent}0d`,
+      borderRadius: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+    },
+    methodologyTitle: {
+      fontSize: 9,
+      fontWeight: 700,
+      color: accent,
+      textAlign: "right" as const,
+      marginBottom: 4,
+    },
+    methodologyLine: {
+      fontSize: 8,
+      color: C.ink4,
+      textAlign: "right" as const,
+      lineHeight: 1.7,
+      marginBottom: 2,
+    },
+    // ── Section headers ──
+    // sectionHeader: {
+    //   flexDirection: "row-reverse" as const,
+    //   alignItems: "center" as const,
+    //   backgroundColor: C.slate100,
+    //   borderRightWidth: 4,
+    //   borderRightColor: accent,
+    //   paddingVertical: 6,
+    //   paddingHorizontal: 12,
+    //   marginHorizontal: 24,
+    //   marginBottom: 8,
+    //   marginTop: 4,
+    //   borderRadius: 2,
+    // },
+    // sectionHeaderText: {
+    //   fontSize: 9,
+    //   fontWeight: 700,
+    //   color: C.ink2,
+    //   textAlign: "right" as const,
+    // },
+    // Summary cards — 4 per row
     summaryRow: {
       flexDirection: "row-reverse" as const,
-      gap: 8,
+      flexWrap: "wrap" as const,
+      gap: 6,
       marginHorizontal: 24,
       marginBottom: 12,
     },
     summaryCard: {
-      flex: 1,
+      flexGrow: 1,
+      flexBasis: "23%",
       backgroundColor: C.bgSoft,
       borderWidth: 1,
       borderColor: C.slate200,
+      borderTopWidth: 2,
+      borderTopColor: accent,
       borderRadius: 4,
       paddingVertical: 8,
-      paddingHorizontal: 10,
+      paddingHorizontal: 8,
       alignItems: "center" as const,
     },
     summaryCardLabel: {
@@ -862,10 +1061,10 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
       fontWeight: 700,
       color: C.slate400,
       textAlign: "center" as const,
-      marginBottom: 4,
+      marginBottom: 3,
     },
     summaryCardValue: {
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: 700,
       color: accent,
       textAlign: "center" as const,
@@ -899,6 +1098,25 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
       paddingVertical: 6,
       paddingHorizontal: 4,
     },
+    // tableCellName: {
+    //   fontSize: 8.5,
+    //   fontWeight: 500,
+    //   color: C.ink,
+    //   textAlign: "right" as const,
+    //   paddingVertical: 6,
+    //   paddingHorizontal: 6,
+    // },
+    tableCellBold: {
+      fontSize: 8.5,
+      fontWeight: 700,
+      color: C.ink,
+      textAlign: "center" as const,
+      paddingVertical: 6,
+      paddingHorizontal: 4,
+      backgroundColor: "#fef9f0",
+      borderLeftWidth: 1.5,
+      borderLeftColor: C.gold,
+    },
     tableCellName: {
       fontSize: 8.5,
       fontWeight: 500,
@@ -907,13 +1125,78 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
       paddingVertical: 6,
       paddingHorizontal: 6,
     },
-    tableCellBold: {
+    // Section header bar
+    sectionHeader: {
+      flexDirection: "row-reverse" as const,
+      alignItems: "center" as const,
+      backgroundColor: C.slate100,
+      borderRightWidth: 4,
+      borderRightColor: accent,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      marginHorizontal: 24,
+      marginBottom: 8,
+      marginTop: 4,
+      borderRadius: 2,
+    },
+    sectionHeaderText: {
+      fontSize: 9,
+      fontWeight: 700,
+      color: C.ink2,
+      textAlign: "right" as const,
+    },
+    reconciliationSection: {
+      marginHorizontal: 24,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: C.slate200,
+      borderRadius: 6,
+      overflow: "hidden" as const,
+    },
+    reconciliationHeader: {
+      backgroundColor: C.slate100,
+      borderBottomWidth: 1,
+      borderBottomColor: C.slate200,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+    },
+    reconciliationHeaderText: {
       fontSize: 8.5,
       fontWeight: 700,
-      color: C.ink,
-      textAlign: "center" as const,
-      paddingVertical: 6,
-      paddingHorizontal: 4,
+      color: C.ink2,
+      textAlign: "right" as const,
+    },
+    reconciliationRow: {
+      flexDirection: "row-reverse" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
+      paddingVertical: 7,
+      paddingHorizontal: 10,
+      borderBottomWidth: 0.5,
+      borderBottomColor: C.slate200,
+      backgroundColor: C.white,
+    },
+    reconciliationRowAlt: {
+      backgroundColor: "#fafafa",
+    },
+    reconciliationLabel: {
+      fontSize: 8,
+      color: C.ink4,
+      textAlign: "right" as const,
+      width: "70%",
+    },
+    reconciliationValue: {
+      fontSize: 8.5,
+      fontWeight: 700,
+      textAlign: "left" as const,
+      width: "28%",
+    },
+    tableTitle: {
+      fontSize: 8.5,
+      fontWeight: 700,
+      color: C.ink3,
+      textAlign: "right" as const,
+      marginBottom: 6,
     },
     // Footer
     footer: {
@@ -921,6 +1204,12 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
       bottom: 0,
       left: 0,
       right: 0,
+    },
+    footerStripe: {
+      height: 3,
+      backgroundColor: accent,
+    },
+    footerInner: {
       borderTopWidth: 1,
       borderTopColor: C.slate200,
       paddingHorizontal: 24,
@@ -928,6 +1217,7 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
       flexDirection: "row-reverse" as const,
       justifyContent: "space-between" as const,
       alignItems: "center" as const,
+      backgroundColor: C.white,
     },
     footerContactRow: {
       flexDirection: "row-reverse" as const,
@@ -938,7 +1228,7 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
       color: C.slate500,
     },
     footerPagePill: {
-      backgroundColor: C.slate100,
+      backgroundColor: `${accent}1a`,
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderRadius: 20,
@@ -946,7 +1236,7 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
     footerPageText: {
       fontSize: 7,
       fontWeight: 700,
-      color: C.slate400,
+      color: accent,
     },
     recordCount: {
       fontSize: 7,
@@ -959,11 +1249,16 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
 
   // ── Logo element ──
   const logoEl = logoData
-    ? React.createElement(Image, { src: logoData, style: { width: 36, height: 36, borderRadius: 4 } })
+    ? React.createElement(Image, {
+        src: logoData,
+        style: { width: 36, height: 36, borderRadius: 4 },
+      })
     : React.createElement(
         View,
         { style: rpt.companyIcon },
-        React.createElement(Text, { style: rpt.companyIconText },
+        React.createElement(
+          Text,
+          { style: rpt.companyIconText },
           (settings?.company_name ?? "N").charAt(0).toUpperCase(),
         ),
       );
@@ -972,27 +1267,59 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
   const colWidths = buildColWidths(headers);
   const colTypes = headers.map(detectColType);
 
+  // Helper: determine text color for numeric cell values
+  const getNumericCellColor = (cell: string | number): string | undefined => {
+    const num =
+      typeof cell === "number"
+        ? cell
+        : parseFloat(String(cell).replace(/,/g, ""));
+    if (isNaN(num) || num === 0) return undefined;
+    return num < 0 ? C.red : C.green;
+  };
+
   const tableHeaderEl = React.createElement(
     View,
     { style: rpt.tableHeaderRow },
     ...headers.map((h, i) =>
-      React.createElement(Text, { key: `h-${i}`, style: { ...rpt.tableHeaderCell, width: colWidths[i] } }, h),
+      React.createElement(
+        Text,
+        {
+          key: `h-${i}`,
+          style: { ...rpt.tableHeaderCell, width: colWidths[i] },
+        },
+        h,
+      ),
     ),
   );
 
   const tableBodyEls = rows.map((row, ri) =>
     React.createElement(
       View,
-      { key: `r-${ri}`, style: { ...rpt.tableRow, ...(ri % 2 === 0 ? rpt.tableRowEven : rpt.tableRowOdd) } },
+      {
+        key: `r-${ri}`,
+        style: {
+          ...rpt.tableRow,
+          ...(ri % 2 === 0 ? rpt.tableRowEven : rpt.tableRowOdd),
+        },
+      },
       ...row.map((cell, ci) => {
         const colType = colTypes[ci];
         const isLast = ci === row.length - 1;
-        const style = isLast
+        const numColor =
+          colType !== "wide" ? getNumericCellColor(cell) : undefined;
+        const baseStyle = isLast
           ? { ...rpt.tableCellBold, width: colWidths[ci] }
           : colType === "wide"
             ? { ...rpt.tableCellName, width: colWidths[ci] }
             : { ...rpt.tableCell, width: colWidths[ci] };
-        return React.createElement(Text, { key: `c-${ri}-${ci}`, style }, String(cell));
+        const finalStyle = numColor
+          ? { ...baseStyle, color: numColor }
+          : baseStyle;
+        return React.createElement(
+          Text,
+          { key: `c-${ri}-${ci}`, style: finalStyle },
+          String(cell),
+        );
       }),
     ),
   );
@@ -1013,8 +1340,92 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
           React.createElement(
             View,
             { key: `sc-${i}`, style: rpt.summaryCard },
-            React.createElement(Text, { style: rpt.summaryCardLabel }, card.label),
-            React.createElement(Text, { style: rpt.summaryCardValue }, card.value),
+            React.createElement(
+              Text,
+              { style: rpt.summaryCardLabel },
+              card.label,
+            ),
+            React.createElement(
+              Text,
+              { style: rpt.summaryCardValue },
+              card.value,
+            ),
+          ),
+        ),
+      )
+    : null;
+
+  const methodologyEl = methodologyLines?.length
+    ? React.createElement(
+        View,
+        { style: rpt.methodologyBox },
+        methodologyTitle
+          ? React.createElement(
+              Text,
+              { style: rpt.methodologyTitle },
+              methodologyTitle,
+            )
+          : null,
+        ...methodologyLines.map((line, index) =>
+          React.createElement(
+            Text,
+            { key: `method-${index}`, style: rpt.methodologyLine },
+            `• ${line}`,
+          ),
+        ),
+      )
+    : null;
+
+  const reconciliationToneColor = (
+    tone?: "neutral" | "positive" | "negative" | "primary",
+  ) => {
+    if (tone === "positive") return C.green;
+    if (tone === "negative") return C.red;
+    if (tone === "primary") return accent;
+    return C.ink;
+  };
+
+  const reconciliationEl = reconciliationRows?.length
+    ? React.createElement(
+        View,
+        { style: rpt.reconciliationSection },
+        React.createElement(
+          View,
+          { style: rpt.reconciliationHeader },
+          React.createElement(
+            Text,
+            { style: rpt.reconciliationHeaderText },
+            reconciliationTitle || "جسر المطابقة بين الربح التشغيلي والمحاسبي",
+          ),
+        ),
+        ...reconciliationRows.map((row, index) =>
+          React.createElement(
+            View,
+            {
+              key: `recon-${index}`,
+              style: {
+                ...rpt.reconciliationRow,
+                ...(index % 2 === 1 ? rpt.reconciliationRowAlt : {}),
+                ...(index === reconciliationRows.length - 1
+                  ? { borderBottomWidth: 0 }
+                  : {}),
+              },
+            },
+            React.createElement(
+              Text,
+              { style: rpt.reconciliationLabel },
+              row.label,
+            ),
+            React.createElement(
+              Text,
+              {
+                style: {
+                  ...rpt.reconciliationValue,
+                  color: reconciliationToneColor(row.tone),
+                },
+              },
+              row.value,
+            ),
           ),
         ),
       )
@@ -1027,10 +1438,10 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
       Page,
       { size: "A4", orientation, style: rpt.page },
 
-      // ── Header ──
+      // ── Header (fixed: repeats on every page) ──
       React.createElement(
         View,
-        { style: rpt.header },
+        { style: rpt.header, fixed: true },
         React.createElement(
           View,
           { style: rpt.headerRow },
@@ -1042,9 +1453,17 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
             React.createElement(
               View,
               null,
-              React.createElement(Text, { style: rpt.companyName }, settings?.company_name ?? "النظام المحاسبي"),
+              React.createElement(
+                Text,
+                { style: rpt.companyName },
+                settings?.company_name ?? "النظام المحاسبي",
+              ),
               settings?.business_activity
-                ? React.createElement(Text, { style: rpt.companyActivity }, settings.business_activity)
+                ? React.createElement(
+                    Text,
+                    { style: rpt.companyActivity },
+                    settings.business_activity,
+                  )
                 : null,
             ),
           ),
@@ -1056,52 +1475,126 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
             React.createElement(
               View,
               { style: rpt.titleBadge },
-              React.createElement(Text, { style: rpt.titleBadgeText }, `${fmtDateFull(new Date())}  ·  ${currency}`),
+              React.createElement(
+                Text,
+                { style: rpt.titleBadgeText },
+                `${fmtDateFull(new Date())}  ·  ${currency}`,
+              ),
             ),
           ),
           // Left: date
           React.createElement(
             View,
             { style: rpt.dateSection },
-            React.createElement(Text, { style: rpt.dateLabel }, "تاريخ الاستخراج"),
-            React.createElement(Text, { style: rpt.dateValue }, fmtDateFull(new Date())),
+            React.createElement(
+              Text,
+              { style: rpt.dateLabel },
+              "تاريخ الاستخراج",
+            ),
+            React.createElement(
+              Text,
+              { style: rpt.dateValue },
+              fmtDateFull(new Date()),
+            ),
           ),
         ),
       ),
 
       // ── Summary Cards ──
+      methodologyEl,
+      summaryCards?.length
+        ? React.createElement(
+            View,
+            { style: rpt.sectionHeader },
+            React.createElement(
+              Text,
+              { style: rpt.sectionHeaderText },
+              "المؤشرات الرئيسية",
+            ),
+          )
+        : null,
       summaryEl,
+
+      // ── Reconciliation ──
+      reconciliationRows?.length
+        ? React.createElement(
+            View,
+            { style: { ...rpt.sectionHeader, marginTop: 8 } },
+            React.createElement(
+              Text,
+              { style: rpt.sectionHeaderText },
+              reconciliationTitle ||
+                "جسر المطابقة بين الربح التشغيلي والمحاسبي",
+            ),
+          )
+        : null,
+      reconciliationEl,
 
       // ── Table ──
       React.createElement(
         View,
-        { style: { paddingHorizontal: 24 } },
+        {
+          style: { paddingHorizontal: 24 },
+        },
+        React.createElement(
+          View,
+          {
+            style: {
+              ...rpt.sectionHeader,
+              marginHorizontal: 0,
+              marginBottom: 6,
+            },
+          },
+          React.createElement(
+            Text,
+            { style: rpt.sectionHeaderText },
+            tableTitle || "البيانات التفصيلية",
+          ),
+        ),
         tableHeaderEl,
         ...tableBodyEls,
       ),
 
       // ── Record count ──
-      React.createElement(Text, { style: rpt.recordCount }, `إجمالي السجلات: ${rows.length}`),
+      React.createElement(
+        Text,
+        { style: rpt.recordCount },
+        `إجمالي السجلات: ${rows.length}`,
+      ),
 
       // ── Footer ──
       React.createElement(
         View,
         { style: rpt.footer, fixed: true },
+        React.createElement(View, { style: rpt.footerStripe }),
         React.createElement(
           View,
-          { style: rpt.footerContactRow },
-          ...contactParts.map((p, i) =>
-            React.createElement(Text, { key: `fc-${i}`, style: rpt.footerContactText }, p),
+          { style: rpt.footerInner },
+          React.createElement(
+            View,
+            { style: rpt.footerContactRow },
+            ...contactParts.map((p, i) =>
+              React.createElement(
+                Text,
+                { key: `fc-${i}`, style: rpt.footerContactText },
+                p,
+              ),
+            ),
           ),
-        ),
-        React.createElement(
-          View,
-          { style: rpt.footerPagePill },
-          React.createElement(Text, {
-            style: rpt.footerPageText,
-            render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
-              `صفحة ${pageNumber} من ${totalPages}`,
-          }),
+          React.createElement(
+            View,
+            { style: rpt.footerPagePill },
+            React.createElement(Text, {
+              style: rpt.footerPageText,
+              render: ({
+                pageNumber,
+                totalPages,
+              }: {
+                pageNumber: number;
+                totalPages: number;
+              }) => `صفحة ${pageNumber} من ${totalPages}`,
+            }),
+          ),
         ),
       ),
     ),
@@ -1111,7 +1604,9 @@ function ReportDocument(props: Omit<ReportPdfOptions, "filename"> & { logoData: 
 // ─────────────────────────────────────────────────────────────────────────────
 // 12. InvoiceDocument — Light theme matching template
 // ─────────────────────────────────────────────────────────────────────────────
-function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null }) {
+function InvoiceDocument(
+  props: InvoicePdfOptions & { logoData: string | null },
+) {
   const {
     type,
     number: num,
@@ -1141,8 +1636,17 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
   const currency = settings?.default_currency ?? "EGP";
 
   const pillText =
-    status === "posted" || status === "approved" ? "مؤكدة" : status === "draft" ? "مسودة" : (status ?? "");
-  const pillColor = status === "posted" || status === "approved" ? C.green : status === "draft" ? C.orange : C.ink5;
+    status === "posted" || status === "approved"
+      ? "مؤكدة"
+      : status === "draft"
+        ? "مسودة"
+        : (status ?? "");
+  const pillColor =
+    status === "posted" || status === "approved"
+      ? C.green
+      : status === "draft"
+        ? C.orange
+        : C.ink5;
 
   // ── Styles ──
   const s = StyleSheet.create({
@@ -1441,6 +1945,12 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
       bottom: 0,
       left: 0,
       right: 0,
+    },
+    footerStripe: {
+      height: 3,
+      backgroundColor: accent,
+    },
+    footerInner: {
       borderTopWidth: 1,
       borderTopColor: C.slate200,
       paddingHorizontal: 24,
@@ -1448,6 +1958,7 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
       flexDirection: "row-reverse" as const,
       justifyContent: "space-between" as const,
       alignItems: "center" as const,
+      backgroundColor: C.white,
     },
     footerContactRow: {
       flexDirection: "row-reverse" as const,
@@ -1458,7 +1969,7 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
       color: C.slate500,
     },
     footerPagePill: {
-      backgroundColor: C.slate100,
+      backgroundColor: `${accent}1a`,
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderRadius: 20,
@@ -1466,17 +1977,22 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
     footerPageText: {
       fontSize: 7,
       fontWeight: 700,
-      color: C.slate400,
+      color: accent,
     },
   });
 
   // ── Logo ──
   const logoEl = logoData
-    ? React.createElement(Image, { src: logoData, style: { width: 36, height: 36, borderRadius: 4 } })
+    ? React.createElement(Image, {
+        src: logoData,
+        style: { width: 36, height: 36, borderRadius: 4 },
+      })
     : React.createElement(
         View,
         { style: s.companyIcon },
-        React.createElement(Text, { style: s.companyIconText },
+        React.createElement(
+          Text,
+          { style: s.companyIconText },
           (settings?.company_name ?? "N").charAt(0).toUpperCase(),
         ),
       );
@@ -1485,7 +2001,9 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
   const colHeaders: string[] = ["#", "البند / الوصف", "الكمية", "السعر"];
   if (showDiscount) colHeaders.push("الخصم");
   colHeaders.push("المجموع");
-  const colWidths = showDiscount ? ["5%", "38%", "10%", "16%", "11%", "20%"] : ["5%", "42%", "11%", "20%", "22%"];
+  const colWidths = showDiscount
+    ? ["5%", "38%", "10%", "16%", "11%", "20%"]
+    : ["5%", "42%", "11%", "20%", "22%"];
 
   const tableRows = items.map((item, idx) => {
     const row: (string | number)[] = [
@@ -1502,8 +2020,11 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
   const totalQty = items.reduce((a, i) => a + i.quantity, 0);
 
   // ── Meta defs ──
-  const metaDefs: { label: string; value: string }[] = [{ label: "تاريخ الإصدار", value: fmtDate(date) }];
-  if (dueDate) metaDefs.push({ label: "تاريخ الاستحقاق", value: fmtDate(dueDate) });
+  const metaDefs: { label: string; value: string }[] = [
+    { label: "تاريخ الإصدار", value: fmtDate(date) },
+  ];
+  if (dueDate)
+    metaDefs.push({ label: "تاريخ الاستحقاق", value: fmtDate(dueDate) });
   if (reference) metaDefs.push({ label: "المرجع", value: reference });
 
   // ── Footer contact ──
@@ -1520,19 +2041,28 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
       View,
       { key: "sub", style: s.totalRow },
       React.createElement(Text, { style: s.totalLabel }, "الإجمالي الفرعي"),
-      React.createElement(Text, { style: s.totalValue }, `${fmtNum(subtotal)} ${currency}`),
+      React.createElement(
+        Text,
+        { style: s.totalValue },
+        `${fmtNum(subtotal)} ${currency}`,
+      ),
     ),
   );
   if (showDiscount && discountTotal && discountTotal > 0) {
-    const discLabel = invoiceDiscount && invoiceDiscount > 0
-      ? `خصم على الفاتورة${subtotal > 0 ? ` (${((invoiceDiscount / subtotal) * 100).toFixed(1)}%)` : ''}`
-      : "إجمالي الخصم";
+    const discLabel =
+      invoiceDiscount && invoiceDiscount > 0
+        ? `خصم على الفاتورة${subtotal > 0 ? ` (${((invoiceDiscount / subtotal) * 100).toFixed(1)}%)` : ""}`
+        : "إجمالي الخصم";
     totalsEls.push(
       React.createElement(
         View,
         { key: "disc", style: s.totalRow },
         React.createElement(Text, { style: s.totalLabel }, discLabel),
-        React.createElement(Text, { style: { ...s.totalValue, color: C.red } }, `${fmtNum(discountTotal)} ${currency}`),
+        React.createElement(
+          Text,
+          { style: { ...s.totalValue, color: C.red } },
+          `${fmtNum(discountTotal)} ${currency}`,
+        ),
       ),
     );
   }
@@ -1542,7 +2072,11 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
         View,
         { key: "tax", style: s.totalRow },
         React.createElement(Text, { style: s.totalLabel }, `ضريبة ${taxRate}%`),
-        React.createElement(Text, { style: s.totalValue }, `${fmtNum(taxAmount)} ${currency}`),
+        React.createElement(
+          Text,
+          { style: s.totalValue },
+          `${fmtNum(taxAmount)} ${currency}`,
+        ),
       ),
     );
   }
@@ -1552,7 +2086,11 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
       View,
       { key: "grand", style: s.grandRow },
       React.createElement(Text, { style: s.grandLabel }, "الإجمالي"),
-      React.createElement(Text, { style: s.grandValue }, `${fmtNum(grandTotal)} ${currency}`),
+      React.createElement(
+        Text,
+        { style: s.grandValue },
+        `${fmtNum(grandTotal)} ${currency}`,
+      ),
     ),
   );
   if (paidAmount !== undefined && paidAmount > 0) {
@@ -1560,8 +2098,16 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
       React.createElement(
         View,
         { key: "paid", style: s.totalRow },
-        React.createElement(Text, { style: { ...s.totalLabel, color: C.green } }, "المدفوع"),
-        React.createElement(Text, { style: { ...s.totalValue, color: C.green } }, `${fmtNum(paidAmount)} ${currency}`),
+        React.createElement(
+          Text,
+          { style: { ...s.totalLabel, color: C.green } },
+          "المدفوع",
+        ),
+        React.createElement(
+          Text,
+          { style: { ...s.totalValue, color: C.green } },
+          `${fmtNum(paidAmount)} ${currency}`,
+        ),
       ),
     );
     const balance = grandTotal - paidAmount;
@@ -1570,8 +2116,16 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
         React.createElement(
           View,
           { key: "bal", style: { ...s.totalRow, borderBottomWidth: 0 } },
-          React.createElement(Text, { style: { ...s.totalLabel, color: C.red } }, "المتبقي"),
-          React.createElement(Text, { style: { ...s.totalValue, color: C.red } }, `${fmtNum(balance)} ${currency}`),
+          React.createElement(
+            Text,
+            { style: { ...s.totalLabel, color: C.red } },
+            "المتبقي",
+          ),
+          React.createElement(
+            Text,
+            { style: { ...s.totalValue, color: C.red } },
+            `${fmtNum(balance)} ${currency}`,
+          ),
         ),
       );
     }
@@ -1584,10 +2138,10 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
       Page,
       { size: "A4", style: s.page },
 
-      // ── Header ──
+      // ── Header (fixed: repeats on every page) ──
       React.createElement(
         View,
-        { style: s.header },
+        { style: s.header, fixed: true },
         React.createElement(
           View,
           { style: s.headerRow },
@@ -1599,9 +2153,17 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
             React.createElement(
               View,
               null,
-              React.createElement(Text, { style: s.companyName }, settings?.company_name ?? "النظام المحاسبي"),
+              React.createElement(
+                Text,
+                { style: s.companyName },
+                settings?.company_name ?? "النظام المحاسبي",
+              ),
               settings?.business_activity
-                ? React.createElement(Text, { style: s.companyActivity }, settings.business_activity)
+                ? React.createElement(
+                    Text,
+                    { style: s.companyActivity },
+                    settings.business_activity,
+                  )
                 : null,
             ),
           ),
@@ -1669,14 +2231,27 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
           View,
           { style: s.tableHeaderRow },
           ...colHeaders.map((h, i) =>
-            React.createElement(Text, { key: `h-${i}`, style: { ...s.tableHeaderCell, width: colWidths[i] } }, h),
+            React.createElement(
+              Text,
+              {
+                key: `h-${i}`,
+                style: { ...s.tableHeaderCell, width: colWidths[i] },
+              },
+              h,
+            ),
           ),
         ),
         // Rows
         ...tableRows.map((row, ri) =>
           React.createElement(
             View,
-            { key: `r-${ri}`, style: { ...s.tableRow, backgroundColor: ri % 2 === 0 ? C.white : "#fafafa" } },
+            {
+              key: `r-${ri}`,
+              style: {
+                ...s.tableRow,
+                backgroundColor: ri % 2 === 0 ? C.white : "#fafafa",
+              },
+            },
             ...row.map((cell, ci) => {
               const isName = ci === 1;
               const isLast = ci === row.length - 1;
@@ -1685,7 +2260,11 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
                 : isName
                   ? { ...s.tableCellName, width: colWidths[ci] }
                   : { ...s.tableCell, width: colWidths[ci] };
-              return React.createElement(Text, { key: `c-${ri}-${ci}`, style: cellStyle }, String(cell));
+              return React.createElement(
+                Text,
+                { key: `c-${ri}-${ci}`, style: cellStyle },
+                String(cell),
+              );
             }),
           ),
         ),
@@ -1707,14 +2286,30 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
             React.createElement(
               View,
               { style: s.statsRow },
-              React.createElement(Text, { style: s.statsLabel }, "عدد المنتجات"),
-              React.createElement(Text, { style: s.statsValue }, `${items.length} منتج`),
+              React.createElement(
+                Text,
+                { style: s.statsLabel },
+                "عدد المنتجات",
+              ),
+              React.createElement(
+                Text,
+                { style: s.statsValue },
+                `${items.length} منتج`,
+              ),
             ),
             React.createElement(
               View,
               { style: s.statsRow },
-              React.createElement(Text, { style: s.statsLabel }, "إجمالي الوحدات"),
-              React.createElement(Text, { style: s.statsValue }, `${fmtNum(totalQty)} وحدة`),
+              React.createElement(
+                Text,
+                { style: s.statsLabel },
+                "إجمالي الوحدات",
+              ),
+              React.createElement(
+                Text,
+                { style: s.statsValue },
+                `${fmtNum(totalQty)} وحدة`,
+              ),
             ),
           ),
           // Notes
@@ -1722,7 +2317,11 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
             ? React.createElement(
                 View,
                 { style: s.notesBox },
-                React.createElement(Text, { style: s.notesLabel }, "ملاحظات وشروط"),
+                React.createElement(
+                  Text,
+                  { style: s.notesLabel },
+                  "ملاحظات وشروط",
+                ),
                 React.createElement(Text, { style: s.notesText }, notes),
               )
             : null,
@@ -1733,7 +2332,14 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
           { style: s.totalsCol },
           React.createElement(
             View,
-            { style: { borderWidth: 1, borderColor: C.slate200, borderRadius: 4, overflow: "hidden" as const } },
+            {
+              style: {
+                borderWidth: 1,
+                borderColor: C.slate200,
+                borderRadius: 4,
+                overflow: "hidden" as const,
+              },
+            },
             ...totalsEls,
           ),
         ),
@@ -1743,7 +2349,15 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
       settings?.invoice_notes
         ? React.createElement(
             Text,
-            { style: { fontSize: 7, color: C.slate500, textAlign: "center" as const, marginTop: 8, paddingHorizontal: 24 } },
+            {
+              style: {
+                fontSize: 7,
+                color: C.slate500,
+                textAlign: "center" as const,
+                marginTop: 8,
+                paddingHorizontal: 24,
+              },
+            },
             settings.invoice_notes,
           )
         : null,
@@ -1752,21 +2366,35 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
       React.createElement(
         View,
         { style: s.footer, fixed: true },
+        React.createElement(View, { style: s.footerStripe }),
         React.createElement(
           View,
-          { style: s.footerContactRow },
-          ...contactParts.map((p, i) =>
-            React.createElement(Text, { key: `fc-${i}`, style: s.footerContactText }, p),
+          { style: s.footerInner },
+          React.createElement(
+            View,
+            { style: s.footerContactRow },
+            ...contactParts.map((p, i) =>
+              React.createElement(
+                Text,
+                { key: `fc-${i}`, style: s.footerContactText },
+                p,
+              ),
+            ),
           ),
-        ),
-        React.createElement(
-          View,
-          { style: s.footerPagePill },
-          React.createElement(Text, {
-            style: s.footerPageText,
-            render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
-              `صفحة ${pageNumber} من ${totalPages}`,
-          }),
+          React.createElement(
+            View,
+            { style: s.footerPagePill },
+            React.createElement(Text, {
+              style: s.footerPageText,
+              render: ({
+                pageNumber,
+                totalPages,
+              }: {
+                pageNumber: number;
+                totalPages: number;
+              }) => `صفحة ${pageNumber} من ${totalPages}`,
+            }),
+          ),
         ),
       ),
     ),
@@ -1777,18 +2405,32 @@ function InvoiceDocument(props: InvoicePdfOptions & { logoData: string | null })
 // 13. الدوال المُصدَّرة
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function exportReportPdf(options: ReportPdfOptions): Promise<void> {
+export async function exportReportPdf(
+  options: ReportPdfOptions,
+): Promise<void> {
   const { filename, ...rest } = options;
-  const logoData = rest.settings?.logo_url ? await loadLogoBase64(rest.settings.logo_url) : null;
-  const doc = React.createElement(ReportDocument, { ...rest, logoData }) as React.ReactElement;
+  const logoData = rest.settings?.logo_url
+    ? await loadLogoBase64(rest.settings.logo_url)
+    : null;
+  const doc = React.createElement(ReportDocument, {
+    ...rest,
+    logoData,
+  }) as React.ReactElement;
   const blob = await pdf(doc).toBlob();
   downloadBlob(blob, `${filename}.pdf`);
 }
 
-export async function exportInvoicePdf(options: InvoicePdfOptions): Promise<void> {
+export async function exportInvoicePdf(
+  options: InvoicePdfOptions,
+): Promise<void> {
   const meta = TYPE_META[options.type] ?? TYPE_META.sales_invoice;
-  const logoData = options.settings?.logo_url ? await loadLogoBase64(options.settings.logo_url) : null;
-  const doc = React.createElement(InvoiceDocument, { ...options, logoData }) as React.ReactElement;
+  const logoData = options.settings?.logo_url
+    ? await loadLogoBase64(options.settings.logo_url)
+    : null;
+  const doc = React.createElement(InvoiceDocument, {
+    ...options,
+    logoData,
+  }) as React.ReactElement;
   const blob = await pdf(doc).toBlob();
   downloadBlob(blob, `${meta.label}-${options.number}.pdf`);
 }

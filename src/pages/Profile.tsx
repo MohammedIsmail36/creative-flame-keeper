@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,15 +9,32 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { User, Lock, Save, ShieldCheck, QrCode, KeyRound, CalendarDays, Loader2, Copy, Check } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "@/components/ui/input-otp";
-
-const roleLabels: Record<string, string> = {
-  admin: "مدير",
-  accountant: "محاسب",
-  sales: "موظف مبيعات",
-};
+import {
+  User,
+  Lock,
+  Save,
+  ShieldCheck,
+  QrCode,
+  KeyRound,
+  CalendarDays,
+  Loader2,
+  Copy,
+  Check,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+  InputOTPSeparator,
+} from "@/components/ui/input-otp";
+import { ROLE_LABELS } from "@/lib/constants";
 
 export default function Profile() {
   const { user, fullName, role } = useAuth();
@@ -69,16 +87,27 @@ export default function Profile() {
 
   const handleUpdateName = async () => {
     if (!name.trim()) {
-      toast({ title: "خطأ", description: "الاسم مطلوب", variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: "الاسم مطلوب",
+        variant: "destructive",
+      });
       return;
     }
     setSavingName(true);
     try {
-      const { error } = await supabase.from("profiles").update({ full_name: name.trim() }).eq("id", user?.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ full_name: name.trim() })
+        .eq("id", user?.id);
       if (error) throw error;
       toast({ title: "تم التحديث", description: "تم تحديث الاسم بنجاح" });
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setSavingName(false);
     }
@@ -86,26 +115,44 @@ export default function Profile() {
 
   const handleChangePassword = async () => {
     if (!newPassword || !confirmPassword) {
-      toast({ title: "خطأ", description: "يرجى ملء جميع الحقول", variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: "يرجى ملء جميع الحقول",
+        variant: "destructive",
+      });
       return;
     }
-    if (newPassword.length < 6) {
-      toast({ title: "خطأ", description: "كلمة المرور يجب أن تكون 6 أحرف على الأقل", variant: "destructive" });
+    if (newPassword.length < 8) {
+      toast({
+        title: "خطأ",
+        description: "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
+        variant: "destructive",
+      });
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast({ title: "خطأ", description: "كلمتا المرور غير متطابقتين", variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: "كلمتا المرور غير متطابقتين",
+        variant: "destructive",
+      });
       return;
     }
     setSavingPassword(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
       if (error) throw error;
       toast({ title: "تم التحديث", description: "تم تغيير كلمة المرور بنجاح" });
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setSavingPassword(false);
     }
@@ -113,7 +160,9 @@ export default function Profile() {
 
   const handleEnrollMFA = async () => {
     try {
-      const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: "totp",
+      });
       if (error) throw error;
       setQrCode(data.totp.qr_code);
       setSecret(data.totp.secret);
@@ -121,7 +170,11 @@ export default function Profile() {
       setVerifyCode("");
       setEnrollDialogOpen(true);
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -129,7 +182,8 @@ export default function Profile() {
     if (verifyCode.length !== 6) return;
     setVerifying(true);
     try {
-      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId });
+      const { data: challenge, error: challengeError } =
+        await supabase.auth.mfa.challenge({ factorId });
       if (challengeError) throw challengeError;
 
       const { error: verifyError } = await supabase.auth.mfa.verify({
@@ -141,9 +195,16 @@ export default function Profile() {
 
       setMfaEnabled(true);
       setEnrollDialogOpen(false);
-      toast({ title: "تم التفعيل", description: "تم تفعيل التحقق بخطوتين بنجاح" });
+      toast({
+        title: "تم التفعيل",
+        description: "تم تفعيل التحقق بخطوتين بنجاح",
+      });
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setVerifying(false);
     }
@@ -158,7 +219,11 @@ export default function Profile() {
       setFactorId("");
       toast({ title: "تم الإلغاء", description: "تم إلغاء التحقق بخطوتين" });
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setUnenrolling(false);
     }
@@ -179,18 +244,20 @@ export default function Profile() {
   };
 
   const joinDate = user?.created_at
-    ? new Date(user.created_at).toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" })
+    ? new Date(user.created_at).toLocaleDateString("en-GB", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
     : "";
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold">إعدادات الملف الشخصي</h1>
-          <p className="text-muted-foreground mt-1">قم بتحديث معلوماتك الشخصية وإدارة إعدادات الأمان الخاصة بك</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={User}
+        title="إعدادات الملف الشخصي"
+        description="قم بتحديث معلوماتك الشخصية وإدارة إعدادات الأمان الخاصة بك"
+      />
 
       {/* Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
@@ -208,18 +275,37 @@ export default function Profile() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">الاسم الكامل</Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="أدخل اسمك الكامل" />
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="أدخل اسمك الكامل"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold">البريد الإلكتروني</Label>
-                  <Input value={user?.email || ""} disabled className="bg-muted" dir="ltr" />
+                  <Label className="text-sm font-semibold">
+                    البريد الإلكتروني
+                  </Label>
+                  <Input
+                    value={user?.email || ""}
+                    disabled
+                    className="bg-muted"
+                    dir="ltr"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">الدور</Label>
-                  <Input value={role ? roleLabels[role] || role : ""} disabled className="bg-muted" />
+                  <Input
+                    value={role ? ROLE_LABELS[role] || role : ""}
+                    disabled
+                    className="bg-muted"
+                  />
                 </div>
                 <div className="flex items-end">
-                  <Button onClick={handleUpdateName} disabled={savingName} className="w-full">
+                  <Button
+                    onClick={handleUpdateName}
+                    disabled={savingName}
+                    className="w-full"
+                  >
                     <Save className="w-4 h-4 ml-2" />
                     {savingName ? "جاري الحفظ..." : "حفظ الاسم"}
                   </Button>
@@ -239,21 +325,29 @@ export default function Profile() {
             <CardContent className="p-5">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-muted/50 p-4 rounded-xl border border-border">
-                  <p className="text-xs text-muted-foreground font-medium mb-1.5">حالة الأمان</p>
+                  <p className="text-xs text-muted-foreground font-medium mb-1.5">
+                    حالة الأمان
+                  </p>
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-5 h-5 text-green-500" />
-                    <span className="font-bold text-green-600 dark:text-green-400 text-sm">نشط وآمن</span>
+                    <span className="font-bold text-green-600 dark:text-green-400 text-sm">
+                      نشط وآمن
+                    </span>
                   </div>
                 </div>
                 <div className="bg-muted/50 p-4 rounded-xl border border-border">
-                  <p className="text-xs text-muted-foreground font-medium mb-1.5">تاريخ الانضمام</p>
+                  <p className="text-xs text-muted-foreground font-medium mb-1.5">
+                    تاريخ الانضمام
+                  </p>
                   <div className="flex items-center gap-2">
                     <CalendarDays className="w-5 h-5 text-muted-foreground" />
                     <span className="font-bold text-sm">{joinDate}</span>
                   </div>
                 </div>
                 <div className="bg-muted/50 p-4 rounded-xl border border-border">
-                  <p className="text-xs text-muted-foreground font-medium mb-1.5">التحقق بخطوتين</p>
+                  <p className="text-xs text-muted-foreground font-medium mb-1.5">
+                    التحقق بخطوتين
+                  </p>
                   <div className="flex items-center gap-2">
                     <KeyRound className="w-5 h-5 text-muted-foreground" />
                     {mfaLoading ? (
@@ -286,18 +380,22 @@ export default function Profile() {
             </div>
             <CardContent className="p-5 space-y-4">
               <div className="space-y-2">
-                <Label className="text-sm font-semibold">كلمة المرور الجديدة</Label>
+                <Label className="text-sm font-semibold">
+                  كلمة المرور الجديدة
+                </Label>
                 <Input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="••••••••"
                   dir="ltr"
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-semibold">تأكيد كلمة المرور</Label>
+                <Label className="text-sm font-semibold">
+                  تأكيد كلمة المرور
+                </Label>
                 <Input
                   type="password"
                   value={confirmPassword}
@@ -306,7 +404,12 @@ export default function Profile() {
                   dir="ltr"
                 />
               </div>
-              <Button onClick={handleChangePassword} disabled={savingPassword} className="w-full" variant="secondary">
+              <Button
+                onClick={handleChangePassword}
+                disabled={savingPassword}
+                className="w-full"
+                variant="secondary"
+              >
                 <Lock className="w-4 h-4 ml-2" />
                 {savingPassword ? "جاري التحديث..." : "تحديث كلمة المرور"}
               </Button>
@@ -332,7 +435,11 @@ export default function Profile() {
                 {mfaLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 ) : (
-                  <Switch checked={mfaEnabled} onCheckedChange={handleMfaToggle} disabled={unenrolling} />
+                  <Switch
+                    checked={mfaEnabled}
+                    onCheckedChange={handleMfaToggle}
+                    disabled={unenrolling}
+                  />
                 )}
               </div>
               {mfaEnabled && (
@@ -350,21 +457,27 @@ export default function Profile() {
 
       {/* MFA Enrollment Dialog */}
       <Dialog open={enrollDialogOpen} onOpenChange={setEnrollDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden" dir="rtl">
+        <DialogContent
+          className="sm:max-w-[500px] p-0 overflow-hidden"
+          dir="rtl"
+        >
           {/* Header */}
           <div className="flex items-center justify-between py-4 px-6 border-b border-border">
             <div className="flex items-center gap-3">
               <div className="bg-primary/10 p-2 rounded-lg">
                 <ShieldCheck className="w-6 h-6 text-primary" />
               </div>
-              <DialogTitle className="text-xl font-bold">تفعيل التحقق بخطوتين</DialogTitle>
+              <DialogTitle className="text-xl font-bold">
+                تفعيل التحقق بخطوتين
+              </DialogTitle>
             </div>
           </div>
 
           {/* Content */}
           <div className="p-4 space-y-6">
             <DialogDescription className="text-center leading-relaxed">
-              امسح رمز QR باستخدام تطبيق المصادقة (مثل Google Authenticator) ثم أدخل الرمز المكون من 6 أرقام.
+              امسح رمز QR باستخدام تطبيق المصادقة (مثل Google Authenticator) ثم
+              أدخل الرمز المكون من 6 أرقام.
             </DialogDescription>
 
             {/* QR Code */}
@@ -372,7 +485,11 @@ export default function Profile() {
               <div className="flex justify-center">
                 <div className="p-4 bg-card border-2 border-border rounded-xl">
                   <div className="w-48 h-48 bg-muted flex items-center justify-center rounded-lg overflow-hidden relative border border-border">
-                    <img src={qrCode} alt="رمز QR للتحقق بخطوتين" className="w-full h-full object-cover" />
+                    <img
+                      src={qrCode}
+                      alt="رمز QR للتحقق بخطوتين"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
               </div>
@@ -385,15 +502,24 @@ export default function Profile() {
                   أدخل المفتاح يدوياً إذا لم تتمكن من المسح
                 </Label>
                 <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-border">
-                  <code className="flex-1 font-mono text-sm tracking-widest text-foreground" dir="ltr">
+                  <code
+                    className="flex-1 font-mono text-sm tracking-widest text-foreground"
+                    dir="ltr"
+                  >
                     {secret}
                   </code>
                   <button
                     onClick={copySecret}
                     className="text-primary hover:bg-primary/10 p-1.5 rounded-md transition-colors flex items-center gap-1"
                   >
-                    {copiedSecret ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    <span className="text-xs font-bold">{copiedSecret ? "تم" : "نسخ"}</span>
+                    {copiedSecret ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                    <span className="text-xs font-bold">
+                      {copiedSecret ? "تم" : "نسخ"}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -401,19 +527,43 @@ export default function Profile() {
 
             {/* 6-Digit Verification Code */}
             <div className="space-y-4">
-              <Label className="text-sm font-medium text-muted-foreground text-center block">رمز التحقق</Label>
+              <Label className="text-sm font-medium text-muted-foreground text-center block">
+                رمز التحقق
+              </Label>
               <div className="flex justify-center" dir="ltr">
-                <InputOTP maxLength={6} value={verifyCode} onChange={(val) => setVerifyCode(val)}>
+                <InputOTP
+                  maxLength={6}
+                  value={verifyCode}
+                  onChange={(val) => setVerifyCode(val)}
+                >
                   <InputOTPGroup>
-                    <InputOTPSlot index={0} className="w-12 h-14 text-xl font-bold border-2" />
-                    <InputOTPSlot index={1} className="w-12 h-14 text-xl font-bold border-2" />
-                    <InputOTPSlot index={2} className="w-12 h-14 text-xl font-bold border-2" />
+                    <InputOTPSlot
+                      index={0}
+                      className="w-12 h-14 text-xl font-bold border-2"
+                    />
+                    <InputOTPSlot
+                      index={1}
+                      className="w-12 h-14 text-xl font-bold border-2"
+                    />
+                    <InputOTPSlot
+                      index={2}
+                      className="w-12 h-14 text-xl font-bold border-2"
+                    />
                   </InputOTPGroup>
                   <InputOTPSeparator />
                   <InputOTPGroup>
-                    <InputOTPSlot index={3} className="w-12 h-14 text-xl font-bold border-2" />
-                    <InputOTPSlot index={4} className="w-12 h-14 text-xl font-bold border-2" />
-                    <InputOTPSlot index={5} className="w-12 h-14 text-xl font-bold border-2" />
+                    <InputOTPSlot
+                      index={3}
+                      className="w-12 h-14 text-xl font-bold border-2"
+                    />
+                    <InputOTPSlot
+                      index={4}
+                      className="w-12 h-14 text-xl font-bold border-2"
+                    />
+                    <InputOTPSlot
+                      index={5}
+                      className="w-12 h-14 text-xl font-bold border-2"
+                    />
                   </InputOTPGroup>
                 </InputOTP>
               </div>

@@ -1,9 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
 
-type TableName = "sales_invoices" | "purchase_invoices" | "sales_returns" | "purchase_returns" | "customer_payments" | "supplier_payments" | "journal_entries" | "expenses";
+type TableName =
+  | "sales_invoices"
+  | "purchase_invoices"
+  | "sales_returns"
+  | "purchase_returns"
+  | "customer_payments"
+  | "supplier_payments"
+  | "journal_entries"
+  | "expenses";
 
 export async function getNextPostedNumber(table: TableName): Promise<number> {
-  const { data } = await (supabase.from(table as any) as any)
+  const { data } = await (supabase.from(table) as any)
     .select("posted_number")
     .not("posted_number", "is", null)
     .order("posted_number", { ascending: false })
@@ -16,7 +24,7 @@ export function formatDisplayNumber(
   prefix: string,
   postedNumber: number | null,
   draftNumber: number,
-  status: string
+  status: string,
 ): string {
   if (status === "posted" && postedNumber) {
     return `${prefix}${String(postedNumber).padStart(4, "0")}`;
