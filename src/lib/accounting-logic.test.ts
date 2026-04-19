@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { isBalanced } from "./constants";
 
 /**
  * Accounting logic unit tests
@@ -8,22 +9,29 @@ import { describe, it, expect } from "vitest";
 // Helper: simulate running balance calculation (same logic as AccountStatement)
 function calculateRunningBalance(lines: { debit: number; credit: number }[]) {
   let balance = 0;
-  return lines.map(line => {
+  return lines.map((line) => {
     balance += line.debit - line.credit;
     return { ...line, runningBalance: balance };
   });
 }
 
 // Helper: simulate journal entry validation (double-entry)
-function validateJournalEntry(lines: { debit: number; credit: number }[]): boolean {
+function validateJournalEntry(
+  lines: { debit: number; credit: number }[],
+): boolean {
   const totalDebit = lines.reduce((sum, l) => sum + l.debit, 0);
   const totalCredit = lines.reduce((sum, l) => sum + l.credit, 0);
   return Math.abs(totalDebit - totalCredit) < 0.001; // floating point tolerance
 }
 
 // Helper: simulate average cost calculation
-function calculateAvgPurchasePrice(movements: { quantity: number; total_cost: number; movement_type: string }[]): number {
-  const purchaseMoves = movements.filter(m => m.movement_type === "purchase" || m.movement_type === "opening_balance");
+function calculateAvgPurchasePrice(
+  movements: { quantity: number; total_cost: number; movement_type: string }[],
+): number {
+  const purchaseMoves = movements.filter(
+    (m) =>
+      m.movement_type === "purchase" || m.movement_type === "opening_balance",
+  );
   const totalQty = purchaseMoves.reduce((s, m) => s + m.quantity, 0);
   const totalCost = purchaseMoves.reduce((s, m) => s + m.total_cost, 0);
   return totalQty > 0 ? totalCost / totalQty : 0;
@@ -32,10 +40,10 @@ function calculateAvgPurchasePrice(movements: { quantity: number; total_cost: nu
 describe("Account Statement - Running Balance", () => {
   it("should calculate running balance correctly for customer", () => {
     const lines = [
-      { debit: 1000, credit: 0 },    // فاتورة بيع
-      { debit: 0, credit: 500 },     // سند قبض
-      { debit: 2000, credit: 0 },    // فاتورة بيع
-      { debit: 0, credit: 200 },     // مرتجع مبيعات
+      { debit: 1000, credit: 0 }, // فاتورة بيع
+      { debit: 0, credit: 500 }, // سند قبض
+      { debit: 2000, credit: 0 }, // فاتورة بيع
+      { debit: 0, credit: 200 }, // مرتجع مبيعات
     ];
     const result = calculateRunningBalance(lines);
     expect(result[0].runningBalance).toBe(1000);
@@ -46,9 +54,9 @@ describe("Account Statement - Running Balance", () => {
 
   it("should calculate running balance correctly for supplier", () => {
     const lines = [
-      { debit: 0, credit: 5000 },    // فاتورة مشتريات
-      { debit: 3000, credit: 0 },    // سند صرف
-      { debit: 1000, credit: 0 },    // مرتجع مشتريات
+      { debit: 0, credit: 5000 }, // فاتورة مشتريات
+      { debit: 3000, credit: 0 }, // سند صرف
+      { debit: 1000, credit: 0 }, // مرتجع مشتريات
     ];
     const result = calculateRunningBalance(lines);
     expect(result[0].runningBalance).toBe(-5000);
@@ -134,9 +142,7 @@ describe("Average Purchase Price Calculation", () => {
   });
 
   it("should return 0 for no purchases", () => {
-    const movements = [
-      { quantity: 5, total_cost: 750, movement_type: "sale" },
-    ];
+    const movements = [{ quantity: 5, total_cost: 750, movement_type: "sale" }];
     expect(calculateAvgPurchasePrice(movements)).toBe(0);
   });
 
@@ -215,8 +221,8 @@ describe("Inventory Adjustment Accounting", () => {
     // Dr: Inventory Loss (expense) 250
     // Cr: Inventory (asset) 250
     const journalLines = [
-      { debit: totalCost, credit: 0 },   // expense
-      { debit: 0, credit: totalCost },    // inventory
+      { debit: totalCost, credit: 0 }, // expense
+      { debit: 0, credit: totalCost }, // inventory
     ];
     expect(validateJournalEntry(journalLines)).toBe(true);
   });
@@ -228,8 +234,8 @@ describe("Inventory Adjustment Accounting", () => {
     // Dr: Inventory (asset) 150
     // Cr: Inventory Gain (revenue) 150
     const journalLines = [
-      { debit: totalCost, credit: 0 },   // inventory
-      { debit: 0, credit: totalCost },    // revenue
+      { debit: totalCost, credit: 0 }, // inventory
+      { debit: 0, credit: totalCost }, // revenue
     ];
     expect(validateJournalEntry(journalLines)).toBe(true);
   });
@@ -326,56 +332,56 @@ describe("Balance Sheet Equation", () => {
 
 describe("Purchase Return Full Cycle - Journal Entries & Balances", () => {
   // Scenario: Purchase invoice 5000, fully paid, then return 1000, supplier refunds 1000
-  
+
   it("should have correct journal entries through full cycle", () => {
     // Step 1: Purchase invoice posted
     // Dr Inventory 5000, Cr Suppliers 5000
     const purchaseJE = [
-      { debit: 5000, credit: 0 },  // Inventory
-      { debit: 0, credit: 5000 },  // Suppliers
+      { debit: 5000, credit: 0 }, // Inventory
+      { debit: 0, credit: 5000 }, // Suppliers
     ];
     expect(validateJournalEntry(purchaseJE)).toBe(true);
 
     // Step 2: Supplier payment (we pay them 5000)
     // Dr Suppliers 5000, Cr Cash 5000
     const paymentJE = [
-      { debit: 5000, credit: 0 },  // Suppliers
-      { debit: 0, credit: 5000 },  // Cash
+      { debit: 5000, credit: 0 }, // Suppliers
+      { debit: 0, credit: 5000 }, // Cash
     ];
     expect(validateJournalEntry(paymentJE)).toBe(true);
 
     // Step 3: Purchase return posted (return 1000)
     // Dr Suppliers 1000, Cr Inventory 1000
     const returnJE = [
-      { debit: 1000, credit: 0 },  // Suppliers (reduces liability)
-      { debit: 0, credit: 1000 },  // Inventory (reduces inventory)
+      { debit: 1000, credit: 0 }, // Suppliers (reduces liability)
+      { debit: 0, credit: 1000 }, // Inventory (reduces inventory)
     ];
     expect(validateJournalEntry(returnJE)).toBe(true);
 
     // Step 4: Supplier refund (they pay us back 1000)
     // Dr Cash 1000, Cr Suppliers 1000
     const refundJE = [
-      { debit: 1000, credit: 0 },  // Cash (we receive)
-      { debit: 0, credit: 1000 },  // Suppliers (settles debit balance)
+      { debit: 1000, credit: 0 }, // Cash (we receive)
+      { debit: 0, credit: 1000 }, // Suppliers (settles debit balance)
     ];
     expect(validateJournalEntry(refundJE)).toBe(true);
   });
 
   it("should have correct supplier balance through cycle", () => {
     let supplierBalance = 0;
-    
+
     // Purchase invoice: we owe them more
     supplierBalance += 5000;
     expect(supplierBalance).toBe(5000);
-    
+
     // Payment: we pay them
     supplierBalance -= 5000;
     expect(supplierBalance).toBe(0);
-    
+
     // Purchase return: they owe us (negative means they owe us)
     supplierBalance -= 1000;
     expect(supplierBalance).toBe(-1000);
-    
+
     // Refund: they pay us back, settling the balance
     supplierBalance += 1000;
     expect(supplierBalance).toBe(0);
@@ -384,10 +390,10 @@ describe("Purchase Return Full Cycle - Journal Entries & Balances", () => {
   it("should have correct supplier account ledger", () => {
     // Supplier account (credit = liability increases, debit = liability decreases)
     const supplierLedger = [
-      { debit: 0, credit: 5000 },     // Purchase invoice (we owe them)
-      { debit: 5000, credit: 0 },     // Payment (we paid)
-      { debit: 1000, credit: 0 },     // Purchase return (reduces what we owe)
-      { debit: 0, credit: 1000 },     // Refund (settles return credit)
+      { debit: 0, credit: 5000 }, // Purchase invoice (we owe them)
+      { debit: 5000, credit: 0 }, // Payment (we paid)
+      { debit: 1000, credit: 0 }, // Purchase return (reduces what we owe)
+      { debit: 0, credit: 1000 }, // Refund (settles return credit)
     ];
     const totalDebit = supplierLedger.reduce((s, l) => s + l.debit, 0);
     const totalCredit = supplierLedger.reduce((s, l) => s + l.credit, 0);
@@ -398,13 +404,13 @@ describe("Purchase Return Full Cycle - Journal Entries & Balances", () => {
   it("should have correct cash account through cycle", () => {
     // Cash movements
     let cashBalance = 10000; // Starting cash
-    
+
     cashBalance -= 5000; // Paid supplier
     expect(cashBalance).toBe(5000);
-    
+
     cashBalance += 1000; // Received refund from supplier
     expect(cashBalance).toBe(6000);
-    
+
     // Net cash impact: -4000 (paid 5000, got 1000 back)
     expect(10000 - cashBalance).toBe(4000);
   });
@@ -412,24 +418,24 @@ describe("Purchase Return Full Cycle - Journal Entries & Balances", () => {
 
 describe("Sales Return Full Cycle - Journal Entries & Balances", () => {
   // Scenario: Sales invoice 5000, customer paid, then return 1000, we refund customer 1000
-  
+
   it("should have correct journal entries through full cycle", () => {
     // Step 1: Sales invoice posted (with COGS)
     // Dr Customers 5000, Cr Revenue 5000
     // Dr COGS 3000, Cr Inventory 3000
     const salesJE = [
-      { debit: 5000, credit: 0 },  // Customers
-      { debit: 0, credit: 5000 },  // Revenue
-      { debit: 3000, credit: 0 },  // COGS
-      { debit: 0, credit: 3000 },  // Inventory
+      { debit: 5000, credit: 0 }, // Customers
+      { debit: 0, credit: 5000 }, // Revenue
+      { debit: 3000, credit: 0 }, // COGS
+      { debit: 0, credit: 3000 }, // Inventory
     ];
     expect(validateJournalEntry(salesJE)).toBe(true);
 
     // Step 2: Customer payment (they pay us 5000)
     // Dr Cash 5000, Cr Customers 5000
     const paymentJE = [
-      { debit: 5000, credit: 0 },  // Cash
-      { debit: 0, credit: 5000 },  // Customers
+      { debit: 5000, credit: 0 }, // Cash
+      { debit: 0, credit: 5000 }, // Customers
     ];
     expect(validateJournalEntry(paymentJE)).toBe(true);
 
@@ -437,37 +443,37 @@ describe("Sales Return Full Cycle - Journal Entries & Balances", () => {
     // Dr Revenue 1000, Cr Customers 1000
     // Dr Inventory 600, Cr COGS 600
     const returnJE = [
-      { debit: 1000, credit: 0 },  // Revenue (reduces revenue)
-      { debit: 0, credit: 1000 },  // Customers (reduces what they owe / we owe them)
-      { debit: 600, credit: 0 },   // Inventory (returns to stock)
-      { debit: 0, credit: 600 },   // COGS (reverses cost)
+      { debit: 1000, credit: 0 }, // Revenue (reduces revenue)
+      { debit: 0, credit: 1000 }, // Customers (reduces what they owe / we owe them)
+      { debit: 600, credit: 0 }, // Inventory (returns to stock)
+      { debit: 0, credit: 600 }, // COGS (reverses cost)
     ];
     expect(validateJournalEntry(returnJE)).toBe(true);
 
     // Step 4: Refund to customer (we pay them back 1000)
     // Dr Customers 1000, Cr Cash 1000
     const refundJE = [
-      { debit: 1000, credit: 0 },  // Customers (settles credit balance)
-      { debit: 0, credit: 1000 },  // Cash (we pay out)
+      { debit: 1000, credit: 0 }, // Customers (settles credit balance)
+      { debit: 0, credit: 1000 }, // Cash (we pay out)
     ];
     expect(validateJournalEntry(refundJE)).toBe(true);
   });
 
   it("should have correct customer balance through cycle", () => {
     let customerBalance = 0;
-    
+
     // Sales invoice: customer owes us
     customerBalance += 5000;
     expect(customerBalance).toBe(5000);
-    
+
     // Customer payment
     customerBalance -= 5000;
     expect(customerBalance).toBe(0);
-    
+
     // Sales return: we owe customer (negative = we owe them)
     customerBalance -= 1000;
     expect(customerBalance).toBe(-1000);
-    
+
     // Refund: we pay customer back
     customerBalance += 1000;
     expect(customerBalance).toBe(0);
@@ -475,10 +481,10 @@ describe("Sales Return Full Cycle - Journal Entries & Balances", () => {
 
   it("should have correct customer account ledger", () => {
     const customerLedger = [
-      { debit: 5000, credit: 0 },     // Sales invoice (they owe us)
-      { debit: 0, credit: 5000 },     // Payment (they paid)
-      { debit: 0, credit: 1000 },     // Sales return (reduces what they owe / we owe them)
-      { debit: 1000, credit: 0 },     // Refund (settles return credit)
+      { debit: 5000, credit: 0 }, // Sales invoice (they owe us)
+      { debit: 0, credit: 5000 }, // Payment (they paid)
+      { debit: 0, credit: 1000 }, // Sales return (reduces what they owe / we owe them)
+      { debit: 1000, credit: 0 }, // Refund (settles return credit)
     ];
     const totalDebit = customerLedger.reduce((s, l) => s + l.debit, 0);
     const totalCredit = customerLedger.reduce((s, l) => s + l.credit, 0);
@@ -487,8 +493,127 @@ describe("Sales Return Full Cycle - Journal Entries & Balances", () => {
 
   it("should have correct net profit after return", () => {
     const revenue = 5000 - 1000; // Revenue minus return
-    const cogs = 3000 - 600;     // COGS minus reversed cost
+    const cogs = 3000 - 600; // COGS minus reversed cost
     const netProfit = revenue - cogs;
     expect(netProfit).toBe(1600); // 4000 - 2400
+  });
+});
+
+describe("isBalanced (from constants) - edge cases", () => {
+  it("isBalanced(0, 0) → true", () => {
+    expect(isBalanced(0, 0)).toBe(true);
+  });
+
+  it("isBalanced(1000.005, 1000) → true (within 0.01 tolerance)", () => {
+    expect(isBalanced(1000.005, 1000)).toBe(true);
+  });
+
+  it("isBalanced(1000.02, 1000) → false (exceeds 0.01 tolerance)", () => {
+    expect(isBalanced(1000.02, 1000)).toBe(false);
+  });
+
+  it("isBalanced(-100, -100) → true", () => {
+    expect(isBalanced(-100, -100)).toBe(true);
+  });
+});
+
+// --- المرحلة 2: سيناريوهات محاسبية متقدمة ---
+describe("Advanced Accounting Scenarios", () => {
+  it("فاتورة 1000 + خصم 10% + ضريبة 15% → الضريبة على 900 = 135", () => {
+    const subtotal = 1000;
+    const discount = 0.1 * subtotal;
+    const afterDiscount = subtotal - discount;
+    const taxRate = 0.15;
+    const tax = afterDiscount * taxRate;
+    expect(afterDiscount).toBe(900);
+    expect(tax).toBe(135);
+    const total = afterDiscount + tax;
+    expect(total).toBe(1035);
+  });
+
+  it("مرتجع مع ضريبة → الضريبة تُعكس", () => {
+    const originalTax = 150;
+    const returnAmount = 500;
+    const taxRate = 0.15;
+    const returnTax = returnAmount * taxRate;
+    expect(returnTax).toBe(75);
+    // عند المرتجع، الضريبة تُخصم من الضريبة المستحقة
+    const netTax = originalTax - returnTax;
+    expect(netTax).toBe(75);
+  });
+
+  it("فاتورة بضريبة + مرتجع جزئي → الضريبة تتناسب", () => {
+    const invoiceTotal = 2000;
+    const taxRate = 0.15;
+    const tax = invoiceTotal * taxRate; // 300
+    const returnAmount = 800;
+    const proportionalTax = returnAmount * taxRate; // 120
+    expect(tax).toBe(300);
+    expect(proportionalTax).toBe(120);
+    // الضريبة المستحقة بعد المرتجع
+    const netTax = tax - proportionalTax;
+    expect(netTax).toBe(180);
+  });
+
+  it("تسوية مرتجع كامل مقابل فاتورة", () => {
+    let invoiceBalance = 1000;
+    let returnAmount = 1000;
+    // التسوية: تخصم المرتجع من الفاتورة بالكامل
+    invoiceBalance -= returnAmount;
+    expect(invoiceBalance).toBe(0);
+  });
+
+  it("تسوية جزئية (100 من مرتجع 500)", () => {
+    let invoiceBalance = 400;
+    let returnAmount = 500;
+    let settlement = 100;
+    // تخصم فقط جزء من المرتجع
+    invoiceBalance -= settlement;
+    returnAmount -= settlement;
+    expect(invoiceBalance).toBe(300);
+    expect(returnAmount).toBe(400);
+  });
+
+  it("تسويات متعددة لنفس الفاتورة", () => {
+    let invoiceBalance = 600;
+    let returnAmounts = [200, 150, 250];
+    let totalSettled = 0;
+    for (const amt of returnAmounts) {
+      const settle = Math.min(invoiceBalance, amt);
+      invoiceBalance -= settle;
+      totalSettled += settle;
+    }
+    expect(invoiceBalance).toBe(0);
+    expect(totalSettled).toBe(600);
+  });
+
+  it("المدفوع = allocations + settlements", () => {
+    const allocations = 700;
+    const settlements = 300;
+    const paid = allocations + settlements;
+    expect(paid).toBe(1000);
+  });
+
+  it("دفعة أكبر من المتبقي → رفض", () => {
+    const remaining = 500;
+    const payment = 600;
+    const isValid = payment <= remaining;
+    expect(isValid).toBe(false);
+  });
+
+  it("تخصيص 0 أو سالب → رفض", () => {
+    const allocations = [100, 0, -50];
+    const allValid = allocations.every((a) => a > 0);
+    expect(allValid).toBe(false);
+  });
+
+  it("فك تخصيص → المتاح يزيد", () => {
+    let available = 200;
+    let allocated = 150;
+    // فك التخصيص
+    available += allocated;
+    allocated = 0;
+    expect(available).toBe(350);
+    expect(allocated).toBe(0);
   });
 });
