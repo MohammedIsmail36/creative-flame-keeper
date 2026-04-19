@@ -641,6 +641,130 @@ export default function SettingsPage() {
           </SectionCard>
         </TabsContent>
 
+        {/* ── Tax Tab ── */}
+        <TabsContent value="tax" className="space-y-6 mt-0">
+          <SectionCard icon={Percent} title="إعدادات ضريبة القيمة المضافة">
+            <div className="space-y-6">
+              {/* تفعيل الضريبة */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-bold">
+                    تفعيل ضريبة القيمة المضافة
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    عند التفعيل، ستُطبَّق الضريبة على فواتير المبيعات والمشتريات
+                    والمرتجعات وفقاً لحسابات الضريبة المحددة أدناه
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.enable_tax ?? false}
+                  onCheckedChange={(v) => updateField("enable_tax", v)}
+                />
+              </div>
+
+              <hr className="border-border" />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                {/* نسبة الضريبة */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold">
+                    نسبة الضريبة (%){" "}
+                    {settings.enable_tax && (
+                      <span className="text-destructive">*</span>
+                    )}
+                  </Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={settings.tax_rate || 0}
+                    onChange={(e) =>
+                      updateField(
+                        "tax_rate",
+                        Math.min(100, Math.max(0, Number(e.target.value))),
+                      )
+                    }
+                    disabled={!settings.enable_tax}
+                    className="rounded-lg"
+                  />
+                  {settings.enable_tax &&
+                    (!settings.tax_rate || settings.tax_rate <= 0) && (
+                      <p className="text-xs text-destructive">
+                        يجب أن تكون النسبة أكبر من صفر
+                      </p>
+                    )}
+                </div>
+
+                <div /> {/* spacer */}
+
+                {/* حساب ضريبة المبيعات */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold">
+                    حساب ضريبة المبيعات (مخرجات){" "}
+                    {settings.enable_tax && (
+                      <span className="text-destructive">*</span>
+                    )}
+                  </Label>
+                  <AccountCombobox
+                    accounts={salesTaxAccounts}
+                    value={settings.sales_tax_account_id || ""}
+                    onValueChange={(v) =>
+                      updateField("sales_tax_account_id", v || null)
+                    }
+                    placeholder="اختر حساب ضريبة المبيعات (خصوم)"
+                    disabled={!settings.enable_tax}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    حساب من نوع <strong>خصوم</strong> يُستخدم لتسجيل ضريبة
+                    المبيعات المستحقة (مثال: 2102)
+                  </p>
+                  {settings.enable_tax && !settings.sales_tax_account_id && (
+                    <p className="text-xs text-destructive">حقل إلزامي</p>
+                  )}
+                </div>
+
+                {/* حساب ضريبة المشتريات */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold">
+                    حساب ضريبة المشتريات (مدخلات){" "}
+                    {settings.enable_tax && (
+                      <span className="text-destructive">*</span>
+                    )}
+                  </Label>
+                  <AccountCombobox
+                    accounts={purchaseTaxAccounts}
+                    value={settings.purchase_tax_account_id || ""}
+                    onValueChange={(v) =>
+                      updateField("purchase_tax_account_id", v || null)
+                    }
+                    placeholder="اختر حساب ضريبة المشتريات (أصول)"
+                    disabled={!settings.enable_tax}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    حساب من نوع <strong>أصول</strong> يُستخدم لتسجيل ضريبة
+                    المدخلات القابلة للاسترداد (مثال: 1105)
+                  </p>
+                  {settings.enable_tax && !settings.purchase_tax_account_id && (
+                    <p className="text-xs text-destructive">حقل إلزامي</p>
+                  )}
+                </div>
+              </div>
+
+              {settings.enable_tax && (
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-xs text-muted-foreground">
+                  <p className="font-bold text-foreground mb-1">ملاحظة هامة</p>
+                  <p>
+                    عند ترحيل الفواتير والمرتجعات، سيستخدم النظام الحسابات
+                    المحددة هنا تلقائياً. تأكد من بقاء هذه الحسابات نشطة في
+                    شجرة الحسابات.
+                  </p>
+                </div>
+              )}
+            </div>
+          </SectionCard>
+        </TabsContent>
+
         {/* ── Invoices Tab ── */}
         <TabsContent value="invoices" className="space-y-6 mt-0">
           <SectionCard icon={Hash} title="بادئات الترقيم">
