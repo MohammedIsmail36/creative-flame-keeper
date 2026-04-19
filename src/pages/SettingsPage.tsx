@@ -751,6 +751,25 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              <hr className="border-border" />
+
+              {/* إظهار الضريبة في الفاتورة المطبوعة */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-bold">
+                    إظهار الضريبة في الفاتورة المطبوعة
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    عرض تفاصيل الضريبة في الفواتير والمرتجعات عند الطباعة
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.show_tax_on_invoice}
+                  onCheckedChange={(v) => updateField("show_tax_on_invoice", v)}
+                  disabled={!settings.enable_tax}
+                />
+              </div>
+
               {settings.enable_tax && (
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-xs text-muted-foreground">
                   <p className="font-bold text-foreground mb-1">ملاحظة هامة</p>
@@ -874,20 +893,6 @@ export default function SettingsPage() {
 
           <SectionCard icon={Eye} title="خيارات العرض">
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-bold">
-                    إظهار الضريبة في الفاتورة
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    عرض تفاصيل الضريبة في الفواتير المطبوعة
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.show_tax_on_invoice}
-                  onCheckedChange={(v) => updateField("show_tax_on_invoice", v)}
-                />
-              </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-bold">
