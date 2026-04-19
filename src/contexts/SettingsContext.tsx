@@ -33,6 +33,9 @@ export interface CompanySettings {
   enable_return_days_limit: boolean;
   enable_fiscal_year_closing: boolean;
   monthly_sales_target: number;
+  enable_tax: boolean;
+  sales_tax_account_id: string | null;
+  purchase_tax_account_id: string | null;
 }
 
 interface SettingsContextType {
