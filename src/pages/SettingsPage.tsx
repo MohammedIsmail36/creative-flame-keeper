@@ -497,24 +497,7 @@ export default function SettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-bold">
-                  نسبة الضريبة الافتراضية (%)
-                </Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={settings.tax_rate}
-                  onChange={(e) =>
-                    updateField(
-                      "tax_rate",
-                      Math.min(100, Math.max(0, Number(e.target.value))),
-                    )
-                  }
-                  className="rounded-lg"
-                />
-              </div>
+              {/* تم نقل نسبة الضريبة الافتراضية إلى تبويب "الضريبة" */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-bold">
