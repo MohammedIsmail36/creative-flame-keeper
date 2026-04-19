@@ -74,6 +74,7 @@ interface InvoiceItem {
 const ACCOUNT_CODES = {
   INVENTORY: "1104",
   SUPPLIERS: "2101",
+  TAX_INPUT: "1105", // ضريبة القيمة المضافة للمدخلات (أصل)
 };
 
 // ── Section Header Component ──
