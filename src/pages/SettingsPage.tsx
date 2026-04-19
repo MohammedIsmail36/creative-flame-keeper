@@ -86,16 +86,43 @@ function SectionCard({
   );
 }
 
+interface AccountOption {
+  id: string;
+  code: string;
+  name: string;
+  account_type: string;
+}
+
 export default function SettingsPage() {
   const { settings: globalSettings, refetch } = useSettings();
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [accounts, setAccounts] = useState<AccountOption[]>([]);
 
   useEffect(() => {
     fetchSettings();
+    fetchAccounts();
   }, []);
+
+  const fetchAccounts = async () => {
+    const { data } = await supabase
+      .from("accounts")
+      .select("id, code, name, account_type")
+      .eq("is_active", true)
+      .eq("is_parent", false)
+      .order("code");
+    setAccounts((data as AccountOption[]) || []);
+  };
+
+  // حسابات الضريبة المرشحة (الأصول للمشتريات والخصوم للمبيعات)
+  const purchaseTaxAccounts = accounts.filter(
+    (a) => a.account_type === "asset",
+  );
+  const salesTaxAccounts = accounts.filter(
+    (a) => a.account_type === "liability",
+  );
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -116,6 +143,21 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (!settings) return;
+    // التحقق من إعدادات الضريبة عند التفعيل
+    if (settings.enable_tax) {
+      if (!settings.tax_rate || settings.tax_rate <= 0) {
+        toast.error("نسبة الضريبة يجب أن تكون أكبر من صفر عند تفعيل الضريبة");
+        return;
+      }
+      if (!settings.sales_tax_account_id) {
+        toast.error("يجب اختيار حساب ضريبة المبيعات");
+        return;
+      }
+      if (!settings.purchase_tax_account_id) {
+        toast.error("يجب اختيار حساب ضريبة المشتريات");
+        return;
+      }
+    }
     setSaving(true);
     const { id, ...updateData } = settings;
     const { error } = await supabase
