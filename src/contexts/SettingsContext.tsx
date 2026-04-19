@@ -42,6 +42,9 @@ export interface CompanySettings {
   monthly_sales_target: number;
   stock_enforcement_enabled: boolean;
   locked_until_date: string | null;
+  enable_tax: boolean;
+  sales_tax_account_id: string | null;
+  purchase_tax_account_id: string | null;
 }
 
 interface SettingsContextType {
