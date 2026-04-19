@@ -40,6 +40,7 @@ export interface LookupComboboxProps {
   emptyMessage?: string;
   className?: string;
   disabled?: boolean;
+  error?: boolean;
 }
 
 /**
@@ -51,14 +52,18 @@ export interface LookupComboboxProps {
 /** Fields where we match from the start (prefix) vs anywhere (substring) */
 const PREFIX_FIELDS = new Set(["code", "model"]);
 
-function smartFilter(itemValue: string, search: string, keywords?: string[]): number {
+function smartFilter(
+  itemValue: string,
+  search: string,
+  keywords?: string[],
+): number {
   // keywords[0] contains JSON-encoded searchFields if available
   if (keywords?.[0]) {
     try {
       const fields = JSON.parse(keywords[0]) as Record<string, string>;
       const terms = search.toLowerCase().trim().split(/\s+/);
       const entries = Object.entries(fields).filter(([, v]) => Boolean(v));
-      
+
       let matchCount = 0;
       for (const term of terms) {
         const matched = entries.some(([key, val]) => {
@@ -76,7 +81,7 @@ function smartFilter(itemValue: string, search: string, keywords?: string[]): nu
       // fallback to default
     }
   }
-  
+
   // Default cmdk-like behavior
   const val = itemValue.toLowerCase();
   const s = search.toLowerCase().trim();
@@ -93,24 +98,30 @@ export function LookupCombobox({
   emptyMessage = "لا توجد نتائج.",
   className,
   disabled = false,
+  error = false,
 }: LookupComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const selected = items.find((i) => i.id === value);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
 
   // Handle Tab key to select highlighted item and close
-  const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Tab" && open) {
-      // Find the currently highlighted [data-selected=true] item
-      const container = (e.target as HTMLElement).closest("[cmdk-root]");
-      const selectedEl = container?.querySelector("[cmdk-item][data-selected=true]");
-      if (selectedEl) {
-        // Trigger click on the selected item
-        (selectedEl as HTMLElement).click();
+  const handleKeyDown = React.useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Tab" && open) {
+        // Find the currently highlighted [data-selected=true] item
+        const container = (e.target as HTMLElement).closest("[cmdk-root]");
+        const selectedEl = container?.querySelector(
+          "[cmdk-item][data-selected=true]",
+        );
+        if (selectedEl) {
+          // Trigger click on the selected item
+          (selectedEl as HTMLElement).click();
+        }
+        // Don't prevent default - let Tab naturally move focus to next field
       }
-      // Don't prevent default - let Tab naturally move focus to next field
-    }
-  }, [open]);
+    },
+    [open],
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -126,7 +137,8 @@ export function LookupCombobox({
             "hover:bg-accent/50",
             !value && "text-muted-foreground",
             open && "ring-2 ring-ring/20 border-ring",
-            className
+            error && "border-red-500",
+            className,
           )}
         >
           <span className="truncate flex-1 text-right">
@@ -147,7 +159,10 @@ export function LookupCombobox({
       >
         <Command dir="rtl" className="rounded-md" filter={smartFilter}>
           <div onKeyDown={handleKeyDown}>
-            <CommandInput placeholder={searchPlaceholder} className="h-10 text-sm" />
+            <CommandInput
+              placeholder={searchPlaceholder}
+              className="h-10 text-sm"
+            />
           </div>
           <CommandList>
             <CommandEmpty>
@@ -179,7 +194,7 @@ export function LookupCombobox({
                   <Check
                     className={cn(
                       "mr-auto h-4 w-4 shrink-0 text-primary transition-opacity",
-                      value === item.id ? "opacity-100" : "opacity-0"
+                      value === item.id ? "opacity-100" : "opacity-0",
                     )}
                   />
                 </CommandItem>

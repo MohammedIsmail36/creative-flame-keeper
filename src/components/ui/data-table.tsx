@@ -28,6 +28,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -36,8 +37,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,7 +74,9 @@ interface DataTableProps<TData, TValue> {
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   /** Column visibility (controlled externally) */
   columnVisibility?: VisibilityState;
-  onColumnVisibilityChange?: (updater: VisibilityState | ((prev: VisibilityState) => VisibilityState)) => void;
+  onColumnVisibilityChange?: (
+    updater: VisibilityState | ((prev: VisibilityState) => VisibilityState),
+  ) => void;
   /** Map column id → Arabic label for the column toggle menu */
   columnLabels?: Record<string, string>;
   /** Custom row id accessor */
@@ -115,49 +132,76 @@ export function DataTable<TData, TValue>({
   // ── Internal state (used when not controlled externally) ──
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("");
-  const [internalColumnFilters, setInternalColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [internalColumnVisibility, setInternalColumnVisibility] = React.useState<VisibilityState>({});
-  const [internalRowSelection, setInternalRowSelection] = React.useState<RowSelectionState>({});
+  const [internalColumnFilters, setInternalColumnFilters] =
+    React.useState<ColumnFiltersState>([]);
+  const [internalColumnVisibility, setInternalColumnVisibility] =
+    React.useState<VisibilityState>({});
+  const [internalRowSelection, setInternalRowSelection] =
+    React.useState<RowSelectionState>({});
+
+  const isMobile = useIsMobile();
 
   // ── Resolve controlled vs uncontrolled ────────────────────
   const globalFilterValue = externalGlobalFilter ?? internalGlobalFilter;
   const setGlobalFilter = onGlobalFilterChange ?? setInternalGlobalFilter;
   const columnFiltersValue = externalColumnFilters ?? internalColumnFilters;
-  const columnVisibilityValue = externalColumnVisibility ?? internalColumnVisibility;
+  const baseColumnVisibility =
+    externalColumnVisibility ?? internalColumnVisibility;
   const rowSelectionValue = externalRowSelection ?? internalRowSelection;
 
-  const handleRowSelectionChange: OnChangeFn<RowSelectionState> = React.useCallback(
-    (updater) => {
-      if (onRowSelectionChange) {
-        onRowSelectionChange(updater);
-      } else {
-        setInternalRowSelection(updater);
+  // ── Auto-hide columns on mobile via meta.hideOnMobile ──────
+  const columnVisibilityValue = React.useMemo(() => {
+    if (!isMobile) return baseColumnVisibility;
+    const mobileHidden: VisibilityState = {};
+    for (const col of columns) {
+      const id = (col as any).accessorKey ?? (col as any).id;
+      if (id && (col.meta as any)?.hideOnMobile) {
+        mobileHidden[id] = false;
       }
-    },
-    [onRowSelectionChange],
-  );
+    }
+    return { ...mobileHidden, ...baseColumnVisibility };
+  }, [isMobile, baseColumnVisibility, columns]);
+
+  const handleRowSelectionChange: OnChangeFn<RowSelectionState> =
+    React.useCallback(
+      (updater) => {
+        if (onRowSelectionChange) {
+          onRowSelectionChange(updater);
+        } else {
+          setInternalRowSelection(updater);
+        }
+      },
+      [onRowSelectionChange],
+    );
 
   const handleColumnVisibilityChange = React.useCallback(
-    (updater: VisibilityState | ((old: VisibilityState) => VisibilityState)) => {
+    (
+      updater: VisibilityState | ((old: VisibilityState) => VisibilityState),
+    ) => {
       if (onColumnVisibilityChange) {
         onColumnVisibilityChange(updater);
       } else {
-        setInternalColumnVisibility(typeof updater === "function" ? updater(internalColumnVisibility) : updater);
+        setInternalColumnVisibility(
+          typeof updater === "function"
+            ? updater(internalColumnVisibility)
+            : updater,
+        );
       }
     },
     [onColumnVisibilityChange, internalColumnVisibility],
   );
 
-  const handleColumnFiltersChange: OnChangeFn<ColumnFiltersState> = React.useCallback(
-    (updater) => {
-      if (onColumnFiltersChange) {
-        onColumnFiltersChange(updater);
-      } else {
-        setInternalColumnFilters(updater);
-      }
-    },
-    [onColumnFiltersChange],
-  );
+  const handleColumnFiltersChange: OnChangeFn<ColumnFiltersState> =
+    React.useCallback(
+      (updater) => {
+        if (onColumnFiltersChange) {
+          onColumnFiltersChange(updater);
+        } else {
+          setInternalColumnFilters(updater);
+        }
+      },
+      [onColumnFiltersChange],
+    );
 
   const table = useReactTable({
     data,
@@ -185,7 +229,8 @@ export function DataTable<TData, TValue>({
     },
   });
 
-  const activeFiltersCount = columnFiltersValue.length + (globalFilterValue ? 1 : 0);
+  const activeFiltersCount =
+    columnFiltersValue.length + (globalFilterValue ? 1 : 0);
 
   const selectedCount = Object.keys(rowSelectionValue).length;
 
@@ -220,7 +265,10 @@ export function DataTable<TData, TValue>({
         {toolbarContent}
 
         {activeFiltersCount > 0 && (
-          <Badge variant="secondary" className="gap-1.5 h-8 px-2.5 text-xs font-medium">
+          <Badge
+            variant="secondary"
+            className="gap-1.5 h-8 px-2.5 text-xs font-medium"
+          >
             <SlidersHorizontal className="h-3 w-3" />
             {activeFiltersCount} فلتر نشط
           </Badge>
@@ -230,20 +278,29 @@ export function DataTable<TData, TValue>({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               {/* ↓ mr-auto يدفع الزر لليسار في RTL */}
-              <Button variant="outline" size="sm" className="mr-auto gap-1.5 h-8 text-xs">
+              <Button
+                variant="outline"
+                size="sm"
+                className="mr-auto gap-1.5 h-8 text-xs"
+              >
                 <Settings2 className="h-3.5 w-3.5" />
                 الأعمدة
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">إظهار / إخفاء الأعمدة</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                إظهار / إخفاء الأعمدة
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {table
                 .getAllColumns()
                 .filter((col) => col.getCanHide())
                 .map((col) => {
                   const label =
-                    columnLabels[col.id] || (typeof col.columnDef.header === "string" ? col.columnDef.header : col.id);
+                    columnLabels[col.id] ||
+                    (typeof col.columnDef.header === "string"
+                      ? col.columnDef.header
+                      : col.id);
                   return (
                     <DropdownMenuCheckboxItem
                       key={col.id}
@@ -281,7 +338,12 @@ export function DataTable<TData, TValue>({
                       // ↓ h-9 بدل h-11 — header أكثر إحكاماً
                       className="text-right font-semibold text-xs text-muted-foreground h-11 px-3 whitespace-nowrap uppercase tracking-wide"
                     >
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -292,7 +354,10 @@ export function DataTable<TData, TValue>({
             <TableBody>
               {isLoading ? (
                 Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
-                  <TableRow key={`skeleton-${i}`} className="hover:bg-transparent">
+                  <TableRow
+                    key={`skeleton-${i}`}
+                    className="hover:bg-transparent"
+                  >
                     {columns.map((_, j) => (
                       <TableCell key={j} className="px-3 h-11">
                         <Skeleton className="h-4 w-full max-w-[160px]" />
@@ -311,7 +376,9 @@ export function DataTable<TData, TValue>({
                       // ↓ zebra بقيمة /25 مرئية لكن غير ثقيلة
                       idx % 2 === 1 && "bg-muted/25",
                       // ↓ hover فقط إذا الصف قابل للنقر
-                      onRowClick ? "cursor-pointer hover:bg-primary/5" : "hover:bg-muted/40",
+                      onRowClick
+                        ? "cursor-pointer hover:bg-primary/5"
+                        : "hover:bg-muted/40",
                     )}
                     onClick={() => onRowClick?.(row.original)}
                   >
@@ -321,14 +388,20 @@ export function DataTable<TData, TValue>({
                         // ↓ py-0 لأن الارتفاع محكوم بـ h-10 على الـ row
                         className="px-3 py-2 text-sm"
                       >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
                       </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-28 text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-28 text-center text-muted-foreground"
+                  >
                     <div className="flex flex-col items-center gap-2">
                       <Search className="h-7 w-7 text-muted-foreground/30" />
                       <p className="text-sm">{emptyMessage}</p>
@@ -339,13 +412,28 @@ export function DataTable<TData, TValue>({
             </TableBody>
 
             {/* Footer */}
-            {table.getFooterGroups().some((fg) => fg.headers.some((h) => h.column.columnDef.footer)) && (
+            {table
+              .getFooterGroups()
+              .some((fg) =>
+                fg.headers.some((h) => h.column.columnDef.footer),
+              ) && (
               <TableFooter>
                 {table.getFooterGroups().map((footerGroup) => (
-                  <TableRow key={footerGroup.id} className="bg-muted/30 border-t border-border h-11">
+                  <TableRow
+                    key={footerGroup.id}
+                    className="bg-muted/30 border-t border-border h-11"
+                  >
                     {footerGroup.headers.map((header) => (
-                      <TableCell key={header.id} className="px-3 py-0 font-semibold text-sm">
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.footer, header.getContext())}
+                      <TableCell
+                        key={header.id}
+                        className="px-3 py-0 font-semibold text-sm"
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.footer,
+                              header.getContext(),
+                            )}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -361,11 +449,16 @@ export function DataTable<TData, TValue>({
         <div className="flex items-center justify-between gap-3 flex-wrap pt-0.5">
           {/* Info */}
           <div className="flex items-center gap-3">
-            {selectedCount > 0 && <span className="text-xs text-primary font-medium">{selectedCount} محدد</span>}
+            {selectedCount > 0 && (
+              <span className="text-xs text-primary font-medium">
+                {selectedCount} محدد
+              </span>
+            )}
             <span className="text-xs text-muted-foreground">
               {table.getFilteredRowModel().rows.length !== data.length ? (
                 <>
-                  {table.getFilteredRowModel().rows.length} من أصل {data.length} عنصر
+                  {table.getFilteredRowModel().rows.length} من أصل {data.length}{" "}
+                  عنصر
                 </>
               ) : (
                 <>{data.length} عنصر</>
@@ -377,7 +470,9 @@ export function DataTable<TData, TValue>({
           <div className="flex items-center gap-2.5">
             {/* Page size */}
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">صفوف لكل صفحة</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                صفوف لكل صفحة
+              </span>
               <Select
                 value={`${table.getState().pagination.pageSize}`}
                 onValueChange={(v) => table.setPageSize(Number(v))}
@@ -387,7 +482,11 @@ export function DataTable<TData, TValue>({
                 </SelectTrigger>
                 <SelectContent>
                   {[10, 15, 20, 30, 50, 100].map((size) => (
-                    <SelectItem key={size} value={`${size}`} className="text-xs">
+                    <SelectItem
+                      key={size}
+                      value={`${size}`}
+                      className="text-xs"
+                    >
                       {size}
                     </SelectItem>
                   ))}
@@ -397,7 +496,8 @@ export function DataTable<TData, TValue>({
 
             {/* Page indicator */}
             <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[90px] text-center">
-              صفحة {table.getState().pagination.pageIndex + 1} من {table.getPageCount() || 1}
+              صفحة {table.getState().pagination.pageIndex + 1} من{" "}
+              {table.getPageCount() || 1}
             </span>
 
             {/* Nav buttons */}
@@ -408,7 +508,7 @@ export function DataTable<TData, TValue>({
                 className="h-7 w-7"
                 onClick={() => table.setPageIndex(0)}
                 disabled={!table.getCanPreviousPage()}
-                title="أول صفحة"
+                aria-label="أول صفحة"
               >
                 <ChevronsRight className="h-3.5 w-3.5" />
               </Button>
@@ -418,7 +518,7 @@ export function DataTable<TData, TValue>({
                 className="h-7 w-7"
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
-                title="الصفحة السابقة"
+                aria-label="الصفحة السابقة"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
@@ -428,7 +528,7 @@ export function DataTable<TData, TValue>({
                 className="h-7 w-7"
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
-                title="الصفحة التالية"
+                aria-label="الصفحة التالية"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
@@ -438,7 +538,7 @@ export function DataTable<TData, TValue>({
                 className="h-7 w-7"
                 onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                 disabled={!table.getCanNextPage()}
-                title="آخر صفحة"
+                aria-label="آخر صفحة"
               >
                 <ChevronsLeft className="h-3.5 w-3.5" />
               </Button>
@@ -477,7 +577,13 @@ export function getSelectionColumn<TData>(): ColumnDef<TData, any> {
     id: "select",
     header: ({ table }) => (
       <Checkbox
-        checked={table.getIsAllPageRowsSelected() ? true : table.getIsSomePageRowsSelected() ? "indeterminate" : false}
+        checked={
+          table.getIsAllPageRowsSelected()
+            ? true
+            : table.getIsSomePageRowsSelected()
+              ? "indeterminate"
+              : false
+        }
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="تحديد الكل"
         className="translate-y-[1px]"
