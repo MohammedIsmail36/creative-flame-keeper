@@ -97,9 +97,10 @@ export default function PurchaseInvoiceForm() {
   const isNew = !id;
   const canEdit = role === "admin" || role === "accountant";
 
-  const showTax = settings?.show_tax_on_invoice ?? false;
+  const taxEnabled = settings?.enable_tax ?? false;
+  const showTax = taxEnabled && (settings?.show_tax_on_invoice ?? false);
   const showDiscount = settings?.show_discount_on_invoice ?? true;
-  const taxRate = settings?.tax_rate ?? 0;
+  const taxRate = taxEnabled ? (settings?.tax_rate ?? 0) : 0;
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -307,18 +308,25 @@ export default function PurchaseInvoiceForm() {
 
   async function postInvoice() {
     try {
-      // ── 1. جلب الحسابات المطلوبة (حسب الحاجة فقط) ──
-      const requiredCodes = [ACCOUNT_CODES.INVENTORY, ACCOUNT_CODES.SUPPLIERS];
-      const taxEnabled = showTax && taxAmount > 0;
-      if (taxEnabled) requiredCodes.push(ACCOUNT_CODES.TAX_INPUT);
+      const taxIsActive = showTax && taxAmount > 0;
 
+      // التحقق من إعداد حساب ضريبة المشتريات في الإعدادات
+      if (taxIsActive && !settings?.purchase_tax_account_id) {
+        toast({
+          title: "حساب ضريبة المشتريات غير محدد",
+          description: "افتح إعدادات الشركة → تبويب الضريبة، وحدّد حساب ضريبة المشتريات قبل الترحيل.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // ── 1. جلب حسابات المخزون والموردين ──
       const { data: accounts } = await supabase
         .from("accounts")
         .select("id, code")
-        .in("code", requiredCodes);
+        .in("code", [ACCOUNT_CODES.INVENTORY, ACCOUNT_CODES.SUPPLIERS]);
       const inventoryAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.INVENTORY);
       const supplierAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.SUPPLIERS);
-      const taxAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.TAX_INPUT);
 
       if (!inventoryAcc || !supplierAcc) {
         toast({
@@ -328,13 +336,24 @@ export default function PurchaseInvoiceForm() {
         });
         return;
       }
-      if (taxEnabled && !taxAcc) {
-        toast({
-          title: "حساب الضريبة غير موجود",
-          description: "تأكد من وجود حساب 'ضريبة القيمة المضافة للمدخلات' بكود 1105 في شجرة الحسابات قبل ترحيل فاتورة بضريبة.",
-          variant: "destructive",
-        });
-        return;
+
+      // التحقق من وجود حساب ضريبة المشتريات (المختار في الإعدادات) في شجرة الحسابات
+      let taxAcc: { id: string } | null = null;
+      if (taxIsActive) {
+        const { data: taxAccData } = await supabase
+          .from("accounts")
+          .select("id")
+          .eq("id", settings!.purchase_tax_account_id!)
+          .maybeSingle();
+        if (!taxAccData) {
+          toast({
+            title: "حساب ضريبة المشتريات غير صالح",
+            description: "الحساب المختار للضريبة في الإعدادات لم يعد موجوداً. الرجاء تحديثه.",
+            variant: "destructive",
+          });
+          return;
+        }
+        taxAcc = taxAccData;
       }
 
       // ── 2. حساب صافي المخزون (دون الضريبة) ──
@@ -368,7 +387,7 @@ export default function PurchaseInvoiceForm() {
           description: `مشتريات - فاتورة ${displayInvNum}`,
         },
       ];
-      if (taxEnabled && taxAcc) {
+      if (taxIsActive && taxAcc) {
         lines.push({
           journal_entry_id: je.id,
           account_id: taxAcc.id,

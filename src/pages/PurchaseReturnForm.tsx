@@ -49,9 +49,10 @@ export default function PurchaseReturnForm() {
   const isNew = !id;
   const canEdit = role === "admin" || role === "accountant";
 
-  const showTax = settings?.show_tax_on_invoice ?? false;
+  const taxEnabled = settings?.enable_tax ?? false;
+  const showTax = taxEnabled && (settings?.show_tax_on_invoice ?? false);
   const showDiscount = settings?.show_discount_on_invoice ?? true;
-  const taxRate = settings?.tax_rate ?? 0;
+  const taxRate = taxEnabled ? (settings?.tax_rate ?? 0) : 0;
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -201,26 +202,33 @@ export default function PurchaseReturnForm() {
         }
       }
 
-      // ── جلب الحسابات حسب الحاجة ──
-      const requiredCodes = [ACCOUNT_CODES.INVENTORY, ACCOUNT_CODES.SUPPLIERS];
-      const taxEnabled = showTax && taxAmount > 0;
-      if (taxEnabled) requiredCodes.push(ACCOUNT_CODES.TAX_INPUT);
+      // ── جلب حسابات المخزون والموردين ──
+      const taxIsActive = showTax && taxAmount > 0;
+      if (taxIsActive && !settings?.purchase_tax_account_id) {
+        toast({
+          title: "حساب ضريبة المشتريات غير محدد",
+          description: "افتح إعدادات الشركة → تبويب الضريبة، وحدّد حساب ضريبة المشتريات قبل ترحيل مرتجع بضريبة.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", requiredCodes);
+      const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [ACCOUNT_CODES.INVENTORY, ACCOUNT_CODES.SUPPLIERS]);
       const inventoryAcc = accounts?.find(a => a.code === ACCOUNT_CODES.INVENTORY);
       const supplierAcc = accounts?.find(a => a.code === ACCOUNT_CODES.SUPPLIERS);
-      const taxAcc = accounts?.find(a => a.code === ACCOUNT_CODES.TAX_INPUT);
       if (!inventoryAcc || !supplierAcc) {
         toast({ title: "خطأ", description: "تأكد من وجود حسابات المخزون والموردين", variant: "destructive" });
         return;
       }
-      if (taxEnabled && !taxAcc) {
-        toast({
-          title: "حساب الضريبة غير موجود",
-          description: "تأكد من وجود حساب 'ضريبة القيمة المضافة للمدخلات' بكود 1105 في شجرة الحسابات قبل ترحيل مرتجع بضريبة.",
-          variant: "destructive",
-        });
-        return;
+
+      let taxAcc: { id: string } | null = null;
+      if (taxIsActive) {
+        const { data: taxAccData } = await supabase.from("accounts").select("id").eq("id", settings!.purchase_tax_account_id!).maybeSingle();
+        if (!taxAccData) {
+          toast({ title: "حساب ضريبة المشتريات غير صالح", description: "الحساب المختار في الإعدادات لم يعد موجوداً.", variant: "destructive" });
+          return;
+        }
+        taxAcc = taxAccData;
       }
 
       const inventoryAmount = round2(grandTotal - taxAmount);
@@ -241,7 +249,7 @@ export default function PurchaseReturnForm() {
         { journal_entry_id: je.id, account_id: supplierAcc.id, debit: grandTotal, credit: 0, description: `مرتجع شراء - ${displayRetNum}` },
         { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: 0, credit: inventoryAmount, description: `خصم مخزون مرتجع - ${displayRetNum}` },
       ];
-      if (taxEnabled && taxAcc) {
+      if (taxIsActive && taxAcc) {
         lines.push({ journal_entry_id: je.id, account_id: taxAcc.id, debit: 0, credit: taxAmount, description: `عكس ضريبة مدخلات - ${displayRetNum}` });
       }
       await supabase.from("journal_entry_lines").insert(lines as any);

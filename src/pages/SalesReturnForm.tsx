@@ -48,9 +48,10 @@ export default function SalesReturnForm() {
   const isNew = !id;
   const canEdit = role === "admin" || role === "accountant" || role === "sales";
 
-  const showTax = settings?.show_tax_on_invoice ?? false;
+  const taxEnabled = settings?.enable_tax ?? false;
+  const showTax = taxEnabled && (settings?.show_tax_on_invoice ?? false);
   const showDiscount = settings?.show_discount_on_invoice ?? true;
-  const taxRate = settings?.tax_rate ?? 0;
+  const taxRate = taxEnabled ? (settings?.tax_rate ?? 0) : 0;
   const returnDaysLimit = settings?.return_days_limit ?? 30;
 
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -249,6 +250,17 @@ export default function SalesReturnForm() {
       }
       } // end enable_return_days_limit check
 
+      // التحقق من حساب ضريبة المبيعات إن كانت الضريبة مفعّلة وفيها قيمة فعلية
+      const taxIsActive = taxEnabled && taxAmount > 0;
+      if (taxIsActive && !settings?.sales_tax_account_id) {
+        toast({
+          title: "حساب ضريبة المبيعات غير محدد",
+          description: "افتح إعدادات الشركة → تبويب الضريبة، وحدّد حساب ضريبة المبيعات قبل ترحيل مرتجع بضريبة.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [ACCOUNT_CODES.CUSTOMERS, ACCOUNT_CODES.REVENUE, ACCOUNT_CODES.COGS, ACCOUNT_CODES.INVENTORY]);
       const customersAcc = accounts?.find(a => a.code === ACCOUNT_CODES.CUSTOMERS);
       const revenueAcc = accounts?.find(a => a.code === ACCOUNT_CODES.REVENUE);
@@ -257,6 +269,16 @@ export default function SalesReturnForm() {
       if (!customersAcc || !revenueAcc) {
         toast({ title: "خطأ", description: "تأكد من وجود الحسابات المطلوبة", variant: "destructive" });
         return;
+      }
+
+      let salesTaxAcc: { id: string } | null = null;
+      if (taxIsActive) {
+        const { data: taxAccData } = await supabase.from("accounts").select("id").eq("id", settings!.sales_tax_account_id!).maybeSingle();
+        if (!taxAccData) {
+          toast({ title: "حساب ضريبة المبيعات غير صالح", description: "الحساب المختار في الإعدادات لم يعد موجوداً.", variant: "destructive" });
+          return;
+        }
+        salesTaxAcc = taxAccData;
       }
 
       let totalCost = 0;
@@ -281,10 +303,17 @@ export default function SalesReturnForm() {
       } as any).select("id").single();
       if (jeError) throw jeError;
 
+      // فصل الإيراد عن الضريبة في المرتجع:
+      //   DR الإيراد (الصافي) + DR ضريبة المبيعات (إن وُجدت) | CR العميل (الإجمالي)
+      const revenueNet = subtotal; // المرتجع لا يدعم الخصم → afterDiscount = subtotal
       const lines: any[] = [
-        { journal_entry_id: je.id, account_id: revenueAcc.id, debit: grandTotal, credit: 0, description: `مرتجع مبيعات - ${displayRetNum}` },
-        { journal_entry_id: je.id, account_id: customersAcc.id, debit: 0, credit: grandTotal, description: `خصم ذمم عملاء - ${displayRetNum}` },
+        { journal_entry_id: je.id, account_id: revenueAcc.id, debit: revenueNet, credit: 0, description: `مرتجع مبيعات - ${displayRetNum}` },
       ];
+      if (taxIsActive && salesTaxAcc) {
+        lines.push({ journal_entry_id: je.id, account_id: salesTaxAcc.id, debit: taxAmount, credit: 0, description: `عكس ضريبة مبيعات - ${displayRetNum}` });
+      }
+      lines.push({ journal_entry_id: je.id, account_id: customersAcc.id, debit: 0, credit: grandTotal, description: `خصم ذمم عملاء - ${displayRetNum}` });
+
       if (totalCost > 0 && inventoryAcc && cogsAcc) {
         lines.push(
           { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: totalCost, credit: 0, description: `إرجاع مخزون - ${displayRetNum}` },
