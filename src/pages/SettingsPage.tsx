@@ -113,6 +113,23 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (!settings) return;
+
+    // ── Validation: عند تفعيل الضريبة لا بد من نسبة > 0 وحسابي مبيعات ومشتريات ──
+    if (settings.enable_tax) {
+      if (!settings.tax_rate || settings.tax_rate <= 0) {
+        toast.error("نسبة الضريبة يجب أن تكون أكبر من صفر عند تفعيل الضريبة");
+        return;
+      }
+      if (!settings.sales_tax_account_id) {
+        toast.error("يجب اختيار حساب ضريبة المبيعات عند تفعيل الضريبة");
+        return;
+      }
+      if (!settings.purchase_tax_account_id) {
+        toast.error("يجب اختيار حساب ضريبة المشتريات عند تفعيل الضريبة");
+        return;
+      }
+    }
+
     setSaving(true);
     const { id, ...updateData } = settings;
     const { error } = await supabase
