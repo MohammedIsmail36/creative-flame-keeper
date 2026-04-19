@@ -37,14 +37,22 @@ export function AppLayout({ children }: AppLayoutProps) {
                 className="flex items-center gap-1.5 text-xs hover:text-primary transition-colors cursor-pointer"
               >
                 <User className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="font-medium hidden sm:inline">{fullName || "مستخدم"}</span>
+                <span className="font-medium hidden sm:inline">
+                  {fullName || "مستخدم"}
+                </span>
               </button>
-              <Button variant="ghost" size="icon" onClick={signOut} title="تسجيل الخروج" className="h-7 w-7">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={signOut}
+                aria-label="تسجيل الخروج"
+                className="h-7 w-7"
+              >
                 <LogOut className="w-3.5 h-3.5" />
               </Button>
             </div>
           </header>
-          <main className="px-6 pb-6">{children}</main>
+          <main className="px-4 md:px-6 pb-6">{children}</main>
         </div>
       </div>
     </SidebarProvider>
