@@ -8,7 +8,7 @@ const mockSelect = vi.fn(() => ({ ilike: mockIlike }));
 const mockFrom = vi.fn(() => ({ select: mockSelect }));
 
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { from: (...args: any[]) => mockFrom(...args) },
+  supabase: { from: (...args: any[]) => (mockFrom as any)(...args) },
 }));
 
 import {

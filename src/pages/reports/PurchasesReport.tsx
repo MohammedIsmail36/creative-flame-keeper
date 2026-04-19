@@ -1139,6 +1139,7 @@ export default function PurchasesReport() {
       };
     }
     return {
+      filenamePrefix: `تقرير-المشتريات-${timeMode === "daily" ? "يومي" : "شهري"}-${dateFrom}-${dateTo}`,
       sheetName: timeMode === "daily" ? "يومي" : "شهري",
       pdfTitle: `تقرير المشتريات ${timeMode === "daily" ? "اليومي" : "الشهري"} (${dateFrom} - ${dateTo})`,
       headers: [

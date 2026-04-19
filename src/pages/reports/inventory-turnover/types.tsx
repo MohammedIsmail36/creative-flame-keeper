@@ -29,6 +29,7 @@ export type TurnoverClass =
   | "slow"
   | "stagnant"
   | "new"
+  | "new_unlisted"
   | "inactive";
 
 export type ABCClass = "A" | "B" | "C" | "excluded";
@@ -80,6 +81,7 @@ export const TURNOVER_LABELS: Record<TurnoverClass, string> = {
   slow: "بطيء",
   stagnant: "راكد",
   new: "جديد",
+  new_unlisted: "جديد",
   inactive: "غير نشط",
 };
 
