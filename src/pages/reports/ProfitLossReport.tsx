@@ -103,7 +103,7 @@ export default function ProfitLossReport() {
         .from("journal_entries")
         .select("id, entry_date, status")
         .in("id", chunk)
-        .in("status", ["posted", "approved"])
+        .eq("status", "posted")
         .gte("entry_date", prevYearStart)
         .lte("entry_date", currentYearEnd);
       if (entries) allEntries.push(...entries);

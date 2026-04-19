@@ -1,14 +1,17 @@
 import { useParams } from "react-router-dom";
+import { Truck } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import AccountStatement from "./reports/AccountStatement";
 
 export default function SupplierStatement() {
   const { id } = useParams();
   return (
     <div className="space-y-6" dir="rtl">
-      <div>
-        <h1 className="text-2xl font-bold">كشف حساب مورد</h1>
-        <p className="text-muted-foreground text-sm mt-1">عرض حركات وأرصدة المورد</p>
-      </div>
+      <PageHeader
+        icon={Truck}
+        title="كشف حساب مورد"
+        description="عرض حركات وأرصدة المورد"
+      />
       <AccountStatement defaultEntityType="supplier" defaultEntityId={id || undefined} />
     </div>
   );

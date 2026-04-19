@@ -1,24 +1,54 @@
 import React, { useState, useEffect } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getNextPostedNumber } from "@/lib/posted-number-utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useBeforeUnload } from "@/hooks/use-before-unload";
+import { FormFieldError } from "@/components/FormFieldError";
+import { PageSkeleton } from "@/components/PageSkeleton";
+import { SectionHeader } from "@/components/SectionHeader";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
-import { ProductWithBrand, productsToLookupItems, formatProductName, formatProductDisplay, PRODUCT_SELECT_FIELDS } from "@/lib/product-utils";
-import { toast } from "@/hooks/use-toast";
 import {
-  Plus, X, Save, CheckCircle, Pencil, Trash2, ClipboardCheck,
-  ListChecks, StickyNote, CreditCard, Ban,
+  ProductWithBrand,
+  productsToLookupItems,
+  formatProductName,
+  formatProductDisplay,
+  PRODUCT_SELECT_FIELDS,
+} from "@/lib/product-utils";
+import { toast } from "@/hooks/use-toast";
+import { ACCOUNT_CODES } from "@/lib/constants";
+import {
+  Plus,
+  X,
+  Save,
+  CheckCircle,
+  Pencil,
+  Trash2,
+  ClipboardCheck,
+  ListChecks,
+  StickyNote,
+  CreditCard,
+  Ban,
+  Loader2,
 } from "lucide-react";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 type Product = ProductWithBrand & { quantity_on_hand: number };
@@ -35,24 +65,6 @@ interface AdjustmentItem {
   notes: string;
 }
 
-const ACCOUNT_CODES = {
-  INVENTORY: "1104",
-  INVENTORY_ADJUSTMENT_LOSS: "5201",
-  INVENTORY_ADJUSTMENT_GAIN: "4201",
-};
-
-// ── Section Header Component ──
-function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-        <Icon className="h-4 w-4 text-primary" />
-      </div>
-      <h2 className="text-base font-bold text-foreground">{title}</h2>
-    </div>
-  );
-}
-
 export default function InventoryAdjustmentForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -64,15 +76,23 @@ export default function InventoryAdjustmentForm() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
   const [adjustmentNumber, setAdjustmentNumber] = useState<number | null>(null);
-  const [adjustmentDate, setAdjustmentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [adjustmentDate, setAdjustmentDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("draft");
   const [items, setItems] = useState<AdjustmentItem[]>([]);
   const [editMode, setEditMode] = useState(true);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => { loadData(); }, [id]);
+  useBeforeUnload(isDirty && editMode);
+
+  useEffect(() => {
+    loadData();
+  }, [id]);
 
   async function loadData() {
     const { data: prodData } = await supabase
@@ -83,8 +103,12 @@ export default function InventoryAdjustmentForm() {
     setProducts(prodData || []);
 
     if (id) {
-      const { data: adj } = await (supabase.from("inventory_adjustments" as any) as any)
-        .select("*").eq("id", id).single();
+      const { data: adj } = await (
+        supabase.from("inventory_adjustments") as any
+      )
+        .select("*")
+        .eq("id", id)
+        .single();
       if (adj) {
         setAdjustmentNumber(adj.adjustment_number);
         setAdjustmentDate(adj.adjustment_date);
@@ -92,21 +116,31 @@ export default function InventoryAdjustmentForm() {
         setStatus(adj.status);
         setEditMode(adj.status === "draft");
 
-        const { data: adjItems } = await (supabase.from("inventory_adjustment_items" as any) as any)
+        const { data: adjItems } = await (
+          supabase.from("inventory_adjustment_items") as any
+        )
           .select("*, products(code, name, model_number, product_brands(name))")
           .eq("adjustment_id", id);
         if (adjItems) {
-          setItems(adjItems.map((it: any) => ({
-            id: it.id,
-            product_id: it.product_id,
-            product_name: it.products ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number) : "",
-            system_quantity: Number(it.system_quantity),
-            actual_quantity: Number(it.actual_quantity),
-            difference: Number(it.difference),
-            unit_cost: Number(it.unit_cost),
-            total_cost: Number(it.total_cost),
-            notes: it.notes || "",
-          })));
+          setItems(
+            adjItems.map((it: any) => ({
+              id: it.id,
+              product_id: it.product_id,
+              product_name: it.products
+                ? formatProductDisplay(
+                    it.products.name,
+                    it.products.product_brands?.name,
+                    it.products.model_number,
+                  )
+                : "",
+              system_quantity: Number(it.system_quantity),
+              actual_quantity: Number(it.actual_quantity),
+              difference: Number(it.difference),
+              unit_cost: Number(it.unit_cost),
+              total_cost: Number(it.total_cost),
+              notes: it.notes || "",
+            })),
+          );
         }
       }
       setLoading(false);
@@ -116,17 +150,28 @@ export default function InventoryAdjustmentForm() {
   }
 
   function addItem() {
-    setItems([...items, {
-      product_id: "", product_name: "", system_quantity: 0,
-      actual_quantity: 0, difference: 0, unit_cost: 0, total_cost: 0, notes: "",
-    }]);
+    setItems([
+      ...items,
+      {
+        product_id: "",
+        product_name: "",
+        system_quantity: 0,
+        actual_quantity: 0,
+        difference: 0,
+        unit_cost: 0,
+        total_cost: 0,
+        notes: "",
+      },
+    ]);
   }
 
   async function handleProductSelect(idx: number, productId: string) {
-    const product = products.find(p => p.id === productId);
+    const product = products.find((p) => p.id === productId);
     if (!product) return;
 
-    const { data: avgPrice } = await supabase.rpc("get_avg_purchase_price", { _product_id: productId });
+    const { data: avgPrice } = await supabase.rpc("get_avg_purchase_price", {
+      _product_id: productId,
+    });
     const avgCost = Number(avgPrice) || 0;
     const cost = avgCost > 0 ? avgCost : (product as any).purchase_price || 0;
 
@@ -157,31 +202,55 @@ export default function InventoryAdjustmentForm() {
     setItems(items.filter((_, i) => i !== idx));
   }
 
-  const totalGain = items.filter(i => i.difference > 0).reduce((s, i) => s + i.total_cost, 0);
-  const totalLoss = items.filter(i => i.difference < 0).reduce((s, i) => s + i.total_cost, 0);
+  const totalGain = items
+    .filter((i) => i.difference > 0)
+    .reduce((s, i) => s + i.total_cost, 0);
+  const totalLoss = items
+    .filter((i) => i.difference < 0)
+    .reduce((s, i) => s + i.total_cost, 0);
   const netDifference = totalGain - totalLoss;
 
   async function handleSave() {
-    if (items.length === 0) return toast({ title: "أضف منتج واحد على الأقل", variant: "destructive" });
-    if (items.some(i => !i.product_id)) return toast({ title: "اختر المنتج لكل بند", variant: "destructive" });
+    if (saving) return;
+    const errors: Record<string, string> = {};
+    if (items.length === 0) errors.items = "أضف منتج واحد على الأقل";
+    if (items.some((i) => !i.product_id)) errors.items = "اختر المنتج لكل بند";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast({
+        title: "تنبيه",
+        description: Object.values(errors)[0],
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSaving(true);
     try {
       let adjId = id;
       if (isNew) {
-        const { data, error } = await (supabase.from("inventory_adjustments" as any) as any)
-          .insert({ adjustment_date: adjustmentDate, description, created_by: user?.id })
-          .select().single();
+        const { data, error } = await (
+          supabase.from("inventory_adjustments") as any
+        )
+          .insert({
+            adjustment_date: adjustmentDate,
+            description,
+            created_by: user?.id,
+          })
+          .select()
+          .single();
         if (error) throw error;
         adjId = data.id;
       } else {
-        await (supabase.from("inventory_adjustments" as any) as any)
+        await (supabase.from("inventory_adjustments") as any)
           .update({ adjustment_date: adjustmentDate, description })
           .eq("id", adjId);
-        await (supabase.from("inventory_adjustment_items" as any) as any).delete().eq("adjustment_id", adjId);
+        await (supabase.from("inventory_adjustment_items") as any)
+          .delete()
+          .eq("adjustment_id", adjId);
       }
 
-      const rows = items.map(i => ({
+      const rows = items.map((i) => ({
         adjustment_id: adjId,
         product_id: i.product_id,
         system_quantity: i.system_quantity,
@@ -192,75 +261,143 @@ export default function InventoryAdjustmentForm() {
         notes: i.notes || null,
       }));
 
-      const { error: itemsErr } = await (supabase.from("inventory_adjustment_items" as any) as any).insert(rows);
+      const { error: itemsErr } = await (
+        supabase.from("inventory_adjustment_items") as any
+      ).insert(rows);
       if (itemsErr) throw itemsErr;
 
       toast({ title: "تم حفظ التسوية بنجاح" });
+      setIsDirty(false);
       navigate(`/inventory-adjustments/${adjId}`);
     } catch (e: any) {
-      toast({ title: "خطأ في الحفظ", description: e.message, variant: "destructive" });
+      toast({
+        title: "خطأ في الحفظ",
+        description: e.message,
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDeleteDraft() {
-    if (!id) return;
+    if (!id || saving) return;
+    setSaving(true);
     try {
-      await (supabase.from("inventory_adjustment_items" as any) as any).delete().eq("adjustment_id", id);
-      await (supabase.from("inventory_adjustments" as any) as any).delete().eq("id", id);
+      await (supabase.from("inventory_adjustment_items") as any)
+        .delete()
+        .eq("adjustment_id", id);
+      await (supabase.from("inventory_adjustments") as any)
+        .delete()
+        .eq("id", id);
       toast({ title: "تم حذف التسوية بنجاح" });
+      setIsDirty(false);
       navigate("/inventory-adjustments");
     } catch {
       toast({ title: "خطأ في الحذف", variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   }
 
   async function handleApprove() {
-    if (!id) return;
+    if (!id || saving) return;
     setSaving(true);
     try {
       // 1. Fetch accounts
-      const { data: invAccount } = await supabase.from("accounts").select("id").eq("code", ACCOUNT_CODES.INVENTORY).single();
-      if (!invAccount) throw new Error("حساب المخزون غير موجود - تأكد من وجود حساب بكود " + ACCOUNT_CODES.INVENTORY);
+      const { data: invAccount } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("code", ACCOUNT_CODES.INVENTORY)
+        .single();
+      if (!invAccount)
+        throw new Error(
+          "حساب المخزون غير موجود - تأكد من وجود حساب بكود " +
+            ACCOUNT_CODES.INVENTORY,
+        );
 
       let lossAccount: { id: string } | null = null;
       if (totalLoss > 0) {
-        const { data } = await supabase.from("accounts").select("id").eq("code", ACCOUNT_CODES.INVENTORY_ADJUSTMENT_LOSS).single();
+        const { data } = await supabase
+          .from("accounts")
+          .select("id")
+          .eq("code", ACCOUNT_CODES.INVENTORY_ADJUSTMENT_LOSS)
+          .single();
         lossAccount = data;
         if (!lossAccount) {
-          const { data: created } = await supabase.from("accounts").insert({
-            code: ACCOUNT_CODES.INVENTORY_ADJUSTMENT_LOSS, name: "عجز المخزون",
-            account_type: "expense", description: "خسائر ناتجة عن عجز الجرد",
-          }).select().single();
+          const { data: created } = await supabase
+            .from("accounts")
+            .insert({
+              code: ACCOUNT_CODES.INVENTORY_ADJUSTMENT_LOSS,
+              name: "عجز المخزون",
+              account_type: "expense",
+              description: "خسائر ناتجة عن عجز الجرد",
+            })
+            .select()
+            .single();
           lossAccount = created;
         }
       }
 
       let gainAccount: { id: string } | null = null;
       if (totalGain > 0) {
-        const { data } = await supabase.from("accounts").select("id").eq("code", ACCOUNT_CODES.INVENTORY_ADJUSTMENT_GAIN).single();
+        const { data } = await supabase
+          .from("accounts")
+          .select("id")
+          .eq("code", ACCOUNT_CODES.INVENTORY_ADJUSTMENT_GAIN)
+          .single();
         gainAccount = data;
         if (!gainAccount) {
-          const { data: created } = await supabase.from("accounts").insert({
-            code: ACCOUNT_CODES.INVENTORY_ADJUSTMENT_GAIN, name: "فائض المخزون",
-            account_type: "revenue", description: "أرباح ناتجة عن فائض الجرد",
-          }).select().single();
+          const { data: created } = await supabase
+            .from("accounts")
+            .insert({
+              code: ACCOUNT_CODES.INVENTORY_ADJUSTMENT_GAIN,
+              name: "فائض المخزون",
+              account_type: "revenue",
+              description: "أرباح ناتجة عن فائض الجرد",
+            })
+            .select()
+            .single();
           gainAccount = created;
         }
       }
 
       // 2. Build journal entry lines
-      const lines: { account_id: string; debit: number; credit: number; description: string }[] = [];
+      const lines: {
+        account_id: string;
+        debit: number;
+        credit: number;
+        description: string;
+      }[] = [];
 
       if (totalLoss > 0 && lossAccount) {
-        lines.push({ account_id: lossAccount.id, debit: totalLoss, credit: 0, description: "عجز مخزون - تسوية جرد" });
-        lines.push({ account_id: invAccount.id, debit: 0, credit: totalLoss, description: "تخفيض مخزون - عجز جرد" });
+        lines.push({
+          account_id: lossAccount.id,
+          debit: totalLoss,
+          credit: 0,
+          description: "عجز مخزون - تسوية جرد",
+        });
+        lines.push({
+          account_id: invAccount.id,
+          debit: 0,
+          credit: totalLoss,
+          description: "تخفيض مخزون - عجز جرد",
+        });
       }
 
       if (totalGain > 0 && gainAccount) {
-        lines.push({ account_id: invAccount.id, debit: totalGain, credit: 0, description: "زيادة مخزون - فائض جرد" });
-        lines.push({ account_id: gainAccount.id, debit: 0, credit: totalGain, description: "فائض مخزون - تسوية جرد" });
+        lines.push({
+          account_id: invAccount.id,
+          debit: totalGain,
+          credit: 0,
+          description: "زيادة مخزون - فائض جرد",
+        });
+        lines.push({
+          account_id: gainAccount.id,
+          debit: 0,
+          credit: totalGain,
+          description: "فائض مخزون - تسوية جرد",
+        });
       }
 
       const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
@@ -270,7 +407,9 @@ export default function InventoryAdjustmentForm() {
       let journalEntryId: string | null = null;
       if (lines.length > 0) {
         const postedNumber = await getNextPostedNumber("journal_entries");
-        const { data: je, error: jeErr } = await (supabase.from("journal_entries" as any) as any)
+        const { data: je, error: jeErr } = await (
+          supabase.from("journal_entries") as any
+        )
           .insert({
             entry_date: adjustmentDate,
             description: `تسوية مخزون - جرد رقم ADJ-${adjustmentNumber}`,
@@ -279,47 +418,136 @@ export default function InventoryAdjustmentForm() {
             total_debit: totalDebit,
             total_credit: totalCredit,
             created_by: user?.id,
-          }).select().single();
+          })
+          .select()
+          .single();
         if (jeErr) throw jeErr;
         journalEntryId = je.id;
 
-        const jeLines = lines.map(l => ({ ...l, journal_entry_id: je.id }));
-        const { error: linesErr } = await (supabase.from("journal_entry_lines" as any) as any).insert(jeLines);
+        const jeLines = lines.map((l) => ({ ...l, journal_entry_id: je.id }));
+        const { error: linesErr } = await (
+          supabase.from("journal_entry_lines") as any
+        ).insert(jeLines);
         if (linesErr) throw linesErr;
       }
 
-      // 4. Create inventory movements and update product quantities
+      // 4. Create inventory movements and update product quantities (atomic)
+      // Pre-validate: ensure no product goes negative
       for (const item of items) {
         if (item.difference === 0) continue;
+        if (item.difference < 0) {
+          const { data: freshProd } = await supabase
+            .from("products")
+            .select("quantity_on_hand")
+            .eq("id", item.product_id)
+            .single();
+          if (
+            freshProd &&
+            Number(freshProd.quantity_on_hand) + item.difference < 0
+          ) {
+            throw new Error(
+              `الكمية بعد التسوية ستكون سالبة للمنتج: ${item.product_name}`,
+            );
+          }
+        }
+      }
 
-        // Fetch fresh quantity to avoid stale data
-        const { data: freshProd } = await supabase.from("products")
-          .select("quantity_on_hand").eq("id", item.product_id).single();
-        if (!freshProd) continue;
+      const adjustedProducts: { product_id: string; delta: number }[] = [];
+      try {
+        for (const item of items) {
+          if (item.difference === 0) continue;
 
-        const currentQty = Number(freshProd.quantity_on_hand);
-        const newQty = currentQty + item.difference;
+          // Atomic quantity update via RPC (prevents race conditions)
+          const { error: qtyErr } = await (supabase.rpc as any)(
+            "adjust_product_quantity",
+            {
+              p_product_id: item.product_id,
+              p_delta: item.difference,
+            },
+          );
+          if (qtyErr) throw qtyErr;
+          adjustedProducts.push({
+            product_id: item.product_id,
+            delta: item.difference,
+          });
 
-        await (supabase.from("inventory_movements" as any) as any).insert({
-          product_id: item.product_id,
-          movement_type: "adjustment",
-          quantity: item.difference,
-          unit_cost: item.unit_cost,
-          total_cost: item.total_cost,
-          movement_date: adjustmentDate,
-          reference_id: id,
-          reference_type: "adjustment",
-          notes: `تسوية جرد ADJ-${adjustmentNumber} - ${item.difference > 0 ? "فائض" : "عجز"}: ${Math.abs(item.difference)} وحدة`,
-          created_by: user?.id,
-        });
-
-        await supabase.from("products")
-          .update({ quantity_on_hand: newQty })
-          .eq("id", item.product_id);
+          const { error: movErr } = await (
+            supabase.from("inventory_movements") as any
+          ).insert({
+            product_id: item.product_id,
+            movement_type: "adjustment",
+            quantity: item.difference,
+            unit_cost: item.unit_cost,
+            total_cost: item.total_cost,
+            movement_date: adjustmentDate,
+            reference_id: id,
+            reference_type: "adjustment",
+            notes: `تسوية جرد ADJ-${adjustmentNumber} - ${item.difference > 0 ? "فائض" : "عجز"}: ${Math.abs(item.difference)} وحدة`,
+            created_by: user?.id,
+          });
+          if (movErr) throw movErr;
+        }
+      } catch (itemError) {
+        // Rollback: reverse all successfully adjusted quantities
+        let rollbackFailed = false;
+        for (const adj of adjustedProducts) {
+          try {
+            const { error } = await (supabase.rpc as any)(
+              "adjust_product_quantity",
+              {
+                p_product_id: adj.product_id,
+                p_delta: -adj.delta,
+              },
+            );
+            if (error) throw error;
+          } catch (e: any) {
+            console.error("فشل التراجع عن كمية المنتج:", e);
+            rollbackFailed = true;
+          }
+        }
+        // Delete any movements created for this adjustment
+        try {
+          const { error } = await (supabase.from("inventory_movements") as any)
+            .delete()
+            .eq("reference_id", id)
+            .eq("reference_type", "adjustment");
+          if (error) throw error;
+        } catch (e: any) {
+          console.error("فشل حذف حركات المخزون:", e);
+          rollbackFailed = true;
+        }
+        // Delete journal entry if created
+        if (journalEntryId) {
+          try {
+            const { error } = await supabase
+              .from("journal_entry_lines")
+              .delete()
+              .eq("journal_entry_id", journalEntryId);
+            if (error) throw error;
+          } catch (e: any) {
+            console.error("فشل حذف سطور القيد:", e);
+            rollbackFailed = true;
+          }
+          try {
+            const { error } = await (supabase.from("journal_entries") as any)
+              .delete()
+              .eq("id", journalEntryId);
+            if (error) throw error;
+          } catch (e: any) {
+            console.error("فشل حذف القيد:", e);
+            rollbackFailed = true;
+          }
+        }
+        if (rollbackFailed) {
+          throw new Error(
+            "فشل الاعتماد وفشل التراجع — يرجى مراجعة البيانات يدوياً",
+          );
+        }
+        throw itemError;
       }
 
       // 5. Update adjustment status
-      await (supabase.from("inventory_adjustments" as any) as any)
+      await (supabase.from("inventory_adjustments") as any)
         .update({ status: "approved", journal_entry_id: journalEntryId })
         .eq("id", id);
 
@@ -327,7 +555,11 @@ export default function InventoryAdjustmentForm() {
       setEditMode(false);
       toast({ title: "تم اعتماد التسوية وتسجيل القيود بنجاح" });
     } catch (e: any) {
-      toast({ title: "خطأ في الاعتماد", description: e.message, variant: "destructive" });
+      toast({
+        title: "خطأ في الاعتماد",
+        description: e.message,
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
@@ -337,125 +569,158 @@ export default function InventoryAdjustmentForm() {
     if (!id) return;
     setSaving(true);
     try {
-      // 1. Reverse inventory quantities (fetch fresh data)
+      // 1. Reverse inventory quantities atomically via RPC
       for (const item of items) {
         if (item.difference === 0) continue;
 
-        const { data: freshProd } = await supabase.from("products")
-          .select("quantity_on_hand").eq("id", item.product_id).single();
-        if (!freshProd) continue;
-
-        const currentQty = Number(freshProd.quantity_on_hand);
-        const restoredQty = currentQty - item.difference; // reverse the difference
-
-        await supabase.from("products")
-          .update({ quantity_on_hand: restoredQty })
-          .eq("id", item.product_id);
+        const { error: qtyErr } = await (supabase.rpc as any)(
+          "adjust_product_quantity",
+          {
+            p_product_id: item.product_id,
+            p_delta: -item.difference, // reverse the difference
+          },
+        );
+        if (qtyErr) throw qtyErr;
       }
 
       // 2. Delete inventory movements for this adjustment (handle both possible reference_type values)
-      const { error: delErr1 } = await (supabase.from("inventory_movements" as any) as any)
+      const { error: delErr1 } = await (
+        supabase.from("inventory_movements") as any
+      )
         .delete()
         .eq("reference_id", id)
         .eq("reference_type", "adjustment");
       if (delErr1) console.warn("Delete adjustment movements error:", delErr1);
 
       // Also try with "inventory_adjustment" reference_type (legacy data)
-      const { error: delErr2 } = await (supabase.from("inventory_movements" as any) as any)
+      const { error: delErr2 } = await (
+        supabase.from("inventory_movements") as any
+      )
         .delete()
         .eq("reference_id", id)
         .eq("reference_type", "inventory_adjustment");
-      if (delErr2) console.warn("Delete inventory_adjustment movements error:", delErr2);
+      if (delErr2)
+        console.warn("Delete inventory_adjustment movements error:", delErr2);
 
       // 3. Create REVERSE journal entry (not just cancel the original)
-      const { data: adj } = await (supabase.from("inventory_adjustments" as any) as any)
+      const { data: adj } = await (
+        supabase.from("inventory_adjustments") as any
+      )
         .select("journal_entry_id")
         .eq("id", id)
         .single();
 
       if (adj?.journal_entry_id) {
         // Read original journal entry lines
-        const { data: origLines } = await supabase.from("journal_entry_lines")
+        const { data: origLines } = await supabase
+          .from("journal_entry_lines")
           .select("*")
           .eq("journal_entry_id", adj.journal_entry_id);
 
         if (origLines && origLines.length > 0) {
-          const totalDebit = origLines.reduce((s, l) => s + Number(l.credit), 0); // swap
-          const totalCredit = origLines.reduce((s, l) => s + Number(l.debit), 0); // swap
+          const totalDebit = origLines.reduce(
+            (s, l) => s + Number(l.credit),
+            0,
+          ); // swap
+          const totalCredit = origLines.reduce(
+            (s, l) => s + Number(l.debit),
+            0,
+          ); // swap
           const postedNumber = await getNextPostedNumber("journal_entries");
 
-          const { data: reverseJe } = await supabase.from("journal_entries").insert({
-            description: `عكس تسوية مخزون - جرد رقم ADJ-${adjustmentNumber}`,
-            entry_date: new Date().toISOString().split("T")[0],
-            total_debit: totalDebit,
-            total_credit: totalCredit,
-            status: "posted",
-            posted_number: postedNumber,
-            created_by: user?.id,
-          } as any).select("id").single();
+          const { data: reverseJe } = await supabase
+            .from("journal_entries")
+            .insert({
+              description: `عكس تسوية مخزون - جرد رقم ADJ-${adjustmentNumber}`,
+              entry_date: new Date().toISOString().split("T")[0],
+              total_debit: totalDebit,
+              total_credit: totalCredit,
+              status: "posted",
+              posted_number: postedNumber,
+              created_by: user?.id,
+            } as any)
+            .select("id")
+            .single();
 
           if (reverseJe) {
             const reverseLines = origLines.map((line: any) => ({
               journal_entry_id: reverseJe.id,
               account_id: line.account_id,
-              debit: line.credit,   // swap debit/credit
-              credit: line.debit,   // swap debit/credit
+              debit: line.credit, // swap debit/credit
+              credit: line.debit, // swap debit/credit
               description: `عكس - ${line.description}`,
             }));
-            await supabase.from("journal_entry_lines").insert(reverseLines as any);
+            await supabase
+              .from("journal_entry_lines")
+              .insert(reverseLines as any);
           }
         }
       }
 
       // 4. Update adjustment status to cancelled
-      await (supabase.from("inventory_adjustments" as any) as any)
+      await (supabase.from("inventory_adjustments") as any)
         .update({ status: "cancelled" })
         .eq("id", id);
 
       setStatus("cancelled");
       setEditMode(false);
-      toast({ title: "تم إلغاء التسوية بنجاح", description: "تم استعادة كميات المخزون وتسجيل قيد عكسي" });
+      toast({
+        title: "تم إلغاء التسوية بنجاح",
+        description: "تم استعادة كميات المخزون وتسجيل قيد عكسي",
+      });
     } catch (e: any) {
-      toast({ title: "خطأ في إلغاء التسوية", description: e.message, variant: "destructive" });
+      toast({
+        title: "خطأ في إلغاء التسوية",
+        description: e.message,
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
+  if (loading) return <PageSkeleton variant="form" />;
 
   const isDraft = status === "draft";
   const isApproved = status === "approved";
   const isCancelled = status === "cancelled";
   const isEditable = editMode && isDraft && canEdit;
-  const statusLabels: Record<string, string> = { draft: "مسودة", approved: "معتمد", cancelled: "ملغي" };
-  const statusVariants: Record<string, "secondary" | "default" | "destructive"> = { draft: "secondary", approved: "default", cancelled: "destructive" };
+  const statusLabels: Record<string, string> = {
+    draft: "مسودة",
+    approved: "معتمد",
+    cancelled: "ملغي",
+  };
+  const statusVariants: Record<
+    string,
+    "secondary" | "default" | "destructive"
+  > = { draft: "secondary", approved: "default", cancelled: "destructive" };
 
   return (
-    <div className="space-y-6" dir="rtl">
-      {/* ── Page Header ── */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-black text-foreground tracking-tight">
-              {isNew ? "إنشاء تسوية مخزون" : "تسوية مخزون"}
-            </h1>
-            {!isNew && adjustmentNumber && (
-              <span className="text-sm font-semibold text-muted-foreground border border-border px-3 py-1 rounded-lg bg-muted/50 font-mono tabular-nums">
-                ADJ-{adjustmentNumber}
-              </span>
-            )}
-            {!isNew && (
-              <Badge variant={statusVariants[status] || "secondary"} className="text-xs px-3 py-1">
-                {statusLabels[status] || status}
-              </Badge>
-            )}
-          </div>
-          <p className="text-muted-foreground mt-1.5 text-sm">مقارنة الكميات الفعلية بكميات النظام وتسجيل الفروقات</p>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
+    <div
+      className="space-y-6"
+      dir="rtl"
+      onInput={() => !isDirty && setIsDirty(true)}
+    >
+      <PageHeader
+        icon={ClipboardCheck}
+        title={isNew ? "إنشاء تسوية مخزون" : "تسوية مخزون"}
+        description="مقارنة الكميات الفعلية بكميات النظام وتسجيل الفروقات"
+        badge={<>
+          {!isNew && adjustmentNumber && (
+            <span className="text-sm font-semibold text-muted-foreground border border-border px-3 py-1 rounded-lg bg-muted/50 font-mono tabular-nums">
+              ADJ-{adjustmentNumber}
+            </span>
+          )}
+          {!isNew && (
+            <Badge
+              variant={statusVariants[status] || "secondary"}
+              className="text-xs px-3 py-1"
+            >
+              {statusLabels[status] || status}
+            </Badge>
+          )}
+        </>}
+        actions={<>
           {!isNew && isDraft && canEdit && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -471,11 +736,17 @@ export default function InventoryAdjustmentForm() {
               <AlertDialogContent dir="rtl">
                 <AlertDialogHeader>
                   <AlertDialogTitle>حذف التسوية</AlertDialogTitle>
-                  <AlertDialogDescription>هل أنت متأكد من حذف هذه التسوية؟ لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+                  <AlertDialogDescription>
+                    هل أنت متأكد من حذف هذه التسوية؟ لا يمكن التراجع عن هذا
+                    الإجراء.
+                  </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="flex-row-reverse gap-2">
                   <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteDraft} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  <AlertDialogAction
+                    onClick={handleDeleteDraft}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
                     حذف
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -483,14 +754,29 @@ export default function InventoryAdjustmentForm() {
             </AlertDialog>
           )}
           {!isNew && isDraft && canEdit && !editMode && (
-            <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditMode(true)}
+              className="gap-1.5"
+            >
               <Pencil className="h-4 w-4" />
               تعديل
             </Button>
           )}
           {isEditable && (
-            <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
-              <Save className="h-4 w-4" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSave}
+              disabled={saving}
+              className="gap-1.5"
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
               {saving ? "جاري الحفظ..." : "حفظ مسودة"}
             </Button>
           )}
@@ -510,14 +796,25 @@ export default function InventoryAdjustmentForm() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>اعتماد التسوية</AlertDialogTitle>
                   <AlertDialogDescription>
-                    سيتم تسجيل القيود المحاسبية وتحديث كميات المخزون. لا يمكن التراجع عن هذه العملية.
-                    {totalLoss > 0 && <div className="text-destructive mt-2 font-semibold">عجز: {formatCurrency(totalLoss)}</div>}
-                    {totalGain > 0 && <div className="text-green-600 mt-1 font-semibold">فائض: {formatCurrency(totalGain)}</div>}
+                    سيتم تسجيل القيود المحاسبية وتحديث كميات المخزون. لا يمكن
+                    التراجع عن هذه العملية.
+                    {totalLoss > 0 && (
+                      <div className="text-destructive mt-2 font-semibold">
+                        عجز: {formatCurrency(totalLoss)}
+                      </div>
+                    )}
+                    {totalGain > 0 && (
+                      <div className="text-green-600 mt-1 font-semibold">
+                        فائض: {formatCurrency(totalGain)}
+                      </div>
+                    )}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="flex-row-reverse gap-2">
                   <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleApprove}>اعتماد</AlertDialogAction>
+                  <AlertDialogAction onClick={handleApprove}>
+                    اعتماد
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -539,20 +836,24 @@ export default function InventoryAdjustmentForm() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>إلغاء التسوية المعتمدة</AlertDialogTitle>
                   <AlertDialogDescription>
-                    سيتم استعادة كميات المخزون إلى ما قبل التسوية وإلغاء القيود المحاسبية المرتبطة. هل أنت متأكد؟
+                    سيتم استعادة كميات المخزون إلى ما قبل التسوية وإلغاء القيود
+                    المحاسبية المرتبطة. هل أنت متأكد؟
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="flex-row-reverse gap-2">
                   <AlertDialogCancel>تراجع</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleCancelApproved} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  <AlertDialogAction
+                    onClick={handleCancelApproved}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
                     إلغاء التسوية
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           )}
-        </div>
-      </div>
+        </>}
+      />
 
       {/* ── Adjustment Details Card ── */}
       <div className="bg-card p-6 rounded-2xl border shadow-sm">
@@ -561,9 +862,15 @@ export default function InventoryAdjustmentForm() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">تاريخ التسوية</Label>
+            <Label className="text-sm font-medium text-muted-foreground">
+              تاريخ التسوية
+            </Label>
             {isEditable ? (
-              <DatePickerInput value={adjustmentDate} onChange={setAdjustmentDate} placeholder="اختر التاريخ" />
+              <DatePickerInput
+                value={adjustmentDate}
+                onChange={setAdjustmentDate}
+                placeholder="اختر التاريخ"
+              />
             ) : (
               <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-mono tabular-nums">
                 {adjustmentDate}
@@ -571,11 +878,13 @@ export default function InventoryAdjustmentForm() {
             )}
           </div>
           <div className="md:col-span-2 space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">وصف عملية الجرد</Label>
+            <Label className="text-sm font-medium text-muted-foreground">
+              وصف عملية الجرد
+            </Label>
             {isEditable ? (
               <Input
                 value={description}
-                onChange={e => setDescription(e.target.value)}
+                onChange={(e) => setDescription(e.target.value)}
                 placeholder="مثال: جرد شهر مارس 2026"
                 className="rounded-xl"
               />
@@ -589,7 +898,12 @@ export default function InventoryAdjustmentForm() {
       </div>
 
       {/* ── Items Table Card ── */}
-      <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+      <div
+        className={cn(
+          "bg-card rounded-2xl border shadow-sm overflow-hidden",
+          fieldErrors.items && "border-red-500",
+        )}
+      >
         {/* Card Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -599,12 +913,16 @@ export default function InventoryAdjustmentForm() {
                 {items.length} {items.length === 1 ? "بند" : "بنود"}
               </span>
             )}
+            <FormFieldError message={fieldErrors.items} />
           </div>
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-right border-collapse" style={{ tableLayout: "fixed" }}>
+          <table
+            className="w-full text-right border-collapse"
+            style={{ tableLayout: "fixed" }}
+          >
             <colgroup>
               <col style={{ width: "3%" }} />
               <col style={{ width: "28%" }} />
@@ -618,14 +936,30 @@ export default function InventoryAdjustmentForm() {
             </colgroup>
             <thead>
               <tr className="border-b border-border bg-muted/20">
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">#</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">المنتج</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">كمية النظام</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الكمية الفعلية</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الفرق</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">متوسط التكلفة</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">إجمالي الفرق</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">ملاحظات</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
+                  #
+                </th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">
+                  المنتج
+                </th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
+                  كمية النظام
+                </th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
+                  الكمية الفعلية
+                </th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
+                  الفرق
+                </th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
+                  متوسط التكلفة
+                </th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
+                  إجمالي الفرق
+                </th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
+                  ملاحظات
+                </th>
                 {isEditable && <th className="py-2 px-2" />}
               </tr>
             </thead>
@@ -637,8 +971,14 @@ export default function InventoryAdjustmentForm() {
                       <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                         <ListChecks className="h-5 w-5 text-muted-foreground/40" />
                       </div>
-                      <p className="text-sm font-medium text-muted-foreground">لا توجد بنود بعد</p>
-                      {isEditable && <p className="text-xs text-muted-foreground/50">اضغط «إضافة منتج» للبدء</p>}
+                      <p className="text-sm font-medium text-muted-foreground">
+                        لا توجد بنود بعد
+                      </p>
+                      {isEditable && (
+                        <p className="text-xs text-muted-foreground/50">
+                          اضغط «إضافة منتج» للبدء
+                        </p>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -649,7 +989,9 @@ export default function InventoryAdjustmentForm() {
                     className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100"
                   >
                     <td className="py-2 px-3 text-center">
-                      <span className="text-xs font-medium text-muted-foreground/40 tabular-nums">{i + 1}</span>
+                      <span className="text-xs font-medium text-muted-foreground/40 tabular-nums">
+                        {i + 1}
+                      </span>
                     </td>
 
                     <td className="py-2 px-3 min-w-0">
@@ -661,14 +1003,19 @@ export default function InventoryAdjustmentForm() {
                           placeholder="اختر المنتج"
                         />
                       ) : (
-                        <span className="font-medium text-sm block truncate" title={item.product_name}>
+                        <span
+                          className="font-medium text-sm block truncate"
+                          title={item.product_name}
+                        >
                           {item.product_name}
                         </span>
                       )}
                     </td>
 
                     <td className="py-2 px-3 text-center">
-                      <span className="font-mono tabular-nums text-sm">{item.system_quantity.toLocaleString()}</span>
+                      <span className="font-mono tabular-nums text-sm">
+                        {item.system_quantity.toLocaleString("en-US")}
+                      </span>
                     </td>
 
                     <td className="py-2 px-3">
@@ -677,20 +1024,30 @@ export default function InventoryAdjustmentForm() {
                           type="number"
                           min={0}
                           value={item.actual_quantity}
-                          onChange={e => handleActualQtyChange(i, Number(e.target.value))}
+                          onChange={(e) =>
+                            handleActualQtyChange(i, Number(e.target.value))
+                          }
                           className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
-                        <span className="font-mono tabular-nums text-sm block text-center">{item.actual_quantity.toLocaleString()}</span>
+                        <span className="font-mono tabular-nums text-sm block text-center">
+                          {item.actual_quantity.toLocaleString("en-US")}
+                        </span>
                       )}
                     </td>
 
                     <td className="py-2 px-3 text-center">
-                      <span className={`font-mono tabular-nums text-sm font-bold ${
-                        item.difference > 0 ? "text-green-700 dark:text-green-400" :
-                        item.difference < 0 ? "text-destructive" : "text-muted-foreground"
-                      }`}>
-                        {item.difference > 0 ? "+" : ""}{item.difference.toLocaleString()}
+                      <span
+                        className={`font-mono tabular-nums text-sm font-bold ${
+                          item.difference > 0
+                            ? "text-green-700 dark:text-green-400"
+                            : item.difference < 0
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        {item.difference > 0 ? "+" : ""}
+                        {item.difference.toLocaleString("en-US")}
                       </span>
                     </td>
 
@@ -701,9 +1058,15 @@ export default function InventoryAdjustmentForm() {
                     </td>
 
                     <td className="py-2 px-3 text-center">
-                      <span className={`font-mono tabular-nums text-sm font-semibold ${
-                        item.difference !== 0 ? (item.difference > 0 ? "text-green-700 dark:text-green-400" : "text-destructive") : ""
-                      }`}>
+                      <span
+                        className={`font-mono tabular-nums text-sm font-semibold ${
+                          item.difference !== 0
+                            ? item.difference > 0
+                              ? "text-green-700 dark:text-green-400"
+                              : "text-destructive"
+                            : ""
+                        }`}
+                      >
                         {formatCurrency(item.total_cost)}
                       </span>
                     </td>
@@ -712,14 +1075,18 @@ export default function InventoryAdjustmentForm() {
                       {isEditable ? (
                         <Input
                           value={item.notes}
-                          onChange={e => {
-                            const u = [...items]; u[i].notes = e.target.value; setItems(u);
+                          onChange={(e) => {
+                            const u = [...items];
+                            u[i].notes = e.target.value;
+                            setItems(u);
                           }}
                           className="text-xs bg-muted/30 border-border rounded-md h-8 w-full"
                           placeholder="ملاحظة..."
                         />
                       ) : (
-                        <span className="text-xs text-muted-foreground truncate block">{item.notes || "—"}</span>
+                        <span className="text-xs text-muted-foreground truncate block">
+                          {item.notes || "—"}
+                        </span>
                       )}
                     </td>
 
@@ -760,7 +1127,13 @@ export default function InventoryAdjustmentForm() {
               <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
                 <span className="text-xs text-muted-foreground">المنتجات</span>
                 <span className="text-xs font-mono font-semibold tabular-nums text-foreground">
-                  {new Set(items.filter(i => i.product_id).map(i => i.product_id)).size}
+                  {
+                    new Set(
+                      items
+                        .filter((i) => i.product_id)
+                        .map((i) => i.product_id),
+                    ).size
+                  }
                 </span>
               </div>
               <div className="w-px h-4 bg-border/60" />
@@ -774,7 +1147,9 @@ export default function InventoryAdjustmentForm() {
               )}
               {totalGain > 0 && (
                 <div className="flex items-center gap-1.5 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 px-3 py-1.5 rounded-lg">
-                  <span className="text-xs text-green-700 dark:text-green-400">فائض</span>
+                  <span className="text-xs text-green-700 dark:text-green-400">
+                    فائض
+                  </span>
                   <span className="text-xs font-mono font-semibold tabular-nums text-green-700 dark:text-green-400">
                     {formatCurrency(totalGain)}
                   </span>
@@ -793,11 +1168,13 @@ export default function InventoryAdjustmentForm() {
             <SectionHeader icon={StickyNote} title="ملاحظات" />
           </div>
           <div className="flex-1 space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">ملاحظات حول عملية الجرد</Label>
+            <Label className="text-sm font-medium text-muted-foreground">
+              ملاحظات حول عملية الجرد
+            </Label>
             {isEditable ? (
               <textarea
                 value={description}
-                onChange={e => setDescription(e.target.value)}
+                onChange={(e) => setDescription(e.target.value)}
                 className="w-full h-32 px-4 py-3 bg-muted/30 border border-border rounded-xl text-sm transition-all resize-none focus:ring-2 focus:ring-ring focus:border-ring"
                 placeholder="أدخل أي ملاحظات إضافية هنا..."
               />
@@ -820,7 +1197,9 @@ export default function InventoryAdjustmentForm() {
                 <span className="font-mono tabular-nums text-sm font-medium text-destructive">
                   {formatCurrency(totalLoss)}
                 </span>
-                <span className="text-sm text-muted-foreground">إجمالي العجز</span>
+                <span className="text-sm text-muted-foreground">
+                  إجمالي العجز
+                </span>
               </div>
             )}
             {totalGain > 0 && (
@@ -828,18 +1207,30 @@ export default function InventoryAdjustmentForm() {
                 <span className="font-mono tabular-nums text-sm font-medium text-green-700 dark:text-green-400">
                   {formatCurrency(totalGain)}
                 </span>
-                <span className="text-sm text-muted-foreground">إجمالي الفائض</span>
+                <span className="text-sm text-muted-foreground">
+                  إجمالي الفائض
+                </span>
               </div>
             )}
             <div className="flex justify-between items-center pt-4">
-              <span className={`text-2xl font-black font-mono tabular-nums ${
-                netDifference > 0 ? "text-green-700 dark:text-green-400" :
-                netDifference < 0 ? "text-destructive" : "text-primary"
-              }`}>
-                {netDifference > 0 ? "+" : ""}{formatCurrency(Math.abs(netDifference))}
+              <span
+                className={`text-2xl font-black font-mono tabular-nums ${
+                  netDifference > 0
+                    ? "text-green-700 dark:text-green-400"
+                    : netDifference < 0
+                      ? "text-destructive"
+                      : "text-primary"
+                }`}
+              >
+                {netDifference > 0 ? "+" : ""}
+                {formatCurrency(Math.abs(netDifference))}
               </span>
               <span className="text-base font-bold text-foreground">
-                {netDifference > 0 ? "صافي فائض" : netDifference < 0 ? "صافي عجز" : "متوازن"}
+                {netDifference > 0
+                  ? "صافي فائض"
+                  : netDifference < 0
+                    ? "صافي عجز"
+                    : "متوازن"}
               </span>
             </div>
           </div>

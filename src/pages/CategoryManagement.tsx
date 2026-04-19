@@ -1,18 +1,47 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, FolderTree, Folder, FolderOpen, Upload, Tag, CheckCircle2, XCircle } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  FolderTree,
+  Folder,
+  FolderOpen,
+  Upload,
+  Tag,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LookupImportDialog } from "@/components/LookupImportDialog";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import {
+  buildCategoryTree,
+  countDescendants,
+  getFullPath,
+  wouldCreateCycle,
+  type CategoryNode,
+} from "@/lib/category-utils";
 
 interface Category {
   id: string;
@@ -23,39 +52,9 @@ interface Category {
   created_at: string;
 }
 
-interface TreeNode extends Category {
+type TreeNode = Category & {
   children: TreeNode[];
-}
-
-function buildTree(items: Category[]): TreeNode[] {
-  const map = new Map<string, TreeNode>();
-  const roots: TreeNode[] = [];
-  items.forEach(item => map.set(item.id, { ...item, children: [] }));
-  items.forEach(item => {
-    const node = map.get(item.id)!;
-    if (item.parent_id && map.has(item.parent_id)) {
-      map.get(item.parent_id)!.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  });
-  return roots;
-}
-
-function countDescendants(node: TreeNode): number {
-  return node.children.reduce((sum, child) => sum + 1 + countDescendants(child), 0);
-}
-
-function getFullPath(items: Category[], id: string): string {
-  const map = new Map(items.map(i => [i.id, i]));
-  const parts: string[] = [];
-  let current = map.get(id);
-  while (current) {
-    parts.unshift(current.name);
-    current = current.parent_id ? map.get(current.parent_id) : undefined;
-  }
-  return parts.join(" / ");
-}
+};
 
 function CategoryTreeNode({
   node,
@@ -84,17 +83,24 @@ function CategoryTreeNode({
         className={cn(
           "group flex items-center gap-3 py-2.5 px-3 rounded-md transition-all",
           "hover:bg-accent/50",
-          !node.is_active && "opacity-40"
+          !node.is_active && "opacity-40",
         )}
       >
         <button
           onClick={() => hasChildren && setExpanded(!expanded)}
           className={cn(
             "flex items-center justify-center w-5 h-5 rounded-sm shrink-0",
-            hasChildren ? "text-muted-foreground hover:text-foreground cursor-pointer" : "text-transparent"
+            hasChildren
+              ? "text-muted-foreground hover:text-foreground cursor-pointer"
+              : "text-transparent",
           )}
         >
-          {hasChildren && (expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
+          {hasChildren &&
+            (expanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            ))}
         </button>
 
         {hasChildren && expanded ? (
@@ -104,19 +110,27 @@ function CategoryTreeNode({
         )}
 
         <div className="flex-1 min-w-0">
-          <span className="text-sm font-medium text-foreground">{node.name}</span>
+          <span className="text-sm font-medium text-foreground">
+            {node.name}
+          </span>
           {node.description && (
-            <span className="text-xs text-muted-foreground mr-2 hidden sm:inline"> — {node.description}</span>
+            <span className="text-xs text-muted-foreground mr-2 hidden sm:inline">
+              {" "}
+              — {node.description}
+            </span>
           )}
         </div>
 
         {hasChildren && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal">
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 font-normal"
+          >
             {descendantCount}
           </Badge>
         )}
 
-        <div onClick={e => e.stopPropagation()}>
+        <div onClick={(e) => e.stopPropagation()}>
           {node.is_active ? (
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">
               نشط
@@ -132,17 +146,35 @@ function CategoryTreeNode({
           checked={node.is_active}
           onCheckedChange={() => onToggleActive(node)}
           className="scale-75"
-          onClick={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         />
 
         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={() => onAddChild(node.id)} title="إضافة فرعي">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/5"
+            onClick={() => onAddChild(node.id)}
+            aria-label="إضافة فئة فرعية"
+          >
             <Plus className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/5" onClick={() => onEdit(node)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/5"
+            aria-label="تعديل الفئة"
+            onClick={() => onEdit(node)}
+          >
             <Pencil className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/5" onClick={() => onDelete(node)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+            aria-label="حذف الفئة"
+            onClick={() => onDelete(node)}
+          >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -150,7 +182,7 @@ function CategoryTreeNode({
 
       {expanded && hasChildren && (
         <div className="mr-2">
-          {node.children.map(child => (
+          {node.children.map((child) => (
             <CategoryTreeNode
               key={child.id}
               node={child}
@@ -185,55 +217,97 @@ export default function CategoryManagement() {
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
-    const { data } = await (supabase.from("product_categories") as any).select("*").order("name");
+    const { data } = await (supabase.from("product_categories") as any)
+      .select("*")
+      .order("name");
     setItems(data || []);
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchItems(); }, [fetchItems]);
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
 
-  const tree = buildTree(items);
+  const tree = buildCategoryTree(items) as TreeNode[];
 
   const stats = useMemo(() => {
     const total = items.length;
-    const active = items.filter(i => i.is_active).length;
-    const inactive = items.filter(i => !i.is_active).length;
-    const roots = items.filter(i => !i.parent_id).length;
+    const active = items.filter((i) => i.is_active).length;
+    const inactive = items.filter((i) => !i.is_active).length;
+    const roots = items.filter((i) => !i.parent_id).length;
     return { total, active, inactive, roots };
   }, [items]);
 
   function openAdd(pId: string | null = null) {
-    setEditItem(null); setParentId(pId); setFormName(""); setFormDesc(""); setDialogOpen(true);
+    setEditItem(null);
+    setParentId(pId);
+    setFormName("");
+    setFormDesc("");
+    setDialogOpen(true);
   }
 
   function openEdit(item: Category) {
-    setEditItem(item); setParentId(item.parent_id); setFormName(item.name); setFormDesc(item.description || ""); setDialogOpen(true);
+    setEditItem(item);
+    setParentId(item.parent_id);
+    setFormName(item.name);
+    setFormDesc(item.description || "");
+    setDialogOpen(true);
   }
 
   async function handleSave() {
     if (!formName.trim()) {
-      toast({ title: "تنبيه", description: "يرجى إدخال الاسم", variant: "destructive" });
+      toast({
+        title: "تنبيه",
+        description: "يرجى إدخال الاسم",
+        variant: "destructive",
+      });
       return;
     }
     setSaving(true);
-    const payload: any = { name: formName.trim(), description: formDesc.trim() || null, parent_id: parentId || null };
+    const payload: any = {
+      name: formName.trim(),
+      description: formDesc.trim() || null,
+      parent_id: parentId || null,
+    };
     try {
       if (editItem) {
         if (parentId === editItem.id) {
-          toast({ title: "خطأ", description: "لا يمكن تعيين التصنيف كأب لنفسه", variant: "destructive" });
-          setSaving(false); return;
+          toast({
+            title: "خطأ",
+            description: "لا يمكن تعيين التصنيف كأب لنفسه",
+            variant: "destructive",
+          });
+          setSaving(false);
+          return;
         }
-        const { error } = await (supabase.from("product_categories") as any).update(payload).eq("id", editItem.id);
+        if (wouldCreateCycle(editItem.id, parentId, items)) {
+          toast({
+            title: "خطأ",
+            description:
+              "لا يمكن تعيين هذا التصنيف الأب لأنه سيؤدي إلى حلقة دائرية",
+            variant: "destructive",
+          });
+          setSaving(false);
+          return;
+        }
+        const { error } = await (supabase.from("product_categories") as any)
+          .update(payload)
+          .eq("id", editItem.id);
         if (error) throw error;
         toast({ title: "تم التحديث" });
       } else {
-        const { error } = await (supabase.from("product_categories") as any).insert(payload);
+        const { error } = await (
+          supabase.from("product_categories") as any
+        ).insert(payload);
         if (error) throw error;
         toast({ title: "تمت الإضافة" });
       }
-      setDialogOpen(false); fetchItems();
+      setDialogOpen(false);
+      fetchItems();
     } catch (error: any) {
-      const msg = error.message?.includes("duplicate") ? "الاسم موجود مسبقاً" : error.message;
+      const msg = error.message?.includes("duplicate")
+        ? "الاسم موجود مسبقاً"
+        : error.message;
       toast({ title: "خطأ", description: msg, variant: "destructive" });
     }
     setSaving(false);
@@ -242,30 +316,64 @@ export default function CategoryManagement() {
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
-      const childCount = items.filter(i => i.parent_id === deleteTarget.id).length;
+      const childCount = items.filter(
+        (i) => i.parent_id === deleteTarget.id,
+      ).length;
       if (childCount > 0) {
-        toast({ title: "لا يمكن الحذف", description: `يحتوي على ${childCount} تصنيف فرعي. احذفها أولاً.`, variant: "destructive" });
-        setDeleteDialogOpen(false); return;
+        toast({
+          title: "لا يمكن الحذف",
+          description: `يحتوي على ${childCount} تصنيف فرعي. احذفها أولاً.`,
+          variant: "destructive",
+        });
+        setDeleteDialogOpen(false);
+        return;
       }
-      const { count } = await (supabase.from("products") as any).select("id", { count: "exact", head: true }).eq("category_id", deleteTarget.id);
+      const { count } = await (supabase.from("products") as any)
+        .select("id", { count: "exact", head: true })
+        .eq("category_id", deleteTarget.id);
       if (count && count > 0) {
-        toast({ title: "لا يمكن الحذف", description: `مرتبط بـ ${count} منتج. قم بتعطيله بدلاً من حذفه.`, variant: "destructive" });
-        setDeleteDialogOpen(false); return;
+        toast({
+          title: "لا يمكن الحذف",
+          description: `مرتبط بـ ${count} منتج. قم بتعطيله بدلاً من حذفه.`,
+          variant: "destructive",
+        });
+        setDeleteDialogOpen(false);
+        return;
       }
-      const { error } = await (supabase.from("product_categories") as any).delete().eq("id", deleteTarget.id);
+      const { error } = await (supabase.from("product_categories") as any)
+        .delete()
+        .eq("id", deleteTarget.id);
       if (error) throw error;
-      toast({ title: "تم الحذف" }); setDeleteDialogOpen(false); fetchItems();
+      toast({ title: "تم الحذف" });
+      setDeleteDialogOpen(false);
+      fetchItems();
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   }
 
   async function toggleActive(item: Category) {
-    await (supabase.from("product_categories") as any).update({ is_active: !item.is_active }).eq("id", item.id);
+    const { error } = await (supabase.from("product_categories") as any)
+      .update({ is_active: !item.is_active })
+      .eq("id", item.id);
+    if (error) {
+      toast({
+        title: "خطأ",
+        description: "فشل في تغيير حالة التصنيف",
+        variant: "destructive",
+      });
+      return;
+    }
     fetchItems();
   }
 
-  const parentOptions = items.filter(i => (editItem ? i.id !== editItem.id : true));
+  const parentOptions = items.filter((i) =>
+    editItem ? i.id !== editItem.id : true,
+  );
 
   const statCards = [
     {
@@ -300,50 +408,62 @@ export default function CategoryManagement() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-foreground flex items-center">
-            <div className="bg-primary/10 p-2 rounded-lg ml-3">
-              <Tag className="h-5 w-5 text-primary" />
-            </div>
-            إدارة التصنيفات
-          </h2>
-          <p className="text-muted-foreground text-sm mt-1">تنظيم المنتجات في تصنيفات هرمية متعددة المستويات.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2 shadow-sm" onClick={() => setImportOpen(true)}>
-            <Upload className="h-4 w-4" />
-            استيراد Excel
-          </Button>
-          <ExportMenu
-            config={{
-              filenamePrefix: "التصنيفات",
-              sheetName: "التصنيفات",
-              pdfTitle: "قائمة التصنيفات",
-              headers: ["الاسم", "الوصف", "التصنيف الأب", "الحالة"],
-              rows: items.map(i => [i.name, i.description || "", i.parent_id ? getFullPath(items, i.parent_id) : "رئيسي", i.is_active ? "نشط" : "معطل"]),
-              settings,
-            }}
-            disabled={loading}
-          />
-          <Button onClick={() => openAdd(null)} className="gap-2 shadow-md shadow-primary/20 font-bold">
-            <Plus className="h-4 w-4" />
-            تصنيف جديد
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        icon={Tag}
+        title="إدارة التصنيفات"
+        description="تنظيم المنتجات في تصنيفات هرمية متعددة المستويات."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              className="gap-2 shadow-sm"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload className="h-4 w-4" />
+              استيراد Excel
+            </Button>
+            <ExportMenu
+              config={{
+                filenamePrefix: "التصنيفات",
+                sheetName: "التصنيفات",
+                pdfTitle: "قائمة التصنيفات",
+                headers: ["الاسم", "الوصف", "التصنيف الأب", "الحالة"],
+                rows: items.map((i) => [
+                  i.name,
+                  i.description || "",
+                  i.parent_id ? getFullPath(items, i.parent_id) : "رئيسي",
+                  i.is_active ? "نشط" : "معطل",
+                ]),
+                settings,
+              }}
+              disabled={loading}
+            />
+            <Button
+              onClick={() => openAdd(null)}
+              className="gap-2 shadow-md shadow-primary/20 font-bold"
+            >
+              <Plus className="h-4 w-4" />
+              تصنيف جديد
+            </Button>
+          </>
+        }
+      />
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {statCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
-          <div key={label} className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4">
+          <div
+            key={label}
+            className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4"
+          >
             <div className={`p-3 rounded-full ${iconBg}`}>
               <Icon className={`h-5 w-5 ${iconColor}`} />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="text-xl font-black text-foreground">{value.toLocaleString()}</p>
+              <p className="text-xl font-black text-foreground">
+                {value.toLocaleString("en-US")}
+              </p>
             </div>
           </div>
         ))}
@@ -352,7 +472,11 @@ export default function CategoryManagement() {
       {/* Tree View */}
       <div className="rounded-xl border border-border bg-card shadow-sm">
         {loading ? (
-          <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">جاري التحميل...</div>
+          <div className="p-4 space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-full" />
+            ))}
+          </div>
         ) : tree.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 gap-3 text-muted-foreground">
             <FolderTree className="h-10 w-10 opacity-30" />
@@ -364,15 +488,18 @@ export default function CategoryManagement() {
           </div>
         ) : (
           <div className="p-3">
-            {tree.map(node => (
+            {tree.map((node) => (
               <CategoryTreeNode
                 key={node.id}
                 node={node}
                 level={0}
                 allItems={items}
                 onEdit={openEdit}
-                onDelete={item => { setDeleteTarget(item); setDeleteDialogOpen(true); }}
-                onAddChild={pid => openAdd(pid)}
+                onDelete={(item) => {
+                  setDeleteTarget(item);
+                  setDeleteDialogOpen(true);
+                }}
+                onAddChild={(pid) => openAdd(pid)}
                 onToggleActive={toggleActive}
               />
             ))}
@@ -384,37 +511,56 @@ export default function CategoryManagement() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent dir="rtl" className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{editItem ? "تعديل تصنيف" : "إضافة تصنيف"}</DialogTitle>
+            <DialogTitle>
+              {editItem ? "تعديل تصنيف" : "إضافة تصنيف"}
+            </DialogTitle>
             <DialogDescription>
-              {parentId ? `فرعي من: ${getFullPath(items, parentId)}` : "تصنيف رئيسي"}
+              {parentId
+                ? `فرعي من: ${getFullPath(items, parentId)}`
+                : "تصنيف رئيسي"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label className="text-xs">الاسم *</Label>
-              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="اسم التصنيف" onKeyDown={e => e.key === "Enter" && handleSave()} />
+              <Input
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="اسم التصنيف"
+                onKeyDown={(e) => e.key === "Enter" && handleSave()}
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">الوصف</Label>
-              <Input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="اختياري" />
+              <Input
+                value={formDesc}
+                onChange={(e) => setFormDesc(e.target.value)}
+                placeholder="اختياري"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">التصنيف الأب</Label>
               <select
                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={parentId || ""}
-                onChange={e => setParentId(e.target.value || null)}
+                onChange={(e) => setParentId(e.target.value || null)}
               >
                 <option value="">بدون (رئيسي)</option>
-                {parentOptions.map(p => (
-                  <option key={p.id} value={p.id}>{getFullPath(items, p.id)}</option>
+                {parentOptions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {getFullPath(items, p.id)}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
           <DialogFooter className="flex-row-reverse gap-2">
-            <Button onClick={handleSave} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>إلغاء</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              إلغاء
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -424,11 +570,20 @@ export default function CategoryManagement() {
         <DialogContent dir="rtl" className="max-w-sm">
           <DialogHeader>
             <DialogTitle>حذف التصنيف</DialogTitle>
-            <DialogDescription>سيتم حذف "{deleteTarget?.name}" نهائياً.</DialogDescription>
+            <DialogDescription>
+              سيتم حذف "{deleteTarget?.name}" نهائياً.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-row-reverse gap-2">
-            <Button variant="destructive" onClick={handleDelete}>حذف نهائي</Button>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>تراجع</Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              حذف نهائي
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              تراجع
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

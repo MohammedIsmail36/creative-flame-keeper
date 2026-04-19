@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -7,12 +8,32 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/DatePickerInput";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { Plus, ShoppingCart, Eye, X, Clock, CheckCircle, DollarSign } from "lucide-react";
+import {
+  Plus,
+  ShoppingCart,
+  Eye,
+  X,
+  Clock,
+  CheckCircle,
+  DollarSign,
+  Undo2,
+  AlertTriangle,
+  CreditCard,
+  Ban,
+} from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
+import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { toast } from "@/hooks/use-toast";
 
 interface Invoice {
   id: string;
@@ -21,17 +42,16 @@ interface Invoice {
   supplier_id: string | null;
   supplier_name?: string;
   invoice_date: string;
+  due_date: string | null;
   status: string;
   subtotal: number;
   discount: number;
   tax: number;
   total: number;
   paid_amount: number;
+  reference: string | null;
   notes: string | null;
 }
-
-const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل", cancelled: "ملغي" };
-const statusColors: Record<string, string> = { draft: "secondary", posted: "default", cancelled: "destructive" };
 
 export default function Purchases() {
   const { role } = useAuth();
@@ -39,6 +59,7 @@ export default function Purchases() {
   const prefix = settings?.purchase_invoice_prefix || "PUR-";
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [totalReturns, setTotalReturns] = useState(0);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -51,10 +72,36 @@ export default function Purchases() {
 
   async function fetchAll() {
     setLoading(true);
-    const { data } = await (supabase.from("purchase_invoices" as any) as any)
-      .select("*, suppliers:supplier_id(name)")
-      .order("invoice_number", { ascending: false });
-    setInvoices((data || []).map((inv: any) => ({ ...inv, supplier_name: inv.suppliers?.name })));
+    const [invoiceRes, returnRes] = await Promise.all([
+      (supabase.from("purchase_invoices" as any) as any)
+        .select("*, suppliers:supplier_id(name)")
+        .order("invoice_number", { ascending: false }),
+      supabase
+        .from("purchase_returns")
+        .select("total, status")
+        .eq("status", "posted"),
+    ]);
+    if (invoiceRes.error) {
+      toast({
+        title: "خطأ",
+        description: "فشل في تحميل فواتير الشراء",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+    setInvoices(
+      (invoiceRes.data || []).map((inv: any) => ({
+        ...inv,
+        supplier_name: inv.suppliers?.name,
+      })),
+    );
+    setTotalReturns(
+      (returnRes.data || []).reduce(
+        (s: number, r: any) => s + Number(r.total),
+        0,
+      ),
+    );
     setLoading(false);
   }
 
@@ -77,33 +124,116 @@ export default function Purchases() {
   const columns: ColumnDef<Invoice, any>[] = [
     {
       accessorKey: "invoice_number",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="رقم الفاتورة" />,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="رقم الفاتورة" />
+      ),
       cell: ({ row }) => (
         <span className="font-mono">
-          {formatDisplayNumber(prefix, row.original.posted_number, row.original.invoice_number, row.original.status)}
+          {formatDisplayNumber(
+            prefix,
+            row.original.posted_number,
+            row.original.invoice_number,
+            row.original.status,
+          )}
         </span>
       ),
     },
     {
       accessorKey: "supplier_name",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="المورد" />,
-      cell: ({ row }) => <span className="font-medium">{row.original.supplier_name || "—"}</span>,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="المورد" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.supplier_name || "—"}</span>
+      ),
     },
     {
       accessorKey: "invoice_date",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.invoice_date}</span>,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="التاريخ" />
+      ),
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {row.original.invoice_date}
+        </span>
+      ),
     },
     {
       accessorKey: "total",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="الإجمالي" />,
-      cell: ({ row }) => <span className="font-mono">{formatCurrency(row.original.total)}</span>,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="الإجمالي" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono">{formatCurrency(row.original.total)}</span>
+      ),
+    },
+    {
+      accessorKey: "paid_amount",
+      meta: { hideOnMobile: true },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="المدفوع" />
+      ),
+      cell: ({ row }) => {
+        if (row.original.status === "draft")
+          return <span className="text-muted-foreground">—</span>;
+        return (
+          <span className="font-mono">
+            {formatCurrency(row.original.paid_amount)}
+          </span>
+        );
+      },
+    },
+    {
+      id: "remaining",
+      meta: { hideOnMobile: true },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="المتبقي" />
+      ),
+      cell: ({ row }) => {
+        if (row.original.status === "draft")
+          return <span className="text-muted-foreground">—</span>;
+        const rem = row.original.total - row.original.paid_amount;
+        return (
+          <span
+            className={`font-mono font-bold ${rem > 0 ? "text-destructive" : "text-emerald-600"}`}
+          >
+            {formatCurrency(rem)}
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: "due_date",
+      meta: { hideOnMobile: true },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="الاستحقاق" />
+      ),
+      cell: ({ row }) => {
+        const d = row.original.due_date;
+        if (!d) return <span className="text-muted-foreground">—</span>;
+        const overdue =
+          new Date(d) < new Date() &&
+          row.original.status === "posted" &&
+          row.original.total - row.original.paid_amount > 0;
+        return (
+          <span className="flex items-center gap-1">
+            {d}
+            {overdue && (
+              <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                متأخرة
+              </Badge>
+            )}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "status",
       header: "الحالة",
       cell: ({ row }) => (
-        <Badge variant={statusColors[row.original.status] as any}>{statusLabels[row.original.status]}</Badge>
+        <Badge variant={INVOICE_STATUS_COLORS[row.original.status] as any}>
+          {INVOICE_STATUS_LABELS[row.original.status]}
+        </Badge>
       ),
     },
     {
@@ -114,6 +244,7 @@ export default function Purchases() {
         <Button
           variant="ghost"
           size="icon"
+          aria-label="عرض الفاتورة"
           onClick={(e) => {
             e.stopPropagation();
             navigate(`/purchases/${row.original.id}`);
@@ -127,90 +258,176 @@ export default function Purchases() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex items-center justify-between sticky top-16 z-10 bg-background backdrop-blur-sm border-b border-border py-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <ShoppingCart className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-extrabold text-foreground">فواتير الشراء</h1>
-            <p className="text-sm text-muted-foreground"> إدارة وتوثيق فواتير المشتريات بدقة وسهولة</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <ExportMenu
-            config={{
-              filenamePrefix: "فواتير-الشراء",
-              sheetName: "فواتير الشراء",
-              pdfTitle: "فواتير الشراء",
-              headers: ["رقم الفاتورة", "المورد", "التاريخ", "الإجمالي", "الحالة"],
-              rows: filtered.map((i) => [
-                formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status),
-                i.supplier_name || "—",
-                i.invoice_date,
-                formatCurrency(i.total),
-                statusLabels[i.status] || i.status,
-              ]),
-              settings: null,
-              pdfOrientation: "landscape",
-            }}
-            disabled={loading}
-          />
-          {canEdit && (
-            <Button onClick={() => navigate("/purchases/new")} className="gap-2 shadow-md shadow-primary/20 font-bold">
-              <Plus className="h-4 w-4" />
-              فاتورة جديدة
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        icon={ShoppingCart}
+        title="فواتير الشراء"
+        description="إدارة وتوثيق فواتير المشتريات بدقة وسهولة"
+        actions={
+          <>
+            <ExportMenu
+              config={{
+                filenamePrefix: "فواتير-الشراء",
+                sheetName: "فواتير الشراء",
+                pdfTitle: "فواتير الشراء",
+                headers: [
+                  "رقم الفاتورة",
+                  "المورد",
+                  "التاريخ",
+                  "الإجمالي",
+                  "المدفوع",
+                  "المتبقي",
+                  "الاستحقاق",
+                  "الحالة",
+                ],
+                rows: filtered.map((i) => [
+                  formatDisplayNumber(
+                    prefix,
+                    i.posted_number,
+                    i.invoice_number,
+                    i.status,
+                  ),
+                  i.supplier_name || "—",
+                  i.invoice_date,
+                  formatCurrency(i.total),
+                  i.status === "draft" ? "—" : formatCurrency(i.paid_amount),
+                  i.status === "draft"
+                    ? "—"
+                    : formatCurrency(i.total - i.paid_amount),
+                  i.due_date || "—",
+                  INVOICE_STATUS_LABELS[i.status] || i.status,
+                ]),
+                settings: null,
+                pdfOrientation: "landscape",
+              }}
+              disabled={loading}
+            />
+            {canEdit && (
+              <Button
+                onClick={() => navigate("/purchases/new")}
+                className="gap-2 shadow-md shadow-primary/20 font-bold"
+              >
+                <Plus className="h-4 w-4" />
+                فاتورة جديدة
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          {
-            label: "الكل",
-            value: invoices.length,
-            filter: "all",
-            icon: ShoppingCart,
-            color: "bg-primary/10 text-primary",
-          },
-          {
-            label: "مسودة",
-            value: invoices.filter((i) => i.status === "draft").length,
-            filter: "draft",
-            icon: Clock,
-            color: "bg-amber-500/10 text-amber-600",
-          },
-          {
-            label: "مُرحّل",
-            value: invoices.filter((i) => i.status === "posted").length,
-            filter: "posted",
-            icon: CheckCircle,
-            color: "bg-emerald-500/10 text-emerald-600",
-          },
-          {
-            label: "إجمالي المشتريات",
-            value: formatCurrency(invoices.filter((i) => i.status === "posted").reduce((s, i) => s + i.total, 0)),
-            filter: "",
-            icon: DollarSign,
-            color: "bg-blue-500/10 text-blue-600",
-          },
-        ].map(({ label, value, filter, icon: Icon, color }) => (
+        {(() => {
+          const postedInvoices = invoices.filter((i) => i.status === "posted");
+          const grossTotal = postedInvoices.reduce((s, i) => s + i.total, 0);
+          const netTotal = grossTotal - totalReturns;
+          const collected = postedInvoices.reduce(
+            (s, i) => s + i.paid_amount,
+            0,
+          );
+          const outstanding = grossTotal - collected;
+          return [
+            {
+              label: "الكل",
+              value: invoices.length,
+              filter: "all",
+              icon: ShoppingCart,
+              color: "bg-primary/10 text-primary",
+            },
+            {
+              label: "مسودة",
+              value: invoices.filter((i) => i.status === "draft").length,
+              filter: "draft",
+              icon: Clock,
+              color: "bg-amber-500/10 text-amber-600",
+            },
+            {
+              label: "مُرحّل",
+              value: postedInvoices.length,
+              filter: "posted",
+              icon: CheckCircle,
+              color: "bg-emerald-500/10 text-emerald-600",
+            },
+            {
+              label: "إجمالي المشتريات",
+              value: formatCurrency(grossTotal),
+              filter: "",
+              icon: DollarSign,
+              color: "bg-blue-500/10 text-blue-600",
+            },
+            {
+              label: "المرتجعات",
+              value: formatCurrency(totalReturns),
+              filter: "",
+              icon: Undo2,
+              color: "bg-orange-500/10 text-orange-600",
+            },
+            {
+              label: "صافي المشتريات",
+              value: formatCurrency(netTotal),
+              filter: "",
+              icon: ShoppingCart,
+              color: "bg-indigo-500/10 text-indigo-600",
+            },
+            {
+              label: "المدفوع",
+              value: formatCurrency(collected),
+              filter: "",
+              icon: CreditCard,
+              color: "bg-teal-500/10 text-teal-600",
+            },
+            {
+              label: "المتبقي",
+              value: formatCurrency(outstanding),
+              filter: "",
+              icon: AlertTriangle,
+              color:
+                outstanding > 0
+                  ? "bg-destructive/10 text-destructive"
+                  : "bg-emerald-500/10 text-emerald-600",
+            },
+          ];
+        })().map(({ label, value, filter, icon: Icon, color }) => (
           <button
             key={label}
             onClick={() => filter && setStatusFilter(filter)}
             className={`rounded-xl border p-4 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}
           >
             <div className="flex items-center justify-between mb-2">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
+              <div
+                className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}
+              >
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-2xl font-black text-foreground font-mono">{value}</span>
+              <span className="text-2xl font-black text-foreground font-mono">
+                {value}
+              </span>
             </div>
             <p className="text-xs text-muted-foreground">{label}</p>
           </button>
         ))}
       </div>
+
+      {!loading && invoices.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 gap-4 bg-card rounded-2xl border">
+          <ShoppingCart className="h-12 w-12 text-muted-foreground/30" />
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-foreground">
+              لا توجد فواتير شراء
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              ابدأ بإنشاء أول فاتورة شراء
+            </p>
+          </div>
+          {canEdit && (
+            <Button
+              onClick={() => navigate("/purchases/new")}
+              className="gap-2 mt-2"
+            >
+              <Plus className="h-4 w-4" />
+              فاتورة جديدة
+            </Button>
+          )}
+        </div>
+      )}
 
       <DataTable
         columns={columns}
