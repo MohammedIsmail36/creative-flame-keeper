@@ -26,7 +26,7 @@ interface Supplier { id: string; code: string; name: string; balance?: number; }
 type Product = ProductWithBrand & { purchase_price: number; quantity_on_hand: number; selling_price?: number; };
 interface ReturnItem { id?: string; product_id: string; product_name: string; quantity: number; unit_price: number; discount: number; total: number; }
 
-const ACCOUNT_CODES = { INVENTORY: "1104", SUPPLIERS: "2101" };
+const ACCOUNT_CODES = { INVENTORY: "1104", SUPPLIERS: "2101", TAX_INPUT: "1105" };
 
 // ── Section Header Component ──
 function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
