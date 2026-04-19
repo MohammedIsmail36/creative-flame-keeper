@@ -12,37 +12,33 @@ export async function recalculateEntityBalance(
 ): Promise<number> {
   const isCustomer = entityType === "customer";
 
-  const invoiceTable = (
-    isCustomer ? "sales_invoices" : "purchase_invoices"
-  ) as const;
-  const returnTable = (
-    isCustomer ? "sales_returns" : "purchase_returns"
-  ) as const;
-  const paymentTable = (
-    isCustomer ? "customer_payments" : "supplier_payments"
-  ) as const;
-  const returnPaymentAllocTable = (
-    isCustomer
-      ? "sales_return_payment_allocations"
-      : "purchase_return_payment_allocations"
-  ) as const;
-  const entityTable = (isCustomer ? "customers" : "suppliers") as const;
+  const invoiceTable: "sales_invoices" | "purchase_invoices" =
+    isCustomer ? "sales_invoices" : "purchase_invoices";
+  const returnTable: "sales_returns" | "purchase_returns" =
+    isCustomer ? "sales_returns" : "purchase_returns";
+  const paymentTable: "customer_payments" | "supplier_payments" =
+    isCustomer ? "customer_payments" : "supplier_payments";
+  const returnPaymentAllocTable:
+    | "sales_return_payment_allocations"
+    | "purchase_return_payment_allocations" = isCustomer
+    ? "sales_return_payment_allocations"
+    : "purchase_return_payment_allocations";
+  const entityTable: "customers" | "suppliers" = isCustomer
+    ? "customers"
+    : "suppliers";
   const entityIdCol = isCustomer ? "customer_id" : "supplier_id";
 
   const [{ data: invoices }, { data: returns }, { data: payments }] =
     await Promise.all([
-      supabase
-        .from(invoiceTable)
+      (supabase.from(invoiceTable) as any)
         .select("total")
         .eq(entityIdCol, entityId)
         .eq("status", "posted"),
-      supabase
-        .from(returnTable)
+      (supabase.from(returnTable) as any)
         .select("total")
         .eq(entityIdCol, entityId)
         .eq("status", "posted"),
-      supabase
-        .from(paymentTable)
+      (supabase.from(paymentTable) as any)
         .select("id, amount")
         .eq(entityIdCol, entityId)
         .eq("status", "posted"),
@@ -105,17 +101,18 @@ export async function recalculateInvoicePaidAmount(
   invoiceId: string,
 ): Promise<number> {
   const isSales = invoiceType === "sales";
-  const invoiceTable = (
-    isSales ? "sales_invoices" : "purchase_invoices"
-  ) as const;
-  const paymentAllocTable = (
-    isSales ? "customer_payment_allocations" : "supplier_payment_allocations"
-  ) as const;
-  const settlementTable = (
-    isSales
-      ? "sales_invoice_return_settlements"
-      : "purchase_invoice_return_settlements"
-  ) as const;
+  const invoiceTable: "sales_invoices" | "purchase_invoices" =
+    isSales ? "sales_invoices" : "purchase_invoices";
+  const paymentAllocTable:
+    | "customer_payment_allocations"
+    | "supplier_payment_allocations" = isSales
+    ? "customer_payment_allocations"
+    : "supplier_payment_allocations";
+  const settlementTable:
+    | "sales_invoice_return_settlements"
+    | "purchase_invoice_return_settlements" = isSales
+    ? "sales_invoice_return_settlements"
+    : "purchase_invoice_return_settlements";
 
   const [{ data: paymentAllocs }, { data: settlements }] = await Promise.all([
     supabase
