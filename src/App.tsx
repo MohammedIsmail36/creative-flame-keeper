@@ -54,6 +54,7 @@ import InventoryAdjustmentForm from "./pages/InventoryAdjustmentForm";
 import TrialBalance from "./pages/TrialBalance";
 import IncomeStatement from "./pages/IncomeStatement";
 import BalanceSheet from "./pages/BalanceSheet";
+import CashFlowStatement from "./pages/CashFlowStatement";
 import SettingsPage from "./pages/SettingsPage";
 import UserManagement from "./pages/UserManagement";
 import Auth from "./pages/Auth";
@@ -115,6 +116,7 @@ const App = () => (
             <Route path="/trial-balance" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><TrialBalance /></AppLayout></ProtectedRoute>} />
             <Route path="/income-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><IncomeStatement /></AppLayout></ProtectedRoute>} />
             <Route path="/balance-sheet" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><BalanceSheet /></AppLayout></ProtectedRoute>} />
+            <Route path="/cash-flow" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><CashFlowStatement /></AppLayout></ProtectedRoute>} />
             <Route path="/reports/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesReportPage /></AppLayout></ProtectedRoute>} />
             <Route path="/reports/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchasesReportPage /></AppLayout></ProtectedRoute>} />
             <Route path="/reports/inventory" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryReportPage /></AppLayout></ProtectedRoute>} />
