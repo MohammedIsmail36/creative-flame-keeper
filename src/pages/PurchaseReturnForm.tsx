@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
+import { round2 } from "@/lib/utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,7 +27,7 @@ interface Supplier { id: string; code: string; name: string; balance?: number; }
 type Product = ProductWithBrand & { purchase_price: number; quantity_on_hand: number; selling_price?: number; };
 interface ReturnItem { id?: string; product_id: string; product_name: string; quantity: number; unit_price: number; discount: number; total: number; }
 
-const ACCOUNT_CODES = { INVENTORY: "1104", SUPPLIERS: "2101" };
+const ACCOUNT_CODES = { INVENTORY: "1104", SUPPLIERS: "2101", TAX_INPUT: "1105" };
 
 // ── Section Header Component ──
 function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
@@ -200,13 +201,29 @@ export default function PurchaseReturnForm() {
         }
       }
 
-      const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [ACCOUNT_CODES.INVENTORY, ACCOUNT_CODES.SUPPLIERS]);
+      // ── جلب الحسابات حسب الحاجة ──
+      const requiredCodes = [ACCOUNT_CODES.INVENTORY, ACCOUNT_CODES.SUPPLIERS];
+      const taxEnabled = showTax && taxAmount > 0;
+      if (taxEnabled) requiredCodes.push(ACCOUNT_CODES.TAX_INPUT);
+
+      const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", requiredCodes);
       const inventoryAcc = accounts?.find(a => a.code === ACCOUNT_CODES.INVENTORY);
       const supplierAcc = accounts?.find(a => a.code === ACCOUNT_CODES.SUPPLIERS);
+      const taxAcc = accounts?.find(a => a.code === ACCOUNT_CODES.TAX_INPUT);
       if (!inventoryAcc || !supplierAcc) {
         toast({ title: "خطأ", description: "تأكد من وجود حسابات المخزون والموردين", variant: "destructive" });
         return;
       }
+      if (taxEnabled && !taxAcc) {
+        toast({
+          title: "حساب الضريبة غير موجود",
+          description: "تأكد من وجود حساب 'ضريبة القيمة المضافة للمدخلات' بكود 1105 في شجرة الحسابات قبل ترحيل مرتجع بضريبة.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const inventoryAmount = round2(grandTotal - taxAmount);
 
       const jePostedNum = await getNextPostedNumber("journal_entries");
       const nextPostedNum = await getNextPostedNumber("purchase_returns");
@@ -218,10 +235,16 @@ export default function PurchaseReturnForm() {
       } as any).select("id").single();
       if (jeError) throw jeError;
 
-      await supabase.from("journal_entry_lines").insert([
+      // ── سطور القيد العكسي للمرتجع ──
+      // DR المورد (الإجمالي) | CR المخزون (الصافي) + CR ضريبة المدخلات (إن وُجدت)
+      const lines: any[] = [
         { journal_entry_id: je.id, account_id: supplierAcc.id, debit: grandTotal, credit: 0, description: `مرتجع شراء - ${displayRetNum}` },
-        { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: 0, credit: grandTotal, description: `خصم مخزون مرتجع - ${displayRetNum}` },
-      ] as any);
+        { journal_entry_id: je.id, account_id: inventoryAcc.id, debit: 0, credit: inventoryAmount, description: `خصم مخزون مرتجع - ${displayRetNum}` },
+      ];
+      if (taxEnabled && taxAcc) {
+        lines.push({ journal_entry_id: je.id, account_id: taxAcc.id, debit: 0, credit: taxAmount, description: `عكس ضريبة مدخلات - ${displayRetNum}` });
+      }
+      await supabase.from("journal_entry_lines").insert(lines as any);
 
       await (supabase.from("purchase_returns" as any) as any).update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum }).eq("id", id);
 

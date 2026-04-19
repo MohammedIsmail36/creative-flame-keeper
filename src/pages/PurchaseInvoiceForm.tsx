@@ -74,6 +74,7 @@ interface InvoiceItem {
 const ACCOUNT_CODES = {
   INVENTORY: "1104",
   SUPPLIERS: "2101",
+  TAX_INPUT: "1105", // ضريبة القيمة المضافة للمدخلات (أصل)
 };
 
 // ── Section Header Component ──
@@ -306,12 +307,19 @@ export default function PurchaseInvoiceForm() {
 
   async function postInvoice() {
     try {
+      // ── 1. جلب الحسابات المطلوبة (حسب الحاجة فقط) ──
+      const requiredCodes = [ACCOUNT_CODES.INVENTORY, ACCOUNT_CODES.SUPPLIERS];
+      const taxEnabled = showTax && taxAmount > 0;
+      if (taxEnabled) requiredCodes.push(ACCOUNT_CODES.TAX_INPUT);
+
       const { data: accounts } = await supabase
         .from("accounts")
         .select("id, code")
-        .in("code", [ACCOUNT_CODES.INVENTORY, ACCOUNT_CODES.SUPPLIERS]);
+        .in("code", requiredCodes);
       const inventoryAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.INVENTORY);
       const supplierAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.SUPPLIERS);
+      const taxAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.TAX_INPUT);
+
       if (!inventoryAcc || !supplierAcc) {
         toast({
           title: "خطأ",
@@ -320,6 +328,17 @@ export default function PurchaseInvoiceForm() {
         });
         return;
       }
+      if (taxEnabled && !taxAcc) {
+        toast({
+          title: "حساب الضريبة غير موجود",
+          description: "تأكد من وجود حساب 'ضريبة القيمة المضافة للمدخلات' بكود 1105 في شجرة الحسابات قبل ترحيل فاتورة بضريبة.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // ── 2. حساب صافي المخزون (دون الضريبة) ──
+      const inventoryAmount = round2(grandTotal - taxAmount);
 
       const jePostedNum = await getNextPostedNumber("journal_entries");
       const nextPostedNum = await getNextPostedNumber("purchase_invoices");
@@ -339,22 +358,33 @@ export default function PurchaseInvoiceForm() {
         .single();
       if (jeError) throw jeError;
 
-      await supabase.from("journal_entry_lines").insert([
+      // ── 3. سطور القيد: مدين المخزون (الصافي) + مدين الضريبة (إن وُجدت) + دائن المورد (الإجمالي) ──
+      const lines: any[] = [
         {
           journal_entry_id: je.id,
           account_id: inventoryAcc.id,
-          debit: grandTotal,
+          debit: inventoryAmount,
           credit: 0,
           description: `مشتريات - فاتورة ${displayInvNum}`,
         },
-        {
+      ];
+      if (taxEnabled && taxAcc) {
+        lines.push({
           journal_entry_id: je.id,
-          account_id: supplierAcc.id,
-          debit: 0,
-          credit: grandTotal,
-          description: `مستحقات مورد - فاتورة ${displayInvNum}`,
-        },
-      ] as any);
+          account_id: taxAcc.id,
+          debit: taxAmount,
+          credit: 0,
+          description: `ضريبة مدخلات - فاتورة ${displayInvNum}`,
+        });
+      }
+      lines.push({
+        journal_entry_id: je.id,
+        account_id: supplierAcc.id,
+        debit: 0,
+        credit: grandTotal,
+        description: `مستحقات مورد - فاتورة ${displayInvNum}`,
+      });
+      await supabase.from("journal_entry_lines").insert(lines as any);
 
       await (supabase.from("purchase_invoices" as any) as any)
         .update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum })
