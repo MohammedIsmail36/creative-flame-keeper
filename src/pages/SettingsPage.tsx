@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AccountCombobox } from "@/components/AccountCombobox";
 import { toast } from "sonner";
 import {
   Building2,
@@ -32,6 +33,7 @@ import {
   ReceiptText,
   Eye,
   ShieldCheck,
+  Percent,
 } from "lucide-react";
 
 const currencies = [
