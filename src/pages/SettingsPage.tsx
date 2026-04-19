@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AccountCombobox } from "@/components/AccountCombobox";
 import { toast } from "sonner";
 import {
   Building2,
@@ -30,7 +31,11 @@ import {
   Hash,
   ReceiptText,
   Eye,
+  Percent,
 } from "lucide-react";
+
+interface AccountOption { id: string; code: string; name: string; account_type: string; }
+
 
 const currencies = [
   { value: "EGP", label: "جنيه مصري (EGP)" },
@@ -69,13 +74,25 @@ function SectionCard({ icon: Icon, title, children }: { icon: React.ElementType;
 export default function SettingsPage() {
   const { settings: globalSettings, refetch } = useSettings();
   const [settings, setSettings] = useState<CompanySettings | null>(null);
+  const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchSettings();
+    fetchAccounts();
   }, []);
+
+  const fetchAccounts = async () => {
+    const { data } = await supabase
+      .from("accounts")
+      .select("id, code, name, account_type")
+      .eq("is_active", true)
+      .eq("is_parent", false)
+      .order("code");
+    setAccounts((data || []) as AccountOption[]);
+  };
 
   const fetchSettings = async () => {
     setLoading(true);
