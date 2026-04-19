@@ -105,7 +105,7 @@ export default function PurchaseReturnForm() {
   const isNew = !id;
   const canEdit = role === "admin" || role === "accountant";
 
-  const showTax = settings?.show_tax_on_invoice ?? false;
+  const showTax = (settings?.enable_tax ?? false) && (settings?.show_tax_on_invoke ?? false);
   const showDiscount = settings?.show_discount_on_invoice ?? true;
   const taxRate = settings?.tax_rate ?? 0;
 
