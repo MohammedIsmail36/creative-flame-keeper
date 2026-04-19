@@ -64,6 +64,39 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          record_id: string
+          table_name: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id: string
+          table_name: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string
+          table_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           address: string | null
@@ -84,6 +117,7 @@ export type Database = {
           invoice_footer: string | null
           invoice_notes: string | null
           journal_entry_prefix: string
+          locked_until_date: string | null
           logo_url: string | null
           monthly_sales_target: number
           payment_terms_days: number
@@ -97,6 +131,7 @@ export type Database = {
           sales_tax_account_id: string | null
           show_discount_on_invoice: boolean
           show_tax_on_invoice: boolean
+          stock_enforcement_enabled: boolean | null
           supplier_payment_prefix: string
           tax_number: string | null
           tax_rate: number
@@ -122,6 +157,7 @@ export type Database = {
           invoice_footer?: string | null
           invoice_notes?: string | null
           journal_entry_prefix?: string
+          locked_until_date?: string | null
           logo_url?: string | null
           monthly_sales_target?: number
           payment_terms_days?: number
@@ -135,6 +171,7 @@ export type Database = {
           sales_tax_account_id?: string | null
           show_discount_on_invoice?: boolean
           show_tax_on_invoice?: boolean
+          stock_enforcement_enabled?: boolean | null
           supplier_payment_prefix?: string
           tax_number?: string | null
           tax_rate?: number
@@ -160,6 +197,7 @@ export type Database = {
           invoice_footer?: string | null
           invoice_notes?: string | null
           journal_entry_prefix?: string
+          locked_until_date?: string | null
           logo_url?: string | null
           monthly_sales_target?: number
           payment_terms_days?: number
@@ -173,6 +211,7 @@ export type Database = {
           sales_tax_account_id?: string | null
           show_discount_on_invoice?: boolean
           show_tax_on_invoice?: boolean
+          stock_enforcement_enabled?: boolean | null
           supplier_payment_prefix?: string
           tax_number?: string | null
           tax_rate?: number
@@ -612,6 +651,7 @@ export type Database = {
           description: string
           entry_date: string
           entry_number: number
+          entry_type: string | null
           id: string
           posted_number: number | null
           status: string
@@ -625,6 +665,7 @@ export type Database = {
           description: string
           entry_date?: string
           entry_number?: number
+          entry_type?: string | null
           id?: string
           posted_number?: number | null
           status?: string
@@ -638,6 +679,7 @@ export type Database = {
           description?: string
           entry_date?: string
           entry_number?: number
+          entry_type?: string | null
           id?: string
           posted_number?: number | null
           status?: string
@@ -1803,6 +1845,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adjust_product_quantity: {
+        Args: { p_delta: number; p_product_id: string }
+        Returns: number
+      }
       admin_insert_profile: {
         Args: { p_full_name: string; p_id: string }
         Returns: undefined
@@ -1813,6 +1859,28 @@ export type Database = {
       }
       get_avg_purchase_price: { Args: { _product_id: string }; Returns: number }
       get_avg_selling_price: { Args: { _product_id: string }; Returns: number }
+      get_top_products: {
+        Args: { p_limit?: number }
+        Returns: {
+          product_id: string
+          product_name: string
+          total_amount: number
+          total_qty: number
+        }[]
+      }
+      get_unpaid_invoices: {
+        Args: { p_limit?: number }
+        Returns: {
+          customer_id: string
+          customer_name: string
+          id: string
+          invoice_number: number
+          paid_amount: number
+          posted_number: number
+          remaining: number
+          total: number
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -1824,6 +1892,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      post_purchase_invoice: { Args: { p_invoice_id: string }; Returns: Json }
+      post_sales_invoice: { Args: { p_invoice_id: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "accountant" | "sales"
