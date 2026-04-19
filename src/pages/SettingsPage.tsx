@@ -896,20 +896,6 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-bold">
-                    إظهار الضريبة في الفاتورة
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    عرض تفاصيل الضريبة في الفواتير المطبوعة
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.show_tax_on_invoice}
-                  onCheckedChange={(v) => updateField("show_tax_on_invoice", v)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-bold">
                     إظهار الخصم في الفاتورة
                   </Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
