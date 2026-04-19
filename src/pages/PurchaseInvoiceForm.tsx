@@ -1,12 +1,29 @@
 import React, { useState, useEffect } from "react";
-import { round2 } from "@/lib/utils";
-import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
+import { useLineItems } from "@/hooks/use-line-items";
+import { round2, cn } from "@/lib/utils";
+import { PageHeader } from "@/components/PageHeader";
+import {
+  getNextPostedNumber,
+  formatDisplayNumber,
+} from "@/lib/posted-number-utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useBeforeUnload } from "@/hooks/use-before-unload";
+import { FormFieldError } from "@/components/FormFieldError";
+import { PageSkeleton } from "@/components/PageSkeleton";
+import { SectionHeader } from "@/components/SectionHeader";
+import { calcInvoiceTotals } from "@/lib/invoice-totals";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/DatePickerInput";
@@ -26,10 +43,12 @@ import {
   Ban,
   Truck,
   FileText,
+  ShoppingCart,
   ListChecks,
   CreditCard,
   StickyNote,
   ArrowLeftRight,
+  Loader2,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -49,10 +68,14 @@ import { recalculateEntityBalance } from "@/lib/entity-balance";
 import {
   ProductWithBrand,
   productsToLookupItems,
-  formatProductName,
   formatProductDisplay,
   PRODUCT_SELECT_FIELDS_BASIC,
 } from "@/lib/product-utils";
+import {
+  ACCOUNT_CODES,
+  INVOICE_STATUS_LABELS,
+  INVOICE_STATUS_COLORS,
+} from "@/lib/constants";
 
 interface Supplier {
   id: string;
@@ -71,24 +94,6 @@ interface InvoiceItem {
   total: number;
 }
 
-const ACCOUNT_CODES = {
-  INVENTORY: "1104",
-  SUPPLIERS: "2101",
-  TAX_INPUT: "1105", // ضريبة القيمة المضافة للمدخلات (أصل)
-};
-
-// ── Section Header Component ──
-function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-        <Icon className="h-4 w-4 text-primary" />
-      </div>
-      <h2 className="text-base font-bold text-foreground">{title}</h2>
-    </div>
-  );
-}
-
 export default function PurchaseInvoiceForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -97,28 +102,40 @@ export default function PurchaseInvoiceForm() {
   const isNew = !id;
   const canEdit = role === "admin" || role === "accountant";
 
-  const taxEnabled = settings?.enable_tax ?? false;
-  const showTax = taxEnabled && (settings?.show_tax_on_invoice ?? false);
+  const showTax = settings?.show_tax_on_invoice ?? false;
   const showDiscount = settings?.show_discount_on_invoice ?? true;
-  const taxRate = taxEnabled ? (settings?.tax_rate ?? 0) : 0;
+  const taxRate = settings?.tax_rate ?? 0;
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [paymentSectionRefreshKey, setPaymentSectionRefreshKey] = useState(0);
 
   const [invoiceNumber, setInvoiceNumber] = useState<number | null>(null);
   const [postedNumber, setPostedNumber] = useState<number | null>(null);
   const [supplierId, setSupplierId] = useState("");
   const [supplierName, setSupplierName] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
+  const [invoiceDate, setInvoiceDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
   const [notes, setNotes] = useState("");
   const [reference, setReference] = useState("");
   const [status, setStatus] = useState("draft");
-  const [items, setItems] = useState<InvoiceItem[]>([]);
+  const {
+    items,
+    setItems,
+    addItem,
+    removeItem,
+    updateItem,
+    handleLastFieldKeyDown,
+  } = useLineItems<InvoiceItem>({ priceField: "purchase_price" }, products);
   const [invoiceDiscount, setInvoiceDiscount] = useState(0);
   const [editMode, setEditMode] = useState(true);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  useBeforeUnload(isDirty && editMode);
 
   useEffect(() => {
     loadData();
@@ -126,14 +143,23 @@ export default function PurchaseInvoiceForm() {
 
   async function loadData() {
     const [supRes, prodRes] = await Promise.all([
-      (supabase.from("suppliers" as any) as any).select("id, code, name, balance").eq("is_active", true).order("name"),
-      supabase.from("products").select(PRODUCT_SELECT_FIELDS_BASIC).eq("is_active", true).order("name"),
+      (supabase.from("suppliers" as any) as any)
+        .select("id, code, name, balance")
+        .eq("is_active", true)
+        .order("name"),
+      supabase
+        .from("products")
+        .select(PRODUCT_SELECT_FIELDS_BASIC)
+        .eq("is_active", true)
+        .order("name"),
     ]);
     setSuppliers(supRes.data || []);
     setProducts(prodRes.data || []);
 
     if (id) {
-      const { data: inv } = await (supabase.from("purchase_invoices" as any) as any)
+      const { data: inv } = await (
+        supabase.from("purchase_invoices" as any) as any
+      )
         .select("*, suppliers:supplier_id(name)")
         .eq("id", id)
         .single();
@@ -149,8 +175,12 @@ export default function PurchaseInvoiceForm() {
         setEditMode(inv.status === "draft");
         setInvoiceDiscount(Number(inv.discount) || 0);
 
-        const { data: itemsData } = await (supabase.from("purchase_invoice_items" as any) as any)
-          .select("*, products:product_id(name, code, model_number, product_brands(name))")
+        const { data: itemsData } = await (
+          supabase.from("purchase_invoice_items" as any) as any
+        )
+          .select(
+            "*, products:product_id(name, code, model_number, product_brands(name))",
+          )
           .eq("invoice_id", id)
           .order("sort_order", { ascending: true });
         setItems(
@@ -158,7 +188,11 @@ export default function PurchaseInvoiceForm() {
             id: it.id,
             product_id: it.product_id || "",
             product_name: it.products
-              ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number)
+              ? formatProductDisplay(
+                  it.products.name,
+                  it.products.product_brands?.name,
+                  it.products.model_number,
+                )
               : it.description || "",
             quantity: it.quantity,
             unit_price: it.unit_price,
@@ -179,74 +213,49 @@ export default function PurchaseInvoiceForm() {
     setPaymentSectionRefreshKey((current) => current + 1);
   }
 
-  function addItem() {
-    setItems((prev) => [
-      ...prev,
-      { product_id: "", product_name: "", quantity: 1, unit_price: 0, discount: 0, total: 0 },
-    ]);
-    // After render, open the new row's product combobox
-    setTimeout(() => {
-      const rows = document.querySelectorAll("[data-invoice-row]");
-      const lastRow = rows[rows.length - 1];
-      const comboBtn = lastRow?.querySelector("[role='combobox']") as HTMLButtonElement | null;
-      comboBtn?.click();
-    }, 50);
-  }
-
-  /** Handle Tab/Enter on last field of last row → auto-add new row */
-  function handleLastFieldKeyDown(e: React.KeyboardEvent, rowIndex: number) {
-    if (rowIndex !== items.length - 1) return;
-    if (e.key === "Tab" || e.key === "Enter") {
-      e.preventDefault();
-      addItem();
-    }
-  }
-
-  function updateItem(index: number, field: string, value: any) {
-    setItems((prev) => {
-      const updated = [...prev];
-      const item = { ...updated[index], [field]: value };
-      if (field === "product_id") {
-        const prod = products.find((p) => p.id === value);
-        if (prod) {
-          item.product_name = formatProductName(prod);
-          item.unit_price = prod.purchase_price;
-        }
-      }
-      item.total = round2(item.quantity * item.unit_price - item.discount);
-      updated[index] = item;
-      return updated;
-    });
-  }
-
-  function removeItem(index: number) {
-    setItems((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  const subtotal = round2(items.reduce((s, i) => s + i.total, 0));
-  const hasLineDiscount = items.some((i) => i.discount > 0);
-  const hasInvoiceDiscount = invoiceDiscount > 0;
-  const discountMode: 'line' | 'invoice' | 'none' = hasLineDiscount ? 'line' : hasInvoiceDiscount ? 'invoice' : 'none';
-  const afterDiscount = round2(subtotal - invoiceDiscount);
-  const taxAmount = round2(showTax ? afterDiscount * (taxRate / 100) : 0);
-  const grandTotal = round2(afterDiscount + taxAmount);
+  const {
+    subtotal,
+    hasLineDiscount,
+    hasInvoiceDiscount,
+    discountMode,
+    afterDiscount,
+    taxAmount,
+    grandTotal,
+  } = calcInvoiceTotals({ items, invoiceDiscount, showTax, taxRate });
 
   async function handleSave() {
-    if (!supplierId || items.length === 0) {
-      toast({ title: "تنبيه", description: "يرجى اختيار المورد وإضافة أصناف", variant: "destructive" });
-      return;
-    }
-    if (items.some((i) => !i.product_id)) {
-      toast({ title: "تنبيه", description: "يرجى اختيار المنتج لكل صنف", variant: "destructive" });
+    if (saving) return;
+    const errors: Record<string, string> = {};
+    if (!supplierId) errors.supplier = "يرجى اختيار المورد";
+    if (items.length === 0) errors.items = "يرجى إضافة بند واحد على الأقل";
+    if (items.some((i) => !i.product_id))
+      errors.items = "يرجى اختيار المنتج لكل صنف";
+    if (items.some((i) => i.quantity <= 0))
+      errors.items = "يجب أن تكون الكمية أكبر من صفر";
+    if (items.some((i) => i.unit_price < 0))
+      errors.items = "لا يمكن أن يكون السعر سالباً";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast({
+        title: "تنبيه",
+        description: Object.values(errors)[0],
+        variant: "destructive",
+      });
       return;
     }
     setSaving(true);
     try {
       // Calculate net_total for each item
-      const discountPercent = discountMode === 'invoice' && subtotal > 0 ? invoiceDiscount / subtotal : 0;
+      const discountPercent =
+        discountMode === "invoice" && subtotal > 0
+          ? invoiceDiscount / subtotal
+          : 0;
       const itemsWithNet = items.map((i) => ({
         ...i,
-        net_total: discountMode === 'invoice' ? round2(i.total * (1 - discountPercent)) : i.total,
+        net_total:
+          discountMode === "invoice"
+            ? round2(i.total * (1 - discountPercent))
+            : i.total,
       }));
 
       const payload: any = {
@@ -262,7 +271,9 @@ export default function PurchaseInvoiceForm() {
       };
 
       if (isNew) {
-        const { data: inv, error } = await (supabase.from("purchase_invoices" as any) as any)
+        const { data: inv, error } = await (
+          supabase.from("purchase_invoices" as any) as any
+        )
           .insert(payload)
           .select("id")
           .single();
@@ -278,13 +289,25 @@ export default function PurchaseInvoiceForm() {
           net_total: i.net_total,
           sort_order: idx,
         }));
-        await (supabase.from("purchase_invoice_items" as any) as any).insert(rows);
-        toast({ title: "تمت الإضافة", description: "تم إنشاء فاتورة الشراء كمسودة" });
+        await (supabase.from("purchase_invoice_items" as any) as any).insert(
+          rows,
+        );
+        toast({
+          title: "تمت الإضافة",
+          description: "تم إنشاء فاتورة الشراء كمسودة",
+        });
+        setIsDirty(false);
         navigate(`/purchases/${inv.id}`);
       } else {
-        const { error } = await (supabase.from("purchase_invoices" as any) as any).update(payload).eq("id", id);
+        const { error } = await (
+          supabase.from("purchase_invoices" as any) as any
+        )
+          .update(payload)
+          .eq("id", id);
         if (error) throw error;
-        await (supabase.from("purchase_invoice_items" as any) as any).delete().eq("invoice_id", id);
+        await (supabase.from("purchase_invoice_items" as any) as any)
+          .delete()
+          .eq("invoice_id", id);
         const rows = itemsWithNet.map((i, idx) => ({
           invoice_id: id,
           product_id: i.product_id,
@@ -296,171 +319,92 @@ export default function PurchaseInvoiceForm() {
           net_total: i.net_total,
           sort_order: idx,
         }));
-        await (supabase.from("purchase_invoice_items" as any) as any).insert(rows);
+        await (supabase.from("purchase_invoice_items" as any) as any).insert(
+          rows,
+        );
         toast({ title: "تم التحديث", description: "تم تحديث فاتورة الشراء" });
+        setIsDirty(false);
         loadData();
       }
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
     }
     setSaving(false);
   }
 
   async function postInvoice() {
+    if (saving) return;
+    setSaving(true);
     try {
-      const taxIsActive = showTax && taxAmount > 0;
-
-      // التحقق من إعداد حساب ضريبة المشتريات في الإعدادات
-      if (taxIsActive && !settings?.purchase_tax_account_id) {
-        toast({
-          title: "حساب ضريبة المشتريات غير محدد",
-          description: "افتح إعدادات الشركة → تبويب الضريبة، وحدّد حساب ضريبة المشتريات قبل الترحيل.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // ── 1. جلب حسابات المخزون والموردين ──
-      const { data: accounts } = await supabase
-        .from("accounts")
-        .select("id, code")
-        .in("code", [ACCOUNT_CODES.INVENTORY, ACCOUNT_CODES.SUPPLIERS]);
-      const inventoryAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.INVENTORY);
-      const supplierAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.SUPPLIERS);
-
-      if (!inventoryAcc || !supplierAcc) {
+      const { data: result, error: rpcError } = await supabase.rpc(
+        "post_purchase_invoice" as any,
+        { p_invoice_id: id } as any,
+      );
+      if (rpcError) throw rpcError;
+      const res = result as any;
+      if (!res?.success) {
         toast({
           title: "خطأ",
-          description: "تأكد من وجود حسابات المخزون والموردين في شجرة الحسابات",
+          description: res?.error || "حدث خطأ أثناء الترحيل",
           variant: "destructive",
         });
         return;
-      }
-
-      // التحقق من وجود حساب ضريبة المشتريات (المختار في الإعدادات) في شجرة الحسابات
-      let taxAcc: { id: string } | null = null;
-      if (taxIsActive) {
-        const { data: taxAccData } = await supabase
-          .from("accounts")
-          .select("id")
-          .eq("id", settings!.purchase_tax_account_id!)
-          .maybeSingle();
-        if (!taxAccData) {
-          toast({
-            title: "حساب ضريبة المشتريات غير صالح",
-            description: "الحساب المختار للضريبة في الإعدادات لم يعد موجوداً. الرجاء تحديثه.",
-            variant: "destructive",
-          });
-          return;
-        }
-        taxAcc = taxAccData;
-      }
-
-      // ── 2. حساب صافي المخزون (دون الضريبة) ──
-      const inventoryAmount = round2(grandTotal - taxAmount);
-
-      const jePostedNum = await getNextPostedNumber("journal_entries");
-      const nextPostedNum = await getNextPostedNumber("purchase_invoices");
-      const purPrefix = settings?.purchase_invoice_prefix || "PUR-";
-      const displayInvNum = `${purPrefix}${String(nextPostedNum).padStart(4, "0")}`;
-      const { data: je, error: jeError } = await supabase
-        .from("journal_entries")
-        .insert({
-          description: `فاتورة شراء رقم ${displayInvNum}`,
-          entry_date: invoiceDate,
-          total_debit: grandTotal,
-          total_credit: grandTotal,
-          status: "posted",
-          posted_number: jePostedNum,
-        } as any)
-        .select("id")
-        .single();
-      if (jeError) throw jeError;
-
-      // ── 3. سطور القيد: مدين المخزون (الصافي) + مدين الضريبة (إن وُجدت) + دائن المورد (الإجمالي) ──
-      const lines: any[] = [
-        {
-          journal_entry_id: je.id,
-          account_id: inventoryAcc.id,
-          debit: inventoryAmount,
-          credit: 0,
-          description: `مشتريات - فاتورة ${displayInvNum}`,
-        },
-      ];
-      if (taxIsActive && taxAcc) {
-        lines.push({
-          journal_entry_id: je.id,
-          account_id: taxAcc.id,
-          debit: taxAmount,
-          credit: 0,
-          description: `ضريبة مدخلات - فاتورة ${displayInvNum}`,
-        });
-      }
-      lines.push({
-        journal_entry_id: je.id,
-        account_id: supplierAcc.id,
-        debit: 0,
-        credit: grandTotal,
-        description: `مستحقات مورد - فاتورة ${displayInvNum}`,
-      });
-      await supabase.from("journal_entry_lines").insert(lines as any);
-
-      await (supabase.from("purchase_invoices" as any) as any)
-        .update({ status: "posted", journal_entry_id: je.id, posted_number: nextPostedNum })
-        .eq("id", id);
-
-      // Calculate net_total for inventory movements
-      const postDiscountPercent = discountMode === 'invoice' && subtotal > 0 ? invoiceDiscount / subtotal : 0;
-
-      for (const item of items) {
-        if (!item.product_id) continue;
-        const itemNetTotal = discountMode === 'invoice' ? round2(item.total * (1 - postDiscountPercent)) : item.total;
-        const { data: prod } = await supabase
-          .from("products")
-          .select("quantity_on_hand")
-          .eq("id", item.product_id)
-          .single();
-        if (prod) {
-          await supabase
-            .from("products")
-            .update({ quantity_on_hand: prod.quantity_on_hand + item.quantity } as any)
-            .eq("id", item.product_id);
-        }
-        await (supabase.from("inventory_movements" as any) as any).insert({
-          product_id: item.product_id,
-          movement_type: "purchase",
-          quantity: item.quantity,
-          unit_cost: round2(itemNetTotal / item.quantity),
-          total_cost: itemNetTotal,
-          reference_id: id,
-          reference_type: "purchase_invoice",
-          movement_date: invoiceDate,
-        });
       }
 
       await recalculateEntityBalance("supplier", supplierId);
 
-      toast({ title: "تم الترحيل", description: "تم ترحيل فاتورة الشراء وتوليد القيد المحاسبي وتحديث المخزون" });
+      toast({
+        title: "تم الترحيل",
+        description:
+          "تم ترحيل فاتورة الشراء وتوليد القيد المحاسبي وتحديث المخزون",
+      });
       loadData();
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
   }
 
   async function handleDeleteDraft() {
+    if (saving) return;
+    setSaving(true);
     try {
-      await (supabase.from("purchase_invoice_items" as any) as any).delete().eq("invoice_id", id);
-      await (supabase.from("purchase_invoices" as any) as any).delete().eq("id", id);
+      await (supabase.from("purchase_invoice_items" as any) as any)
+        .delete()
+        .eq("invoice_id", id);
+      await (supabase.from("purchase_invoices" as any) as any)
+        .delete()
+        .eq("id", id);
       toast({ title: "تم الحذف", description: "تم حذف فاتورة الشراء المسودة" });
+      setIsDirty(false);
       navigate("/purchases");
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
   }
 
   async function handleCancelPosted() {
+    if (saving) return;
+    setSaving(true);
     try {
-      const { data: inv } = await (supabase.from("purchase_invoices" as any) as any)
+      const { data: inv } = await (
+        supabase.from("purchase_invoices" as any) as any
+      )
         .select("journal_entry_id")
         .eq("id", id)
         .single();
@@ -475,7 +419,9 @@ export default function PurchaseInvoiceForm() {
         if (prod) {
           await supabase
             .from("products")
-            .update({ quantity_on_hand: prod.quantity_on_hand - item.quantity } as any)
+            .update({
+              quantity_on_hand: prod.quantity_on_hand - item.quantity,
+            } as any)
             .eq("id", item.product_id);
         }
         await (supabase.from("inventory_movements" as any) as any)
@@ -491,8 +437,14 @@ export default function PurchaseInvoiceForm() {
           .from("journal_entry_lines")
           .select("*")
           .eq("journal_entry_id", inv.journal_entry_id);
-        const totalDebit = (origLines || []).reduce((s: number, l: any) => s + Number(l.debit), 0);
-        const totalCredit = (origLines || []).reduce((s: number, l: any) => s + Number(l.credit), 0);
+        const totalDebit = (origLines || []).reduce(
+          (s: number, l: any) => s + Number(l.debit),
+          0,
+        );
+        const totalCredit = (origLines || []).reduce(
+          (s: number, l: any) => s + Number(l.credit),
+          0,
+        );
         const postedNumber = await getNextPostedNumber("journal_entries");
         const { data: reverseJe } = await supabase
           .from("journal_entries")
@@ -514,15 +466,28 @@ export default function PurchaseInvoiceForm() {
             credit: line.debit,
             description: `عكس - ${line.description}`,
           }));
-          await supabase.from("journal_entry_lines").insert(reverseLines as any);
+          await supabase
+            .from("journal_entry_lines")
+            .insert(reverseLines as any);
         }
       }
 
-      await (supabase.from("purchase_invoices" as any) as any).update({ status: "cancelled" }).eq("id", id);
-      toast({ title: "تم الإلغاء", description: "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات" });
+      await (supabase.from("purchase_invoices" as any) as any)
+        .update({ status: "cancelled" })
+        .eq("id", id);
+      toast({
+        title: "تم الإلغاء",
+        description: "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات",
+      });
       loadData();
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -531,7 +496,8 @@ export default function PurchaseInvoiceForm() {
       type: "purchase_invoice",
       number: invoiceNumber || "جديدة",
       date: invoiceDate,
-      partyName: supplierName || suppliers.find((s) => s.id === supplierId)?.name || "—",
+      partyName:
+        supplierName || suppliers.find((s) => s.id === supplierId)?.name || "—",
       partyLabel: "المورد",
       reference: reference || undefined,
       notes: notes || undefined,
@@ -555,44 +521,51 @@ export default function PurchaseInvoiceForm() {
     });
   }
 
-  const statusLabels: Record<string, string> = { draft: "مسودة", posted: "مُرحّل", cancelled: "ملغي" };
-  const statusColors: Record<string, string> = { draft: "secondary", posted: "default", cancelled: "destructive" };
-
-  if (loading) return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
+  if (loading) return <PageSkeleton variant="form" />;
 
   const isDraft = status === "draft";
   const isEditable = editMode && isDraft && canEdit;
   const colCount = 4 + (showDiscount ? 1 : 0) + (isEditable ? 1 : 0);
 
   const displayNumber = !isNew
-    ? formatDisplayNumber(settings?.purchase_invoice_prefix || "PUR-", postedNumber, invoiceNumber || 0, status)
+    ? formatDisplayNumber(
+        settings?.purchase_invoice_prefix || "PUR-",
+        postedNumber,
+        invoiceNumber || 0,
+        status,
+      )
     : null;
 
   const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto" dir="rtl">
-      {/* ── Page Header (Sticky) ── */}
-      <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-sm -mx-5 px-5 py-4 -mt-5 border-b border-border/40">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-black text-foreground tracking-tight">
-                {isNew ? "إنشاء فاتورة مشتريات" : "فاتورة مشتريات"}
-              </h1>
-              {displayNumber && (
-                <span className="text-sm font-semibold text-muted-foreground border border-border px-3 py-1 rounded-lg bg-muted/50 font-mono tabular-nums">
-                  {displayNumber}
-                </span>
-              )}
-              {!isNew && (
-                <Badge variant={statusColors[status] as any} className="text-xs px-3 py-1">
-                  {statusLabels[status]}
-                </Badge>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
+    <div
+      className="space-y-6 max-w-7xl mx-auto"
+      dir="rtl"
+      onInput={() => !isDirty && setIsDirty(true)}
+    >
+      <PageHeader
+        icon={ShoppingCart}
+        title={isNew ? "إنشاء فاتورة مشتريات" : "فاتورة مشتريات"}
+        badge={
+          <>
+            {displayNumber && (
+              <span className="text-sm font-semibold text-muted-foreground border border-border px-3 py-1 rounded-lg bg-muted/50 font-mono tabular-nums">
+                {displayNumber}
+              </span>
+            )}
+            {!isNew && (
+              <Badge
+                variant={INVOICE_STATUS_COLORS[status] as any}
+                className="text-xs px-3 py-1"
+              >
+                {INVOICE_STATUS_LABELS[status]}
+              </Badge>
+            )}
+          </>
+        }
+        actions={
+          <>
             {!isNew && isDraft && canEdit && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -608,7 +581,9 @@ export default function PurchaseInvoiceForm() {
                 <AlertDialogContent dir="rtl">
                   <AlertDialogHeader>
                     <AlertDialogTitle>حذف الفاتورة المسودة</AlertDialogTitle>
-                    <AlertDialogDescription>هل أنت متأكد من حذف هذه الفاتورة؟</AlertDialogDescription>
+                    <AlertDialogDescription>
+                      هل أنت متأكد من حذف هذه الفاتورة؟
+                    </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter className="flex-row-reverse gap-2">
                     <AlertDialogCancel>إلغاء</AlertDialogCancel>
@@ -638,7 +613,8 @@ export default function PurchaseInvoiceForm() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>إلغاء الفاتورة المرحّلة</AlertDialogTitle>
                     <AlertDialogDescription>
-                      سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد المورد.
+                      سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد
+                      المورد.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter className="flex-row-reverse gap-2">
@@ -654,19 +630,35 @@ export default function PurchaseInvoiceForm() {
               </AlertDialog>
             )}
             {!isNew && (
-              <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrint}
+                className="gap-1.5"
+              >
                 <Printer className="h-4 w-4" />
                 طباعة
               </Button>
             )}
             {!isNew && isDraft && canEdit && !editMode && (
-              <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditMode(true)}
+                className="gap-1.5"
+              >
                 <Pencil className="h-4 w-4" />
                 تعديل
               </Button>
             )}
             {isEditable && (
-              <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSave}
+                disabled={saving}
+                className="gap-1.5"
+              >
                 <Save className="h-4 w-4" />
                 {saving ? "جاري الحفظ..." : "حفظ مسودة"}
               </Button>
@@ -675,15 +667,20 @@ export default function PurchaseInvoiceForm() {
               <Button
                 size="sm"
                 onClick={postInvoice}
+                disabled={saving}
                 className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5"
               >
-                <CheckCircle className="h-4 w-4" />
-                إصدار الفاتورة
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="h-4 w-4" />
+                )}
+                {saving ? "جاري الترحيل..." : "إصدار الفاتورة"}
               </Button>
             )}
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* ── Supplier Details Card ── */}
       <div className="bg-card p-6 rounded-2xl border shadow-sm">
@@ -692,24 +689,42 @@ export default function PurchaseInvoiceForm() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">اسم المورد</Label>
+            <Label className="text-sm font-medium text-muted-foreground">
+              اسم المورد <span className="text-red-500">*</span>
+            </Label>
             {isEditable ? (
               <LookupCombobox
                 items={suppliers}
                 value={supplierId}
-                onValueChange={setSupplierId}
+                onValueChange={(v) => {
+                  setSupplierId(v);
+                  setFieldErrors((e) => {
+                    const { supplier, ...rest } = e;
+                    return rest;
+                  });
+                }}
                 placeholder="اختر مورد أو أضف جديداً"
+                error={!!fieldErrors.supplier}
               />
             ) : (
               <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-medium">
-                {supplierName || suppliers.find((s) => s.id === supplierId)?.name || "—"}
+                {supplierName ||
+                  suppliers.find((s) => s.id === supplierId)?.name ||
+                  "—"}
               </div>
             )}
+            <FormFieldError message={fieldErrors.supplier} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">تاريخ الإصدار</Label>
+            <Label className="text-sm font-medium text-muted-foreground">
+              تاريخ الإصدار
+            </Label>
             {isEditable ? (
-              <DatePickerInput value={invoiceDate} onChange={setInvoiceDate} placeholder="اختر التاريخ" />
+              <DatePickerInput
+                value={invoiceDate}
+                onChange={setInvoiceDate}
+                placeholder="اختر التاريخ"
+              />
             ) : (
               <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-mono tabular-nums">
                 {invoiceDate}
@@ -717,7 +732,9 @@ export default function PurchaseInvoiceForm() {
             )}
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">رقم المرجع</Label>
+            <Label className="text-sm font-medium text-muted-foreground">
+              رقم المرجع
+            </Label>
             {isEditable ? (
               <Input
                 value={reference}
@@ -735,7 +752,12 @@ export default function PurchaseInvoiceForm() {
       </div>
 
       {/* ── Items Table Card ── */}
-      <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+      <div
+        className={cn(
+          "bg-card rounded-2xl border shadow-sm overflow-hidden",
+          fieldErrors.items && "border-red-500",
+        )}
+      >
         {/* Card Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -745,12 +767,16 @@ export default function PurchaseInvoiceForm() {
                 {items.length} {items.length === 1 ? "بند" : "بنود"}
               </span>
             )}
+            <FormFieldError message={fieldErrors.items} />
           </div>
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-right border-collapse" style={{ tableLayout: "fixed" }}>
+          <table
+            className="w-full text-right border-collapse"
+            style={{ tableLayout: "fixed" }}
+          >
             <colgroup>
               <col style={{ width: "4%" }} />
               <col style={{ width: showDiscount ? "38%" : "48%" }} />
@@ -762,14 +788,26 @@ export default function PurchaseInvoiceForm() {
             </colgroup>
             <thead>
               <tr className="border-b border-border bg-muted/20">
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">#</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">البند</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الكمية</th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">سعر الوحدة</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
+                  #
+                </th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">
+                  البند
+                </th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
+                  الكمية
+                </th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
+                  سعر الوحدة
+                </th>
                 {showDiscount && (
-                  <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">الخصم</th>
+                  <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
+                    الخصم
+                  </th>
                 )}
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">المجموع</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
+                  المجموع
+                </th>
                 {isEditable && <th className="py-2 px-2" />}
               </tr>
             </thead>
@@ -781,8 +819,14 @@ export default function PurchaseInvoiceForm() {
                       <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                         <ListChecks className="h-5 w-5 text-muted-foreground/40" />
                       </div>
-                      <p className="text-sm font-medium text-muted-foreground">لا توجد بنود بعد</p>
-                      {isEditable && <p className="text-xs text-muted-foreground/50">اضغط «إضافة بند جديد» للبدء</p>}
+                      <p className="text-sm font-medium text-muted-foreground">
+                        لا توجد بنود بعد
+                      </p>
+                      {isEditable && (
+                        <p className="text-xs text-muted-foreground/50">
+                          اضغط «إضافة بند جديد» للبدء
+                        </p>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -794,7 +838,9 @@ export default function PurchaseInvoiceForm() {
                     className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100"
                   >
                     <td className="py-2 px-3 text-center">
-                      <span className="text-xs font-medium text-muted-foreground/40 tabular-nums">{i + 1}</span>
+                      <span className="text-xs font-medium text-muted-foreground/40 tabular-nums">
+                        {i + 1}
+                      </span>
                     </td>
                     <td className="py-2 px-3 min-w-0">
                       {isEditable ? (
@@ -805,7 +851,10 @@ export default function PurchaseInvoiceForm() {
                           placeholder="اختر المنتج"
                         />
                       ) : (
-                        <span className="font-medium text-sm block truncate" title={item.product_name}>
+                        <span
+                          className="font-medium text-sm block truncate"
+                          title={item.product_name}
+                        >
                           {item.product_name}
                         </span>
                       )}
@@ -816,11 +865,15 @@ export default function PurchaseInvoiceForm() {
                           type="number"
                           min="1"
                           value={item.quantity}
-                          onChange={(e) => updateItem(i, "quantity", +e.target.value)}
+                          onChange={(e) =>
+                            updateItem(i, "quantity", +e.target.value)
+                          }
                           className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
-                        <span className="font-mono tabular-nums text-sm block text-center">{item.quantity}</span>
+                        <span className="font-mono tabular-nums text-sm block text-center">
+                          {item.quantity}
+                        </span>
                       )}
                     </td>
                     <td className="py-2 px-3">
@@ -830,13 +883,21 @@ export default function PurchaseInvoiceForm() {
                           min="0"
                           step="0.01"
                           value={item.unit_price}
-                          onChange={(e) => updateItem(i, "unit_price", +e.target.value)}
-                          onKeyDown={!showDiscount ? (e) => handleLastFieldKeyDown(e, i) : undefined}
+                          onChange={(e) =>
+                            updateItem(i, "unit_price", +e.target.value)
+                          }
+                          onKeyDown={
+                            !showDiscount
+                              ? (e) => handleLastFieldKeyDown(e, i)
+                              : undefined
+                          }
                           className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
                         <span className="font-mono tabular-nums text-sm text-muted-foreground">
-                          {item.unit_price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          {item.unit_price.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                          })}
                         </span>
                       )}
                     </td>
@@ -848,17 +909,24 @@ export default function PurchaseInvoiceForm() {
                             min="0"
                             step="0.01"
                             value={item.discount}
-                            onChange={(e) => updateItem(i, "discount", +e.target.value)}
+                            onChange={(e) =>
+                              updateItem(i, "discount", +e.target.value)
+                            }
                             onKeyDown={(e) => handleLastFieldKeyDown(e, i)}
-                            disabled={discountMode === 'invoice'}
+                            disabled={discountMode === "invoice"}
                             className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full disabled:opacity-40"
                           />
                         ) : item.discount > 0 ? (
                           <span className="inline-flex items-center text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-800 font-mono tabular-nums">
-                            -{item.discount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                            -
+                            {item.discount.toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                            })}
                           </span>
                         ) : (
-                          <span className="text-muted-foreground/30 text-sm">—</span>
+                          <span className="text-muted-foreground/30 text-sm">
+                            —
+                          </span>
                         )}
                       </td>
                     )}
@@ -904,7 +972,13 @@ export default function PurchaseInvoiceForm() {
               <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
                 <span className="text-xs text-muted-foreground">المنتجات</span>
                 <span className="text-xs font-mono font-semibold tabular-nums text-foreground">
-                  {new Set(items.filter((i) => i.product_id).map((i) => i.product_id)).size}
+                  {
+                    new Set(
+                      items
+                        .filter((i) => i.product_id)
+                        .map((i) => i.product_id),
+                    ).size
+                  }
                 </span>
               </div>
               <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
@@ -917,23 +991,32 @@ export default function PurchaseInvoiceForm() {
               {showDiscount && (totalDiscount > 0 || invoiceDiscount > 0) && (
                 <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
                   <span className="text-xs text-muted-foreground">
-                    {discountMode === 'invoice' ? 'خصم الفاتورة' : 'خصم السطور'}
+                    {discountMode === "invoice" ? "خصم الفاتورة" : "خصم السطور"}
                   </span>
                   <span className="text-xs font-mono font-semibold tabular-nums text-green-600 dark:text-green-400">
-                    -{formatCurrency(discountMode === 'invoice' ? invoiceDiscount : totalDiscount)}
+                    -
+                    {formatCurrency(
+                      discountMode === "invoice"
+                        ? invoiceDiscount
+                        : totalDiscount,
+                    )}
                   </span>
                 </div>
               )}
               {showTax && (
                 <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
-                  <span className="text-xs text-muted-foreground">الضريبة {taxRate}%</span>
+                  <span className="text-xs text-muted-foreground">
+                    الضريبة {taxRate}%
+                  </span>
                   <span className="text-xs font-mono font-semibold tabular-nums text-foreground">
                     {formatCurrency(taxAmount)}
                   </span>
                 </div>
               )}
               <div className="flex items-center gap-1.5 bg-primary/5 border border-primary/20 px-3 py-1.5 rounded-lg">
-                <span className="text-xs text-primary/70 font-medium">الإجمالي</span>
+                <span className="text-xs text-primary/70 font-medium">
+                  الإجمالي
+                </span>
                 <span className="text-xs font-mono font-bold tabular-nums text-primary">
                   {formatCurrency(grandTotal)}
                 </span>
@@ -950,7 +1033,9 @@ export default function PurchaseInvoiceForm() {
             <SectionHeader icon={StickyNote} title="ملاحظات داخلية" />
           </div>
           <div className="flex-1 space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">ملاحظات داخلية (لا تظهر في الطباعة)</Label>
+            <Label className="text-sm font-medium text-muted-foreground">
+              ملاحظات داخلية (لا تظهر في الطباعة)
+            </Label>
             {isEditable ? (
               <textarea
                 value={notes}
@@ -972,16 +1057,22 @@ export default function PurchaseInvoiceForm() {
           </div>
           <div className="space-y-1 mt-2">
             <div className="flex justify-between items-center py-2.5 border-b border-border/50">
-              <span className="font-mono tabular-nums text-sm font-medium">{formatCurrency(subtotal)}</span>
-              <span className="text-sm text-muted-foreground">المجموع الفرعي</span>
+              <span className="font-mono tabular-nums text-sm font-medium">
+                {formatCurrency(subtotal)}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                المجموع الفرعي
+              </span>
             </div>
             {/* Line discounts display */}
-            {showDiscount && discountMode === 'line' && totalDiscount > 0 && (
+            {showDiscount && discountMode === "line" && totalDiscount > 0 && (
               <div className="flex justify-between items-center py-2.5 border-b border-border/50">
                 <span className="font-mono tabular-nums text-sm font-medium text-green-600 dark:text-green-400">
                   -{formatCurrency(totalDiscount)}
                 </span>
-                <span className="text-sm text-muted-foreground">خصم السطور</span>
+                <span className="text-sm text-muted-foreground">
+                  خصم السطور
+                </span>
               </div>
             )}
             {/* Invoice-level discount input */}
@@ -992,9 +1083,11 @@ export default function PurchaseInvoiceForm() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={invoiceDiscount || ''}
-                    onChange={(e) => setInvoiceDiscount(round2(+e.target.value || 0))}
-                    disabled={discountMode === 'line'}
+                    value={invoiceDiscount || ""}
+                    onChange={(e) =>
+                      setInvoiceDiscount(round2(+e.target.value || 0))
+                    }
+                    disabled={discountMode === "line"}
                     placeholder="0.00"
                     className="font-mono tabular-nums text-center w-28 h-8 rounded-md disabled:opacity-40"
                   />
@@ -1004,7 +1097,9 @@ export default function PurchaseInvoiceForm() {
                     </span>
                   )}
                 </div>
-                <span className="text-sm text-muted-foreground whitespace-nowrap">خصم الفاتورة</span>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  خصم الفاتورة
+                </span>
               </div>
             )}
             {/* Invoice discount display (non-edit mode) */}
@@ -1018,20 +1113,28 @@ export default function PurchaseInvoiceForm() {
                     </span>
                   )}
                 </span>
-                <span className="text-sm text-muted-foreground">خصم الفاتورة</span>
+                <span className="text-sm text-muted-foreground">
+                  خصم الفاتورة
+                </span>
               </div>
             )}
             {showTax && (
               <div className="flex justify-between items-center py-2.5 border-b border-border/50">
-                <span className="font-mono tabular-nums text-sm font-medium">{formatCurrency(taxAmount)}</span>
-                <span className="text-sm text-muted-foreground">ضريبة القيمة المضافة ({taxRate}%)</span>
+                <span className="font-mono tabular-nums text-sm font-medium">
+                  {formatCurrency(taxAmount)}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  ضريبة القيمة المضافة ({taxRate}%)
+                </span>
               </div>
             )}
             <div className="flex justify-between items-center pt-4">
               <span className="text-2xl font-black text-primary font-mono tabular-nums">
                 {formatCurrency(grandTotal)}
               </span>
-              <span className="text-base font-bold text-foreground">الإجمالي الكلي</span>
+              <span className="text-base font-bold text-foreground">
+                الإجمالي الكلي
+              </span>
             </div>
           </div>
         </div>
@@ -1049,7 +1152,11 @@ export default function PurchaseInvoiceForm() {
                 type="purchase"
                 invoiceId={id}
                 entityId={supplierId}
-                entityName={supplierName || suppliers.find((s) => s.id === supplierId)?.name || ""}
+                entityName={
+                  supplierName ||
+                  suppliers.find((s) => s.id === supplierId)?.name ||
+                  ""
+                }
                 invoiceTotal={grandTotal}
                 invoiceNumber={invoiceNumber}
                 onPaymentAdded={loadData}

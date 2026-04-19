@@ -3,53 +3,130 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DatePickerInput } from "@/components/DatePickerInput";
 import {
-  TrendingUp, TrendingDown, Minus, DollarSign, ShoppingCart,
-  Receipt, BarChart3, Percent, FileSpreadsheet, FileText, Users, Package, RotateCcw,
-  AlertTriangle, Info, AlertCircle
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  DollarSign,
+  ShoppingCart,
+  Receipt,
+  BarChart3,
+  Percent,
+  FileSpreadsheet,
+  FileText,
+  Users,
+  Package,
+  RotateCcw,
+  Info,
 } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from "recharts";
-import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import {
+  differenceInCalendarDays,
+  eachMonthOfInterval,
+  endOfMonth,
+  format,
+  parseISO,
+  startOfMonth,
+  subDays,
+  subMonths,
+} from "date-fns";
 import { ar } from "date-fns/locale";
+import { toWesternDigits } from "@/lib/utils";
 import { exportToExcel } from "@/lib/excel-export";
 import { exportReportPdf } from "@/lib/report-pdf";
 
 const CHART_COLORS = [
-  "hsl(24, 95%, 53%)",
-  "hsl(152, 60%, 42%)",
-  "hsl(217, 80%, 50%)",
-  "hsl(340, 65%, 50%)",
-  "hsl(262, 60%, 50%)",
-  "hsl(38, 92%, 50%)",
+  "hsl(24, 95%, 53%)", // primary orange
+  "hsl(152, 60%, 42%)", // success green
+  "hsl(217, 80%, 50%)", // blue
+  "hsl(340, 65%, 50%)", // pink
+  "hsl(262, 60%, 50%)", // purple
+  "hsl(38, 92%, 50%)", // warning yellow
 ];
 
 export default function GrowthAnalytics() {
   const { formatCurrency, settings } = useSettings();
-  const [period, setPeriod] = useState("6");
+  const [quickRange, setQuickRange] = useState("6");
+  const [dateFrom, setDateFrom] = useState(
+    format(startOfMonth(subMonths(new Date(), 5)), "yyyy-MM-dd"),
+  );
+  const [dateTo, setDateTo] = useState(
+    format(endOfMonth(new Date()), "yyyy-MM-dd"),
+  );
 
-  const months = parseInt(period);
-  const dateFrom = format(startOfMonth(subMonths(new Date(), months - 1)), "yyyy-MM-dd");
-  const dateTo = format(endOfMonth(new Date()), "yyyy-MM-dd");
-  const prevFrom = format(startOfMonth(subMonths(new Date(), months * 2 - 1)), "yyyy-MM-dd");
-  const prevTo = format(endOfMonth(subMonths(new Date(), months)), "yyyy-MM-dd");
+  const fromDate = parseISO(dateFrom);
+  const toDate = parseISO(dateTo);
+  const dateRangeInvalid = dateFrom > dateTo;
+  const periodDays = Math.max(
+    1,
+    differenceInCalendarDays(toDate, fromDate) + 1,
+  );
+  const prevToDate = subDays(fromDate, 1);
+  const prevFromDate = subDays(prevToDate, periodDays - 1);
+  const prevFrom = format(prevFromDate, "yyyy-MM-dd");
+  const prevTo = format(prevToDate, "yyyy-MM-dd");
+
+  const applyQuickRange = (value: string) => {
+    if (value === "custom") {
+      setQuickRange("custom");
+      return;
+    }
+    const parsedMonths = parseInt(value, 10);
+    if (Number.isNaN(parsedMonths) || parsedMonths <= 0) return;
+    setQuickRange(value);
+    setDateFrom(
+      format(
+        startOfMonth(subMonths(new Date(), parsedMonths - 1)),
+        "yyyy-MM-dd",
+      ),
+    );
+    setDateTo(format(endOfMonth(new Date()), "yyyy-MM-dd"));
+  };
+
+  const handleDateFromChange = (value: string) => {
+    setQuickRange("custom");
+    setDateFrom(value);
+    if (value > dateTo) setDateTo(value);
+  };
+
+  const handleDateToChange = (value: string) => {
+    setQuickRange("custom");
+    setDateTo(value);
+    if (value < dateFrom) setDateFrom(value);
+  };
 
   // --- Data Queries ---
 
-  // Sales invoices
-  const { data: salesData, isLoading: loadingSales, isError: errorSales } = useQuery({
-    queryKey: ["growth-sales", dateFrom, dateTo],
+  const { data: salesData, isLoading: loadingSales } = useQuery({
+    queryKey: ["growth-sales-invoices", dateFrom, dateTo],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales_invoices")
-        .select("invoice_date, subtotal, tax, total, paid_amount, status")
+        .select("id, invoice_date, total, paid_amount, status")
         .gte("invoice_date", dateFrom)
         .lte("invoice_date", dateTo)
         .eq("status", "posted");
@@ -58,26 +135,12 @@ export default function GrowthAnalytics() {
     },
   });
 
-  const { data: prevSalesData, isLoading: loadingPrevSales } = useQuery({
-    queryKey: ["growth-prev-sales", prevFrom, prevTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_invoices")
-        .select("subtotal, tax, total, paid_amount")
-        .gte("invoice_date", prevFrom)
-        .lte("invoice_date", prevTo)
-        .eq("status", "posted");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: purchasesData, isLoading: loadingPurchases, isError: errorPurchases } = useQuery({
-    queryKey: ["growth-purchases", dateFrom, dateTo],
+  const { data: purchasesData, isLoading: loadingPurchases } = useQuery({
+    queryKey: ["growth-purchases-invoices", dateFrom, dateTo],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("purchase_invoices")
-        .select("invoice_date, subtotal, tax, total, status")
+        .select("id, invoice_date, total, status")
         .gte("invoice_date", dateFrom)
         .lte("invoice_date", dateTo)
         .eq("status", "posted");
@@ -86,21 +149,7 @@ export default function GrowthAnalytics() {
     },
   });
 
-  const { data: prevPurchasesData, isLoading: loadingPrevPurchases } = useQuery({
-    queryKey: ["growth-prev-purchases", prevFrom, prevTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("purchase_invoices")
-        .select("subtotal, tax, total")
-        .gte("invoice_date", prevFrom)
-        .lte("invoice_date", prevTo)
-        .eq("status", "posted");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: expensesData, isLoading: loadingExpenses, isError: errorExpenses } = useQuery({
+  const { data: expensesData, isLoading: loadingExpenses } = useQuery({
     queryKey: ["growth-expenses", dateFrom, dateTo],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -128,13 +177,168 @@ export default function GrowthAnalytics() {
     },
   });
 
-  // COGS from inventory_movements (sale movements in period)
+  const { data: customersData } = useQuery({
+    queryKey: ["growth-customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, balance")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Sales items (ex-VAT, net of invoice discounts via net_total)
+  const { data: salesItemsData, isLoading: loadingSalesItems } = useQuery({
+    queryKey: ["growth-sales-items", dateFrom, dateTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_invoice_items")
+        .select(
+          "product_id, quantity, total, net_total, product:products(name), invoice:sales_invoices!inner(invoice_date, status)",
+        )
+        .gte("invoice.invoice_date", dateFrom)
+        .lte("invoice.invoice_date", dateTo)
+        .eq("invoice.status", "posted");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: prevSalesItemsData, isLoading: loadingPrevSalesItems } =
+    useQuery({
+      queryKey: ["growth-prev-sales-items", prevFrom, prevTo],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("sales_invoice_items")
+          .select(
+            "quantity, total, net_total, invoice:sales_invoices!inner(invoice_date, status)",
+          )
+          .gte("invoice.invoice_date", prevFrom)
+          .lte("invoice.invoice_date", prevTo)
+          .eq("invoice.status", "posted");
+        if (error) throw error;
+        return data;
+      },
+    });
+
+  // Sales returns at item level (aligned with sales items for net sales analysis)
+  const { data: salesReturnItemsData, isLoading: loadingSalesReturnItems } =
+    useQuery({
+      queryKey: ["growth-sales-return-items", dateFrom, dateTo],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("sales_return_items")
+          .select(
+            "product_id, quantity, total, product:products(name), return:sales_returns!inner(return_date, status)",
+          )
+          .gte("return.return_date", dateFrom)
+          .lte("return.return_date", dateTo)
+          .eq("return.status", "posted");
+        if (error) throw error;
+        return data;
+      },
+    });
+
+  const {
+    data: prevSalesReturnItemsData,
+    isLoading: loadingPrevSalesReturnItems,
+  } = useQuery({
+    queryKey: ["growth-prev-sales-return-items", prevFrom, prevTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_return_items")
+        .select(
+          "quantity, total, return:sales_returns!inner(return_date, status)",
+        )
+        .gte("return.return_date", prevFrom)
+        .lte("return.return_date", prevTo)
+        .eq("return.status", "posted");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Purchase items (used as operational procurement trend, not COGS)
+  const { data: purchaseItemsData, isLoading: loadingPurchaseItems } = useQuery(
+    {
+      queryKey: ["growth-purchase-items", dateFrom, dateTo],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("purchase_invoice_items")
+          .select(
+            "quantity, total, net_total, invoice:purchase_invoices!inner(invoice_date, status)",
+          )
+          .gte("invoice.invoice_date", dateFrom)
+          .lte("invoice.invoice_date", dateTo)
+          .eq("invoice.status", "posted");
+        if (error) throw error;
+        return data;
+      },
+    },
+  );
+
+  const { data: prevPurchaseItemsData, isLoading: loadingPrevPurchaseItems } =
+    useQuery({
+      queryKey: ["growth-prev-purchase-items", prevFrom, prevTo],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("purchase_invoice_items")
+          .select(
+            "quantity, total, net_total, invoice:purchase_invoices!inner(invoice_date, status)",
+          )
+          .gte("invoice.invoice_date", prevFrom)
+          .lte("invoice.invoice_date", prevTo)
+          .eq("invoice.status", "posted");
+        if (error) throw error;
+        return data;
+      },
+    });
+
+  const {
+    data: purchaseReturnItemsData,
+    isLoading: loadingPurchaseReturnItems,
+  } = useQuery({
+    queryKey: ["growth-purchase-return-items", dateFrom, dateTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("purchase_return_items")
+        .select(
+          "quantity, total, return:purchase_returns!inner(return_date, status)",
+        )
+        .gte("return.return_date", dateFrom)
+        .lte("return.return_date", dateTo)
+        .eq("return.status", "posted");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const {
+    data: prevPurchaseReturnItemsData,
+    isLoading: loadingPrevPurchaseReturnItems,
+  } = useQuery({
+    queryKey: ["growth-prev-purchase-return-items", prevFrom, prevTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("purchase_return_items")
+        .select("total, return:purchase_returns!inner(return_date, status)")
+        .gte("return.return_date", prevFrom)
+        .lte("return.return_date", prevTo)
+        .eq("return.status", "posted");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Cost of goods sold from inventory movements (authoritative source)
   const { data: cogsData, isLoading: loadingCogs } = useQuery({
     queryKey: ["growth-cogs", dateFrom, dateTo],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_movements")
-        .select("movement_date, total_cost, movement_type")
+        .select("movement_type, total_cost, movement_date")
         .in("movement_type", ["sale", "sale_return"])
         .gte("movement_date", dateFrom)
         .lte("movement_date", dateTo);
@@ -148,7 +352,7 @@ export default function GrowthAnalytics() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_movements")
-        .select("total_cost, movement_type")
+        .select("movement_type, total_cost, movement_date")
         .in("movement_type", ["sale", "sale_return"])
         .gte("movement_date", prevFrom)
         .lte("movement_date", prevTo);
@@ -157,52 +361,31 @@ export default function GrowthAnalytics() {
     },
   });
 
-  // Customer data scoped to period (invoices in period)
-  const { data: periodCustomersData, isLoading: loadingCustomers } = useQuery({
-    queryKey: ["growth-period-customers", dateFrom, dateTo],
+  // Header-level returns (counts + receivable collection context)
+  const { data: salesReturnsData, isLoading: loadingSalesReturnsHeaders } =
+    useQuery({
+      queryKey: ["growth-sales-returns-headers", dateFrom, dateTo],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("sales_returns")
+          .select("return_date, total, status")
+          .gte("return_date", dateFrom)
+          .lte("return_date", dateTo)
+          .eq("status", "posted");
+        if (error) throw error;
+        return data;
+      },
+    });
+
+  const {
+    data: purchaseReturnsData,
+    isLoading: loadingPurchaseReturnsHeaders,
+  } = useQuery({
+    queryKey: ["growth-purchase-returns-headers", dateFrom, dateTo],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("sales_invoices")
-        .select("customer_id, total, paid_amount")
-        .gte("invoice_date", dateFrom)
-        .lte("invoice_date", dateTo)
-        .eq("status", "posted");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Top products with returns deducted
-  const { data: topProducts, isLoading: loadingProducts } = useQuery({
-    queryKey: ["growth-top-products", dateFrom, dateTo],
-    queryFn: async () => {
-      const [salesRes, returnsRes] = await Promise.all([
-        supabase
-          .from("sales_invoice_items")
-          .select("quantity, total, net_total, product_id, product:products(name), invoice:sales_invoices!inner(invoice_date, status)")
-          .gte("invoice.invoice_date", dateFrom)
-          .lte("invoice.invoice_date", dateTo)
-          .eq("invoice.status", "posted"),
-        supabase
-          .from("sales_return_items")
-          .select("quantity, total, product_id, product:products(name), return:sales_returns!inner(return_date, status)")
-          .gte("return.return_date", dateFrom)
-          .lte("return.return_date", dateTo)
-          .eq("return.status", "posted"),
-      ]);
-      if (salesRes.error) throw salesRes.error;
-      if (returnsRes.error) throw returnsRes.error;
-      return { sales: salesRes.data, returns: returnsRes.data };
-    },
-  });
-
-  // Returns
-  const { data: salesReturnsData, isLoading: loadingSalesReturns } = useQuery({
-    queryKey: ["growth-sales-returns", dateFrom, dateTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_returns")
-        .select("return_date, subtotal, tax, total, status")
+        .from("purchase_returns")
+        .select("total")
         .gte("return_date", dateFrom)
         .lte("return_date", dateTo)
         .eq("status", "posted");
@@ -211,257 +394,590 @@ export default function GrowthAnalytics() {
     },
   });
 
-  const { data: prevSalesReturnsData, isLoading: loadingPrevSalesReturns } = useQuery({
-    queryKey: ["growth-prev-sales-returns", prevFrom, prevTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_returns")
-        .select("subtotal, tax, total")
-        .gte("return_date", prevFrom)
-        .lte("return_date", prevTo)
-        .eq("status", "posted");
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Reconciliation bridge: operating report vs accounting income statement.
+  const { data: accountingBridgeData, isLoading: loadingAccountingBridge } =
+    useQuery({
+      queryKey: ["growth-accounting-bridge", dateFrom, dateTo],
+      queryFn: async () => {
+        const { data: accounts, error: accountsError } = await supabase
+          .from("accounts")
+          .select("id, code, account_type")
+          .eq("is_active", true)
+          .eq("is_parent", false)
+          .in("account_type", ["revenue", "expense"]);
+        if (accountsError) throw accountsError;
 
-  const { data: purchaseReturnsData, isLoading: loadingPurchaseReturns } = useQuery({
-    queryKey: ["growth-purchase-returns", dateFrom, dateTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("purchase_returns")
-        .select("return_date, subtotal, tax, total, status")
-        .gte("return_date", dateFrom)
-        .lte("return_date", dateTo)
-        .eq("status", "posted");
-      if (error) throw error;
-      return data;
-    },
-  });
+        if (!accounts?.length) {
+          return {
+            revenue: 0,
+            expenses: 0,
+            netIncome: 0,
+            inventoryGain: 0,
+            inventoryLoss: 0,
+          };
+        }
 
-  const { data: prevPurchaseReturnsData, isLoading: loadingPrevPurchaseReturns } = useQuery({
-    queryKey: ["growth-prev-purchase-returns", prevFrom, prevTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("purchase_returns")
-        .select("subtotal, tax, total")
-        .gte("return_date", prevFrom)
-        .lte("return_date", prevTo)
-        .eq("status", "posted");
-      if (error) throw error;
-      return data;
-    },
-  });
+        const accountMap = new Map(
+          accounts.map((account: any) => [account.id, account]),
+        );
+        const accountIds = accounts.map((account: any) => account.id);
+
+        const { data: lines, error: linesError } = await supabase
+          .from("journal_entry_lines")
+          .select(
+            "account_id, debit, credit, journal_entries!inner(entry_date, status)",
+          )
+          .in("account_id", accountIds)
+          .in("journal_entries.status", ["posted", "approved"])
+          .gte("journal_entries.entry_date", dateFrom)
+          .lte("journal_entries.entry_date", dateTo);
+        if (linesError) throw linesError;
+
+        let revenue = 0;
+        let expenses = 0;
+        let inventoryGain = 0;
+        let inventoryLoss = 0;
+
+        (lines || []).forEach((line: any) => {
+          const account = accountMap.get(line.account_id);
+          if (!account) return;
+
+          const debit = Number(line.debit || 0);
+          const credit = Number(line.credit || 0);
+
+          if (account.account_type === "revenue") {
+            const amount = credit - debit;
+            revenue += amount;
+            if (account.code === "4201") inventoryGain += amount;
+          } else if (account.account_type === "expense") {
+            const amount = debit - credit;
+            expenses += amount;
+            if (account.code === "5201") inventoryLoss += amount;
+          }
+        });
+
+        return {
+          revenue,
+          expenses,
+          netIncome: revenue - expenses,
+          inventoryGain,
+          inventoryLoss,
+        };
+      },
+    });
 
   // --- Calculations ---
-  // Use `total` to match journal entries (Income Statement source of truth)
-  // The posting engine records `total` as revenue, so we must use the same
-  // to ensure Growth Analytics matches the Income Statement exactly.
-  const calcCogs = (data: any[] | null | undefined) => {
-    if (!data) return 0;
-    const saleCost = data.filter(d => d.movement_type === "sale").reduce((s, i) => s + Number(i.total_cost), 0);
-    const returnCost = data.filter(d => d.movement_type === "sale_return").reduce((s, i) => s + Number(i.total_cost), 0);
-    return saleCost - returnCost;
+
+  const sumNetItemTotal = (items: any[] | null | undefined) =>
+    items?.reduce(
+      (sum, item) => sum + Number(item?.net_total ?? item?.total ?? 0),
+      0,
+    ) ?? 0;
+
+  const sumItemTotal = (items: any[] | null | undefined) =>
+    items?.reduce((sum, item) => sum + Number(item?.total ?? 0), 0) ?? 0;
+
+  const calcCogsTotal = (movements: any[] | null | undefined) =>
+    movements?.reduce((sum, movement) => {
+      const cost = Number(movement?.total_cost ?? 0);
+      if (movement?.movement_type === "sale") return sum + cost;
+      if (movement?.movement_type === "sale_return") return sum - cost;
+      return sum;
+    }, 0) ?? 0;
+
+  const relationDate = (
+    item: any,
+    relationKey: "invoice" | "return",
+    dateKey: "invoice_date" | "return_date",
+  ): string | null => {
+    const relation = item?.[relationKey];
+    if (Array.isArray(relation)) return relation[0]?.[dateKey] ?? null;
+    return relation?.[dateKey] ?? null;
   };
 
-  const totalSales = salesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
-  const prevTotalSales = prevSalesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
-  const totalSalesTax = salesData?.reduce((s, i) => s + Number(i.tax), 0) ?? 0;
-  const totalPaidSales = salesData?.reduce((s, i) => s + Number(i.paid_amount), 0) ?? 0;
+  const productName = (item: any) => {
+    const relation = item?.product;
+    if (Array.isArray(relation)) return relation[0]?.name || "Other";
+    return relation?.name || "Other";
+  };
 
-  const totalSalesReturns = salesReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
-  const prevTotalSalesReturns = prevSalesReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  // Item-level totals are ex-VAT and include line-level net discounts when available.
+  const totalSales = sumNetItemTotal(salesItemsData as any[] | undefined);
+  const prevTotalSales = sumNetItemTotal(
+    prevSalesItemsData as any[] | undefined,
+  );
+
+  const totalSalesReturns = sumItemTotal(
+    salesReturnItemsData as any[] | undefined,
+  );
+  const prevTotalSalesReturns = sumItemTotal(
+    prevSalesReturnItemsData as any[] | undefined,
+  );
 
   const netSales = totalSales - totalSalesReturns;
   const prevNetSales = prevTotalSales - prevTotalSalesReturns;
 
-  const totalPurchases = purchasesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
-  const prevTotalPurchases = prevPurchasesData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const totalPurchases = sumNetItemTotal(
+    purchaseItemsData as any[] | undefined,
+  );
+  const prevTotalPurchases = sumNetItemTotal(
+    prevPurchaseItemsData as any[] | undefined,
+  );
 
-  const totalPurchaseReturns = purchaseReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
-  const prevTotalPurchaseReturns = prevPurchaseReturnsData?.reduce((s, i) => s + Number(i.total), 0) ?? 0;
+  const totalPurchaseReturns = sumItemTotal(
+    purchaseReturnItemsData as any[] | undefined,
+  );
+  const prevTotalPurchaseReturns = sumItemTotal(
+    prevPurchaseReturnItemsData as any[] | undefined,
+  );
 
   const netPurchases = totalPurchases - totalPurchaseReturns;
   const prevNetPurchases = prevTotalPurchases - prevTotalPurchaseReturns;
 
-  const totalExpenses = expensesData?.reduce((s, i) => s + Number(i.amount), 0) ?? 0;
-  const prevTotalExpenses = prevExpensesData?.reduce((s, i) => s + Number(i.amount), 0) ?? 0;
+  const totalExpenses =
+    expensesData?.reduce((sum, expense) => sum + Number(expense.amount), 0) ??
+    0;
+  const prevTotalExpenses =
+    prevExpensesData?.reduce(
+      (sum, expense) => sum + Number(expense.amount),
+      0,
+    ) ?? 0;
 
-  // COGS from inventory movements (accurate)
-  const cogs = calcCogs(cogsData);
-  const prevCogs = calcCogs(prevCogsData);
+  const cogs = calcCogsTotal(cogsData as any[] | undefined);
+  const prevCogs = calcCogsTotal(prevCogsData as any[] | undefined);
 
-  // Gross Profit = Net Sales - COGS (matches Income Statement)
+  // Gross profit = Net Sales - COGS.
   const grossProfit = netSales - cogs;
   const prevGrossProfit = prevNetSales - prevCogs;
   const grossMargin = netSales > 0 ? (grossProfit / netSales) * 100 : 0;
 
-  // Net Profit = Gross Profit - Operating Expenses
+  // Net profit = Gross Profit - Operating Expenses.
   const netProfit = grossProfit - totalExpenses;
   const prevNetProfit = prevGrossProfit - prevTotalExpenses;
   const netMargin = netSales > 0 ? (netProfit / netSales) * 100 : 0;
 
-  // Ratios
-  const returnRate = totalSales > 0 ? (totalSalesReturns / totalSales) * 100 : 0;
-  const expenseRate = netSales > 0 ? (totalExpenses / netSales) * 100 : 0;
-  const collectionRate = (netSales > 0 && totalPaidSales > 0) ? (totalPaidSales / netSales) * 100 : 0;
+  const accountingRevenue = accountingBridgeData?.revenue ?? 0;
+  const accountingExpenses = accountingBridgeData?.expenses ?? 0;
+  const accountingNetProfit = accountingBridgeData?.netIncome ?? 0;
+  const inventoryAdjustmentGain = accountingBridgeData?.inventoryGain ?? 0;
+  const inventoryAdjustmentLoss = accountingBridgeData?.inventoryLoss ?? 0;
+  const inventoryAdjustmentsNet =
+    inventoryAdjustmentGain - inventoryAdjustmentLoss;
+  const bridgeDifference = accountingNetProfit - netProfit;
+  const otherAccountingAdjustments = bridgeDifference - inventoryAdjustmentsNet;
+  const accountingMargin =
+    accountingRevenue > 0 ? (accountingNetProfit / accountingRevenue) * 100 : 0;
 
-  const avgInvoice = salesData?.length ? totalSales / salesData.length : 0;
-
-  // Customer count in period
-  const uniqueCustomerCount = useMemo(() => {
-    if (!periodCustomersData) return 0;
-    return new Set(periodCustomersData.filter(d => d.customer_id).map(d => d.customer_id)).size;
-  }, [periodCustomersData]);
+  const avgInvoice =
+    (salesData?.length ?? 0) > 0 ? totalSales / (salesData?.length ?? 1) : 0;
 
   const calcGrowth = (current: number, prev: number) => {
     if (prev === 0) return current > 0 ? 100 : current < 0 ? -100 : 0;
     return ((current - prev) / Math.abs(prev)) * 100;
   };
 
-  // --- Executive alerts ---
-  const alerts = useMemo(() => {
-    const list: { type: "warning" | "destructive"; text: string }[] = [];
-    if (grossMargin < 20 && netSales > 0) list.push({ type: "warning", text: `⚠ هامش مجمل الربح منخفض (${grossMargin.toFixed(1)}%) — راجع تسعير المنتجات أو تكلفة الشراء` });
-    if (returnRate > 10) list.push({ type: "destructive", text: `⚠ نسبة مرتجعات المبيعات مرتفعة (${returnRate.toFixed(1)}%) — تحقق من جودة المنتجات أو رضا العملاء` });
-    if (expenseRate > 30 && netSales > 0) list.push({ type: "warning", text: `⚠ نسبة المصروفات إلى المبيعات مرتفعة (${expenseRate.toFixed(1)}%) — راجع بنود المصروفات` });
-    if (netProfit < 0) list.push({ type: "destructive", text: `⚠ صافي الربح سالب (${formatCurrency(netProfit)}) — الشركة تحقق خسارة تشغيلية` });
-    return list;
-  }, [grossMargin, returnRate, expenseRate, netProfit, netSales, formatCurrency]);
-
   // --- Monthly chart data ---
   const chartData = useMemo(() => {
-    const monthlyData: Record<string, { month: string; sales: number; cogs: number; purchases: number; expenses: number; grossProfit: number; netProfit: number }> = {};
-    for (let i = months - 1; i >= 0; i--) {
-      const d = subMonths(new Date(), i);
-      const key = format(d, "yyyy-MM");
-      const label = format(d, "MMM yyyy", { locale: ar });
-      monthlyData[key] = { month: label, sales: 0, cogs: 0, purchases: 0, expenses: 0, grossProfit: 0, netProfit: 0 };
-    }
-    salesData?.forEach((inv) => {
-      const key = inv.invoice_date.substring(0, 7);
-      if (monthlyData[key]) monthlyData[key].sales += Number(inv.total);
-    });
-    salesReturnsData?.forEach((ret) => {
-      const key = ret.return_date.substring(0, 7);
-      if (monthlyData[key]) monthlyData[key].sales -= Number(ret.total);
-    });
-    cogsData?.forEach((m) => {
-      const key = m.movement_date.substring(0, 7);
-      if (monthlyData[key]) {
-        if (m.movement_type === "sale") monthlyData[key].cogs += Number(m.total_cost);
-        else if (m.movement_type === "sale_return") monthlyData[key].cogs -= Number(m.total_cost);
+    const monthlyData: Record<
+      string,
+      {
+        month: string;
+        sales: number;
+        salesReturns: number;
+        purchases: number;
+        purchaseReturns: number;
+        cogs: number;
+        expenses: number;
+        grossProfit: number;
+        netProfit: number;
       }
-    });
-    purchasesData?.forEach((inv) => {
-      const key = inv.invoice_date.substring(0, 7);
-      if (monthlyData[key]) monthlyData[key].purchases += Number(inv.total);
-    });
-    purchaseReturnsData?.forEach((ret) => {
-      const key = ret.return_date.substring(0, 7);
-      if (monthlyData[key]) monthlyData[key].purchases -= Number(ret.total);
-    });
-    expensesData?.forEach((exp) => {
-      const key = exp.expense_date.substring(0, 7);
-      if (monthlyData[key]) monthlyData[key].expenses += Number(exp.amount);
-    });
-    Object.values(monthlyData).forEach((m) => {
-      m.grossProfit = m.sales - m.cogs;
-      m.netProfit = m.grossProfit - m.expenses;
-    });
-    return Object.values(monthlyData);
-  }, [salesData, salesReturnsData, cogsData, purchasesData, purchaseReturnsData, expensesData, months]);
+    > = {};
 
-  // --- Top products (with returns deducted) ---
+    const chartMonths = eachMonthOfInterval({
+      start: startOfMonth(parseISO(dateFrom)),
+      end: startOfMonth(parseISO(dateTo)),
+    });
+
+    chartMonths.forEach((d) => {
+      const key = format(d, "yyyy-MM");
+      const label = toWesternDigits(format(d, "MMM yyyy", { locale: ar }));
+      monthlyData[key] = {
+        month: label,
+        sales: 0,
+        salesReturns: 0,
+        purchases: 0,
+        purchaseReturns: 0,
+        cogs: 0,
+        expenses: 0,
+        grossProfit: 0,
+        netProfit: 0,
+      };
+    });
+
+    (salesItemsData as any[] | undefined)?.forEach((item) => {
+      const invoiceDate = relationDate(item, "invoice", "invoice_date");
+      if (!invoiceDate) return;
+      const key = invoiceDate.substring(0, 7);
+      if (monthlyData[key])
+        monthlyData[key].sales += Number(item?.net_total ?? item?.total ?? 0);
+    });
+
+    (salesReturnItemsData as any[] | undefined)?.forEach((item) => {
+      const returnDate = relationDate(item, "return", "return_date");
+      if (!returnDate) return;
+      const key = returnDate.substring(0, 7);
+      if (monthlyData[key])
+        monthlyData[key].salesReturns += Number(item?.total ?? 0);
+    });
+
+    (purchaseItemsData as any[] | undefined)?.forEach((item) => {
+      const invoiceDate = relationDate(item, "invoice", "invoice_date");
+      if (!invoiceDate) return;
+      const key = invoiceDate.substring(0, 7);
+      if (monthlyData[key])
+        monthlyData[key].purchases += Number(
+          item?.net_total ?? item?.total ?? 0,
+        );
+    });
+
+    (purchaseReturnItemsData as any[] | undefined)?.forEach((item) => {
+      const returnDate = relationDate(item, "return", "return_date");
+      if (!returnDate) return;
+      const key = returnDate.substring(0, 7);
+      if (monthlyData[key])
+        monthlyData[key].purchaseReturns += Number(item?.total ?? 0);
+    });
+
+    (cogsData as any[] | undefined)?.forEach((movement) => {
+      const date = movement?.movement_date;
+      if (!date) return;
+      const key = date.substring(0, 7);
+      if (!monthlyData[key]) return;
+      const cost = Number(movement?.total_cost ?? 0);
+      if (movement?.movement_type === "sale") monthlyData[key].cogs += cost;
+      if (movement?.movement_type === "sale_return")
+        monthlyData[key].cogs -= cost;
+    });
+
+    expensesData?.forEach((expense) => {
+      const key = expense.expense_date.substring(0, 7);
+      if (monthlyData[key]) monthlyData[key].expenses += Number(expense.amount);
+    });
+
+    Object.values(monthlyData).forEach((monthRow) => {
+      const monthlyNetSales = monthRow.sales - monthRow.salesReturns;
+      const monthlyNetPurchases = monthRow.purchases - monthRow.purchaseReturns;
+      monthRow.sales = monthlyNetSales;
+      monthRow.purchases = monthlyNetPurchases;
+      monthRow.grossProfit = monthlyNetSales - monthRow.cogs;
+      monthRow.netProfit = monthRow.grossProfit - monthRow.expenses;
+    });
+
+    return Object.values(monthlyData);
+  }, [
+    salesItemsData,
+    salesReturnItemsData,
+    purchaseItemsData,
+    purchaseReturnItemsData,
+    cogsData,
+    expensesData,
+    dateFrom,
+    dateTo,
+  ]);
+
+  // --- Top products pie ---
   const topProductsList = useMemo(() => {
     const productMap: Record<string, { name: string; total: number }> = {};
-    topProducts?.sales?.forEach((item: any) => {
-      const name = item.product?.name || "أخرى";
-      if (!productMap[name]) productMap[name] = { name, total: 0 };
-      productMap[name].total += Number(item.net_total || item.total);
-    });
-    topProducts?.returns?.forEach((item: any) => {
-      const name = item.product?.name || "أخرى";
-      if (!productMap[name]) productMap[name] = { name, total: 0 };
-      productMap[name].total -= Number(item.total);
-    });
-    return Object.values(productMap).filter(p => p.total > 0).sort((a, b) => b.total - a.total).slice(0, 6);
-  }, [topProducts]);
 
-  const fmt = (n: number) => formatCurrency(n);
+    (salesItemsData as any[] | undefined)?.forEach((item) => {
+      const name = productName(item);
+      if (!productMap[name]) productMap[name] = { name, total: 0 };
+      productMap[name].total += Number(item?.net_total ?? item?.total ?? 0);
+    });
+
+    (salesReturnItemsData as any[] | undefined)?.forEach((item) => {
+      const name = productName(item);
+      if (!productMap[name]) productMap[name] = { name, total: 0 };
+      productMap[name].total -= Number(item?.total ?? 0);
+    });
+
+    return Object.values(productMap)
+      .filter((product) => product.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 6);
+  }, [salesItemsData, salesReturnItemsData]);
+
+  const fmt = (n: number) =>
+    n.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  const fmtSigned = (n: number) => `${n > 0 ? "+" : ""}${fmt(n)}`;
   const fmtPct = (n: number) => Math.abs(n).toFixed(1) + "%";
+  const fmtShortDateTime = (d: Date) => format(d, "yyyy-MM-dd HH:mm");
 
-  // Unified loading: wait for ALL critical queries
-  const isLoading = loadingSales || loadingPurchases || loadingExpenses || loadingCogs
-    || loadingSalesReturns || loadingPurchaseReturns || loadingPrevSales || loadingPrevPurchases
-    || loadingPrevExpenses || loadingPrevCogs || loadingPrevSalesReturns || loadingPrevPurchaseReturns
-    || loadingCustomers || loadingProducts;
+  const methodologyLines = [
+    "صافي الربح التشغيلي = صافي المبيعات - تكلفة البضاعة المباعة - المصروفات التشغيلية.",
+    "صافي الربح المحاسبي = الربح التشغيلي ± تسويات المخزون ± القيود غير التشغيلية.",
+    "يتم استخدام جسر المطابقة لتفسير الفروقات بين النتيجة التشغيلية ونتيجة قائمة الدخل.",
+  ];
 
-  const hasError = errorSales || errorPurchases || errorExpenses;
+  const reconciliationRows: Array<{
+    label: string;
+    value: number;
+    tone: "neutral" | "positive" | "negative" | "primary";
+    rowClass: string;
+  }> = [
+    {
+      label: "صافي الربح التشغيلي (تقرير الأداء)",
+      value: netProfit,
+      tone: "neutral",
+      rowClass: "",
+    },
+    {
+      label: "± صافي أثر تسويات المخزون (4201 - 5201)",
+      value: inventoryAdjustmentsNet,
+      tone: inventoryAdjustmentsNet >= 0 ? "positive" : "negative",
+      rowClass: "bg-muted/20",
+    },
+    {
+      label: "± قيود دفترية أخرى غير تشغيلية",
+      value: otherAccountingAdjustments,
+      tone: otherAccountingAdjustments >= 0 ? "positive" : "negative",
+      rowClass: "",
+    },
+    {
+      label: "= صافي الربح المحاسبي (قائمة الدخل)",
+      value: accountingNetProfit,
+      tone: "primary",
+      rowClass: "bg-primary/5",
+    },
+  ];
+
+  const isLoading =
+    loadingSales ||
+    loadingPurchases ||
+    loadingExpenses ||
+    loadingPrevExpenses ||
+    loadingSalesItems ||
+    loadingPrevSalesItems ||
+    loadingSalesReturnItems ||
+    loadingPrevSalesReturnItems ||
+    loadingPurchaseItems ||
+    loadingPrevPurchaseItems ||
+    loadingPurchaseReturnItems ||
+    loadingPrevPurchaseReturnItems ||
+    loadingCogs ||
+    loadingPrevCogs ||
+    loadingSalesReturnsHeaders ||
+    loadingPurchaseReturnsHeaders ||
+    loadingAccountingBridge;
 
   // --- Trend Icon ---
-  const TrendBadge = ({ value, inverted = false }: { value: number; inverted?: boolean }) => {
+  const TrendBadge = ({
+    value,
+    inverted = false,
+  }: {
+    value: number;
+    inverted?: boolean;
+  }) => {
     const isPositive = inverted ? value < 0 : value >= 0;
-    if (value === 0) return <span className="text-[11px] text-muted-foreground flex items-center gap-0.5"><Minus className="w-3 h-3" /> 0%</span>;
+    if (value === 0)
+      return (
+        <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+          <Minus className="w-3 h-3" /> 0%
+        </span>
+      );
     return (
-      <span className={`text-[11px] flex items-center gap-0.5 ${isPositive ? "text-success" : "text-destructive"}`}>
-        {value > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+      <span
+        className={`text-[11px] flex items-center gap-0.5 ${isPositive ? "text-success" : "text-destructive"}`}
+      >
+        {value > 0 ? (
+          <TrendingUp className="w-3 h-3" />
+        ) : (
+          <TrendingDown className="w-3 h-3" />
+        )}
         {fmtPct(value)}
       </span>
     );
   };
 
-  const FormulaTooltip = ({ formula }: { formula: string }) => (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help inline-block mr-1" />
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs text-xs">
-          <p className="font-medium">كيف حُسب؟</p>
-          <p className="text-muted-foreground mt-0.5">{formula}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-
   // --- Export ---
   const getExportData = () => {
-    const headers = ["الشهر", "صافي المبيعات", "تكلفة البضاعة المباعة", "المصروفات", "مجمل الربح", "صافي الربح"];
-    const rows = chartData.map((m) => [m.month, m.sales, m.cogs, m.expenses, m.grossProfit, m.netProfit]);
+    const headers = [
+      "الشهر",
+      "صافي المبيعات",
+      "صافي المشتريات",
+      "تكلفة البضاعة المباعة (COGS)",
+      "المصروفات التشغيلية",
+      "مجمل الربح",
+      "صافي الربح",
+      "هامش صافي الربح (%)",
+    ];
+    const rows = chartData.map((m) => {
+      const margin = m.sales > 0 ? (m.netProfit / m.sales) * 100 : 0;
+      return [
+        m.month,
+        m.sales,
+        m.purchases,
+        m.cogs,
+        m.expenses,
+        m.grossProfit,
+        m.netProfit,
+        Number(margin.toFixed(2)),
+      ];
+    });
     return { headers, rows };
   };
 
-  const handleExcelExport = () => {
+  const handleExcelExport = async () => {
     const { headers, rows } = getExportData();
-    exportToExcel({ filename: `الأداء-المالي`, sheetName: "الأداء المالي", headers, rows });
+    const exportFilename = `لوحة-الأداء-المالي-${dateFrom}-الى-${dateTo}`;
+
+    await exportToExcel({
+      filename: exportFilename,
+      sheetName: "الأداء الشهري",
+      title: "لوحة الأداء المالي (تشغيلي + جسر مطابقة محاسبي)",
+      metaRows: [
+        ["الفترة", `${dateFrom} إلى ${dateTo}`],
+        ["تاريخ الاستخراج", fmtShortDateTime(new Date())],
+        ["المنهجية", "تشغيلي + مطابقة محاسبية"],
+      ],
+      headers,
+      rows,
+      extraSheets: [
+        {
+          sheetName: "الملخص التشغيلي",
+          headers: ["المؤشر", "القيمة", "ملاحظة"],
+          rows: [
+            ["صافي المبيعات", netSales, "بعد خصم مرتجعات المبيعات"],
+            [
+              "تكلفة البضاعة المباعة (COGS)",
+              cogs,
+              "من حركات المخزون (sale/sale_return)",
+            ],
+            ["المصروفات التشغيلية", totalExpenses, "مصروفات الفترة المعتمدة"],
+            ["مجمل الربح", grossProfit, "صافي المبيعات - COGS"],
+            [
+              "صافي الربح التشغيلي",
+              netProfit,
+              "مجمل الربح - المصروفات التشغيلية",
+            ],
+            [
+              "هامش صافي الربح (%)",
+              Number(netMargin.toFixed(2)),
+              "صافي الربح / صافي المبيعات",
+            ],
+            [
+              "صافي الربح المحاسبي",
+              accountingNetProfit,
+              "من القيود المحاسبية للفترة",
+            ],
+            [
+              "هامش الربح المحاسبي (%)",
+              Number(accountingMargin.toFixed(2)),
+              "صافي الربح المحاسبي / الإيراد المحاسبي",
+            ],
+            [
+              "فرق الربح (محاسبي - تشغيلي)",
+              bridgeDifference,
+              "فجوة المطابقة بين الشاشتين",
+            ],
+          ],
+        },
+        {
+          sheetName: "جسر المطابقة",
+          headers: ["البند", "القيمة", "التصنيف"],
+          rows: [
+            ...reconciliationRows.map((row, index) => [
+              row.label,
+              row.value,
+              index === 0
+                ? "أساس تشغيلي"
+                : index === reconciliationRows.length - 1
+                  ? "نتيجة محاسبية"
+                  : "تسوية",
+            ]),
+            ["هامش تشغيلي (%)", Number(netMargin.toFixed(2)), "مؤشر تشغيلي"],
+            [
+              "هامش محاسبي (%)",
+              Number(accountingMargin.toFixed(2)),
+              "مؤشر محاسبي",
+            ],
+            ["الإيراد المحاسبي للفترة", accountingRevenue, "مرجع قائمة الدخل"],
+            ["المصروف المحاسبي للفترة", accountingExpenses, "مرجع قائمة الدخل"],
+          ],
+        },
+        {
+          sheetName: "التفسير المالي",
+          headers: ["العنصر", "الوصف"],
+          rows: [
+            ["التفسير المالي المعتمد", "العرض الرئيسي في شاشة الأداء المالي"],
+            ...methodologyLines.map((line, i) => [`قاعدة ${i + 1}`, line]),
+          ],
+        },
+      ],
+    });
   };
 
   const handlePdfExport = async () => {
     const { headers, rows } = getExportData();
-    // Preserve negative signs
-    const fmtN = (n: number) => {
-      const sign = n < 0 ? "-" : "";
-      return sign + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    };
+    const fmtN = (n: number) =>
+      n.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    const fmtPctN = (n: number) => `${n.toFixed(1)}%`;
+    const exportFilename = `لوحة-الأداء-المالي-${dateFrom}-الى-${dateTo}`;
+
     await exportReportPdf({
-      title: `لوحة الأداء المالي - آخر ${period} أشهر`,
+      title: `لوحة الأداء المالي (${dateFrom} إلى ${dateTo})`,
       settings: settings || null,
       headers,
-      rows: rows.map((r) => [r[0], ...r.slice(1).map((v) => fmtN(Number(v)))]),
+      rows: rows.map((r) => [
+        r[0],
+        ...r.slice(1, -1).map((v) => fmtN(Number(v))),
+        fmtPctN(Number(r[r.length - 1])),
+      ]),
       summaryCards: [
         { label: "صافي المبيعات", value: fmtN(netSales) },
-        { label: "مرتجعات المبيعات", value: fmtN(totalSalesReturns) },
-        { label: "تكلفة البضاعة المباعة", value: fmtN(cogs) },
-        { label: "مجمل الربح", value: fmtN(grossProfit) },
+        { label: "تكلفة البضاعة المباعة (COGS)", value: fmtN(cogs) },
         { label: "المصروفات التشغيلية", value: fmtN(totalExpenses) },
-        { label: "صافي الربح", value: fmtN(netProfit) },
-        { label: "هامش مجمل الربح", value: grossMargin.toFixed(1) + "%" },
+        { label: "مجمل الربح", value: fmtN(grossProfit) },
+        { label: "صافي الربح التشغيلي", value: fmtN(netProfit) },
+        { label: "صافي الربح المحاسبي", value: fmtN(accountingNetProfit) },
         { label: "هامش صافي الربح", value: netMargin.toFixed(1) + "%" },
-        { label: "نسبة المرتجعات", value: returnRate.toFixed(1) + "%" },
-        { label: "نسبة التحصيل", value: collectionRate.toFixed(1) + "%" },
       ],
-      filename: `الأداء-المالي`,
+      methodologyTitle: "التفسير المالي المعتمد",
+      methodologyLines,
+      reconciliationTitle: "جسر المطابقة بين الربح التشغيلي والمحاسبي",
+      reconciliationRows: [
+        ...reconciliationRows.map((row) => ({
+          label: row.label,
+          value:
+            row.tone === "neutral" || row.tone === "primary"
+              ? fmtN(row.value)
+              : fmtSigned(row.value),
+          tone: row.tone,
+        })),
+        {
+          label: "هامش تشغيلي",
+          value: fmtPctN(netMargin),
+          tone: "neutral",
+        },
+        {
+          label: "هامش محاسبي",
+          value: fmtPctN(accountingMargin),
+          tone: "neutral",
+        },
+        {
+          label: "فرق الربح (محاسبي - تشغيلي)",
+          value: fmtSigned(bridgeDifference),
+          tone: bridgeDifference >= 0 ? "positive" : "negative",
+        },
+      ],
+      tableTitle: "الأداء الشهري (صافي القيم بعد المرتجعات)",
+      filename: exportFilename,
       orientation: "landscape",
     });
   };
@@ -470,7 +986,6 @@ export default function GrowthAnalytics() {
   const kpiCards = [
     {
       label: "صافي المبيعات",
-      formula: "إجمالي المبيعات − مرتجعات المبيعات",
       value: fmt(netSales),
       growth: calcGrowth(netSales, prevNetSales),
       icon: DollarSign,
@@ -480,18 +995,16 @@ export default function GrowthAnalytics() {
       countLabel: "فاتورة",
     },
     {
-      label: "تكلفة البضاعة المباعة",
-      formula: "تكلفة حركات البيع من المخزون − تكلفة حركات مرتجع البيع",
+      label: "تكلفة البضاعة المباعة (COGS)",
       value: fmt(cogs),
       growth: calcGrowth(cogs, prevCogs),
       inverted: true,
-      icon: Package,
+      icon: ShoppingCart,
       color: "text-primary",
       bgColor: "bg-primary/10",
     },
     {
       label: "المصروفات التشغيلية",
-      formula: "مجموع المصروفات المعتمدة في الفترة",
       value: fmt(totalExpenses),
       growth: calcGrowth(totalExpenses, prevTotalExpenses),
       inverted: true,
@@ -501,7 +1014,6 @@ export default function GrowthAnalytics() {
     },
     {
       label: "مجمل الربح",
-      formula: "صافي المبيعات − تكلفة البضاعة المباعة (COGS)",
       value: fmt(grossProfit),
       growth: calcGrowth(grossProfit, prevGrossProfit),
       icon: BarChart3,
@@ -511,7 +1023,6 @@ export default function GrowthAnalytics() {
     },
     {
       label: "صافي الربح",
-      formula: "مجمل الربح − المصروفات التشغيلية",
       value: fmt(netProfit),
       growth: calcGrowth(netProfit, prevNetProfit),
       icon: DollarSign,
@@ -520,7 +1031,6 @@ export default function GrowthAnalytics() {
     },
     {
       label: "هامش صافي الربح",
-      formula: "(صافي الربح ÷ صافي المبيعات) × 100",
       value: netMargin.toFixed(1) + "%",
       icon: Percent,
       color: netMargin >= 0 ? "text-success" : "text-destructive",
@@ -534,7 +1044,9 @@ export default function GrowthAnalytics() {
       <div className="space-y-4">
         <Skeleton className="h-10 w-full" />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32" />)}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
         </div>
         <div className="grid md:grid-cols-2 gap-4">
           <Skeleton className="h-[300px]" />
@@ -544,29 +1056,42 @@ export default function GrowthAnalytics() {
     );
   }
 
-  if (hasError) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          حدث خطأ أثناء تحميل بيانات التقرير. يرجى تحديث الصفحة والمحاولة مرة أخرى.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
   return (
     <div className="space-y-5">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
+        <Select value={quickRange} onValueChange={applyQuickRange}>
+          <SelectTrigger className="w-40 h-9">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="3">آخر 3 أشهر</SelectItem>
             <SelectItem value="6">آخر 6 أشهر</SelectItem>
             <SelectItem value="12">آخر 12 شهر</SelectItem>
+            <SelectItem value="custom">مخصص</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">من</span>
+          <DatePickerInput
+            value={dateFrom}
+            onChange={handleDateFromChange}
+            className="w-40 h-9"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">إلى</span>
+          <DatePickerInput
+            value={dateTo}
+            onChange={handleDateToChange}
+            className="w-40 h-9"
+          />
+        </div>
+        {dateRangeInvalid && (
+          <p className="text-xs text-destructive font-medium">
+            تاريخ النهاية يجب أن يكون بعد تاريخ البداية
+          </p>
+        )}
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={handleExcelExport}>
           <FileSpreadsheet className="w-4 h-4 ml-2" />
@@ -578,45 +1103,38 @@ export default function GrowthAnalytics() {
         </Button>
       </div>
 
-      {/* Executive Alerts */}
-      {alerts.length > 0 && (
-        <div className="space-y-2">
-          {alerts.map((alert, i) => (
-            <Alert key={i} variant={alert.type === "destructive" ? "destructive" : "default"} className="py-2">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="text-sm">{alert.text}</AlertDescription>
-            </Alert>
-          ))}
-        </div>
-      )}
-
-      {/* Executive Summary Bar */}
-      <Card className="border-primary/20 bg-primary/5 shadow-none">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <BarChart3 className="w-4 h-4 text-primary" />
-            <span className="text-sm font-bold">ملخص تنفيذي</span>
+      <Card className="border-primary/25 shadow-none bg-gradient-to-r from-primary/5 via-muted/20 to-success/5">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+              <Info className="w-4 h-4 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-semibold">التفسير المالي المعتمد</p>
+                <span className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                  العرض الرئيسي
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                هذه الشاشة تعرض الأداء التشغيلي أولًا ثم تربطه مباشرة بنتيجة
+                قائمة الدخل المحاسبية، حتى يكون الفرق واضحًا ومفهومًا للمستخدم
+                بدون لبس.
+              </p>
+            </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center text-sm">
-            <div>
-              <p className="text-muted-foreground text-xs">صافي المبيعات</p>
-              <p className="font-bold text-success">{fmt(netSales)}</p>
+          <div className="grid gap-2 md:grid-cols-2 text-xs">
+            <div className="rounded-lg border border-border/50 bg-background/70 px-3 py-2">
+              <p className="text-muted-foreground">صافي الربح التشغيلي</p>
+              <p className="font-semibold">
+                صافي المبيعات - تكلفة المبيعات - المصروفات
+              </p>
             </div>
-            <div>
-              <p className="text-muted-foreground text-xs">ت.ب.م (COGS)</p>
-              <p className="font-bold">{fmt(cogs)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-xs">مجمل الربح</p>
-              <p className={`font-bold ${grossProfit >= 0 ? "text-success" : "text-destructive"}`}>{fmt(grossProfit)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-xs">المصروفات</p>
-              <p className="font-bold text-destructive">{fmt(totalExpenses)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-xs">صافي الربح</p>
-              <p className={`font-bold ${netProfit >= 0 ? "text-success" : "text-destructive"}`}>{fmt(netProfit)}</p>
+            <div className="rounded-lg border border-border/50 bg-background/70 px-3 py-2">
+              <p className="text-muted-foreground">صافي الربح المحاسبي</p>
+              <p className="font-semibold">
+                الربح التشغيلي ± تسويات المخزون ± القيود غير التشغيلية
+              </p>
             </div>
           </div>
         </CardContent>
@@ -628,26 +1146,33 @@ export default function GrowthAnalytics() {
           <Card key={kpi.label} className="border-border/60 shadow-none">
             <CardContent className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <div className={`w-10 h-10 rounded-xl ${kpi.bgColor} flex items-center justify-center`}>
+                <div
+                  className={`w-10 h-10 rounded-xl ${kpi.bgColor} flex items-center justify-center`}
+                >
                   <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
                 </div>
                 <p className="text-sm font-medium text-muted-foreground">
                   {kpi.label}
-                  <FormulaTooltip formula={kpi.formula} />
                 </p>
               </div>
               <p className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
-              {'subtitle' in kpi && kpi.subtitle && (
-                <p className="text-xs text-muted-foreground mt-0.5">{kpi.subtitle}</p>
+              {"subtitle" in kpi && kpi.subtitle && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {kpi.subtitle}
+                </p>
               )}
               <div className="flex items-center justify-between mt-2">
                 {!kpi.noGrowth ? (
                   <TrendBadge value={kpi.growth!} inverted={kpi.inverted} />
                 ) : (
-                  <span className="text-xs text-muted-foreground">من صافي المبيعات</span>
+                  <span className="text-xs text-muted-foreground">
+                    من إجمالي المبيعات
+                  </span>
                 )}
                 {kpi.count !== undefined && (
-                  <span className="text-xs text-muted-foreground">{kpi.count} {kpi.countLabel}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {kpi.count} {kpi.countLabel}
+                  </span>
                 )}
               </div>
             </CardContent>
@@ -655,47 +1180,118 @@ export default function GrowthAnalytics() {
         ))}
       </div>
 
-      {/* Operational Ratios */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "نسبة المرتجعات", value: returnRate.toFixed(1) + "%", formula: "مرتجعات المبيعات ÷ إجمالي المبيعات × 100", color: returnRate > 10 ? "text-destructive" : "text-success", icon: RotateCcw },
-          { label: "نسبة المصروفات", value: expenseRate.toFixed(1) + "%", formula: "المصروفات ÷ صافي المبيعات × 100", color: expenseRate > 30 ? "text-destructive" : "text-success", icon: Receipt },
-          { label: "نسبة التحصيل", value: collectionRate.toFixed(1) + "%", formula: "المبالغ المحصلة ÷ صافي المبيعات (شامل الضريبة) × 100", color: collectionRate > 80 ? "text-success" : "text-destructive", icon: DollarSign },
-          { label: "متوسط قيمة الفاتورة", value: fmt(avgInvoice), formula: "إجمالي المبيعات ÷ عدد الفواتير", color: "text-primary", icon: Receipt },
-        ].map((item) => (
-          <Card key={item.label} className="border-border/60 shadow-none">
-            <CardContent className="p-4 text-center">
-              <item.icon className={`w-5 h-5 mx-auto mb-2 ${item.color}`} />
-              <p className="text-xs text-muted-foreground mb-1">
-                {item.label}
-                <FormulaTooltip formula={item.formula} />
+      <Card className="border-border/60 shadow-none">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-primary" />
+            جسر المطابقة بين الربح التشغيلي والمحاسبي
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            يوضح هذا القسم سبب اختلاف النتيجة التشغيلية عن نتيجة قائمة الدخل
+            بشكل خطوة بخطوة.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="rounded-xl border border-border/50 overflow-hidden">
+            {reconciliationRows.map((row) => (
+              <div
+                key={row.label}
+                className={`flex items-center justify-between gap-4 px-4 py-3 border-b last:border-b-0 border-border/40 ${row.rowClass}`}
+              >
+                <p className="text-sm text-muted-foreground">{row.label}</p>
+                <p
+                  className={`text-sm font-bold whitespace-nowrap ${
+                    row.tone === "primary"
+                      ? "text-primary"
+                      : row.tone === "positive"
+                        ? "text-success"
+                        : row.tone === "negative"
+                          ? "text-destructive"
+                          : "text-foreground"
+                  }`}
+                >
+                  {row.tone === "neutral" || row.tone === "primary"
+                    ? fmt(row.value)
+                    : fmtSigned(row.value)}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="rounded-lg bg-muted/30 border border-border/50 px-3 py-2">
+              <p className="text-muted-foreground mb-1">هامش تشغيلي</p>
+              <p className="font-bold">{netMargin.toFixed(1)}%</p>
+            </div>
+            <div className="rounded-lg bg-muted/30 border border-border/50 px-3 py-2">
+              <p className="text-muted-foreground mb-1">هامش محاسبي</p>
+              <p className="font-bold">{accountingMargin.toFixed(1)}%</p>
+            </div>
+            <div className="rounded-lg bg-muted/30 border border-border/50 px-3 py-2">
+              <p className="text-muted-foreground mb-1">
+                فرق الربح (محاسبي - تشغيلي)
               </p>
-              <p className={`text-lg font-bold ${item.color}`}>{item.value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              <p
+                className={`font-bold ${bridgeDifference >= 0 ? "text-success" : "text-destructive"}`}
+              >
+                {fmtSigned(bridgeDifference)}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground">
+            الإيراد المحاسبي للفترة:{" "}
+            <span className="font-semibold text-foreground">
+              {fmt(accountingRevenue)}
+            </span>{" "}
+            | المصروف المحاسبي للفترة:{" "}
+            <span className="font-semibold text-foreground">
+              {fmt(accountingExpenses)}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Charts */}
       <div className="grid md:grid-cols-2 gap-4">
-        {/* Sales vs COGS Bar */}
+        {/* Sales vs Purchases Bar */}
         <Card className="border-border/60 shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-primary" />
-              الإيرادات مقابل التكلفة
+              المبيعات مقابل المشتريات
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" />
-                <XAxis dataKey="month" fontSize={10} tick={{ fill: "hsl(220, 8%, 46%)" }} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(220, 13%, 91%)"
+                />
+                <XAxis
+                  dataKey="month"
+                  fontSize={10}
+                  tick={{ fill: "hsl(220, 8%, 46%)" }}
+                />
                 <YAxis fontSize={10} tick={{ fill: "hsl(220, 8%, 46%)" }} />
-                <RechartsTooltip formatter={(v: number) => fmt(v)} contentStyle={{ direction: "rtl", fontSize: 12 }} />
+                <Tooltip
+                  formatter={(v: number) => fmt(v)}
+                  contentStyle={{ direction: "rtl", fontSize: 12 }}
+                />
                 <Legend />
-                <Bar dataKey="sales" name="صافي المبيعات" fill="hsl(152, 60%, 42%)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="cogs" name="ت.ب.م" fill="hsl(24, 95%, 53%)" radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="sales"
+                  name="المبيعات"
+                  fill="hsl(152, 60%, 42%)"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="purchases"
+                  name="المشتريات"
+                  fill="hsl(24, 95%, 53%)"
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -712,25 +1308,57 @@ export default function GrowthAnalytics() {
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" />
-                <XAxis dataKey="month" fontSize={10} tick={{ fill: "hsl(220, 8%, 46%)" }} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(220, 13%, 91%)"
+                />
+                <XAxis
+                  dataKey="month"
+                  fontSize={10}
+                  tick={{ fill: "hsl(220, 8%, 46%)" }}
+                />
                 <YAxis fontSize={10} tick={{ fill: "hsl(220, 8%, 46%)" }} />
-                <RechartsTooltip formatter={(v: number) => fmt(v)} contentStyle={{ direction: "rtl", fontSize: 12 }} />
+                <Tooltip
+                  formatter={(v: number) => fmt(v)}
+                  contentStyle={{ direction: "rtl", fontSize: 12 }}
+                />
                 <Legend />
-                <Line type="monotone" dataKey="grossProfit" name="مجمل الربح" stroke="hsl(152, 60%, 42%)" strokeWidth={2} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="netProfit" name="صافي الربح" stroke="hsl(217, 80%, 50%)" strokeWidth={2} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="expenses" name="المصروفات" stroke="hsl(0, 72%, 51%)" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 5" />
+                <Line
+                  type="monotone"
+                  dataKey="grossProfit"
+                  name="مجمل الربح"
+                  stroke="hsl(152, 60%, 42%)"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="netProfit"
+                  name="صافي الربح"
+                  stroke="hsl(217, 80%, 50%)"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="expenses"
+                  name="المصروفات"
+                  stroke="hsl(0, 72%, 51%)"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  strokeDasharray="5 5"
+                />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Top Products Pie (with returns deducted) */}
+        {/* Top Products Pie */}
         <Card className="border-border/60 shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Package className="w-4 h-4 text-primary" />
-              أكثر المنتجات مبيعاً (بعد المرتجعات)
+              أكثر المنتجات مبيعاً
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -744,40 +1372,80 @@ export default function GrowthAnalytics() {
                     cx="50%"
                     cy="50%"
                     outerRadius={85}
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    label={({ name, percent }) =>
+                      `${name} (${(percent * 100).toFixed(0)}%)`
+                    }
                     labelLine={false}
                     fontSize={10}
                   >
-                    {topProductsList.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    {topProductsList.map((_, i) => (
+                      <Cell
+                        key={i}
+                        fill={CHART_COLORS[i % CHART_COLORS.length]}
+                      />
+                    ))}
                   </Pie>
-                  <RechartsTooltip formatter={(v: number) => fmt(v)} />
+                  <Tooltip formatter={(v: number) => fmt(v)} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-muted-foreground text-sm py-20">لا توجد بيانات</p>
+              <p className="text-center text-muted-foreground text-sm py-20">
+                لا توجد بيانات
+              </p>
             )}
           </CardContent>
         </Card>
 
-        {/* Customer & Collection Indicators (period-scoped) */}
+        {/* Customer Indicators */}
         <Card className="border-border/60 shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Users className="w-4 h-4 text-cat-accounting" />
-              مؤشرات العملاء (خلال الفترة)
+              مؤشرات العملاء
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-3">
             {[
-              { label: "عملاء تعاملوا خلال الفترة", value: String(uniqueCustomerCount), icon: Users, color: "text-cat-accounting" },
-              { label: "عدد فواتير المبيعات", value: String(salesData?.length ?? 0), icon: Receipt, color: "text-primary" },
-              { label: "متوسط قيمة الفاتورة", value: fmt(avgInvoice), icon: DollarSign, color: "text-success" },
-              { label: "نسبة التحصيل", value: collectionRate.toFixed(1) + "%", icon: Percent, color: collectionRate > 80 ? "text-success" : "text-destructive" },
+              {
+                label: "إجمالي العملاء النشطين",
+                value: String(customersData?.length ?? 0),
+                icon: Users,
+                color: "text-cat-accounting",
+              },
+              {
+                label: "عملاء لديهم أرصدة مدينة",
+                value: String(
+                  customersData?.filter((c) => Number(c.balance) > 0).length ??
+                    0,
+                ),
+                icon: Users,
+                color: "text-destructive",
+              },
+              {
+                label: "إجمالي أرصدة العملاء",
+                value: fmt(
+                  customersData?.reduce((s, c) => s + Number(c.balance), 0) ??
+                    0,
+                ),
+                icon: DollarSign,
+                color: "text-primary",
+              },
+              {
+                label: "متوسط قيمة الفاتورة",
+                value: fmt(avgInvoice),
+                icon: Receipt,
+                color: "text-success",
+              },
             ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between">
+              <div
+                key={item.label}
+                className="flex items-center justify-between"
+              >
                 <div className="flex items-center gap-2">
                   <item.icon className={`w-4 h-4 ${item.color}`} />
-                  <span className="text-sm text-muted-foreground">{item.label}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {item.label}
+                  </span>
                 </div>
                 <span className="text-base font-bold">{item.value}</span>
               </div>
@@ -800,21 +1468,33 @@ export default function GrowthAnalytics() {
             <table className="w-full text-sm">
               <tbody>
                 <tr className="border-b border-border/40">
-                  <td className="px-5 py-3 text-muted-foreground">إجمالي المبيعات</td>
-                  <td className="px-5 py-3 text-left font-semibold">{fmt(totalSales)}</td>
-                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">{salesData?.length ?? 0} فاتورة</td>
+                  <td className="px-5 py-3 text-muted-foreground">
+                    إجمالي المبيعات
+                  </td>
+                  <td className="px-5 py-3 text-left font-semibold">
+                    {fmt(totalSales)}
+                  </td>
+                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">
+                    {salesData?.length ?? 0} فاتورة
+                  </td>
                 </tr>
                 <tr className="border-b border-border/40 bg-muted/30">
                   <td className="px-5 py-3 text-muted-foreground flex items-center gap-1.5">
                     <RotateCcw className="w-3.5 h-3.5 text-destructive" />
                     مرتجعات المبيعات
                   </td>
-                  <td className="px-5 py-3 text-left font-semibold text-destructive">({fmt(totalSalesReturns)})</td>
-                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">{salesReturnsData?.length ?? 0} مرتجع</td>
+                  <td className="px-5 py-3 text-left font-semibold text-destructive">
+                    ({fmt(totalSalesReturns)})
+                  </td>
+                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">
+                    {salesReturnsData?.length ?? 0} مرتجع
+                  </td>
                 </tr>
                 <tr className="bg-success/5">
                   <td className="px-5 py-3 font-bold">صافي المبيعات</td>
-                  <td className="px-5 py-3 text-left font-bold text-success text-base">{fmt(netSales)}</td>
+                  <td className="px-5 py-3 text-left font-bold text-success text-base">
+                    {fmt(netSales)}
+                  </td>
                   <td className="px-5 py-3"></td>
                 </tr>
               </tbody>
@@ -834,21 +1514,33 @@ export default function GrowthAnalytics() {
             <table className="w-full text-sm">
               <tbody>
                 <tr className="border-b border-border/40">
-                  <td className="px-5 py-3 text-muted-foreground">إجمالي المشتريات</td>
-                  <td className="px-5 py-3 text-left font-semibold">{fmt(totalPurchases)}</td>
-                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">{purchasesData?.length ?? 0} فاتورة</td>
+                  <td className="px-5 py-3 text-muted-foreground">
+                    إجمالي المشتريات
+                  </td>
+                  <td className="px-5 py-3 text-left font-semibold">
+                    {fmt(totalPurchases)}
+                  </td>
+                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">
+                    {purchasesData?.length ?? 0} فاتورة
+                  </td>
                 </tr>
                 <tr className="border-b border-border/40 bg-muted/30">
                   <td className="px-5 py-3 text-muted-foreground flex items-center gap-1.5">
                     <RotateCcw className="w-3.5 h-3.5 text-success" />
                     مرتجعات المشتريات
                   </td>
-                  <td className="px-5 py-3 text-left font-semibold text-success">({fmt(totalPurchaseReturns)})</td>
-                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">{purchaseReturnsData?.length ?? 0} مرتجع</td>
+                  <td className="px-5 py-3 text-left font-semibold text-success">
+                    ({fmt(totalPurchaseReturns)})
+                  </td>
+                  <td className="px-5 py-3 text-left text-xs text-muted-foreground">
+                    {purchaseReturnsData?.length ?? 0} مرتجع
+                  </td>
                 </tr>
                 <tr className="bg-primary/5">
                   <td className="px-5 py-3 font-bold">صافي المشتريات</td>
-                  <td className="px-5 py-3 text-left font-bold text-primary text-base">{fmt(netPurchases)}</td>
+                  <td className="px-5 py-3 text-left font-bold text-primary text-base">
+                    {fmt(netPurchases)}
+                  </td>
                   <td className="px-5 py-3"></td>
                 </tr>
               </tbody>

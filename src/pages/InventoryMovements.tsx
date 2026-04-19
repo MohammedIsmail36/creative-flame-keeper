@@ -1,13 +1,20 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { formatProductDisplay } from "@/lib/product-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePickerInput } from "@/components/DatePickerInput";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import {
@@ -24,37 +31,25 @@ import {
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 import { cn } from "@/lib/utils";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-
-const movementTypeLabels: Record<string, string> = {
-  opening_balance: "رصيد افتتاحي",
-  purchase: "شراء",
-  purchase_return: "مرتجع شراء",
-  sale: "بيع",
-  sale_return: "مرتجع بيع",
-  adjustment: "تسوية",
-};
-
-const movementTypeColors: Record<string, string> = {
-  opening_balance: "bg-blue-100 text-blue-800",
-  purchase: "bg-emerald-100 text-emerald-700",
-  purchase_return: "bg-orange-100 text-orange-800",
-  sale: "bg-rose-100 text-rose-700",
-  sale_return: "bg-purple-100 text-purple-800",
-  adjustment: "bg-muted text-muted-foreground",
-};
-
-const inTypes = ["opening_balance", "purchase", "sale_return"];
-
-const referenceRouteMap: Record<string, string> = {
-  purchase_invoice: "/purchases",
-  sales_invoice: "/sales",
-  purchase_return: "/purchase-returns",
-  sales_return: "/sales-returns",
-  inventory_adjustment: "/inventory-adjustments",
-  adjustment: "/inventory-adjustments",
-};
+import {
+  MOVEMENT_TYPE_LABELS,
+  MOVEMENT_TYPE_COLORS,
+  MOVEMENT_IN_TYPES,
+  REFERENCE_ROUTE_MAP,
+} from "@/lib/constants";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 interface MovementRow {
   id: string;
@@ -67,7 +62,12 @@ interface MovementRow {
   notes: string | null;
   reference_id: string | null;
   reference_type: string | null;
-  products: { code: string; name: string; model_number?: string; product_brands?: { name: string } | null } | null;
+  products: {
+    code: string;
+    name: string;
+    model_number?: string;
+    product_brands?: { name: string } | null;
+  } | null;
   cumulativeBalance: number;
 }
 
@@ -93,15 +93,23 @@ export default function InventoryMovements() {
   });
 
   const { data: movements = [], isLoading } = useQuery({
-    queryKey: ["inventory-movements", selectedProduct, selectedType, dateFrom, dateTo],
+    queryKey: [
+      "inventory-movements",
+      selectedProduct,
+      selectedType,
+      dateFrom,
+      dateTo,
+    ],
     queryFn: async () => {
-      let query = (supabase.from("inventory_movements" as any) as any)
+      let query = (supabase.from("inventory_movements") as any)
         .select("*, products(code, name, model_number, product_brands(name))")
         .order("movement_date", { ascending: true })
         .order("created_at", { ascending: true });
 
-      if (selectedProduct !== "all") query = query.eq("product_id", selectedProduct);
-      if (selectedType !== "all") query = query.eq("movement_type", selectedType);
+      if (selectedProduct !== "all")
+        query = query.eq("product_id", selectedProduct);
+      if (selectedType !== "all")
+        query = query.eq("movement_type", selectedType);
       if (dateFrom) query = query.gte("movement_date", dateFrom);
       if (dateTo) query = query.lte("movement_date", dateTo);
 
@@ -120,7 +128,7 @@ export default function InventoryMovements() {
         // Adjustments store signed quantity: positive = gain, negative = loss
         balances[pid] += Number(m.quantity);
       } else {
-        const isIn = inTypes.includes(m.movement_type);
+        const isIn = MOVEMENT_IN_TYPES.includes(m.movement_type);
         balances[pid] += isIn ? Number(m.quantity) : -Number(m.quantity);
       }
       return { ...m, cumulativeBalance: balances[pid] };
@@ -128,22 +136,36 @@ export default function InventoryMovements() {
   }, [movements]);
 
   const totalIn = movementsWithBalance
-    .filter((m) => m.movement_type === "adjustment" ? Number(m.quantity) > 0 : inTypes.includes(m.movement_type))
+    .filter((m) =>
+      m.movement_type === "adjustment"
+        ? Number(m.quantity) > 0
+        : MOVEMENT_IN_TYPES.includes(m.movement_type),
+    )
     .reduce((s, m) => s + Math.abs(Number(m.quantity)), 0);
   const totalOut = movementsWithBalance
-    .filter((m) => m.movement_type === "adjustment" ? Number(m.quantity) < 0 : !inTypes.includes(m.movement_type))
+    .filter((m) =>
+      m.movement_type === "adjustment"
+        ? Number(m.quantity) < 0
+        : !MOVEMENT_IN_TYPES.includes(m.movement_type),
+    )
     .reduce((s, m) => s + Math.abs(Number(m.quantity)), 0);
   const totalValue = movementsWithBalance.reduce((s, m) => {
     if (m.movement_type === "adjustment") {
-      return s + (Number(m.quantity) > 0 ? Number(m.total_cost) : -Number(m.total_cost));
+      return (
+        s +
+        (Number(m.quantity) > 0 ? Number(m.total_cost) : -Number(m.total_cost))
+      );
     }
-    const isIn = inTypes.includes(m.movement_type);
+    const isIn = MOVEMENT_IN_TYPES.includes(m.movement_type);
     return s + (isIn ? Number(m.total_cost) : -Number(m.total_cost));
   }, 0);
 
-  const handleReferenceClick = (referenceType: string | null, referenceId: string | null) => {
+  const handleReferenceClick = (
+    referenceType: string | null,
+    referenceId: string | null,
+  ) => {
     if (!referenceType || !referenceId) return;
-    const basePath = referenceRouteMap[referenceType];
+    const basePath = REFERENCE_ROUTE_MAP[referenceType];
     if (basePath) {
       navigate(`${basePath}/${referenceId}`);
     }
@@ -164,16 +186,23 @@ export default function InventoryMovements() {
   const columns: ColumnDef<MovementRow, any>[] = [
     {
       accessorKey: "movement_date",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
-      cell: ({ row }) => <span className="text-muted-foreground whitespace-nowrap">{row.original.movement_date}</span>,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="التاريخ" />
+      ),
+      cell: ({ row }) => (
+        <span className="text-muted-foreground whitespace-nowrap">
+          {row.original.movement_date}
+        </span>
+      ),
     },
     {
       id: "reference",
       header: "المرجع",
       cell: ({ row }) => {
         const { reference_type, reference_id } = row.original;
-        if (!reference_type || !reference_id) return <span className="text-muted-foreground">-</span>;
-        const hasRoute = !!referenceRouteMap[reference_type];
+        if (!reference_type || !reference_id)
+          return <span className="text-muted-foreground">-</span>;
+        const hasRoute = !!REFERENCE_ROUTE_MAP[reference_type];
         return hasRoute ? (
           <button
             onClick={() => handleReferenceClick(reference_type, reference_id)}
@@ -183,7 +212,9 @@ export default function InventoryMovements() {
             {getReferenceLabel(reference_type)}
           </button>
         ) : (
-          <span className="text-xs text-muted-foreground">{getReferenceLabel(reference_type)}</span>
+          <span className="text-xs text-muted-foreground">
+            {getReferenceLabel(reference_type)}
+          </span>
         );
       },
     },
@@ -191,18 +222,26 @@ export default function InventoryMovements() {
       accessorKey: "movement_type",
       header: "نوع الحركة",
       cell: ({ row }) => (
-        <Badge variant="secondary" className={movementTypeColors[row.original.movement_type] || ""}>
-          {movementTypeLabels[row.original.movement_type] || row.original.movement_type}
+        <Badge
+          variant="secondary"
+          className={MOVEMENT_TYPE_COLORS[row.original.movement_type] || ""}
+        >
+          {MOVEMENT_TYPE_LABELS[row.original.movement_type] ||
+            row.original.movement_type}
         </Badge>
       ),
     },
     {
       id: "product",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="المنتج" />,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="المنتج" />
+      ),
       accessorFn: (row) => row.products?.name || "",
       cell: ({ row }) => {
         const p = row.original.products as any;
-        const displayName = p ? formatProductDisplay(p.name, p.product_brands?.name, p.model_number) : "";
+        const displayName = p
+          ? formatProductDisplay(p.name, p.product_brands?.name, p.model_number)
+          : "";
         return (
           <div>
             <div className="font-bold text-foreground">{displayName}</div>
@@ -216,10 +255,11 @@ export default function InventoryMovements() {
       cell: ({ row }) => {
         const mt = row.original.movement_type;
         const qty = Number(row.original.quantity);
-        const isIn = mt === "adjustment" ? qty > 0 : inTypes.includes(mt);
+        const isIn =
+          mt === "adjustment" ? qty > 0 : MOVEMENT_IN_TYPES.includes(mt);
         return isIn ? (
           <span className="font-bold text-emerald-600 font-mono">
-            +{Math.abs(qty).toLocaleString()}
+            +{Math.abs(qty).toLocaleString("en-US")}
           </span>
         ) : (
           <span className="text-muted-foreground/30">-</span>
@@ -232,9 +272,12 @@ export default function InventoryMovements() {
       cell: ({ row }) => {
         const mt = row.original.movement_type;
         const qty = Number(row.original.quantity);
-        const isOut = mt === "adjustment" ? qty < 0 : !inTypes.includes(mt);
+        const isOut =
+          mt === "adjustment" ? qty < 0 : !MOVEMENT_IN_TYPES.includes(mt);
         return isOut ? (
-          <span className="font-bold text-rose-600 font-mono">-{Math.abs(qty).toLocaleString()}</span>
+          <span className="font-bold text-rose-600 font-mono">
+            -{Math.abs(qty).toLocaleString("en-US")}
+          </span>
         ) : (
           <span className="text-muted-foreground/30">-</span>
         );
@@ -242,28 +285,42 @@ export default function InventoryMovements() {
     },
     {
       accessorKey: "unit_cost",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="التكلفة" />,
-      cell: ({ row }) => <span className="font-mono">{Number(row.original.unit_cost).toLocaleString()}</span>,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="التكلفة" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono">
+          {Number(row.original.unit_cost).toLocaleString("en-US")}
+        </span>
+      ),
     },
     {
       accessorKey: "total_cost",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="القيمة" />,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="القيمة" />
+      ),
       cell: ({ row }) => (
-        <span className="font-mono font-bold">{Number(row.original.total_cost).toLocaleString()}</span>
+        <span className="font-mono font-bold">
+          {Number(row.original.total_cost).toLocaleString("en-US")}
+        </span>
       ),
     },
     {
       id: "balance",
       header: "الرصيد",
       cell: ({ row }) => (
-        <span className="font-black font-mono text-foreground">{row.original.cumulativeBalance.toLocaleString()}</span>
+        <span className="font-black font-mono text-foreground">
+          {row.original.cumulativeBalance.toLocaleString("en-US")}
+        </span>
       ),
     },
     {
       accessorKey: "notes",
       header: "ملاحظات",
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground max-w-[120px] truncate block">{row.original.notes || "-"}</span>
+        <span className="text-xs text-muted-foreground max-w-[120px] truncate block">
+          {row.original.notes || "-"}
+        </span>
       ),
     },
   ];
@@ -272,11 +329,25 @@ export default function InventoryMovements() {
     const p = m.products as any;
     return [
       m.movement_date,
-      p ? formatProductDisplay(p.name, p.product_brands?.name, p.model_number) : "",
+      p
+        ? formatProductDisplay(p.name, p.product_brands?.name, p.model_number)
+        : "",
       p?.code || "",
-      movementTypeLabels[m.movement_type] || m.movement_type,
-      (m.movement_type === "adjustment" ? Number(m.quantity) > 0 : inTypes.includes(m.movement_type)) ? Math.abs(m.quantity) : "",
-      (m.movement_type === "adjustment" ? Number(m.quantity) < 0 : !inTypes.includes(m.movement_type)) ? Math.abs(m.quantity) : "",
+      MOVEMENT_TYPE_LABELS[m.movement_type] || m.movement_type,
+      (
+        m.movement_type === "adjustment"
+          ? Number(m.quantity) > 0
+          : MOVEMENT_IN_TYPES.includes(m.movement_type)
+      )
+        ? Math.abs(m.quantity)
+        : "",
+      (
+        m.movement_type === "adjustment"
+          ? Number(m.quantity) < 0
+          : !MOVEMENT_IN_TYPES.includes(m.movement_type)
+      )
+        ? Math.abs(m.quantity)
+        : "",
       m.unit_cost,
       m.total_cost,
       m.cumulativeBalance,
@@ -287,7 +358,17 @@ export default function InventoryMovements() {
     filenamePrefix: "حركات-المخزون",
     sheetName: "حركات المخزون",
     pdfTitle: "حركات المخزون",
-    headers: ["التاريخ", "المنتج", "الكود", "نوع الحركة", "الوارد", "الصادر", "التكلفة", "القيمة", "الرصيد التراكمي"],
+    headers: [
+      "التاريخ",
+      "المنتج",
+      "الكود",
+      "نوع الحركة",
+      "الوارد",
+      "الصادر",
+      "التكلفة",
+      "القيمة",
+      "الرصيد التراكمي",
+    ],
     rows: exportRows,
     settings,
     pdfOrientation: "landscape" as const,
@@ -295,19 +376,17 @@ export default function InventoryMovements() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Package className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-extrabold text-foreground">حركة المخزون</h1>
-            <p className="text-sm text-muted-foreground">متابعة تفصيلية لعمليات التوريد والمنصرف</p>
-          </div>
-        </div>
-        <ExportMenu config={exportConfig} disabled={movementsWithBalance.length === 0} />
-      </div>
+      <PageHeader
+        icon={Package}
+        title="حركة المخزون"
+        description="متابعة تفصيلية لعمليات التوريد والمنصرف"
+        actions={
+          <ExportMenu
+            config={exportConfig}
+            disabled={movementsWithBalance.length === 0}
+          />
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -316,7 +395,7 @@ export default function InventoryMovements() {
             <p className="text-muted-foreground text-sm mb-1">إجمالي الحركات</p>
             <div className="flex items-end justify-between">
               <h3 className="text-2xl font-black text-foreground font-mono">
-                {movementsWithBalance.length.toLocaleString()}
+                {movementsWithBalance.length.toLocaleString("en-US")}
               </h3>
               <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Activity className="w-4 h-4 text-primary" />
@@ -328,7 +407,9 @@ export default function InventoryMovements() {
           <CardContent className="p-5">
             <p className="text-muted-foreground text-sm mb-1">قيمة المخزون</p>
             <div className="flex items-end justify-between">
-              <h3 className="text-2xl font-black text-foreground font-mono">{totalValue.toLocaleString()}</h3>
+              <h3 className="text-2xl font-black text-foreground font-mono">
+                {totalValue.toLocaleString("en-US")}
+              </h3>
               <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Coins className="w-4 h-4 text-primary" />
               </div>
@@ -339,7 +420,9 @@ export default function InventoryMovements() {
           <CardContent className="p-5">
             <p className="text-muted-foreground text-sm mb-1">الوارد</p>
             <div className="flex items-end justify-between">
-              <h3 className="text-2xl font-black text-emerald-600 font-mono">+{totalIn.toLocaleString()}</h3>
+              <h3 className="text-2xl font-black text-emerald-600 font-mono">
+                +{totalIn.toLocaleString("en-US")}
+              </h3>
               <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4 text-emerald-600" />
               </div>
@@ -350,7 +433,9 @@ export default function InventoryMovements() {
           <CardContent className="p-5">
             <p className="text-muted-foreground text-sm mb-1">الصادر</p>
             <div className="flex items-end justify-between">
-              <h3 className="text-2xl font-black text-rose-600 font-mono">-{totalOut.toLocaleString()}</h3>
+              <h3 className="text-2xl font-black text-rose-600 font-mono">
+                -{totalOut.toLocaleString("en-US")}
+              </h3>
               <div className="w-9 h-9 rounded-lg bg-rose-100 flex items-center justify-center">
                 <TrendingDown className="w-4 h-4 text-rose-600" />
               </div>
@@ -364,7 +449,7 @@ export default function InventoryMovements() {
               <h3
                 className={`text-2xl font-black font-mono ${totalIn - totalOut >= 0 ? "text-emerald-600" : "text-rose-600"}`}
               >
-                {(totalIn - totalOut).toLocaleString()}
+                {(totalIn - totalOut).toLocaleString("en-US")}
               </h3>
               <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center">
                 <Package className="w-4 h-4 text-blue-600" />
@@ -398,7 +483,9 @@ export default function InventoryMovements() {
                   <span className="truncate flex-1 text-right">
                     {selectedProduct !== "all"
                       ? (() => {
-                          const p = products.find((p) => p.id === selectedProduct);
+                          const p = products.find(
+                            (p) => p.id === selectedProduct,
+                          );
                           return p ? `${p.code} - ${p.name}` : "جميع المنتجات";
                         })()
                       : "جميع المنتجات"}
@@ -412,7 +499,10 @@ export default function InventoryMovements() {
                 sideOffset={5}
               >
                 <Command dir="rtl" className="rounded-md">
-                  <CommandInput placeholder="ابحث بالكود أو الاسم..." className="h-10 text-sm" />
+                  <CommandInput
+                    placeholder="ابحث بالكود أو الاسم..."
+                    className="h-10 text-sm"
+                  />
                   <CommandList>
                     <CommandEmpty>
                       <div className="flex flex-col items-center gap-1.5">
@@ -433,7 +523,9 @@ export default function InventoryMovements() {
                         <Check
                           className={cn(
                             "mr-auto h-4 w-4 shrink-0 text-primary transition-opacity",
-                            selectedProduct === "all" ? "opacity-100" : "opacity-0",
+                            selectedProduct === "all"
+                              ? "opacity-100"
+                              : "opacity-0",
                           )}
                         />
                       </CommandItem>
@@ -454,7 +546,9 @@ export default function InventoryMovements() {
                           <Check
                             className={cn(
                               "mr-auto h-4 w-4 shrink-0 text-primary transition-opacity",
-                              selectedProduct === p.id ? "opacity-100" : "opacity-0",
+                              selectedProduct === p.id
+                                ? "opacity-100"
+                                : "opacity-0",
                             )}
                           />
                         </CommandItem>
@@ -470,15 +564,25 @@ export default function InventoryMovements() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">جميع الأنواع</SelectItem>
-                {Object.entries(movementTypeLabels).map(([k, v]) => (
+                {Object.entries(MOVEMENT_TYPE_LABELS).map(([k, v]) => (
                   <SelectItem key={k} value={k}>
                     {v}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" className="w-[150px]" />
-            <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" className="w-[150px]" />
+            <DatePickerInput
+              value={dateFrom}
+              onChange={setDateFrom}
+              placeholder="من تاريخ"
+              className="w-[150px]"
+            />
+            <DatePickerInput
+              value={dateTo}
+              onChange={setDateTo}
+              placeholder="إلى تاريخ"
+              className="w-[150px]"
+            />
           </div>
         }
       />

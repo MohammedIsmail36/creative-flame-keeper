@@ -1,15 +1,37 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { PageHeader } from "@/components/PageHeader";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Scale, Download, CalendarIcon, X, CheckCircle, AlertTriangle, TrendingUp, TrendingDown, BookOpen, Layers, Info } from "lucide-react";
+import {
+  Scale,
+  Download,
+  CalendarIcon,
+  X,
+  CheckCircle,
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+  BookOpen,
+  Layers,
+  Info,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  BALANCE_TOLERANCE,
+  FISCAL_CLOSING_DESCRIPTION_PREFIX,
+} from "@/lib/constants";
 
 interface Account {
   id: string;
@@ -44,7 +66,7 @@ export default function TrialBalance() {
       const { data: closingEntry } = await supabase
         .from("journal_entries")
         .select("entry_date")
-        .eq("description", "قيد إقفال السنة المالية")
+        .like("description", `%${FISCAL_CLOSING_DESCRIPTION_PREFIX}%`)
         .in("status", ["posted", "approved"])
         .order("entry_date", { ascending: false })
         .limit(1)
@@ -55,19 +77,35 @@ export default function TrialBalance() {
     }
 
     const [accountsRes, linesRes] = await Promise.all([
-      supabase.from("accounts").select("id, code, name, account_type").eq("is_active", true).eq("is_parent", false).order("code"),
-      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entry_id, journal_entries!inner(entry_date, status, description)").in("journal_entries.status", ["posted", "approved"]),
+      supabase
+        .from("accounts")
+        .select("id, code, name, account_type")
+        .eq("is_active", true)
+        .eq("is_parent", false)
+        .order("code"),
+      supabase
+        .from("journal_entry_lines")
+        .select(
+          "account_id, debit, credit, journal_entry_id, journal_entries!inner(entry_date, status, description)",
+        )
+        .in("journal_entries.status", ["posted", "approved"]),
     ]);
 
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
     if (linesRes.data) setLines(linesRes.data);
     if (accountsRes.error || linesRes.error) {
-      toast({ title: "خطأ", description: "فشل في جلب البيانات", variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: "فشل في جلب البيانات",
+        variant: "destructive",
+      });
     }
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [settings?.enable_fiscal_year_closing]);
+  useEffect(() => {
+    fetchData();
+  }, [settings?.enable_fiscal_year_closing]);
 
   const revenueExpenseTypes = ["revenue", "expense", "expenses"];
 
@@ -79,7 +117,7 @@ export default function TrialBalance() {
       if (!entryDate) return false;
 
       // Exclude closing entries themselves
-      if (entryDesc === "قيد إقفال السنة المالية") return false;
+      if (entryDesc.includes(FISCAL_CLOSING_DESCRIPTION_PREFIX)) return false;
 
       if (dateFrom && entryDate < format(dateFrom, "yyyy-MM-dd")) return false;
       if (dateTo && entryDate > format(dateTo, "yyyy-MM-dd")) return false;
@@ -90,18 +128,29 @@ export default function TrialBalance() {
     const accountTypeMap = new Map<string, string>();
     accounts.forEach((acc) => accountTypeMap.set(acc.id, acc.account_type));
 
-    const accountTotals = new Map<string, { totalDebit: number; totalCredit: number }>();
+    const accountTotals = new Map<
+      string,
+      { totalDebit: number; totalCredit: number }
+    >();
     filteredLines.forEach((l: any) => {
       const accType = accountTypeMap.get(l.account_id) || "";
       const isRevenueExpense = revenueExpenseTypes.includes(accType);
       const entryDate = (l.journal_entries as any)?.entry_date;
 
       // For revenue/expense accounts, skip entries before last closing (if no manual dateFrom set)
-      if (isRevenueExpense && lastClosingDate && !dateFrom && entryDate <= lastClosingDate) {
+      if (
+        isRevenueExpense &&
+        lastClosingDate &&
+        !dateFrom &&
+        entryDate <= lastClosingDate
+      ) {
         return;
       }
 
-      const existing = accountTotals.get(l.account_id) || { totalDebit: 0, totalCredit: 0 };
+      const existing = accountTotals.get(l.account_id) || {
+        totalDebit: 0,
+        totalCredit: 0,
+      };
       existing.totalDebit += Number(l.debit) || 0;
       existing.totalCredit += Number(l.credit) || 0;
       accountTotals.set(l.account_id, existing);
@@ -124,19 +173,42 @@ export default function TrialBalance() {
     return rows;
   }, [accounts, lines, dateFrom, dateTo, lastClosingDate]);
 
-  const grandTotalDebit = trialBalanceData.reduce((s, r) => s + r.totalDebit, 0);
-  const grandTotalCredit = trialBalanceData.reduce((s, r) => s + r.totalCredit, 0);
-  const grandBalanceDebit = trialBalanceData.reduce((s, r) => s + r.balanceDebit, 0);
-  const grandBalanceCredit = trialBalanceData.reduce((s, r) => s + r.balanceCredit, 0);
-  const isBalanced = Math.abs(grandBalanceDebit - grandBalanceCredit) < 0.01;
+  const grandTotalDebit = trialBalanceData.reduce(
+    (s, r) => s + r.totalDebit,
+    0,
+  );
+  const grandTotalCredit = trialBalanceData.reduce(
+    (s, r) => s + r.totalCredit,
+    0,
+  );
+  const grandBalanceDebit = trialBalanceData.reduce(
+    (s, r) => s + r.balanceDebit,
+    0,
+  );
+  const grandBalanceCredit = trialBalanceData.reduce(
+    (s, r) => s + r.balanceCredit,
+    0,
+  );
+  const isBalanced =
+    Math.abs(grandBalanceDebit - grandBalanceCredit) <= BALANCE_TOLERANCE;
 
-  const formatNum = (val: number) => Number(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatNum = (val: number) =>
+    Number(val).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   const formatCurrency = (val: number) => `${formatNum(val)} ${currency}`;
 
   const getAccountTypeLabel = (type: string) => {
     const map: Record<string, string> = {
-      asset: "أصول", liability: "خصوم", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات",
-      assets: "أصول", liabilities: "خصوم", expenses: "مصروفات",
+      asset: "أصول",
+      liability: "خصوم",
+      equity: "حقوق ملكية",
+      revenue: "إيرادات",
+      expense: "مصروفات",
+      assets: "أصول",
+      liabilities: "خصوم",
+      expenses: "مصروفات",
     };
     return map[type] || type;
   };
@@ -144,14 +216,38 @@ export default function TrialBalance() {
   const handleExportPDF = async () => {
     const { exportReportPdf } = await import("@/lib/pdf-arabic");
     const tableData = trialBalanceData.map((r) => [
-      r.account.code, r.account.name, getAccountTypeLabel(r.account.account_type),
-      formatNum(r.totalDebit), formatNum(r.totalCredit), formatNum(r.balanceDebit), formatNum(r.balanceCredit),
+      r.account.code,
+      r.account.name,
+      getAccountTypeLabel(r.account.account_type),
+      formatNum(r.totalDebit),
+      formatNum(r.totalCredit),
+      formatNum(r.balanceDebit),
+      formatNum(r.balanceCredit),
     ]);
-    tableData.push(["", "", "الإجمالي", formatNum(grandTotalDebit), formatNum(grandTotalCredit), formatNum(grandBalanceDebit), formatNum(grandBalanceCredit)]);
+    tableData.push([
+      "",
+      "",
+      "الإجمالي",
+      formatNum(grandTotalDebit),
+      formatNum(grandTotalCredit),
+      formatNum(grandBalanceDebit),
+      formatNum(grandBalanceCredit),
+    ]);
     await exportReportPdf({
-      title: "ميزان المراجعة", settings,
-      headers: ["الكود", "الحساب", "النوع", "إجمالي مدين", "إجمالي دائن", "رصيد مدين", "رصيد دائن"],
-      rows: tableData, orientation: "landscape", filename: "Trial_Balance",
+      title: "ميزان المراجعة",
+      settings,
+      headers: [
+        "الكود",
+        "الحساب",
+        "النوع",
+        "إجمالي مدين",
+        "إجمالي دائن",
+        "رصيد مدين",
+        "رصيد دائن",
+      ],
+      rows: tableData,
+      orientation: "landscape",
+      filename: "Trial_Balance",
     });
     toast({ title: "تم التصدير" });
     setExportMenuOpen(false);
@@ -160,17 +256,36 @@ export default function TrialBalance() {
   const handleExportExcel = async () => {
     const { exportToExcel } = await import("@/lib/excel-export");
     const data = trialBalanceData.map((r) => ({
-      "Code": r.account.code, "Account": r.account.name, "Type": r.account.account_type,
-      "Total Debit": r.totalDebit, "Total Credit": r.totalCredit, "Balance Debit": r.balanceDebit, "Balance Credit": r.balanceCredit,
+      Code: r.account.code,
+      Account: r.account.name,
+      Type: r.account.account_type,
+      "Total Debit": r.totalDebit,
+      "Total Credit": r.totalCredit,
+      "Balance Debit": r.balanceDebit,
+      "Balance Credit": r.balanceCredit,
     }));
-    data.push({ "Code": "", "Account": "", "Type": "Total", "Total Debit": grandTotalDebit, "Total Credit": grandTotalCredit, "Balance Debit": grandBalanceDebit, "Balance Credit": grandBalanceCredit });
+    data.push({
+      Code: "",
+      Account: "",
+      Type: "Total",
+      "Total Debit": grandTotalDebit,
+      "Total Credit": grandTotalCredit,
+      "Balance Debit": grandBalanceDebit,
+      "Balance Credit": grandBalanceCredit,
+    });
     await exportToExcel(data, "Trial Balance", "Trial_Balance.xlsx");
     toast({ title: "تم التصدير" });
     setExportMenuOpen(false);
   };
 
   // Fixed sections - always show all account types in their correct side
-  const fixedSections = ["asset", "liability", "equity", "revenue", "expense"] as const;
+  const fixedSections = [
+    "asset",
+    "liability",
+    "equity",
+    "revenue",
+    "expense",
+  ] as const;
   const sectionColumns = [
     {
       id: "debit",
@@ -195,7 +310,9 @@ export default function TrialBalance() {
 
   const groupedRows = useMemo(() => {
     const groups: Record<string, TrialBalanceRow[]> = {};
-    fixedSections.forEach((type) => { groups[type] = []; });
+    fixedSections.forEach((type) => {
+      groups[type] = [];
+    });
 
     trialBalanceData.forEach((row) => {
       const normalized = normalizeAccountType(row.account.account_type);
@@ -208,107 +325,197 @@ export default function TrialBalance() {
 
   return (
     <div className="space-y-8" dir="rtl">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary/10">
-            <Scale className="h-7 w-7 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-extrabold text-foreground">ميزان المراجعة</h1>
-            <p className="text-muted-foreground mt-1">أرصدة الحسابات والتوازن المحاسبي</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader
+        icon={Scale}
+        title="ميزان المراجعة"
+        description="أرصدة الحسابات والتوازن المحاسبي"
+        actions={<>
           {/* Date filter */}
           <div className="flex items-center gap-2 bg-card p-1.5 rounded-xl border shadow-sm">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" className={cn("gap-2 text-sm", !dateFrom && "text-muted-foreground")}>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "gap-2 text-sm",
+                    !dateFrom && "text-muted-foreground",
+                  )}
+                >
                   <CalendarIcon className="h-4 w-4" />
                   {dateFrom ? format(dateFrom, "yyyy-MM-dd") : "من تاريخ"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
+                <Calendar
+                  mode="single"
+                  selected={dateFrom}
+                  onSelect={setDateFrom}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
               </PopoverContent>
             </Popover>
             <span className="text-xs text-muted-foreground">إلى</span>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" className={cn("gap-2 text-sm", !dateTo && "text-muted-foreground")}>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "gap-2 text-sm",
+                    !dateTo && "text-muted-foreground",
+                  )}
+                >
                   <CalendarIcon className="h-4 w-4" />
                   {dateTo ? format(dateTo, "yyyy-MM-dd") : "إلى تاريخ"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
+                <Calendar
+                  mode="single"
+                  selected={dateTo}
+                  onSelect={setDateTo}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
               </PopoverContent>
             </Popover>
             {(dateFrom || dateTo) && (
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  setDateFrom(undefined);
+                  setDateTo(undefined);
+                }}
+                aria-label="مسح التاريخ"
+              >
                 <X className="h-3.5 w-3.5" />
               </Button>
             )}
           </div>
           {/* Export */}
           <div className="relative">
-            <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
+            <Button
+              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
+              onClick={() => setExportMenuOpen(!exportMenuOpen)}
+            >
               <Download className="h-4 w-4" />
               تصدير
             </Button>
             {exportMenuOpen && (
               <div className="absolute left-0 top-full mt-1 z-50 bg-popover border rounded-xl shadow-lg p-1 min-w-[140px]">
-                <button onClick={handleExportPDF} className="w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors">PDF تصدير</button>
-                <button onClick={handleExportExcel} className="w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors">Excel تصدير</button>
+                <button
+                  onClick={handleExportPDF}
+                  className="w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors"
+                >
+                  PDF تصدير
+                </button>
+                <button
+                  onClick={handleExportExcel}
+                  className="w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors"
+                >
+                  Excel تصدير
+                </button>
               </div>
             )}
           </div>
-        </div>
-      </div>
+        </>}
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KpiCard icon={<TrendingUp className="h-5 w-5" />} iconBg="bg-emerald-500/10 text-emerald-600" label="إجمالي المدين" value={formatCurrency(grandTotalDebit)} />
-        <KpiCard icon={<TrendingDown className="h-5 w-5" />} iconBg="bg-red-500/10 text-red-600" label="إجمالي الدائن" value={formatCurrency(grandTotalCredit)} />
-        <KpiCard icon={<BookOpen className="h-5 w-5" />} iconBg="bg-blue-500/10 text-blue-600" label="رصيد مدين" value={formatCurrency(grandBalanceDebit)} />
-        <KpiCard icon={<Layers className="h-5 w-5" />} iconBg="bg-purple-500/10 text-purple-600" label="رصيد دائن" value={formatCurrency(grandBalanceCredit)} />
+        <KpiCard
+          icon={<TrendingUp className="h-5 w-5" />}
+          iconBg="bg-emerald-500/10 text-emerald-600"
+          label="إجمالي المدين"
+          value={formatCurrency(grandTotalDebit)}
+        />
+        <KpiCard
+          icon={<TrendingDown className="h-5 w-5" />}
+          iconBg="bg-red-500/10 text-red-600"
+          label="إجمالي الدائن"
+          value={formatCurrency(grandTotalCredit)}
+        />
+        <KpiCard
+          icon={<BookOpen className="h-5 w-5" />}
+          iconBg="bg-blue-500/10 text-blue-600"
+          label="رصيد مدين"
+          value={formatCurrency(grandBalanceDebit)}
+        />
+        <KpiCard
+          icon={<Layers className="h-5 w-5" />}
+          iconBg="bg-purple-500/10 text-purple-600"
+          label="رصيد دائن"
+          value={formatCurrency(grandBalanceCredit)}
+        />
       </div>
 
       {/* Balance Indicator Bar */}
       <div className="bg-card p-4 rounded-xl flex items-center justify-center gap-8 border shadow-sm">
         <div className="text-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest">رصيد مدين</p>
-          <p className="text-xl font-bold text-foreground">{formatCurrency(grandBalanceDebit)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">
+            رصيد مدين
+          </p>
+          <p className="text-xl font-bold text-foreground">
+            {formatCurrency(grandBalanceDebit)}
+          </p>
         </div>
         <div className="text-primary">
           <Scale className="h-9 w-9" />
         </div>
         <div className="text-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest">رصيد دائن</p>
-          <p className="text-xl font-bold text-foreground">{formatCurrency(grandBalanceCredit)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">
+            رصيد دائن
+          </p>
+          <p className="text-xl font-bold text-foreground">
+            {formatCurrency(grandBalanceCredit)}
+          </p>
         </div>
-        <div className={cn(
-          "hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold",
-          isBalanced ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive"
-        )}>
-          {isBalanced ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+        <div
+          className={cn(
+            "hidden md:flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold",
+            isBalanced
+              ? "bg-emerald-500/10 text-emerald-600"
+              : "bg-destructive/10 text-destructive",
+          )}
+        >
+          {isBalanced ? (
+            <CheckCircle className="h-3.5 w-3.5" />
+          ) : (
+            <AlertTriangle className="h-3.5 w-3.5" />
+          )}
           {isBalanced ? "متوازن" : "غير متوازن"}
         </div>
       </div>
+
+      {!isBalanced && !loading && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            ميزان المراجعة غير متوازن! الفرق بين الأرصدة المدينة والدائنة:{" "}
+            {formatCurrency(Math.abs(grandBalanceDebit - grandBalanceCredit))}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Current Period Alert */}
       {settings?.enable_fiscal_year_closing && lastClosingDate && !dateFrom && (
         <Alert className="border-blue-500/30 bg-blue-500/5">
           <Info className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-sm text-blue-700 dark:text-blue-400">
-            البيانات المعروضة للفترة الجارية فقط بعد آخر إقفال بتاريخ <span className="font-bold">{lastClosingDate}</span>
+            البيانات المعروضة للفترة الجارية فقط بعد آخر إقفال بتاريخ{" "}
+            <span className="font-bold">{lastClosingDate}</span>
           </AlertDescription>
         </Alert>
       )}
 
       {loading ? (
-        <div className="p-12 text-center text-muted-foreground">جاري التحميل...</div>
+        <div className="p-6 space-y-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-full" />
+          ))}
+        </div>
       ) : trialBalanceData.length === 0 ? (
         <div className="p-12 text-center text-muted-foreground">
           <Scale className="h-12 w-12 mx-auto mb-3 opacity-30" />
@@ -321,11 +528,19 @@ export default function TrialBalance() {
               <div className="rounded-xl border bg-card px-5 py-4 shadow-sm">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-lg font-black text-foreground">{column.title}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{column.description}</p>
+                    <h3 className="text-lg font-black text-foreground">
+                      {column.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {column.description}
+                    </p>
                   </div>
                   <Badge variant="secondary" className="text-xs">
-                    {column.sections.reduce((count, type) => count + groupedRows[type].length, 0)} حساب
+                    {column.sections.reduce(
+                      (count, type) => count + groupedRows[type].length,
+                      0,
+                    )}{" "}
+                    حساب
                   </Badge>
                 </div>
               </div>
@@ -333,7 +548,10 @@ export default function TrialBalance() {
               {column.sections.map((type) => {
                 const rows = groupedRows[type] || [];
                 const groupDebit = rows.reduce((s, r) => s + r.balanceDebit, 0);
-                const groupCredit = rows.reduce((s, r) => s + r.balanceCredit, 0);
+                const groupCredit = rows.reduce(
+                  (s, r) => s + r.balanceCredit,
+                  0,
+                );
 
                 return (
                   <TrialBalanceSectionCard
@@ -354,14 +572,26 @@ export default function TrialBalance() {
   );
 }
 
-function KpiCard({ icon, iconBg, label, value }: { icon: React.ReactNode; iconBg: string; label: string; value: string }) {
+function KpiCard({
+  icon,
+  iconBg,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="bg-card p-6 rounded-xl shadow-sm border">
       <div className="flex justify-between items-start mb-4">
         <div className={cn("p-2 rounded-lg", iconBg)}>{icon}</div>
       </div>
       <p className="text-sm text-muted-foreground font-medium">{label}</p>
-      <h3 className="text-2xl font-black text-foreground mt-1 font-mono">{value}</h3>
+      <h3 className="text-2xl font-black text-foreground mt-1 font-mono">
+        {value}
+      </h3>
     </div>
   );
 }
@@ -383,7 +613,9 @@ function TrialBalanceSectionCard({
     <div className="bg-card rounded-xl border overflow-hidden shadow-sm min-h-[22rem]">
       <div className="bg-muted/50 px-6 py-4 border-b flex items-center justify-between">
         <h4 className="font-bold text-foreground">{title}</h4>
-        <Badge variant="secondary" className="text-xs">{rows.length} حساب</Badge>
+        <Badge variant="secondary" className="text-xs">
+          {rows.length} حساب
+        </Badge>
       </div>
 
       <div className="p-6 flex flex-col h-[calc(100%-4.5rem)]">
@@ -397,21 +629,44 @@ function TrialBalanceSectionCard({
           {rows.length === 0 ? (
             <div className="h-full min-h-[12rem] rounded-xl border border-dashed bg-muted/30 flex flex-col items-center justify-center text-center px-4">
               <BookOpen className="h-10 w-10 text-muted-foreground/40 mb-3" />
-              <p className="font-medium text-foreground">لا توجد حسابات في هذا القسم</p>
-              <p className="text-sm text-muted-foreground mt-1">سيبقى هذا القسم ثابتاً هنا حتى عند عدم وجود بيانات.</p>
+              <p className="font-medium text-foreground">
+                لا توجد حسابات في هذا القسم
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                سيبقى هذا القسم ثابتاً هنا حتى عند عدم وجود بيانات.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
               {rows.map((row) => (
-                <div key={row.account.id} className="grid grid-cols-[1fr_auto_auto] gap-4 text-sm items-center">
+                <div
+                  key={row.account.id}
+                  className="grid grid-cols-[1fr_auto_auto] gap-4 text-sm items-center"
+                >
                   <span className="text-muted-foreground">
-                    <span className="font-mono text-xs text-foreground/50 ml-2">{row.account.code}</span>
+                    <span className="font-mono text-xs text-foreground/50 ml-2">
+                      {row.account.code}
+                    </span>
                     {row.account.name}
                   </span>
-                  <span className={cn("w-28 text-left font-mono", row.balanceDebit > 0 ? "text-emerald-600 font-medium" : "text-muted-foreground/40")}>
+                  <span
+                    className={cn(
+                      "w-28 text-left font-mono",
+                      row.balanceDebit > 0
+                        ? "text-emerald-600 font-medium"
+                        : "text-muted-foreground/40",
+                    )}
+                  >
                     {row.balanceDebit > 0 ? formatNum(row.balanceDebit) : "—"}
                   </span>
-                  <span className={cn("w-28 text-left font-mono", row.balanceCredit > 0 ? "text-red-600 font-medium" : "text-muted-foreground/40")}>
+                  <span
+                    className={cn(
+                      "w-28 text-left font-mono",
+                      row.balanceCredit > 0
+                        ? "text-red-600 font-medium"
+                        : "text-muted-foreground/40",
+                    )}
+                  >
                     {row.balanceCredit > 0 ? formatNum(row.balanceCredit) : "—"}
                   </span>
                 </div>
@@ -422,8 +677,12 @@ function TrialBalanceSectionCard({
 
         <div className="mt-6 pt-4 border-t-2 grid grid-cols-[1fr_auto_auto] gap-4 items-center">
           <span className="font-bold text-foreground">الإجمالي</span>
-          <span className="w-28 text-left font-mono font-black text-foreground">{groupDebit > 0 ? formatNum(groupDebit) : "—"}</span>
-          <span className="w-28 text-left font-mono font-black text-foreground">{groupCredit > 0 ? formatNum(groupCredit) : "—"}</span>
+          <span className="w-28 text-left font-mono font-black text-foreground">
+            {groupDebit > 0 ? formatNum(groupDebit) : "—"}
+          </span>
+          <span className="w-28 text-left font-mono font-black text-foreground">
+            {groupCredit > 0 ? formatNum(groupCredit) : "—"}
+          </span>
         </div>
       </div>
     </div>

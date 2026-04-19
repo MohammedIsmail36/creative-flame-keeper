@@ -36,20 +36,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkMfaStatus = async () => {
     try {
-      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      const { data: aalData } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aalData) {
         // If current level is aal1 but next level requires aal2, MFA verification is needed
-        setMfaRequired(aalData.currentLevel === "aal1" && aalData.nextLevel === "aal2");
+        setMfaRequired(
+          aalData.currentLevel === "aal1" && aalData.nextLevel === "aal2",
+        );
       }
     } catch (err) {
       console.error("Error checking MFA status:", err);
+      // MFA check failure — default to requiring MFA for safety
+      setMfaRequired(true);
     }
   };
 
   const fetchUserData = async (userId: string) => {
     try {
       const [{ data: roleData }, { data: profileData }] = await Promise.all([
-        supabase.from("user_roles").select("role").eq("user_id", userId).single(),
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .single(),
         supabase.from("profiles").select("full_name").eq("id", userId).single(),
       ]);
       if (roleData) setRole(roleData.role as AppRole);
@@ -60,25 +69,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
 
-        if (session?.user) {
-          // Use setTimeout to avoid Supabase auth deadlock
-          setTimeout(() => {
-            fetchUserData(session.user.id);
-            checkMfaStatus();
-          }, 0);
-        } else {
-          setRole(null);
-          setFullName("");
-          setMfaRequired(false);
-        }
-        setLoading(false);
+      if (session?.user) {
+        // Use setTimeout to avoid Supabase auth deadlock
+        setTimeout(() => {
+          fetchUserData(session.user.id);
+          checkMfaStatus();
+        }, 0);
+      } else {
+        setRole(null);
+        setFullName("");
+        setMfaRequired(false);
       }
-    );
+      setLoading(false);
+    });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -103,7 +112,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, fullName, loading, mfaRequired, signOut }}>
+    <AuthContext.Provider
+      value={{ user, session, role, fullName, loading, mfaRequired, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );

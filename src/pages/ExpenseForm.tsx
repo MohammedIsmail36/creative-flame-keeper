@@ -2,6 +2,10 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useBeforeUnload } from "@/hooks/use-before-unload";
+import { PageHeader } from "@/components/PageHeader";
+import { FormFieldError } from "@/components/FormFieldError";
+import { PageSkeleton } from "@/components/PageSkeleton";
 import { getNextPostedNumber } from "@/lib/posted-number-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,14 +13,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { LookupCombobox } from "@/components/LookupCombobox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Save, CheckCircle, ArrowRight, Receipt } from "lucide-react";
+import { Save, CheckCircle, ArrowRight, Receipt, Loader2 } from "lucide-react";
+import { ACCOUNT_CODES } from "@/lib/constants";
 
-const ACCOUNT_CODES = { CASH: "1101", BANK: "1102" };
-
-interface ExpenseType { id: string; name: string; account_id: string; }
+interface ExpenseType {
+  id: string;
+  name: string;
+  account_id: string;
+}
 
 export default function ExpenseForm() {
   const { id } = useParams();
@@ -28,10 +41,16 @@ export default function ExpenseForm() {
   const [expenseTypeId, setExpenseTypeId] = useState("");
   const [amount, setAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split("T")[0]);
+  const [expenseDate, setExpenseDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  useBeforeUnload(isDirty);
 
   useEffect(() => {
     fetchExpenseTypes();
@@ -39,7 +58,7 @@ export default function ExpenseForm() {
   }, [id]);
 
   async function fetchExpenseTypes() {
-    const { data } = await (supabase.from("expense_types" as any) as any)
+    const { data } = await (supabase.from("expense_types") as any)
       .select("id, name, account_id")
       .eq("is_active", true)
       .order("name");
@@ -48,7 +67,7 @@ export default function ExpenseForm() {
 
   async function fetchExpense() {
     setLoading(true);
-    const { data } = await (supabase.from("expenses" as any) as any)
+    const { data } = await (supabase.from("expenses") as any)
       .select("*")
       .eq("id", id)
       .single();
@@ -63,51 +82,86 @@ export default function ExpenseForm() {
   }
 
   function validate() {
-    if (!expenseTypeId) {
-      toast({ title: "تنبيه", description: "يرجى اختيار نوع المصروف", variant: "destructive" });
-      return false;
-    }
-    if (amount <= 0) {
-      toast({ title: "تنبيه", description: "يرجى إدخال مبلغ صحيح", variant: "destructive" });
+    const errors: Record<string, string> = {};
+    if (!expenseTypeId) errors.expenseType = "يرجى اختيار نوع المصروف";
+    if (amount <= 0) errors.amount = "يرجى إدخال مبلغ صحيح";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast({
+        title: "تنبيه",
+        description: Object.values(errors)[0],
+        variant: "destructive",
+      });
       return false;
     }
     return true;
   }
 
   async function handleSaveDraft() {
+    if (saving) return;
     if (!validate()) return;
     setSaving(true);
     try {
       const payload = {
-        expense_type_id: expenseTypeId, amount, payment_method: paymentMethod,
-        expense_date: expenseDate, description: description.trim() || null, status: "draft",
+        expense_type_id: expenseTypeId,
+        amount,
+        payment_method: paymentMethod,
+        expense_date: expenseDate,
+        description: description.trim() || null,
+        status: "draft",
       };
       if (isEdit) {
-        const { error } = await (supabase.from("expenses" as any) as any).update(payload).eq("id", id);
+        const { error } = await (supabase.from("expenses") as any)
+          .update(payload)
+          .eq("id", id);
         if (error) throw error;
         toast({ title: "تم التحديث", description: "تم تحديث المسودة بنجاح" });
       } else {
-        const { error } = await (supabase.from("expenses" as any) as any).insert(payload);
+        const { error } = await (supabase.from("expenses") as any).insert(
+          payload,
+        );
         if (error) throw error;
         toast({ title: "تم الحفظ", description: "تم حفظ المصروف كمسودة" });
       }
+      setIsDirty(false);
       navigate("/expenses");
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
     }
     setSaving(false);
   }
 
+  // TODO: extract to shared expense-posting utility
   async function handleSaveAndPost() {
+    if (saving) return;
     if (!validate()) return;
+    if (
+      settings?.locked_until_date &&
+      expenseDate <= settings.locked_until_date
+    ) {
+      toast({
+        title: "خطأ",
+        description: `لا يمكن تسجيل مصروف بتاريخ ${expenseDate} — الفترة مقفلة حتى ${settings.locked_until_date}`,
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     try {
-      const expType = expenseTypes.find(t => t.id === expenseTypeId);
+      const expType = expenseTypes.find((t) => t.id === expenseTypeId);
       if (!expType) throw new Error("نوع المصروف غير موجود");
 
-      const accountCode = paymentMethod === "cash" ? ACCOUNT_CODES.CASH : ACCOUNT_CODES.BANK;
-      const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [accountCode]);
-      const cashBankAcc = accounts?.find(a => a.code === accountCode);
+      const accountCode =
+        paymentMethod === "cash" ? ACCOUNT_CODES.CASH : ACCOUNT_CODES.BANK;
+      const { data: accounts } = await supabase
+        .from("accounts")
+        .select("id, code")
+        .in("code", [accountCode]);
+      const cashBankAcc = accounts?.find((a) => a.code === accountCode);
       if (!cashBankAcc) throw new Error("تأكد من وجود حساب الصندوق/البنك");
 
       const expPostedNum = await getNextPostedNumber("expenses" as any);
@@ -117,57 +171,100 @@ export default function ExpenseForm() {
       const desc = `مصروف ${expType.name} - ${displayNum}${description.trim() ? ` - ${description.trim()}` : ""}`;
 
       // Create journal entry
-      const { data: je, error: jeError } = await supabase.from("journal_entries").insert({
-        description: desc, entry_date: expenseDate,
-        total_debit: amount, total_credit: amount,
-        status: "posted", posted_number: jePostedNum,
-      } as any).select("id").single();
+      const { data: je, error: jeError } = await supabase
+        .from("journal_entries")
+        .insert({
+          description: desc,
+          entry_date: expenseDate,
+          total_debit: amount,
+          total_credit: amount,
+          status: "posted",
+          posted_number: jePostedNum,
+        } as any)
+        .select("id")
+        .single();
       if (jeError) throw jeError;
 
       await supabase.from("journal_entry_lines").insert([
-        { journal_entry_id: je.id, account_id: expType.account_id, debit: amount, credit: 0, description: desc },
-        { journal_entry_id: je.id, account_id: cashBankAcc.id, debit: 0, credit: amount, description: desc },
+        {
+          journal_entry_id: je.id,
+          account_id: expType.account_id,
+          debit: amount,
+          credit: 0,
+          description: desc,
+        },
+        {
+          journal_entry_id: je.id,
+          account_id: cashBankAcc.id,
+          debit: 0,
+          credit: amount,
+          description: desc,
+        },
       ] as any);
 
       const expPayload = {
-        expense_type_id: expenseTypeId, amount, payment_method: paymentMethod,
-        expense_date: expenseDate, description: description.trim() || null,
-        status: "posted", journal_entry_id: je.id, posted_number: expPostedNum,
+        expense_type_id: expenseTypeId,
+        amount,
+        payment_method: paymentMethod,
+        expense_date: expenseDate,
+        description: description.trim() || null,
+        status: "posted",
+        journal_entry_id: je.id,
+        posted_number: expPostedNum,
       };
 
       if (isEdit) {
-        const { error } = await (supabase.from("expenses" as any) as any).update(expPayload).eq("id", id);
+        const { error } = await (supabase.from("expenses") as any)
+          .update(expPayload)
+          .eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await (supabase.from("expenses" as any) as any).insert(expPayload);
+        const { error } = await (supabase.from("expenses") as any).insert(
+          expPayload,
+        );
         if (error) throw error;
       }
 
-      toast({ title: "تم الترحيل", description: `تم تسجيل المصروف ${displayNum} بنجاح` });
+      toast({
+        title: "تم الترحيل",
+        description: `تم تسجيل المصروف ${displayNum} بنجاح`,
+      });
+      setIsDirty(false);
       navigate("/expenses");
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
     }
     setSaving(false);
   }
 
-  const typeOptions = expenseTypes.map(t => ({ value: t.id, label: t.name }));
+  const typeOptions = expenseTypes.map((t) => ({ value: t.id, label: t.name }));
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-muted-foreground">جاري التحميل...</div>;
+  if (loading) return <PageSkeleton variant="form" />;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div
+      className="max-w-2xl mx-auto space-y-6"
+      onInput={() => !isDirty && setIsDirty(true)}
+    >
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/expenses")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate("/expenses")}
+          aria-label="رجوع"
+        >
           <ArrowRight className="h-5 w-5" />
         </Button>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Receipt className="w-5 h-5 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">{isEdit ? "تعديل مصروف" : "مصروف جديد"}</h1>
-        </div>
+        <PageHeader
+          icon={Receipt}
+          title={isEdit ? "تعديل مصروف" : "مصروف جديد"}
+          sticky={false}
+        />
       </div>
 
       <Card>
@@ -177,29 +274,55 @@ export default function ExpenseForm() {
         <CardContent className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <Label>نوع المصروف *</Label>
+              <Label>
+                نوع المصروف <span className="text-red-500">*</span>
+              </Label>
               <div className="mt-1">
                 <LookupCombobox
-                  items={expenseTypes.map(t => ({ id: t.id, name: t.name }))}
+                  items={expenseTypes.map((t) => ({ id: t.id, name: t.name }))}
                   value={expenseTypeId}
-                  onValueChange={setExpenseTypeId}
+                  onValueChange={(v) => {
+                    setExpenseTypeId(v);
+                    setFieldErrors((e) => {
+                      const { expenseType, ...rest } = e;
+                      return rest;
+                    });
+                  }}
                   placeholder="اختر نوع المصروف..."
                   searchPlaceholder="ابحث..."
+                  error={!!fieldErrors.expenseType}
                 />
               </div>
+              <FormFieldError message={fieldErrors.expenseType} />
             </div>
             <div>
-              <Label>المبلغ *</Label>
+              <Label>
+                المبلغ <span className="text-red-500">*</span>
+              </Label>
               <Input
-                type="number" min={0} step="0.01"
-                value={amount || ""} onChange={e => setAmount(parseFloat(e.target.value) || 0)}
-                className="mt-1" placeholder="0.00"
+                type="number"
+                min={0}
+                step="0.01"
+                value={amount || ""}
+                onChange={(e) => {
+                  setAmount(parseFloat(e.target.value) || 0);
+                  setFieldErrors((er) => {
+                    const { amount, ...rest } = er;
+                    return rest;
+                  });
+                }}
+                className="mt-1"
+                placeholder="0.00"
+                error={!!fieldErrors.amount}
               />
+              <FormFieldError message={fieldErrors.amount} />
             </div>
             <div>
               <Label>طريقة الدفع</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cash">نقدي</SelectItem>
                   <SelectItem value="bank">تحويل بنكي</SelectItem>
@@ -209,13 +332,17 @@ export default function ExpenseForm() {
             <div className="sm:col-span-2">
               <Label>التاريخ</Label>
               <div className="mt-1">
-                <DatePickerInput value={expenseDate} onChange={setExpenseDate} />
+                <DatePickerInput
+                  value={expenseDate}
+                  onChange={setExpenseDate}
+                />
               </div>
             </div>
             <div className="sm:col-span-2">
               <Label>البيان</Label>
               <Textarea
-                value={description} onChange={e => setDescription(e.target.value)}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 placeholder="وصف المصروف..."
                 className="mt-1 min-h-[80px]"
               />
@@ -225,13 +352,21 @@ export default function ExpenseForm() {
           {/* Summary */}
           {amount > 0 && (
             <div className="rounded-lg bg-muted/50 p-4 space-y-1">
-              <p className="text-sm text-muted-foreground">ملخص القيد المحاسبي عند الترحيل:</p>
+              <p className="text-sm text-muted-foreground">
+                ملخص القيد المحاسبي عند الترحيل:
+              </p>
               <div className="flex justify-between text-sm">
-                <span>مدين: {expenseTypes.find(t => t.id === expenseTypeId)?.name || "حساب المصروف"}</span>
+                <span>
+                  مدين:{" "}
+                  {expenseTypes.find((t) => t.id === expenseTypeId)?.name ||
+                    "حساب المصروف"}
+                </span>
                 <span className="font-semibold">{formatCurrency(amount)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>دائن: {paymentMethod === "cash" ? "الصندوق" : "البنك"}</span>
+                <span>
+                  دائن: {paymentMethod === "cash" ? "الصندوق" : "البنك"}
+                </span>
                 <span className="font-semibold">{formatCurrency(amount)}</span>
               </div>
             </div>
@@ -239,12 +374,28 @@ export default function ExpenseForm() {
 
           {/* Actions */}
           <div className="flex gap-3 justify-end pt-2">
-            <Button variant="outline" onClick={() => navigate("/expenses")}>إلغاء</Button>
-            <Button variant="secondary" onClick={handleSaveDraft} disabled={saving}>
-              <Save className="h-4 w-4 ml-2" /> حفظ كمسودة
+            <Button variant="outline" onClick={() => navigate("/expenses")}>
+              إلغاء
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleSaveDraft}
+              disabled={saving}
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 ml-2" />
+              )}{" "}
+              حفظ كمسودة
             </Button>
             <Button onClick={handleSaveAndPost} disabled={saving}>
-              <CheckCircle className="h-4 w-4 ml-2" /> حفظ وترحيل
+              {saving ? (
+                <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4 ml-2" />
+              )}{" "}
+              حفظ وترحيل
             </Button>
           </div>
         </CardContent>
