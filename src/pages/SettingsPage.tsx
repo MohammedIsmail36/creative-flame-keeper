@@ -459,6 +459,94 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
         </TabsContent>
+
+        {/* ── Tax Tab ── */}
+        <TabsContent value="tax" className="space-y-6 mt-0">
+          <SectionCard icon={Percent} title="إعدادات ضريبة القيمة المضافة (VAT)">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-muted/30">
+                <div>
+                  <Label className="text-sm font-bold">تفعيل ضريبة القيمة المضافة</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    عند التفعيل: تُحتسب الضريبة في الفواتير وتُرحَّل لحسابات مستقلة. عند الإيقاف: تُتجاهل كلياً.
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.enable_tax ?? false}
+                  onCheckedChange={(v) => updateField("enable_tax", v)}
+                />
+              </div>
+
+              {settings.enable_tax && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold">نسبة الضريبة (%)</Label>
+                      <Input
+                        type="number"
+                        min={0.01}
+                        max={100}
+                        step={0.01}
+                        value={settings.tax_rate || ""}
+                        onChange={(e) => updateField("tax_rate", Number(e.target.value))}
+                        className="rounded-lg"
+                        placeholder="مثال: 14"
+                      />
+                      <p className="text-xs text-muted-foreground">يجب أن تكون أكبر من صفر</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-bold">إظهار الضريبة في الفاتورة المطبوعة</Label>
+                        <Switch
+                          checked={settings.show_tax_on_invoice}
+                          onCheckedChange={(v) => updateField("show_tax_on_invoice", v)}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">عرض تفاصيل الضريبة في طباعة الفواتير</p>
+                    </div>
+                  </div>
+
+                  <hr className="border-border" />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold">حساب ضريبة المبيعات (إلزامي)</Label>
+                      <AccountCombobox
+                        accounts={accounts}
+                        value={settings.sales_tax_account_id || ""}
+                        onValueChange={(v) => updateField("sales_tax_account_id", v || null)}
+                        placeholder="اختر حساب ضريبة المبيعات..."
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        عادةً حساب التزام (مثل 2102). يُدائَن عند ترحيل فواتير البيع.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold">حساب ضريبة المشتريات (إلزامي)</Label>
+                      <AccountCombobox
+                        accounts={accounts}
+                        value={settings.purchase_tax_account_id || ""}
+                        onValueChange={(v) => updateField("purchase_tax_account_id", v || null)}
+                        placeholder="اختر حساب ضريبة المشتريات..."
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        عادةً حساب أصل (مثل 1105). يُدان عند ترحيل فواتير الشراء.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3">
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      ⚠ <strong>تنبيه:</strong> عند تفعيل الضريبة، يجب اختيار الحسابين قبل الحفظ، وإلا فلن تُرحَّل الفواتير الجديدة بالضريبة.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </SectionCard>
+        </TabsContent>
       </Tabs>
     </div>
   );
