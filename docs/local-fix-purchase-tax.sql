@@ -1,21 +1,29 @@
 -- =======================================================================
--- إصلاح post_purchase_invoice & post_purchase_return لفصل الضريبة بشكل صحيح
+-- إصلاح متكامل لمعالجة الضريبة في فواتير ومرتجعات الشراء
 -- يطبَّق على الفرع المحلي local-selfhosted (Self-hosted Supabase)
 --
--- المشكلة:
---   النسخة السابقة كانت تستخدم v_invoice.total (شامل الضريبة) في كلا
---   جانبي القيد، فيتضخم حساب المخزون 1104 بقيمة الضريبة، ولا تُسجَّل
---   الضريبة كأصل مستردّ في حساب 1105.
+-- يشمل هذا الملف:
+--   1. إضافة حقول إعدادات الضريبة لجدول company_settings:
+--        enable_tax / sales_tax_account_id / purchase_tax_account_id
+--   2. ضمان وجود حساب ضريبة المدخلات (1105) بشكل افتراضي للتوافق مع
+--      البيانات القديمة (لا يُجبَر استخدامه — يُترك للإعدادات الجديدة).
+--   3. إعادة تعريف post_purchase_invoice و post_purchase_return لقراءة
+--      حساب الضريبة من company_settings.purchase_tax_account_id بدل
+--      الاعتماد على كود ثابت.
+--   4. منع الترحيل بقيد غير متوازن إذا كانت الضريبة مفعَّلة بدون حساب.
 --
--- الإصلاح:
---   - فصل الضريبة في سطر مستقل على حساب 1105 (ضريبة المدخلات)
---   - تحميل المخزون بالقيمة الصافية فقط (total - tax)
---   - دائن المورد بالإجمالي الكامل (total)
---   - رفض الترحيل بخطأ واضح إذا الضريبة > 0 وحساب 1105 مفقود
---   - تطبيق نفس المعالجة على المرتجع بالاتجاه المعاكس
+-- ملاحظة: مرتجعات وفواتير المبيعات في المشروع تُرحَّل من الواجهة مباشرةً
+-- وليس عبر RPC، لذا الإصلاح هناك يتم في الكود الـ TypeScript فقط.
 -- =======================================================================
 
--- 1) ضمان وجود حساب 1105 (ضريبة المدخلات) — idempotent
+-- 1) أعمدة إعدادات الضريبة على company_settings
+ALTER TABLE public.company_settings
+  ADD COLUMN IF NOT EXISTS enable_tax boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS sales_tax_account_id uuid REFERENCES public.accounts(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS purchase_tax_account_id uuid REFERENCES public.accounts(id) ON DELETE SET NULL;
+
+
+-- 2) ضمان وجود حساب ضريبة المدخلات الافتراضي (1105) — متوافق مع القديم
 INSERT INTO public.accounts (code, name, account_type, parent_id, is_system, is_active)
 VALUES (
   '1105',
@@ -29,8 +37,22 @@ VALUES (
 )
 ON CONFLICT (code) DO NOTHING;
 
+-- ضمان وجود حساب ضريبة المخرجات الافتراضي (2102) — اختياري للاستخدام
+INSERT INTO public.accounts (code, name, account_type, parent_id, is_system, is_active)
+VALUES (
+  '2102',
+  'ضريبة القيمة المضافة للمخرجات',
+  'liability',
+  COALESCE(
+    (SELECT id FROM public.accounts WHERE code = '21' LIMIT 1),
+    (SELECT id FROM public.accounts WHERE code = '2' LIMIT 1)
+  ),
+  true, true
+)
+ON CONFLICT (code) DO NOTHING;
 
--- 2) إعادة تعريف post_purchase_invoice مع فصل الضريبة
+
+-- 3) post_purchase_invoice — يقرأ حساب ضريبة المشتريات من الإعدادات
 CREATE OR REPLACE FUNCTION public.post_purchase_invoice(p_invoice_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -39,6 +61,7 @@ AS $$
 DECLARE
   v_invoice RECORD;
   v_item RECORD;
+  v_settings RECORD;
   v_inventory_acc_id uuid;
   v_supplier_acc_id  uuid;
   v_tax_input_acc_id uuid;
@@ -49,7 +72,7 @@ DECLARE
   v_tax_amount numeric;
   v_net_inventory numeric;
 BEGIN
-  -- 1. Fetch & validate
+  -- 1. Fetch invoice
   SELECT * INTO v_invoice FROM purchase_invoices WHERE id = p_invoice_id;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'الفاتورة غير موجودة');
@@ -58,10 +81,13 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'يمكن ترحيل الفواتير ذات حالة المسودة فقط');
   END IF;
 
-  -- 2. Look up accounts
+  -- 2. Read tax settings
+  SELECT enable_tax, purchase_tax_account_id INTO v_settings
+  FROM company_settings LIMIT 1;
+
+  -- 3. Look up base accounts
   SELECT id INTO v_inventory_acc_id FROM accounts WHERE code = '1104' LIMIT 1;
   SELECT id INTO v_supplier_acc_id  FROM accounts WHERE code = '2101' LIMIT 1;
-  SELECT id INTO v_tax_input_acc_id FROM accounts WHERE code = '1105' LIMIT 1;
 
   IF v_inventory_acc_id IS NULL OR v_supplier_acc_id IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error',
@@ -70,21 +96,29 @@ BEGIN
 
   v_tax_amount := COALESCE(v_invoice.tax, 0);
 
-  -- إذا فيه ضريبة لازم يكون فيه حساب لها — لا نتجاهلها بصمت
-  IF v_tax_amount > 0 AND v_tax_input_acc_id IS NULL THEN
-    RETURN jsonb_build_object('success', false, 'error',
-      'تأكد من وجود حساب ضريبة القيمة المضافة للمدخلات (1105) قبل ترحيل فاتورة بضريبة');
+  -- 4. تحديد حساب ضريبة المدخلات: من الإعدادات إن وُجد، وإلا من الكود 1105
+  IF v_tax_amount > 0 THEN
+    IF v_settings.enable_tax IS TRUE AND v_settings.purchase_tax_account_id IS NOT NULL THEN
+      v_tax_input_acc_id := v_settings.purchase_tax_account_id;
+    ELSE
+      SELECT id INTO v_tax_input_acc_id FROM accounts WHERE code = '1105' LIMIT 1;
+    END IF;
+
+    IF v_tax_input_acc_id IS NULL THEN
+      RETURN jsonb_build_object('success', false, 'error',
+        'فعّل الضريبة من الإعدادات وحدّد حساب ضريبة المشتريات، أو تأكد من وجود حساب 1105 قبل ترحيل فاتورة بضريبة');
+    END IF;
   END IF;
 
   v_net_inventory := ROUND(v_invoice.total - v_tax_amount, 2);
 
-  -- 3. Posted numbers
+  -- 5. Posted numbers
   SELECT COALESCE(MAX(posted_number), 0) + 1 INTO v_je_posted_num
     FROM journal_entries WHERE posted_number IS NOT NULL;
   SELECT COALESCE(MAX(posted_number), 0) + 1 INTO v_inv_posted_num
     FROM purchase_invoices WHERE posted_number IS NOT NULL;
 
-  -- 4. Journal entry
+  -- 6. Journal entry
   INSERT INTO journal_entries (description, entry_date, total_debit, total_credit, status, posted_number)
   VALUES (
     format('فاتورة شراء رقم %s', v_inv_posted_num),
@@ -93,7 +127,7 @@ BEGIN
     'posted', v_je_posted_num
   ) RETURNING id INTO v_je_id;
 
-  -- 5. JE lines: المخزون (الصافي) + ضريبة المدخلات (إن وُجدت) + المورد (الإجمالي)
+  -- 7. JE lines: المخزون (الصافي) + ضريبة المدخلات (إن وُجدت) + المورد (الإجمالي)
   INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit, description)
   VALUES (v_je_id, v_inventory_acc_id, v_net_inventory, 0,
           format('مشتريات - فاتورة %s', v_inv_posted_num));
@@ -108,12 +142,12 @@ BEGIN
   VALUES (v_je_id, v_supplier_acc_id, 0, v_invoice.total,
           format('مستحقات مورد - فاتورة %s', v_inv_posted_num));
 
-  -- 6. Update invoice
+  -- 8. Update invoice
   UPDATE purchase_invoices
   SET status = 'posted', journal_entry_id = v_je_id, posted_number = v_inv_posted_num
   WHERE id = p_invoice_id;
 
-  -- 7. Inventory + movements (تكلفة المخزون = net_total / quantity، بدون الضريبة)
+  -- 9. Inventory + movements
   FOR v_item IN SELECT * FROM purchase_invoice_items WHERE invoice_id = p_invoice_id LOOP
     IF v_item.product_id IS NOT NULL THEN
       v_unit_cost := CASE WHEN v_item.quantity > 0
@@ -140,7 +174,7 @@ END;
 $$;
 
 
--- 3) إعادة تعريف post_purchase_return بنفس المنطق (عكسي)
+-- 4) post_purchase_return بنفس المنطق (عكسي)
 CREATE OR REPLACE FUNCTION public.post_purchase_return(p_return_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -149,6 +183,7 @@ AS $$
 DECLARE
   v_return RECORD;
   v_item RECORD;
+  v_settings RECORD;
   v_inventory_acc_id uuid;
   v_supplier_acc_id  uuid;
   v_tax_input_acc_id uuid;
@@ -166,9 +201,11 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'يمكن ترحيل المرتجعات ذات حالة المسودة فقط');
   END IF;
 
+  SELECT enable_tax, purchase_tax_account_id INTO v_settings
+  FROM company_settings LIMIT 1;
+
   SELECT id INTO v_inventory_acc_id FROM accounts WHERE code = '1104' LIMIT 1;
   SELECT id INTO v_supplier_acc_id  FROM accounts WHERE code = '2101' LIMIT 1;
-  SELECT id INTO v_tax_input_acc_id FROM accounts WHERE code = '1105' LIMIT 1;
 
   IF v_inventory_acc_id IS NULL OR v_supplier_acc_id IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error',
@@ -177,9 +214,17 @@ BEGIN
 
   v_tax_amount := COALESCE(v_return.tax, 0);
 
-  IF v_tax_amount > 0 AND v_tax_input_acc_id IS NULL THEN
-    RETURN jsonb_build_object('success', false, 'error',
-      'تأكد من وجود حساب ضريبة القيمة المضافة للمدخلات (1105) قبل ترحيل مرتجع بضريبة');
+  IF v_tax_amount > 0 THEN
+    IF v_settings.enable_tax IS TRUE AND v_settings.purchase_tax_account_id IS NOT NULL THEN
+      v_tax_input_acc_id := v_settings.purchase_tax_account_id;
+    ELSE
+      SELECT id INTO v_tax_input_acc_id FROM accounts WHERE code = '1105' LIMIT 1;
+    END IF;
+
+    IF v_tax_input_acc_id IS NULL THEN
+      RETURN jsonb_build_object('success', false, 'error',
+        'فعّل الضريبة من الإعدادات وحدّد حساب ضريبة المشتريات، أو تأكد من وجود حساب 1105 قبل ترحيل مرتجع بضريبة');
+    END IF;
   END IF;
 
   v_net_inventory := ROUND(v_return.total - v_tax_amount, 2);

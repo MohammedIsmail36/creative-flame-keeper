@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AccountCombobox } from "@/components/AccountCombobox";
 import { toast } from "sonner";
 import {
   Building2,
@@ -30,7 +31,11 @@ import {
   Hash,
   ReceiptText,
   Eye,
+  Percent,
 } from "lucide-react";
+
+interface AccountOption { id: string; code: string; name: string; account_type: string; }
+
 
 const currencies = [
   { value: "EGP", label: "جنيه مصري (EGP)" },
@@ -69,13 +74,25 @@ function SectionCard({ icon: Icon, title, children }: { icon: React.ElementType;
 export default function SettingsPage() {
   const { settings: globalSettings, refetch } = useSettings();
   const [settings, setSettings] = useState<CompanySettings | null>(null);
+  const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchSettings();
+    fetchAccounts();
   }, []);
+
+  const fetchAccounts = async () => {
+    const { data } = await supabase
+      .from("accounts")
+      .select("id, code, name, account_type")
+      .eq("is_active", true)
+      .eq("is_parent", false)
+      .order("code");
+    setAccounts((data || []) as AccountOption[]);
+  };
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -96,6 +113,23 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (!settings) return;
+
+    // ── Validation: عند تفعيل الضريبة لا بد من نسبة > 0 وحسابي مبيعات ومشتريات ──
+    if (settings.enable_tax) {
+      if (!settings.tax_rate || settings.tax_rate <= 0) {
+        toast.error("نسبة الضريبة يجب أن تكون أكبر من صفر عند تفعيل الضريبة");
+        return;
+      }
+      if (!settings.sales_tax_account_id) {
+        toast.error("يجب اختيار حساب ضريبة المبيعات عند تفعيل الضريبة");
+        return;
+      }
+      if (!settings.purchase_tax_account_id) {
+        toast.error("يجب اختيار حساب ضريبة المشتريات عند تفعيل الضريبة");
+        return;
+      }
+    }
+
     setSaving(true);
     const { id, ...updateData } = settings;
     const { error } = await supabase
@@ -191,6 +225,12 @@ export default function SettingsPage() {
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent px-0 pb-4 font-bold text-sm"
           >
             إدارة الفواتير
+          </TabsTrigger>
+          <TabsTrigger
+            value="tax"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent px-0 pb-4 font-bold text-sm"
+          >
+            الضريبة
           </TabsTrigger>
         </TabsList>
 
@@ -416,6 +456,94 @@ export default function SettingsPage() {
                   <Textarea value={settings.invoice_footer || ""} onChange={(e) => updateField("invoice_footer", e.target.value)} rows={3} className="rounded-lg" />
                 </div>
               </div>
+            </div>
+          </SectionCard>
+        </TabsContent>
+
+        {/* ── Tax Tab ── */}
+        <TabsContent value="tax" className="space-y-6 mt-0">
+          <SectionCard icon={Percent} title="إعدادات ضريبة القيمة المضافة (VAT)">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-muted/30">
+                <div>
+                  <Label className="text-sm font-bold">تفعيل ضريبة القيمة المضافة</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    عند التفعيل: تُحتسب الضريبة في الفواتير وتُرحَّل لحسابات مستقلة. عند الإيقاف: تُتجاهل كلياً.
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.enable_tax ?? false}
+                  onCheckedChange={(v) => updateField("enable_tax", v)}
+                />
+              </div>
+
+              {settings.enable_tax && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold">نسبة الضريبة (%)</Label>
+                      <Input
+                        type="number"
+                        min={0.01}
+                        max={100}
+                        step={0.01}
+                        value={settings.tax_rate || ""}
+                        onChange={(e) => updateField("tax_rate", Number(e.target.value))}
+                        className="rounded-lg"
+                        placeholder="مثال: 14"
+                      />
+                      <p className="text-xs text-muted-foreground">يجب أن تكون أكبر من صفر</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-bold">إظهار الضريبة في الفاتورة المطبوعة</Label>
+                        <Switch
+                          checked={settings.show_tax_on_invoice}
+                          onCheckedChange={(v) => updateField("show_tax_on_invoice", v)}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">عرض تفاصيل الضريبة في طباعة الفواتير</p>
+                    </div>
+                  </div>
+
+                  <hr className="border-border" />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold">حساب ضريبة المبيعات (إلزامي)</Label>
+                      <AccountCombobox
+                        accounts={accounts}
+                        value={settings.sales_tax_account_id || ""}
+                        onValueChange={(v) => updateField("sales_tax_account_id", v || null)}
+                        placeholder="اختر حساب ضريبة المبيعات..."
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        عادةً حساب التزام (مثل 2102). يُدائَن عند ترحيل فواتير البيع.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold">حساب ضريبة المشتريات (إلزامي)</Label>
+                      <AccountCombobox
+                        accounts={accounts}
+                        value={settings.purchase_tax_account_id || ""}
+                        onValueChange={(v) => updateField("purchase_tax_account_id", v || null)}
+                        placeholder="اختر حساب ضريبة المشتريات..."
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        عادةً حساب أصل (مثل 1105). يُدان عند ترحيل فواتير الشراء.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3">
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      ⚠ <strong>تنبيه:</strong> عند تفعيل الضريبة، يجب اختيار الحسابين قبل الحفظ، وإلا فلن تُرحَّل الفواتير الجديدة بالضريبة.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </SectionCard>
         </TabsContent>

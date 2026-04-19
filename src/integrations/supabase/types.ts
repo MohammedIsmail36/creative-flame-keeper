@@ -77,6 +77,7 @@ export type Database = {
           email: string | null
           enable_fiscal_year_closing: boolean
           enable_return_days_limit: boolean
+          enable_tax: boolean
           expense_prefix: string
           fiscal_year_start: string
           id: string
@@ -89,9 +90,11 @@ export type Database = {
           phone: string | null
           purchase_invoice_prefix: string
           purchase_return_prefix: string
+          purchase_tax_account_id: string | null
           return_days_limit: number
           sales_invoice_prefix: string
           sales_return_prefix: string
+          sales_tax_account_id: string | null
           show_discount_on_invoice: boolean
           show_tax_on_invoice: boolean
           supplier_payment_prefix: string
@@ -112,6 +115,7 @@ export type Database = {
           email?: string | null
           enable_fiscal_year_closing?: boolean
           enable_return_days_limit?: boolean
+          enable_tax?: boolean
           expense_prefix?: string
           fiscal_year_start?: string
           id?: string
@@ -124,9 +128,11 @@ export type Database = {
           phone?: string | null
           purchase_invoice_prefix?: string
           purchase_return_prefix?: string
+          purchase_tax_account_id?: string | null
           return_days_limit?: number
           sales_invoice_prefix?: string
           sales_return_prefix?: string
+          sales_tax_account_id?: string | null
           show_discount_on_invoice?: boolean
           show_tax_on_invoice?: boolean
           supplier_payment_prefix?: string
@@ -147,6 +153,7 @@ export type Database = {
           email?: string | null
           enable_fiscal_year_closing?: boolean
           enable_return_days_limit?: boolean
+          enable_tax?: boolean
           expense_prefix?: string
           fiscal_year_start?: string
           id?: string
@@ -159,9 +166,11 @@ export type Database = {
           phone?: string | null
           purchase_invoice_prefix?: string
           purchase_return_prefix?: string
+          purchase_tax_account_id?: string | null
           return_days_limit?: number
           sales_invoice_prefix?: string
           sales_return_prefix?: string
+          sales_tax_account_id?: string | null
           show_discount_on_invoice?: boolean
           show_tax_on_invoice?: boolean
           supplier_payment_prefix?: string
@@ -170,7 +179,22 @@ export type Database = {
           updated_at?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_settings_purchase_tax_account_id_fkey"
+            columns: ["purchase_tax_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_settings_sales_tax_account_id_fkey"
+            columns: ["sales_tax_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_payment_allocations: {
         Row: {

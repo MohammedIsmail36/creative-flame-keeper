@@ -79,6 +79,10 @@ const ACCOUNT_CODES = {
   INVENTORY: "1104",
 };
 
+// خيارات الضريبة
+// taxEnabled = settings.enable_tax (المفتاح الرئيسي) — عندما يكون مفعلاً يجب أن يكون
+// settings.sales_tax_account_id محدداً وإلا يمنع الترحيل.
+
 // ── Section Header Component ──
 function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
   return (
@@ -99,9 +103,10 @@ export default function SalesInvoiceForm() {
   const isNew = !id;
   const canEdit = role === "admin" || role === "accountant" || role === "sales";
 
-  const showTax = settings?.show_tax_on_invoice ?? false;
+  const taxEnabled = settings?.enable_tax ?? false;
+  const showTax = taxEnabled && (settings?.show_tax_on_invoice ?? false);
   const showDiscount = settings?.show_discount_on_invoice ?? true;
-  const taxRate = settings?.tax_rate ?? 0;
+  const taxRate = taxEnabled ? (settings?.tax_rate ?? 0) : 0;
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -309,6 +314,17 @@ export default function SalesInvoiceForm() {
 
   async function postInvoice() {
     try {
+      // تحقق من إعداد حساب ضريبة المبيعات إذا كانت الضريبة مفعّلة وفيه قيمة ضريبة فعلية
+      const taxIsActive = taxEnabled && taxAmount > 0;
+      if (taxIsActive && !settings?.sales_tax_account_id) {
+        toast({
+          title: "حساب ضريبة المبيعات غير محدد",
+          description: "افتح إعدادات الشركة → تبويب الضريبة، وحدّد حساب ضريبة المبيعات قبل الترحيل.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data: accounts } = await supabase
         .from("accounts")
         .select("id, code")
@@ -324,6 +340,25 @@ export default function SalesInvoiceForm() {
           variant: "destructive",
         });
         return;
+      }
+
+      // التحقق من أن حساب ضريبة المبيعات موجود فعلياً في شجرة الحسابات
+      let salesTaxAcc: { id: string } | null = null;
+      if (taxIsActive) {
+        const { data: taxAccData } = await supabase
+          .from("accounts")
+          .select("id")
+          .eq("id", settings!.sales_tax_account_id!)
+          .maybeSingle();
+        if (!taxAccData) {
+          toast({
+            title: "حساب ضريبة المبيعات غير صالح",
+            description: "الحساب المختار للضريبة في الإعدادات لم يعد موجوداً. الرجاء تحديثه.",
+            variant: "destructive",
+          });
+          return;
+        }
+        salesTaxAcc = taxAccData;
       }
 
       let totalCost = 0;
@@ -371,6 +406,9 @@ export default function SalesInvoiceForm() {
         .single();
       if (jeError) throw jeError;
 
+      // فصل الإيراد عن الضريبة:
+      //   DR العميل (الإجمالي) | CR الإيراد (الصافي قبل الضريبة) + CR ضريبة المبيعات (إن وُجدت)
+      const revenueNet = round2(grandTotal - taxAmount);
       const lines: any[] = [
         {
           journal_entry_id: je.id,
@@ -383,10 +421,19 @@ export default function SalesInvoiceForm() {
           journal_entry_id: je.id,
           account_id: revenueAcc.id,
           debit: 0,
-          credit: grandTotal,
+          credit: revenueNet,
           description: `إيراد مبيعات - فاتورة ${displayInvNum}`,
         },
       ];
+      if (taxIsActive && salesTaxAcc) {
+        lines.push({
+          journal_entry_id: je.id,
+          account_id: salesTaxAcc.id,
+          debit: 0,
+          credit: taxAmount,
+          description: `ضريبة مبيعات - فاتورة ${displayInvNum}`,
+        });
+      }
       if (totalCost > 0) {
         lines.push(
           {
