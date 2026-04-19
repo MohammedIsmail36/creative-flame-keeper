@@ -406,7 +406,6 @@ export default function SalesReturnForm() {
           ACCOUNT_CODES.REVENUE,
           ACCOUNT_CODES.COGS,
           ACCOUNT_CODES.INVENTORY,
-          ACCOUNT_CODES.SALES_TAX,
         ]);
       const customersAcc = accounts?.find(
         (a) => a.code === ACCOUNT_CODES.CUSTOMERS,
@@ -418,9 +417,36 @@ export default function SalesReturnForm() {
       const inventoryAcc = accounts?.find(
         (a) => a.code === ACCOUNT_CODES.INVENTORY,
       );
-      const salesTaxAcc = accounts?.find(
-        (a) => a.code === ACCOUNT_CODES.SALES_TAX,
-      );
+
+      // حساب ضريبة المبيعات: من إعدادات الشركة (مصدر وحيد للحقيقة)
+      let salesTaxAcc: { id: string } | null = null;
+      if (taxAmount > 0) {
+        if (!settings?.enable_tax || !settings?.sales_tax_account_id) {
+          toast({
+            title: "خطأ",
+            description:
+              'الضريبة مطبقة على المرتجع ولكنها غير مفعّلة في الإعدادات أو لم يتم تحديد حساب ضريبة المبيعات. يرجى ضبط ذلك من تبويب "الضريبة" في إعدادات الشركة',
+            variant: "destructive",
+          });
+          return;
+        }
+        const { data: taxAccData } = await supabase
+          .from("accounts")
+          .select("id")
+          .eq("id", settings.sales_tax_account_id)
+          .maybeSingle();
+        if (!taxAccData) {
+          toast({
+            title: "خطأ",
+            description:
+              "حساب ضريبة المبيعات المحدد في الإعدادات غير موجود في شجرة الحسابات",
+            variant: "destructive",
+          });
+          return;
+        }
+        salesTaxAcc = taxAccData;
+      }
+
       if (!customersAcc || !revenueAcc) {
         toast({
           title: "خطأ",
