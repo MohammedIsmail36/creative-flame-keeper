@@ -226,6 +226,12 @@ export default function SettingsPage() {
           >
             إدارة الفواتير
           </TabsTrigger>
+          <TabsTrigger
+            value="tax"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent px-0 pb-4 font-bold text-sm"
+          >
+            الضريبة
+          </TabsTrigger>
         </TabsList>
 
         {/* ── Company Tab ── */}
