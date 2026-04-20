@@ -28,6 +28,22 @@ export default defineConfig(({ mode }) => ({
         manualChunks: (id) => {
           if (!id.includes("node_modules")) return undefined;
 
+          // CRITICAL: React core MUST be checked first so it's bundled together
+          // and loaded before any library that depends on it (Radix, Recharts, etc.)
+          // Otherwise split chunks may execute before React is initialized,
+          // causing "Cannot read properties of undefined (reading 'forwardRef')".
+          if (
+            id.includes("/react/") ||
+            id.includes("/react-dom/") ||
+            id.includes("/react-router") ||
+            id.includes("/react-router-dom/") ||
+            id.includes("/scheduler/") ||
+            id.includes("/use-sync-external-store/") ||
+            id.includes("/react-is/")
+          ) {
+            return "react-vendor";
+          }
+
           // Charts (recharts + d3 deps) — only needed on Dashboard & analytics reports
           if (
             id.includes("/recharts/") ||
