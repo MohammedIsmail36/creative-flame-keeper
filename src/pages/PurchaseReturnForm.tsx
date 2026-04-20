@@ -398,6 +398,7 @@ export default function PurchaseReturnForm() {
           ACCOUNT_CODES.INVENTORY,
           ACCOUNT_CODES.SUPPLIERS,
           ACCOUNT_CODES.INPUT_VAT,
+          ACCOUNT_CODES.PURCHASE_RETURN_PRICE_VARIANCE,
         ]);
       const inventoryAcc = accounts?.find(
         (a) => a.code === ACCOUNT_CODES.INVENTORY,
@@ -408,6 +409,9 @@ export default function PurchaseReturnForm() {
       const inputVatAcc = accounts?.find(
         (a) => a.code === ACCOUNT_CODES.INPUT_VAT,
       );
+      const ppvAcc = accounts?.find(
+        (a) => a.code === ACCOUNT_CODES.PURCHASE_RETURN_PRICE_VARIANCE,
+      );
       if (!inventoryAcc || !supplierAcc) {
         toast({
           title: "خطأ",
@@ -416,6 +420,23 @@ export default function PurchaseReturnForm() {
         });
         return;
       }
+
+      // Compute WAC-based inventory credit per item (use current WAC, not invoice price).
+      // Policy: Purchase returns credit inventory at current WAC × qty.
+      // Any difference vs invoice price is recorded as Purchase Price Variance (5103).
+      let inventoryCreditWac = 0;
+      const itemWacList: { product_id: string; wac: number; qty: number }[] = [];
+      for (const item of items) {
+        if (!item.product_id) continue;
+        const { data: wacData } = await (supabase as any).rpc(
+          "get_avg_purchase_price",
+          { _product_id: item.product_id },
+        );
+        const wac = Number(wacData) || 0;
+        inventoryCreditWac += wac * item.quantity;
+        itemWacList.push({ product_id: item.product_id, wac, qty: item.quantity });
+      }
+      inventoryCreditWac = Math.round(inventoryCreditWac * 100) / 100;
 
       const jePostedNum = await getNextPostedNumber("journal_entries");
       const nextPostedNum = await getNextPostedNumber("purchase_returns");
@@ -436,6 +457,11 @@ export default function PurchaseReturnForm() {
       if (jeError) throw jeError;
 
       const netCost = grandTotal - taxAmount;
+      // Variance = invoice net cost − WAC inventory credit.
+      // > 0: invoice price higher than WAC → expense (debit PPV)
+      // < 0: invoice price lower than WAC → gain (credit PPV)
+      const variance = Math.round((netCost - inventoryCreditWac) * 100) / 100;
+
       const jeLines: any[] = [
         {
           journal_entry_id: je.id,
@@ -448,10 +474,29 @@ export default function PurchaseReturnForm() {
           journal_entry_id: je.id,
           account_id: inventoryAcc.id,
           debit: 0,
-          credit: netCost,
-          description: `خصم مخزون مرتجع - ${displayRetNum}`,
+          credit: inventoryCreditWac,
+          description: `خصم مخزون مرتجع (WAC) - ${displayRetNum}`,
         },
       ];
+      if (Math.abs(variance) > 0.01 && ppvAcc) {
+        if (variance > 0) {
+          jeLines.push({
+            journal_entry_id: je.id,
+            account_id: ppvAcc.id,
+            debit: 0,
+            credit: variance,
+            description: `فرق سعر مرتجع (أعلى من WAC) - ${displayRetNum}`,
+          });
+        } else {
+          jeLines.push({
+            journal_entry_id: je.id,
+            account_id: ppvAcc.id,
+            debit: -variance,
+            credit: 0,
+            description: `فرق سعر مرتجع (أقل من WAC) - ${displayRetNum}`,
+          });
+        }
+      }
       if (taxAmount > 0 && inputVatAcc) {
         jeLines.push({
           journal_entry_id: je.id,
@@ -473,6 +518,9 @@ export default function PurchaseReturnForm() {
 
       for (const item of items) {
         if (!item.product_id) continue;
+        const wacEntry = itemWacList.find((w) => w.product_id === item.product_id);
+        const wac = wacEntry?.wac ?? item.unit_price;
+        const totalWac = Math.round(wac * item.quantity * 100) / 100;
         const { data: prod } = await supabase
           .from("products")
           .select("quantity_on_hand")
@@ -490,8 +538,8 @@ export default function PurchaseReturnForm() {
           product_id: item.product_id,
           movement_type: "purchase_return",
           quantity: item.quantity,
-          unit_cost: item.unit_price,
-          total_cost: item.total,
+          unit_cost: wac,
+          total_cost: totalWac,
           reference_id: id,
           reference_type: "purchase_return",
           movement_date: returnDate,

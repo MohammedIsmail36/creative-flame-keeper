@@ -23,6 +23,7 @@ export const SYSTEM_CODES = [
   "3102",
   "4101",
   "5101",
+  "5103",
 ];
 
 // Keep Arabic defaults in one UTF-8 source to avoid accidental encoding drift.
@@ -191,6 +192,13 @@ export const DEFAULT_ACCOUNTS: DefaultAccount[] = [
   {
     code: "5101",
     name: "تكلفة البضاعة المباعة",
+    account_type: "expense",
+    is_parent: false,
+    parent_code: "5",
+  },
+  {
+    code: "5103",
+    name: "فروقات أسعار مرتجعات الشراء",
     account_type: "expense",
     is_parent: false,
     parent_code: "5",
