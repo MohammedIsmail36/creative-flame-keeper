@@ -437,7 +437,7 @@ export default function InventoryReport() {
       lowStock,
       zeroStock,
     };
-  }, [products]);
+  }, [products, wacMap]);
 
   // ═══ GROUPING: By Product (default) ═══
   const productColumns = useMemo<ColumnDef<any, any>[]>(
