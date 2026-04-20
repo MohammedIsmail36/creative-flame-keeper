@@ -508,8 +508,7 @@ export default function InventoryReport() {
       {
         id: "stock_value",
         header: "قيمة المخزون",
-        accessorFn: (r: any) =>
-          Number(r.quantity_on_hand) * Number(r.purchase_price ?? 0),
+        accessorFn: (r: any) => Number(r.quantity_on_hand) * getWac(r),
         cell: ({ getValue }) => (
           <span className="font-mono">{fmt(getValue() as number)}</span>
         ),
@@ -518,9 +517,7 @@ export default function InventoryReport() {
             .getFilteredRowModel()
             .rows.reduce(
               (s, r) =>
-                s +
-                Number(r.original.quantity_on_hand) *
-                  Number(r.original.purchase_price ?? 0),
+                s + Number(r.original.quantity_on_hand) * getWac(r.original),
               0,
             );
           return <span className="font-bold font-mono">{fmt(total)}</span>;
