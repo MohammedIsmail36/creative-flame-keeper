@@ -219,6 +219,53 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Previous-period sales returns (لخصمها من مبيعات الفترة السابقة في المقارنة)
+  const { data: prevSalesReturnData = [] } = useQuery({
+    queryKey: ["turnover-prev-sales-returns", prevFrom, prevTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_return_items")
+        .select(
+          "product_id, quantity, ret:sales_returns!inner(return_date, status)",
+        )
+        .gte("ret.return_date", prevFrom)
+        .lte("ret.return_date", prevTo)
+        .eq("ret.status", "posted");
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  // GL balance لحساب المخزون 1104 (مصدر الحقيقة المحاسبي)
+  const { data: glInventoryBalance = 0 } = useQuery({
+    queryKey: ["turnover-gl-1104", settings?.locked_until_date],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data: acc, error: accErr } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("code", "1104")
+        .maybeSingle();
+      if (accErr) throw accErr;
+      if (!acc?.id) return 0;
+      let q = supabase
+        .from("journal_entry_lines")
+        .select("debit, credit, journal_entries!inner(status, entry_date)")
+        .eq("account_id", acc.id)
+        .eq("journal_entries.status", "posted");
+      if (settings?.locked_until_date) {
+        q = q.gt("journal_entries.entry_date", settings.locked_until_date);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      const balance = (data ?? []).reduce(
+        (s: number, l: any) => s + Number(l.debit || 0) - Number(l.credit || 0),
+        0,
+      );
+      return Math.round(balance * 100) / 100;
+    },
+  });
+
   const { data: purchaseReturnData = [] } = useQuery({
     queryKey: ["turnover-purchase-returns"],
     staleTime: 5 * 60 * 1000,
