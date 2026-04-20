@@ -412,7 +412,7 @@ export default function InventoryReport() {
     const totalItems = active.length;
     const totalQty = active.reduce((s, p) => s + Number(p.quantity_on_hand), 0);
     const purchaseValue = active.reduce(
-      (s, p) => s + Number(p.quantity_on_hand) * Number(p.purchase_price ?? 0),
+      (s, p) => s + Number(p.quantity_on_hand) * getWac(p),
       0,
     );
     const sellingValue = active.reduce(
