@@ -24,13 +24,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef, FilterFn } from "@tanstack/react-table";
+import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import {
   Package,
   Plus,
   Pencil,
-  Trash2,
   AlertTriangle,
   Archive,
   Eye,
@@ -38,9 +37,14 @@ import {
   ChevronLeft,
   CheckCircle2,
   XCircle,
+  DollarSign,
+  X,
 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useQuery } from "@tanstack/react-query";
+import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
+import { StatusChips } from "@/components/StatusChips";
 import {
   buildCategoryTree,
   getDescendantIds,
@@ -71,6 +75,15 @@ interface ProductRow {
   product_brands?: { name: string } | null;
 }
 
+const PAGE_SIZE = 50;
+const fmtNum = (n: number) =>
+  Number(n || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+const fmtInt = (n: number) => Number(n || 0).toLocaleString("en-US");
+const formatCurrency = (val: number) => `${fmtNum(val)} EGP`;
+
 function renderCategoryOptions(
   nodes: CategoryNode[],
   depth = 0,
@@ -94,75 +107,52 @@ function renderCategoryOptions(
   return result;
 }
 
-const productGlobalFilter: FilterFn<ProductRow> = (
-  row,
-  _columnId,
-  filterValue,
-) => {
-  const search = (filterValue as string).toLowerCase();
-  const p = row.original;
-  const categoryName = (p as any).product_categories?.name || p.category || "";
-  const brandName = (p as any).product_brands?.name || "";
-  const fields = [
-    p.name,
-    p.code,
-    p.barcode,
-    p.model_number,
-    categoryName,
-    brandName,
-  ];
-  return fields.some((f) => f && f.toLowerCase().includes(search));
-};
-
 export default function Products() {
   const { role } = useAuth();
   const navigate = useNavigate();
-  const [products, setProducts] = useState<ProductRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { settings } = useSettings();
+
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
   const [statusFilter, setStatusFilter] = useState<
     "active" | "inactive" | "all"
   >("active");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
+
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
+  });
+
   const [categories, setCategories] = useState<
     { id: string; name: string; parent_id: string | null; is_active: boolean }[]
   >([]);
-  const { settings } = useSettings();
 
   const canEdit = role === "admin" || role === "accountant";
-  const canDelete = role === "admin";
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("products")
-      .select(
-        "id, code, name, description, barcode, model_number, main_image_url, purchase_price, selling_price, quantity_on_hand, min_stock_level, is_active, created_at, category, unit, brand_id, category_id, unit_id, product_categories(name), product_units(name), product_brands(name)" as any,
-      )
-      .order("code");
-    if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في جلب المنتجات",
-        variant: "destructive",
-      });
-    } else {
-      setProducts((data || []) as any);
-    }
-    setLoading(false);
-  };
+  // KPI Summary (RPC)
+  const { data: summary, refetch: refetchSummary } = useQuery({
+    queryKey: ["products-summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc(
+        "get_products_summary" as any,
+      );
+      if (error) throw error;
+      return data as any;
+    },
+    staleTime: 30_000,
+  });
 
-  const fetchCategories = async () => {
-    const { data } = await (supabase.from("product_categories" as any) as any)
-      .select("id, name, parent_id, is_active")
-      .eq("is_active", true)
-      .order("name");
-    setCategories(data || []);
-  };
-
+  // Categories (small lookup)
   useEffect(() => {
-    fetchProducts();
-    fetchCategories();
+    (async () => {
+      const { data } = await (supabase.from("product_categories" as any) as any)
+        .select("id, name, parent_id, is_active")
+        .eq("is_active", true)
+        .order("name");
+      setCategories(data || []);
+    })();
   }, []);
 
   const categoryTree = useMemo(
@@ -170,49 +160,82 @@ export default function Products() {
     [categories],
   );
 
-  const stats = useMemo(() => {
-    const activeProducts = products.filter((p) => p.is_active);
-    const total = activeProducts.length;
-    const available = activeProducts.filter(
-      (p) => p.quantity_on_hand > p.min_stock_level,
-    ).length;
-    const lowStock = activeProducts.filter(
-      (p) => p.quantity_on_hand > 0 && p.quantity_on_hand < p.min_stock_level,
-    ).length;
-    const outOfStock = activeProducts.filter(
-      (p) => p.quantity_on_hand <= 0,
-    ).length;
-    const totalValue = activeProducts.reduce(
-      (s, p) => s + p.quantity_on_hand * p.purchase_price,
-      0,
-    );
-    const inactive = products.filter((p) => !p.is_active).length;
-    return { total, available, lowStock, outOfStock, totalValue, inactive };
-  }, [products]);
-
   const matchingCategoryIds = useMemo(() => {
     if (categoryFilter === "all") return null;
     return getDescendantIds(categoryTree, categoryFilter);
   }, [categoryFilter, categoryTree]);
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" && p.is_active) ||
-        (statusFilter === "inactive" && !p.is_active);
-      const matchesCategory =
-        !matchingCategoryIds ||
-        (p.category_id && matchingCategoryIds.includes(p.category_id));
-      const matchesStock =
-        stockFilter === "all" ||
-        (stockFilter === "low" &&
-          p.quantity_on_hand > 0 &&
-          p.quantity_on_hand < p.min_stock_level) ||
-        (stockFilter === "out" && p.quantity_on_hand <= 0);
-      return matchesStatus && matchesCategory && matchesStock;
-    });
-  }, [products, matchingCategoryIds, stockFilter, statusFilter]);
+  // Paged products
+  const { data: pagedData, isLoading, refetch: refetchList } = usePagedQuery<
+    ProductRow
+  >(
+    [
+      "products-list",
+      pagination.pageIndex,
+      pagination.pageSize,
+      statusFilter,
+      stockFilter,
+      categoryFilter,
+      matchingCategoryIds?.join(",") || "all",
+      debouncedSearch,
+    ] as const,
+    async () => {
+      const from = pagination.pageIndex * pagination.pageSize;
+      const to = from + pagination.pageSize - 1;
+
+      let q = (supabase.from("products") as any)
+        .select(
+          "id, code, name, description, barcode, model_number, main_image_url, purchase_price, selling_price, quantity_on_hand, min_stock_level, is_active, created_at, category, unit, brand_id, category_id, unit_id, product_categories(name), product_units(name), product_brands(name)",
+          { count: "exact" },
+        )
+        .order("code")
+        .range(from, to);
+
+      if (statusFilter === "active") q = q.eq("is_active", true);
+      else if (statusFilter === "inactive") q = q.eq("is_active", false);
+
+      if (stockFilter === "out") q = q.lte("quantity_on_hand", 0);
+      // 'low' (qty>0 AND qty<min) is filtered client-side because Supabase
+      // can't do col-vs-col comparison directly in select chain.
+
+      if (matchingCategoryIds && matchingCategoryIds.length > 0) {
+        q = q.in("category_id", matchingCategoryIds);
+      }
+
+      if (debouncedSearch.trim()) {
+        const s = debouncedSearch.trim();
+        q = q.or(
+          `name.ilike.%${s}%,code.ilike.%${s}%,barcode.ilike.%${s}%,model_number.ilike.%${s}%`,
+        );
+      }
+
+      const { data, error, count } = await q;
+      if (error) {
+        toast({
+          title: "خطأ",
+          description: "فشل في جلب المنتجات",
+          variant: "destructive",
+        });
+        throw error;
+      }
+      let rows = (data || []) as ProductRow[];
+      if (stockFilter === "low") {
+        rows = rows.filter(
+          (p) =>
+            p.quantity_on_hand > 0 && p.quantity_on_hand < p.min_stock_level,
+        );
+      }
+      return { rows, totalCount: count ?? 0 };
+    },
+  );
+
+  const products = pagedData?.rows ?? [];
+  const totalCount = pagedData?.totalCount ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
+
+  React.useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [statusFilter, stockFilter, categoryFilter, debouncedSearch]);
 
   const toggleProductStatus = async (product: ProductRow) => {
     const newStatus = !product.is_active;
@@ -233,16 +256,10 @@ export default function Products() {
           ? "تم تفعيل المنتج بنجاح"
           : "تم تعطيل المنتج بنجاح",
       });
-      fetchProducts();
+      refetchList();
+      refetchSummary();
     }
   };
-
-  const formatNum = (val: number) =>
-    Number(val).toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  const formatCurrency = (val: number) => `${formatNum(val)} EGP`;
 
   const getCategoryName = (p: ProductRow) =>
     (p as any).product_categories?.name || p.category || "-";
@@ -269,40 +286,72 @@ export default function Products() {
     );
   };
 
-  const exportConfig = useMemo(
-    () => ({
-      filenamePrefix: "المنتجات",
-      sheetName: "المنتجات",
-      pdfTitle: "قائمة المنتجات",
-      headers: [
-        "الكود",
-        "الاسم",
-        "الماركة",
-        "رقم الموديل",
-        "الباركود",
-        "التصنيف",
-        "سعر الشراء",
-        "سعر البيع",
-        "الكمية",
-        "الحد الأدنى",
-      ],
-      rows: filteredProducts.map((p) => [
+  // Lazy export
+  const fetchAllForExport = async (): Promise<ProductRow[]> => {
+    let q = (supabase.from("products") as any)
+      .select(
+        "id, code, name, description, barcode, model_number, main_image_url, purchase_price, selling_price, quantity_on_hand, min_stock_level, is_active, created_at, category, unit, brand_id, category_id, unit_id, product_categories(name), product_units(name), product_brands(name)",
+      )
+      .order("code");
+
+    if (statusFilter === "active") q = q.eq("is_active", true);
+    else if (statusFilter === "inactive") q = q.eq("is_active", false);
+    if (stockFilter === "out") q = q.lte("quantity_on_hand", 0);
+    if (matchingCategoryIds && matchingCategoryIds.length > 0) {
+      q = q.in("category_id", matchingCategoryIds);
+    }
+
+    const { data, error } = await q;
+    if (error) throw error;
+    let rows = (data || []) as ProductRow[];
+    if (stockFilter === "low") {
+      rows = rows.filter(
+        (p) =>
+          p.quantity_on_hand > 0 && p.quantity_on_hand < p.min_stock_level,
+      );
+    }
+    return rows;
+  };
+
+  const [exportRows, setExportRows] = useState<any[][]>([]);
+  const handlePrepareExport = async () => {
+    const all = await fetchAllForExport();
+    setExportRows(
+      all.map((p) => [
         p.code,
         p.name,
         getBrandName(p),
         p.model_number || "",
         p.barcode || "",
         getCategoryName(p),
-        formatNum(p.purchase_price),
-        formatNum(p.selling_price),
-        Number(p.quantity_on_hand),
-        Number(p.min_stock_level),
+        fmtNum(p.purchase_price),
+        fmtNum(p.selling_price),
+        fmtInt(Number(p.quantity_on_hand)),
+        fmtInt(Number(p.min_stock_level)),
       ]),
-      settings,
-      pdfOrientation: "landscape" as const,
-    }),
-    [filteredProducts, settings],
-  );
+    );
+  };
+
+  const exportConfig = {
+    filenamePrefix: "المنتجات",
+    sheetName: "المنتجات",
+    pdfTitle: "قائمة المنتجات",
+    headers: [
+      "الكود",
+      "الاسم",
+      "الماركة",
+      "رقم الموديل",
+      "الباركود",
+      "التصنيف",
+      "سعر الشراء",
+      "سعر البيع",
+      "الكمية",
+      "الحد الأدنى",
+    ],
+    rows: exportRows,
+    settings,
+    pdfOrientation: "landscape" as const,
+  };
 
   const columns = useMemo<ColumnDef<ProductRow, any>[]>(
     () => [
@@ -355,10 +404,7 @@ export default function Products() {
               نشط
             </Badge>
           ) : (
-            <Badge
-              variant="secondary"
-              className="bg-muted text-muted-foreground"
-            >
+            <Badge variant="secondary" className="bg-muted text-muted-foreground">
               غير نشط
             </Badge>
           ),
@@ -391,7 +437,7 @@ export default function Products() {
           <DataTableColumnHeader column={column} title="سعر الوحدة" />
         ),
         cell: ({ row }) => (
-          <span className="text-sm font-bold text-foreground">
+          <span className="text-sm font-bold text-foreground font-mono">
             {formatCurrency(row.original.selling_price)}
           </span>
         ),
@@ -402,8 +448,9 @@ export default function Products() {
           <DataTableColumnHeader column={column} title="الكمية" />
         ),
         cell: ({ row }) => (
-          <span className="text-sm text-foreground">
-            {row.original.quantity_on_hand} {row.original.product_units?.name || row.original.unit || "وحدة"}
+          <span className="text-sm text-foreground font-mono">
+            {fmtInt(row.original.quantity_on_hand)}{" "}
+            {row.original.product_units?.name || row.original.unit || "وحدة"}
           </span>
         ),
       },
@@ -466,8 +513,8 @@ export default function Products() {
                     </AlertDialogTitle>
                     <AlertDialogDescription>
                       {row.original.is_active
-                        ? `هل تريد تعطيل منتج "${row.original.name}"؟ لن يظهر في الفواتير والتقارير.`
-                        : `هل تريد تفعيل منتج "${row.original.name}"؟ سيظهر مجدداً في الفواتير والتقارير.`}
+                        ? `هل تريد تعطيل منتج "${row.original.name}"؟`
+                        : `هل تريد تفعيل منتج "${row.original.name}"؟`}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter className="flex-row-reverse gap-2">
@@ -490,50 +537,78 @@ export default function Products() {
         ),
       },
     ],
-    [canEdit, canDelete],
+    [canEdit, navigate],
   );
 
-  const statCards = [
+  // KPI cards
+  const kpiCards = [
     {
       label: "إجمالي الأصناف",
-      value: stats.total,
+      value: fmtInt(summary?.total_count ?? 0),
       icon: Package,
-      iconBg: "bg-blue-100 dark:bg-blue-500/20",
-      iconColor: "text-blue-600 dark:text-blue-400",
+      color: "bg-blue-500/10 text-blue-600",
     },
     {
-      label: "متوفر بالمخزن",
-      value: stats.available,
+      label: "قيمة المخزون",
+      value: formatCurrency(summary?.total_value ?? 0),
+      icon: DollarSign,
+      color: "bg-emerald-500/10 text-emerald-600",
+    },
+    {
+      label: "متوفر",
+      value: fmtInt(summary?.available_count ?? 0),
       icon: CheckCircle2,
-      iconBg: "bg-green-100 dark:bg-green-500/20",
-      iconColor: "text-green-600 dark:text-green-400",
+      color: "bg-teal-500/10 text-teal-600",
     },
     {
-      label: "أصناف منخفضة",
-      value: stats.lowStock,
+      label: "مخزون منخفض",
+      value: fmtInt(summary?.low_stock_count ?? 0),
       icon: AlertTriangle,
-      iconBg: "bg-amber-100 dark:bg-amber-500/20",
-      iconColor: "text-amber-600 dark:text-amber-400",
+      color: "bg-amber-500/10 text-amber-600",
     },
     {
-      label: "أصناف منتهية",
-      value: stats.outOfStock,
+      label: "نفذ المخزون",
+      value: fmtInt(summary?.out_of_stock_count ?? 0),
       icon: XCircle,
-      iconBg: "bg-red-100 dark:bg-red-500/20",
-      iconColor: "text-red-600 dark:text-red-400",
+      color: "bg-destructive/10 text-destructive",
     },
-    ...(stats.inactive > 0
-      ? [
-          {
-            label: "غير نشط",
-            value: stats.inactive,
-            icon: Archive,
-            iconBg: "bg-muted",
-            iconColor: "text-muted-foreground",
-          },
-        ]
-      : []),
   ];
+
+  const statusChips = [
+    {
+      label: "نشط",
+      value: fmtInt(summary?.active_count ?? 0),
+      filter: "active",
+      icon: CheckCircle2,
+      color: "bg-emerald-500/10 text-emerald-600",
+    },
+    {
+      label: "غير نشط",
+      value: fmtInt(summary?.inactive_count ?? 0),
+      filter: "inactive",
+      icon: Archive,
+      color: "bg-muted text-muted-foreground",
+    },
+    {
+      label: "الكل",
+      value: fmtInt(summary?.total_count ?? 0),
+      filter: "all",
+      icon: Package,
+      color: "bg-primary/10 text-primary",
+    },
+  ];
+
+  const hasFilters =
+    categoryFilter !== "all" ||
+    stockFilter !== "all" ||
+    statusFilter !== "active" ||
+    search.trim();
+  const clearFilters = () => {
+    setCategoryFilter("all");
+    setStockFilter("all");
+    setStatusFilter("active");
+    setSearch("");
+  };
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -553,7 +628,11 @@ export default function Products() {
                   <Upload className="h-4 w-4" />
                   استيراد البيانات
                 </Button>
-                <ExportMenu config={exportConfig} disabled={loading} />
+                <ExportMenu
+                  config={exportConfig}
+                  disabled={isLoading}
+                  onOpen={handlePrepareExport}
+                />
                 <Button
                   className="gap-2 shadow-md shadow-primary/20 font-bold"
                   onClick={() => navigate("/products/new")}
@@ -564,47 +643,63 @@ export default function Products() {
               </>
             )}
             {!canEdit && (
-              <ExportMenu config={exportConfig} disabled={loading} />
+              <ExportMenu
+                config={exportConfig}
+                disabled={isLoading}
+                onOpen={handlePrepareExport}
+              />
             )}
           </>
         }
       />
 
-      {/* Quick Stats */}
-      <div
-        className={`grid grid-cols-1 sm:grid-cols-2 ${statCards.length > 4 ? "md:grid-cols-5" : "md:grid-cols-4"} gap-4`}
-      >
-        {statCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {kpiCards.map(({ label, value, icon: Icon, color }) => (
           <div
             key={label}
-            className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4"
+            className="rounded-xl border p-4 bg-card transition-all hover:shadow-md"
           >
-            <div className={`p-3 rounded-full ${iconBg}`}>
-              <Icon className={`h-5 w-5 ${iconColor}`} />
+            <div className="flex items-center justify-between mb-2">
+              <div
+                className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}
+              >
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xl font-black text-foreground font-mono">
+                {value}
+              </span>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="text-xl font-black text-foreground">
-                {value.toLocaleString("en-US")}
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground">{label}</p>
           </div>
         ))}
       </div>
 
-      {/* Data Table with filters */}
+      <StatusChips
+        chips={statusChips}
+        active={statusFilter}
+        onSelect={(f) => setStatusFilter(f as any)}
+      />
+
       <DataTable
         columns={columns}
-        data={filteredProducts}
-        searchPlaceholder="البحث بواسطة اسم المنتج، الكود، أو الباركود..."
-        isLoading={loading}
+        data={products}
+        searchPlaceholder="بحث بالاسم، الكود، الباركود، أو الموديل..."
+        isLoading={isLoading}
         emptyMessage="لا توجد منتجات"
         onRowClick={(p) => navigate(`/products/${p.id}`)}
-        globalFilterFn={productGlobalFilter}
+        globalFilter={search}
+        onGlobalFilterChange={setSearch}
+        manualPagination
+        pageCount={pageCount}
+        totalRows={totalCount}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        pageSize={PAGE_SIZE}
         toolbarContent={
           <div className="flex gap-3 flex-wrap items-center">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-48 bg-card border-border">
+              <SelectTrigger className="w-48 bg-card border-border h-9 text-sm">
                 <SelectValue placeholder="كافة التصنيفات" />
               </SelectTrigger>
               <SelectContent>
@@ -613,23 +708,10 @@ export default function Products() {
               </SelectContent>
             </Select>
             <Select
-              value={statusFilter}
-              onValueChange={(v) => setStatusFilter(v as any)}
-            >
-              <SelectTrigger className="w-40 bg-card border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">النشطة فقط</SelectItem>
-                <SelectItem value="inactive">غير النشطة</SelectItem>
-                <SelectItem value="all">الكل</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
               value={stockFilter}
               onValueChange={(v) => setStockFilter(v as any)}
             >
-              <SelectTrigger className="w-40 bg-card border-border">
+              <SelectTrigger className="w-40 bg-card border-border h-9 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -638,6 +720,17 @@ export default function Products() {
                 <SelectItem value="out">نفذت الكمية</SelectItem>
               </SelectContent>
             </Select>
+            {hasFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+                مسح الفلاتر
+              </Button>
+            )}
           </div>
         }
       />

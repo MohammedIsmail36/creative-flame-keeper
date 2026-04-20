@@ -1,10 +1,9 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { formatProductDisplay } from "@/lib/product-utils";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePickerInput } from "@/components/DatePickerInput";
@@ -16,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import {
   Package,
   TrendingUp,
@@ -27,6 +26,7 @@ import {
   Check,
   ChevronsUpDown,
   Search,
+  X,
 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -50,6 +50,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
+import { StatusChips } from "@/components/StatusChips";
 
 interface MovementRow {
   id: string;
@@ -68,8 +70,15 @@ interface MovementRow {
     model_number?: string;
     product_brands?: { name: string } | null;
   } | null;
-  cumulativeBalance: number;
 }
+
+const PAGE_SIZE = 50;
+const fmtInt = (n: number) => Number(n || 0).toLocaleString("en-US");
+const fmtNum = (n: number) =>
+  Number(n || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 export default function InventoryMovements() {
   const { settings } = useSettings();
@@ -79,32 +88,75 @@ export default function InventoryMovements() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [productComboOpen, setProductComboOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
 
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
+  });
+
+  // Products lookup (small)
   const { data: products = [] } = useQuery({
-    queryKey: ["products-list"],
+    queryKey: ["products-list-tiny"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, code, name, quantity_on_hand, purchase_price")
+        .select("id, code, name")
         .order("code");
       if (error) throw error;
       return data;
     },
+    staleTime: 60_000,
   });
 
-  const { data: movements = [], isLoading } = useQuery({
+  // KPI summary
+  const { data: summary } = useQuery({
     queryKey: [
-      "inventory-movements",
+      "inventory-movements-summary",
       selectedProduct,
-      selectedType,
       dateFrom,
       dateTo,
     ],
     queryFn: async () => {
+      const { data, error } = await supabase.rpc(
+        "get_inventory_movements_summary" as any,
+        {
+          p_product_id: selectedProduct === "all" ? null : selectedProduct,
+          p_date_from: dateFrom || null,
+          p_date_to: dateTo || null,
+        },
+      );
+      if (error) throw error;
+      return data as any;
+    },
+    staleTime: 30_000,
+  });
+
+  // Paged movements
+  const { data: pagedData, isLoading } = usePagedQuery<MovementRow>(
+    [
+      "inventory-movements",
+      pagination.pageIndex,
+      pagination.pageSize,
+      selectedProduct,
+      selectedType,
+      dateFrom,
+      dateTo,
+      debouncedSearch,
+    ] as const,
+    async () => {
+      const from = pagination.pageIndex * pagination.pageSize;
+      const to = from + pagination.pageSize - 1;
+
       let query = (supabase.from("inventory_movements") as any)
-        .select("*, products(code, name, model_number, product_brands(name))")
-        .order("movement_date", { ascending: true })
-        .order("created_at", { ascending: true });
+        .select(
+          "*, products(code, name, model_number, product_brands(name))",
+          { count: "exact" },
+        )
+        .order("movement_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
       if (selectedProduct !== "all")
         query = query.eq("product_id", selectedProduct);
@@ -112,53 +164,26 @@ export default function InventoryMovements() {
         query = query.eq("movement_type", selectedType);
       if (dateFrom) query = query.gte("movement_date", dateFrom);
       if (dateTo) query = query.lte("movement_date", dateTo);
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  const movementsWithBalance: MovementRow[] = useMemo(() => {
-    const balances: Record<string, number> = {};
-    return movements.map((m: any) => {
-      const pid = m.product_id;
-      if (!(pid in balances)) balances[pid] = 0;
-      if (m.movement_type === "adjustment") {
-        // Adjustments store signed quantity: positive = gain, negative = loss
-        balances[pid] += Number(m.quantity);
-      } else {
-        const isIn = MOVEMENT_IN_TYPES.includes(m.movement_type);
-        balances[pid] += isIn ? Number(m.quantity) : -Number(m.quantity);
+      if (debouncedSearch.trim()) {
+        const s = debouncedSearch.trim();
+        query = query.or(
+          `notes.ilike.%${s}%,products.name.ilike.%${s}%,products.code.ilike.%${s}%`,
+        );
       }
-      return { ...m, cumulativeBalance: balances[pid] };
-    });
-  }, [movements]);
 
-  const totalIn = movementsWithBalance
-    .filter((m) =>
-      m.movement_type === "adjustment"
-        ? Number(m.quantity) > 0
-        : MOVEMENT_IN_TYPES.includes(m.movement_type),
-    )
-    .reduce((s, m) => s + Math.abs(Number(m.quantity)), 0);
-  const totalOut = movementsWithBalance
-    .filter((m) =>
-      m.movement_type === "adjustment"
-        ? Number(m.quantity) < 0
-        : !MOVEMENT_IN_TYPES.includes(m.movement_type),
-    )
-    .reduce((s, m) => s + Math.abs(Number(m.quantity)), 0);
-  const totalValue = movementsWithBalance.reduce((s, m) => {
-    if (m.movement_type === "adjustment") {
-      return (
-        s +
-        (Number(m.quantity) > 0 ? Number(m.total_cost) : -Number(m.total_cost))
-      );
-    }
-    const isIn = MOVEMENT_IN_TYPES.includes(m.movement_type);
-    return s + (isIn ? Number(m.total_cost) : -Number(m.total_cost));
-  }, 0);
+      const { data, error, count } = await query;
+      if (error) throw error;
+      return { rows: (data || []) as MovementRow[], totalCount: count ?? 0 };
+    },
+  );
+
+  const movements = pagedData?.rows ?? [];
+  const totalCount = pagedData?.totalCount ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
+
+  React.useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [selectedProduct, selectedType, dateFrom, dateTo, debouncedSearch]);
 
   const handleReferenceClick = (
     referenceType: string | null,
@@ -166,9 +191,7 @@ export default function InventoryMovements() {
   ) => {
     if (!referenceType || !referenceId) return;
     const basePath = REFERENCE_ROUTE_MAP[referenceType];
-    if (basePath) {
-      navigate(`${basePath}/${referenceId}`);
-    }
+    if (basePath) navigate(`${basePath}/${referenceId}`);
   };
 
   const getReferenceLabel = (referenceType: string | null): string => {
@@ -190,7 +213,7 @@ export default function InventoryMovements() {
         <DataTableColumnHeader column={column} title="التاريخ" />
       ),
       cell: ({ row }) => (
-        <span className="text-muted-foreground whitespace-nowrap">
+        <span className="text-muted-foreground whitespace-nowrap font-mono">
           {row.original.movement_date}
         </span>
       ),
@@ -259,7 +282,7 @@ export default function InventoryMovements() {
           mt === "adjustment" ? qty > 0 : MOVEMENT_IN_TYPES.includes(mt);
         return isIn ? (
           <span className="font-bold text-emerald-600 font-mono">
-            +{Math.abs(qty).toLocaleString("en-US")}
+            +{fmtInt(Math.abs(qty))}
           </span>
         ) : (
           <span className="text-muted-foreground/30">-</span>
@@ -276,7 +299,7 @@ export default function InventoryMovements() {
           mt === "adjustment" ? qty < 0 : !MOVEMENT_IN_TYPES.includes(mt);
         return isOut ? (
           <span className="font-bold text-rose-600 font-mono">
-            -{Math.abs(qty).toLocaleString("en-US")}
+            -{fmtInt(Math.abs(qty))}
           </span>
         ) : (
           <span className="text-muted-foreground/30">-</span>
@@ -289,9 +312,7 @@ export default function InventoryMovements() {
         <DataTableColumnHeader column={column} title="التكلفة" />
       ),
       cell: ({ row }) => (
-        <span className="font-mono">
-          {Number(row.original.unit_cost).toLocaleString("en-US")}
-        </span>
+        <span className="font-mono">{fmtNum(Number(row.original.unit_cost))}</span>
       ),
     },
     {
@@ -301,16 +322,7 @@ export default function InventoryMovements() {
       ),
       cell: ({ row }) => (
         <span className="font-mono font-bold">
-          {Number(row.original.total_cost).toLocaleString("en-US")}
-        </span>
-      ),
-    },
-    {
-      id: "balance",
-      header: "الرصيد",
-      cell: ({ row }) => (
-        <span className="font-black font-mono text-foreground">
-          {row.original.cumulativeBalance.toLocaleString("en-US")}
+          {fmtNum(Number(row.original.total_cost))}
         </span>
       ),
     },
@@ -325,34 +337,65 @@ export default function InventoryMovements() {
     },
   ];
 
-  const exportRows = movementsWithBalance.map((m) => {
-    const p = m.products as any;
-    return [
-      m.movement_date,
-      p
-        ? formatProductDisplay(p.name, p.product_brands?.name, p.model_number)
-        : "",
-      p?.code || "",
-      MOVEMENT_TYPE_LABELS[m.movement_type] || m.movement_type,
-      (
-        m.movement_type === "adjustment"
-          ? Number(m.quantity) > 0
-          : MOVEMENT_IN_TYPES.includes(m.movement_type)
-      )
-        ? Math.abs(m.quantity)
-        : "",
-      (
-        m.movement_type === "adjustment"
-          ? Number(m.quantity) < 0
-          : !MOVEMENT_IN_TYPES.includes(m.movement_type)
-      )
-        ? Math.abs(m.quantity)
-        : "",
-      m.unit_cost,
-      m.total_cost,
-      m.cumulativeBalance,
-    ];
-  });
+  // Lazy export
+  const fetchAllForExport = async (): Promise<MovementRow[]> => {
+    let q = (supabase.from("inventory_movements") as any)
+      .select("*, products(code, name, model_number, product_brands(name))")
+      .order("movement_date", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (selectedProduct !== "all") q = q.eq("product_id", selectedProduct);
+    if (selectedType !== "all") q = q.eq("movement_type", selectedType);
+    if (dateFrom) q = q.gte("movement_date", dateFrom);
+    if (dateTo) q = q.lte("movement_date", dateTo);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data || []) as MovementRow[];
+  };
+
+  const [exportRows, setExportRows] = useState<any[][]>([]);
+  const handlePrepareExport = async () => {
+    const all = await fetchAllForExport();
+    // Build cumulative balance per product (for export only)
+    const balances: Record<string, number> = {};
+    setExportRows(
+      all.map((m) => {
+        const pid = m.product_id;
+        if (!(pid in balances)) balances[pid] = 0;
+        if (m.movement_type === "adjustment") {
+          balances[pid] += Number(m.quantity);
+        } else {
+          const isIn = MOVEMENT_IN_TYPES.includes(m.movement_type);
+          balances[pid] += isIn ? Number(m.quantity) : -Number(m.quantity);
+        }
+        const p = m.products as any;
+        const isInRow =
+          m.movement_type === "adjustment"
+            ? Number(m.quantity) > 0
+            : MOVEMENT_IN_TYPES.includes(m.movement_type);
+        const isOutRow =
+          m.movement_type === "adjustment"
+            ? Number(m.quantity) < 0
+            : !MOVEMENT_IN_TYPES.includes(m.movement_type);
+        return [
+          m.movement_date,
+          p
+            ? formatProductDisplay(
+                p.name,
+                p.product_brands?.name,
+                p.model_number,
+              )
+            : "",
+          p?.code || "",
+          MOVEMENT_TYPE_LABELS[m.movement_type] || m.movement_type,
+          isInRow ? fmtInt(Math.abs(Number(m.quantity))) : "",
+          isOutRow ? fmtInt(Math.abs(Number(m.quantity))) : "",
+          fmtNum(Number(m.unit_cost)),
+          fmtNum(Number(m.total_cost)),
+          fmtInt(balances[pid]),
+        ];
+      }),
+    );
+  };
 
   const exportConfig = {
     filenamePrefix: "حركات-المخزون",
@@ -374,8 +417,83 @@ export default function InventoryMovements() {
     pdfOrientation: "landscape" as const,
   };
 
+  const totalIn = summary?.total_in ?? 0;
+  const totalOut = summary?.total_out ?? 0;
+  const totalValue = summary?.total_value ?? 0;
+  const totalMovements = summary?.total_count ?? 0;
+
+  const kpiCards = [
+    {
+      label: "إجمالي الحركات",
+      value: fmtInt(totalMovements),
+      icon: Activity,
+      color: "bg-primary/10 text-primary",
+    },
+    {
+      label: "قيمة الحركة",
+      value: fmtNum(totalValue),
+      icon: Coins,
+      color: "bg-blue-500/10 text-blue-600",
+    },
+    {
+      label: "الوارد",
+      value: `+${fmtInt(totalIn)}`,
+      icon: TrendingUp,
+      color: "bg-emerald-500/10 text-emerald-600",
+    },
+    {
+      label: "الصادر",
+      value: `-${fmtInt(totalOut)}`,
+      icon: TrendingDown,
+      color: "bg-rose-500/10 text-rose-600",
+    },
+    {
+      label: "صافي الحركة",
+      value: fmtInt(totalIn - totalOut),
+      icon: Package,
+      color:
+        totalIn - totalOut >= 0
+          ? "bg-emerald-500/10 text-emerald-600"
+          : "bg-rose-500/10 text-rose-600",
+    },
+  ];
+
+  const statusChips = [
+    {
+      label: "كل الأنواع",
+      value: fmtInt(totalMovements),
+      filter: "all",
+      icon: Package,
+      color: "bg-primary/10 text-primary",
+    },
+    ...Object.entries(MOVEMENT_TYPE_LABELS).map(([k, v]) => ({
+      label: v as string,
+      value: fmtInt(summary?.by_type?.[k] ?? 0),
+      filter: k,
+      icon: Activity,
+      color:
+        MOVEMENT_IN_TYPES.includes(k)
+          ? "bg-emerald-500/10 text-emerald-600"
+          : "bg-rose-500/10 text-rose-600",
+    })),
+  ];
+
+  const hasFilters =
+    selectedProduct !== "all" ||
+    selectedType !== "all" ||
+    dateFrom ||
+    dateTo ||
+    search.trim();
+  const clearFilters = () => {
+    setSelectedProduct("all");
+    setSelectedType("all");
+    setDateFrom("");
+    setDateTo("");
+    setSearch("");
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       <PageHeader
         icon={Package}
         title="حركة المخزون"
@@ -383,89 +501,55 @@ export default function InventoryMovements() {
         actions={
           <ExportMenu
             config={exportConfig}
-            disabled={movementsWithBalance.length === 0}
+            disabled={isLoading}
+            onOpen={handlePrepareExport}
           />
         }
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-muted-foreground text-sm mb-1">إجمالي الحركات</p>
-            <div className="flex items-end justify-between">
-              <h3 className="text-2xl font-black text-foreground font-mono">
-                {movementsWithBalance.length.toLocaleString("en-US")}
-              </h3>
-              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Activity className="w-4 h-4 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-muted-foreground text-sm mb-1">قيمة المخزون</p>
-            <div className="flex items-end justify-between">
-              <h3 className="text-2xl font-black text-foreground font-mono">
-                {totalValue.toLocaleString("en-US")}
-              </h3>
-              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Coins className="w-4 h-4 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-muted-foreground text-sm mb-1">الوارد</p>
-            <div className="flex items-end justify-between">
-              <h3 className="text-2xl font-black text-emerald-600 font-mono">
-                +{totalIn.toLocaleString("en-US")}
-              </h3>
-              <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-emerald-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-muted-foreground text-sm mb-1">الصادر</p>
-            <div className="flex items-end justify-between">
-              <h3 className="text-2xl font-black text-rose-600 font-mono">
-                -{totalOut.toLocaleString("en-US")}
-              </h3>
-              <div className="w-9 h-9 rounded-lg bg-rose-100 flex items-center justify-center">
-                <TrendingDown className="w-4 h-4 text-rose-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-muted-foreground text-sm mb-1">صافي الحركة</p>
-            <div className="flex items-end justify-between">
-              <h3
-                className={`text-2xl font-black font-mono ${totalIn - totalOut >= 0 ? "text-emerald-600" : "text-rose-600"}`}
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {kpiCards.map(({ label, value, icon: Icon, color }) => (
+          <div
+            key={label}
+            className="rounded-xl border p-4 bg-card transition-all hover:shadow-md"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div
+                className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}
               >
-                {(totalIn - totalOut).toLocaleString("en-US")}
-              </h3>
-              <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center">
-                <Package className="w-4 h-4 text-blue-600" />
+                <Icon className="h-4 w-4" />
               </div>
+              <span className="text-xl font-black text-foreground font-mono">
+                {value}
+              </span>
             </div>
-          </CardContent>
-        </Card>
+            <p className="text-xs text-muted-foreground">{label}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Data Table */}
+      {/* Status chips (movement types) */}
+      <StatusChips
+        chips={statusChips}
+        active={selectedType}
+        onSelect={setSelectedType}
+      />
+
       <DataTable
         columns={columns}
-        data={movementsWithBalance}
+        data={movements}
         searchPlaceholder="بحث بالمنتج أو الملاحظات..."
         isLoading={isLoading}
         emptyMessage="لا توجد حركات مخزون"
+        globalFilter={search}
+        onGlobalFilterChange={setSearch}
+        manualPagination
+        pageCount={pageCount}
+        totalRows={totalCount}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        pageSize={PAGE_SIZE}
         toolbarContent={
           <div className="flex gap-2 flex-wrap">
             <Popover open={productComboOpen} onOpenChange={setProductComboOpen}>
@@ -475,9 +559,8 @@ export default function InventoryMovements() {
                   role="combobox"
                   aria-expanded={productComboOpen}
                   className={cn(
-                    "w-56 justify-between h-9 font-normal text-sm shadow-xs transition-colors hover:bg-accent/50",
+                    "w-56 justify-between h-9 font-normal text-sm",
                     selectedProduct === "all" && "text-muted-foreground",
-                    productComboOpen && "ring-2 ring-ring/20 border-ring",
                   )}
                 >
                   <span className="truncate flex-1 text-right">
@@ -494,11 +577,11 @@ export default function InventoryMovements() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-[--radix-popover-trigger-width] p-0 shadow-lg border-border/80"
+                className="w-[--radix-popover-trigger-width] p-0"
                 align="start"
                 sideOffset={5}
               >
-                <Command dir="rtl" className="rounded-md">
+                <Command dir="rtl">
                   <CommandInput
                     placeholder="ابحث بالكود أو الاسم..."
                     className="h-10 text-sm"
@@ -558,31 +641,29 @@ export default function InventoryMovements() {
                 </Command>
               </PopoverContent>
             </Popover>
-            <Select value={selectedType} onValueChange={setSelectedType}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="جميع الأنواع" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">جميع الأنواع</SelectItem>
-                {Object.entries(MOVEMENT_TYPE_LABELS).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>
-                    {v}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <DatePickerInput
               value={dateFrom}
               onChange={setDateFrom}
               placeholder="من تاريخ"
-              className="w-[150px]"
+              className="w-[150px] h-9 text-sm"
             />
             <DatePickerInput
               value={dateTo}
               onChange={setDateTo}
               placeholder="إلى تاريخ"
-              className="w-[150px]"
+              className="w-[150px] h-9 text-sm"
             />
+            {hasFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+                مسح الفلاتر
+              </Button>
+            )}
           </div>
         }
       />

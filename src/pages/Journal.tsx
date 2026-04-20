@@ -1,21 +1,14 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import {
   FileText,
@@ -25,9 +18,14 @@ import {
   BookOpen,
   X,
   Ban,
+  ArrowUpCircle,
+  ArrowDownCircle,
 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
+import { useQuery } from "@tanstack/react-query";
+import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
+import { StatusChips } from "@/components/StatusChips";
 
 interface JournalEntry {
   id: string;
@@ -41,72 +39,138 @@ interface JournalEntry {
   created_at: string;
 }
 
+const PAGE_SIZE = 50;
+const fmtNum = (n: number) => Number(n || 0).toLocaleString("en-US");
+
 export default function Journal() {
   const { role } = useAuth();
-  const { settings, currency, formatCurrency: fmtCurrency } = useSettings();
+  const { settings, currency, formatCurrency } = useSettings();
   const navigate = useNavigate();
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
 
   const canEdit = role === "admin" || role === "accountant";
   const prefix = (settings as any)?.journal_entry_prefix || "JV-";
 
-  const fetchData = async () => {
-    setLoading(true);
-    const { data, error } = await (supabase.from("journal_entries") as any)
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
+
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
+  });
+
+  const { data: summary } = useQuery({
+    queryKey: ["journal-summary", dateFrom, dateTo],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc(
+        "get_journal_summary" as any,
+        {
+          p_date_from: dateFrom || null,
+          p_date_to: dateTo || null,
+        },
+      );
+      if (error) throw error;
+      return data as any;
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: pagedData, isLoading } = usePagedQuery<JournalEntry>(
+    [
+      "journal-list",
+      pagination.pageIndex,
+      pagination.pageSize,
+      statusFilter,
+      dateFrom,
+      dateTo,
+      debouncedSearch,
+    ] as const,
+    async () => {
+      const from = pagination.pageIndex * pagination.pageSize;
+      const to = from + pagination.pageSize - 1;
+
+      let q = (supabase.from("journal_entries") as any)
+        .select(
+          "id, entry_number, posted_number, entry_date, description, status, total_debit, total_credit, created_at",
+          { count: "exact" },
+        )
+        .order("entry_number", { ascending: false })
+        .range(from, to);
+
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      if (dateFrom) q = q.gte("entry_date", dateFrom);
+      if (dateTo) q = q.lte("entry_date", dateTo);
+      if (debouncedSearch.trim()) {
+        const s = debouncedSearch.trim();
+        const asNum = Number(s);
+        if (!isNaN(asNum)) {
+          q = q.or(`entry_number.eq.${asNum},posted_number.eq.${asNum}`);
+        } else {
+          q = q.ilike("description", `%${s}%`);
+        }
+      }
+
+      const { data, error, count } = await q;
+      if (error) {
+        toast({
+          title: "خطأ",
+          description: "فشل في جلب القيود",
+          variant: "destructive",
+        });
+        throw error;
+      }
+      return { rows: data || [], totalCount: count ?? 0 };
+    },
+  );
+
+  const entries = pagedData?.rows ?? [];
+  const totalCount = pagedData?.totalCount ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
+
+  React.useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
+
+  const fetchAllForExport = async (): Promise<JournalEntry[]> => {
+    let q = (supabase.from("journal_entries") as any)
       .select(
         "id, entry_number, posted_number, entry_date, description, status, total_debit, total_credit, created_at",
       )
       .order("entry_number", { ascending: false });
-    if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في جلب القيود",
-        variant: "destructive",
-      });
-    } else {
-      setEntries(data || []);
-    }
-    setLoading(false);
+    if (statusFilter !== "all") q = q.eq("status", statusFilter);
+    if (dateFrom) q = q.gte("entry_date", dateFrom);
+    if (dateTo) q = q.lte("entry_date", dateTo);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const statusCounts = useMemo(() => {
-    const counts = { all: entries.length, draft: 0, posted: 0, cancelled: 0 };
-    entries.forEach((e) => {
-      if (e.status === "draft") counts.draft++;
-      else if (e.status === "cancelled") counts.cancelled++;
-      else counts.posted++;
-    });
-    return counts;
-  }, [entries]);
-
-  const totalDebit = useMemo(
-    () => entries.reduce((s, e) => s + Number(e.total_debit), 0),
-    [entries],
-  );
-
-  const filteredEntries = useMemo(() => {
-    return entries.filter((e) => {
-      if (statusFilter !== "all" && e.status !== statusFilter) return false;
-      if (dateFrom && e.entry_date < dateFrom) return false;
-      if (dateTo && e.entry_date > dateTo) return false;
-      return true;
-    });
-  }, [entries, statusFilter, dateFrom, dateTo]);
-
-  const formatNum = (val: number) =>
-    Number(val).toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  const formatCurrency = (val: number) => fmtCurrency(Number(val));
+  const [exportRows, setExportRows] = useState<any[][]>([]);
+  const handlePrepareExport = async () => {
+    const all = await fetchAllForExport();
+    setExportRows(
+      all.map((e) => [
+        formatDisplayNumber(prefix, e.posted_number, e.entry_number, e.status),
+        e.entry_date,
+        e.description,
+        e.status === "posted"
+          ? "معتمد"
+          : e.status === "cancelled"
+            ? "ملغي"
+            : "مسودة",
+        Number(e.total_debit).toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        Number(e.total_credit).toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      ]),
+    );
+  };
 
   const journalExportConfig = useMemo(
     () => ({
@@ -121,65 +185,21 @@ export default function Journal() {
         `مدين (${currency})`,
         `دائن (${currency})`,
       ],
-      rows: filteredEntries.map((e) => [
-        formatDisplayNumber(prefix, e.posted_number, e.entry_number, e.status),
-        e.entry_date,
-        e.description,
-        e.status === "posted"
-          ? "معتمد"
-          : e.status === "cancelled"
-            ? "ملغي"
-            : "مسودة",
-        formatNum(Number(e.total_debit)),
-        formatNum(Number(e.total_credit)),
-      ]),
+      rows: exportRows,
       settings,
       pdfOrientation: "landscape" as const,
     }),
-    [filteredEntries, settings, currency, prefix],
+    [exportRows, settings, currency],
   );
 
-  const hasFilters = statusFilter !== "all" || dateFrom || dateTo;
+  const hasFilters =
+    statusFilter !== "all" || dateFrom || dateTo || search.trim();
   const clearFilters = () => {
     setStatusFilter("all");
     setDateFrom("");
     setDateTo("");
+    setSearch("");
   };
-
-  const statCards = [
-    {
-      label: "إجمالي القيود",
-      value: entries.length,
-      icon: BookOpen,
-      iconBg: "bg-blue-100 dark:bg-blue-500/20",
-      iconColor: "text-blue-600 dark:text-blue-400",
-      filter: "all",
-    },
-    {
-      label: "مسودات",
-      value: statusCounts.draft,
-      icon: Clock,
-      iconBg: "bg-amber-100 dark:bg-amber-500/20",
-      iconColor: "text-amber-600 dark:text-amber-400",
-      filter: "draft",
-    },
-    {
-      label: "معتمدة",
-      value: statusCounts.posted,
-      icon: CheckCircle,
-      iconBg: "bg-green-100 dark:bg-green-500/20",
-      iconColor: "text-green-600 dark:text-green-400",
-      filter: "posted",
-    },
-    {
-      label: "ملغاة",
-      value: statusCounts.cancelled,
-      icon: Ban,
-      iconBg: "bg-red-100 dark:bg-red-500/20",
-      iconColor: "text-red-600 dark:text-red-400",
-      filter: "cancelled",
-    },
-  ];
 
   const columns: ColumnDef<JournalEntry, any>[] = [
     {
@@ -204,7 +224,7 @@ export default function Journal() {
         <DataTableColumnHeader column={column} title="التاريخ" />
       ),
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground font-mono">
           {row.original.entry_date}
         </span>
       ),
@@ -225,10 +245,7 @@ export default function Journal() {
       header: "الحالة",
       cell: ({ row }) => {
         const s = row.original.status;
-        const statusConfig: Record<
-          string,
-          { label: string; className: string }
-        > = {
+        const cfg: Record<string, { label: string; className: string }> = {
           posted: {
             label: "معتمد",
             className: "bg-green-500/10 text-green-600 border-green-500/20",
@@ -243,10 +260,10 @@ export default function Journal() {
               "bg-destructive/10 text-destructive border-destructive/20",
           },
         };
-        const cfg = statusConfig[s] || statusConfig.draft;
+        const c = cfg[s] || cfg.draft;
         return (
-          <Badge variant="secondary" className={cfg.className}>
-            {cfg.label}
+          <Badge variant="secondary" className={c.className}>
+            {c.label}
           </Badge>
         );
       },
@@ -258,7 +275,7 @@ export default function Journal() {
       ),
       cell: ({ row }) => (
         <span className="text-sm font-bold text-foreground font-mono">
-          {formatCurrency(row.original.total_debit)}
+          {formatCurrency(Number(row.original.total_debit))}
         </span>
       ),
     },
@@ -270,9 +287,64 @@ export default function Journal() {
       ),
       cell: ({ row }) => (
         <span className="text-sm font-bold text-foreground font-mono">
-          {formatCurrency(row.original.total_credit)}
+          {formatCurrency(Number(row.original.total_credit))}
         </span>
       ),
+    },
+  ];
+
+  const totalDebit = summary?.total_debit ?? 0;
+  const totalCredit = summary?.total_credit ?? 0;
+
+  const kpiCards = [
+    {
+      label: "إجمالي القيود",
+      value: fmtNum(summary?.total_count ?? 0),
+      icon: BookOpen,
+      color: "bg-blue-500/10 text-blue-600",
+    },
+    {
+      label: "إجمالي مدين",
+      value: formatCurrency(totalDebit),
+      icon: ArrowUpCircle,
+      color: "bg-emerald-500/10 text-emerald-600",
+    },
+    {
+      label: "إجمالي دائن",
+      value: formatCurrency(totalCredit),
+      icon: ArrowDownCircle,
+      color: "bg-rose-500/10 text-rose-600",
+    },
+  ];
+
+  const statusChips = [
+    {
+      label: "الكل",
+      value: fmtNum(summary?.total_count ?? 0),
+      filter: "all",
+      icon: BookOpen,
+      color: "bg-primary/10 text-primary",
+    },
+    {
+      label: "مسودة",
+      value: fmtNum(summary?.draft_count ?? 0),
+      filter: "draft",
+      icon: Clock,
+      color: "bg-amber-500/10 text-amber-600",
+    },
+    {
+      label: "معتمد",
+      value: fmtNum(summary?.posted_count ?? 0),
+      filter: "posted",
+      icon: CheckCircle,
+      color: "bg-emerald-500/10 text-emerald-600",
+    },
+    {
+      label: "ملغي",
+      value: fmtNum(summary?.cancelled_count ?? 0),
+      filter: "cancelled",
+      icon: Ban,
+      color: "bg-destructive/10 text-destructive",
     },
   ];
 
@@ -281,10 +353,14 @@ export default function Journal() {
       <PageHeader
         icon={FileText}
         title="القيود المحاسبية"
-        description={`${entries.length} قيد في دفتر اليومية`}
+        description={`${fmtNum(summary?.total_count ?? 0)} قيد في دفتر اليومية`}
         actions={
           <>
-            <ExportMenu config={journalExportConfig} disabled={loading} />
+            <ExportMenu
+              config={journalExportConfig}
+              disabled={isLoading}
+              onOpen={handlePrepareExport}
+            />
             {canEdit && (
               <Button
                 className="gap-2 shadow-md shadow-primary/20 font-bold"
@@ -298,58 +374,50 @@ export default function Journal() {
         }
       />
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        {statCards.map(
-          ({ label, value, icon: Icon, iconBg, iconColor, filter }) => (
-            <button
-              key={label}
-              onClick={() => setStatusFilter(filter)}
-              className={`bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4 text-right transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}
-            >
-              <div className={`p-3 rounded-full ${iconBg}`}>
-                <Icon className={`h-5 w-5 ${iconColor}`} />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {kpiCards.map(({ label, value, icon: Icon, color }) => (
+          <div
+            key={label}
+            className="rounded-xl border p-4 bg-card transition-all hover:shadow-md"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div
+                className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}
+              >
+                <Icon className="h-4 w-4" />
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <p className="text-xl font-black text-foreground">
-                  {value.toLocaleString("en-US")}
-                </p>
-              </div>
-            </button>
-          ),
-        )}
+              <span className="text-xl font-black text-foreground font-mono">
+                {value}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">{label}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Data Table */}
+      <StatusChips
+        chips={statusChips}
+        active={statusFilter}
+        onSelect={setStatusFilter}
+      />
+
       <DataTable
         columns={columns}
-        data={filteredEntries}
+        data={entries}
         searchPlaceholder="البحث في القيود..."
-        isLoading={loading}
+        isLoading={isLoading}
         emptyMessage="لا توجد قيود محاسبية"
         onRowClick={(entry) => navigate(`/journal/${entry.id}`)}
+        globalFilter={search}
+        onGlobalFilterChange={setSearch}
+        manualPagination
+        pageCount={pageCount}
+        totalRows={totalCount}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        pageSize={PAGE_SIZE}
         toolbarContent={
           <div className="flex gap-3 flex-wrap items-center">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-36 h-9 text-sm bg-card border-border">
-                <SelectValue placeholder="الحالة" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  كل الحالات ({statusCounts.all})
-                </SelectItem>
-                <SelectItem value="draft">
-                  مسودة ({statusCounts.draft})
-                </SelectItem>
-                <SelectItem value="posted">
-                  معتمد ({statusCounts.posted})
-                </SelectItem>
-                <SelectItem value="cancelled">
-                  ملغي ({statusCounts.cancelled})
-                </SelectItem>
-              </SelectContent>
-            </Select>
             <DatePickerInput
               value={dateFrom}
               onChange={setDateFrom}
