@@ -833,6 +833,14 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         p.turnoverClass === "inactive"
       )
         return;
+
+      // H4 — فرصة بيع ضائعة: نفد + بِيع + لم يُشترَ منذ +14 يوم (أي ABC)
+      if (p.lostSale) {
+        p.actionPriority = 1;
+        p.actionLabel = `فرصة بيع ضائعة منذ ${p.daysWithoutRepurchase ?? "+14"} يوم — أعد الشراء`;
+        return;
+      }
+
       if (p.currentStock === 0 && p.soldQty > 0 && p.abcClass === "A") {
         p.actionPriority = 1;
         p.actionLabel = `نفد المخزون — ${p.lastSupplierName ?? "راجع الموردين"}`;
@@ -865,6 +873,15 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         p.actionPriority = 3;
         p.actionLabel = "مخزون فائض";
       }
+
+      // H16 — flag منتج A/B بدون حد أدنى محدد
+      if (
+        (p.abcClass === "A" || p.abcClass === "B") &&
+        (p.minStockLevel === null || p.minStockLevel === 0)
+      ) {
+        p.flagNoMinStock = true;
+        p.hasAnyHealthFlag = true;
+      }
     });
 
     // Step E: supplier returns
@@ -883,14 +900,20 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
 
       // حماية المنتجات حديثة الشراء/الإضافة (بصرف النظر عن المبيعات/المرتجعات)
       if (p.effectiveAge < MIN_OBSERVATION_DAYS) return;
+      if (p.daysSinceFirstActivity < MIN_OBSERVATION_DAYS) return;
 
       // حماية إضافية: إذا اشتُري المنتج خلال آخر 30 يوم فلا يُرشَّح للإرجاع
-      // حتى لو ظهرت إشارات ركود وهمية بسبب قصر الفترة.
       if (
         p.daysSinceLastPurchase !== null &&
         p.daysSinceLastPurchase < MIN_OBSERVATION_DAYS
       )
         return;
+
+      // H3 — استثناء المنتجات الموسمية/المتذبذبة من توصية الإرجاع
+      if (p.isSeasonalOrVolatile) return;
+
+      // H3 — استثناء إذا كان لها مبيعات في نفس الفترة من العام الماضي
+      if (p.priorYearSalesQty !== null && p.priorYearSalesQty > 0) return;
 
       if (
         p.turnoverClass === "stagnant" &&
