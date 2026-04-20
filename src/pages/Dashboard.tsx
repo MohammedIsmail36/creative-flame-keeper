@@ -2142,7 +2142,7 @@ export default function Dashboard() {
             </div>
             <div className="flex-1 h-px bg-border/50" />
             <button
-              onClick={() => navigate("/reports")}
+              onClick={() => navigate("/reports/profit-loss")}
               className="text-xs text-primary/80 hover:text-primary font-medium flex items-center gap-0.5 transition-colors shrink-0"
             >
               التقارير المالية
