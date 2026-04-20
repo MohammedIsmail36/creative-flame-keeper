@@ -1700,17 +1700,87 @@ export default function ProductView() {
         {/* ── Movements Tab ── */}
         <TabsContent value="movements" className="mt-8">
           <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between">
-              <h3 className="font-bold text-foreground">
-                سجل حركات المنتج الكامل
-              </h3>
-              {allMovements.length > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  {allMovements.length} حركة مسجلة
-                </span>
-              )}
+            <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h3 className="font-bold text-foreground">
+                  سجل حركات المنتج الكامل
+                </h3>
+                {allMovements.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    {filteredMovements.length} من أصل {allMovements.length} حركة
+                  </span>
+                )}
+              </div>
+              <ExportMenu
+                config={movementsExportConfig}
+                disabled={filteredMovements.length === 0}
+              />
             </div>
-            <div className="p-6">
+
+            <div className="p-6 space-y-4">
+              {/* Filters bar */}
+              {!loadingMovements && allMovements.length > 0 && (
+                <div className="flex flex-wrap items-end gap-2 p-3 rounded-lg bg-muted/30 border border-border/50">
+                  <div className="flex flex-col gap-1 w-[180px]">
+                    <label className="text-xs text-muted-foreground">
+                      نوع الحركة
+                    </label>
+                    <FilterSelect value={mvType} onValueChange={setMvType}>
+                      <FilterSelectTrigger className="h-9 text-sm">
+                        <FilterSelectValue />
+                      </FilterSelectTrigger>
+                      <FilterSelectContent>
+                        <FilterSelectItem value="all">الكل</FilterSelectItem>
+                        {Object.entries(MOVEMENT_TYPE_LABELS).map(
+                          ([k, v]) => (
+                            <FilterSelectItem key={k} value={k}>
+                              {v}
+                            </FilterSelectItem>
+                          ),
+                        )}
+                      </FilterSelectContent>
+                    </FilterSelect>
+                  </div>
+                  <div className="flex flex-col gap-1 w-[160px]">
+                    <label className="text-xs text-muted-foreground">
+                      من تاريخ
+                    </label>
+                    <DatePickerInput
+                      value={mvFrom}
+                      onChange={setMvFrom}
+                      placeholder="من"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 w-[160px]">
+                    <label className="text-xs text-muted-foreground">
+                      إلى تاريخ
+                    </label>
+                    <DatePickerInput
+                      value={mvTo}
+                      onChange={setMvTo}
+                      placeholder="إلى"
+                      className="h-9"
+                    />
+                  </div>
+                  {(mvType !== "all" || mvFrom || mvTo) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setMvType("all");
+                        setMvFrom("");
+                        setMvTo("");
+                      }}
+                      className="h-9 gap-1.5"
+                    >
+                      <XIcon className="h-3.5 w-3.5" />
+                      مسح الفلاتر
+                    </Button>
+                  )}
+                </div>
+              )}
+
               {loadingMovements && (
                 <div className="flex items-center justify-center py-12 gap-3 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -1731,19 +1801,19 @@ export default function ProductView() {
                   </p>
                 )}
               {!loadingMovements && allMovements.length > 0 && (
-                <div className="space-y-3">
-                  {allMovements.map((mv) => (
-                    <MovementRow
-                      key={mv.id}
-                      mv={mv}
-                      formatCurrency={formatCurrency}
-                    />
-                  ))}
-                </div>
+                <DataTable
+                  columns={movementColumns}
+                  data={filteredMovements}
+                  searchPlaceholder="بحث في الملاحظات..."
+                  pageSize={15}
+                  showColumnToggle={false}
+                  emptyMessage="لا توجد حركات مطابقة للفلاتر"
+                />
               )}
             </div>
           </div>
         </TabsContent>
+
 
         {/* ── Stats Tab ── */}
         <TabsContent value="stats" className="mt-8">
