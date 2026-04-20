@@ -759,13 +759,13 @@ export default function InventoryReport() {
       return [...filtered]
         .sort(
           (a, b) =>
-            Number(b.quantity_on_hand) * Number(b.purchase_price ?? 0) -
-            Number(a.quantity_on_hand) * Number(a.purchase_price ?? 0),
+            Number(b.quantity_on_hand) * getWac(b) -
+            Number(a.quantity_on_hand) * getWac(a),
         )
         .slice(0, 10)
         .map((p) => ({
           name: p.name.length > 14 ? p.name.substring(0, 14) + "…" : p.name,
-          "قيمة المخزون": Number(p.quantity_on_hand) * Number(p.purchase_price),
+          "قيمة المخزون": Number(p.quantity_on_hand) * getWac(p),
         }));
     }
     const data = groupBy === "category" ? categoryData : brandData;
@@ -773,7 +773,7 @@ export default function InventoryReport() {
       name: d.name.length > 14 ? d.name.substring(0, 14) + "…" : d.name,
       "قيمة المخزون": d.purchaseValue,
     }));
-  }, [groupBy, filtered, categoryData, brandData]);
+  }, [groupBy, filtered, categoryData, brandData, wacMap]);
 
   // ── Extra KPIs ──
   const extraKpi = useMemo(() => {
