@@ -18,11 +18,26 @@ export interface ExportConfig {
 interface ExportMenuProps {
   config: ExportConfig;
   disabled?: boolean;
+  /** Called once when the menu is opened (lazy-load full data for export). */
+  onOpen?: () => void | Promise<void>;
 }
 
-export function ExportMenu({ config, disabled }: ExportMenuProps) {
+export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const [preparing, setPreparing] = useState(false);
+
+  const handleToggle = async () => {
+    if (!open && onOpen) {
+      setPreparing(true);
+      try {
+        await onOpen();
+      } finally {
+        setPreparing(false);
+      }
+    }
+    setOpen(!open);
+  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -78,11 +93,11 @@ export function ExportMenu({ config, disabled }: ExportMenuProps) {
       <Button
         variant="outline"
         className="gap-1.5 shadow-sm"
-        onClick={() => setOpen(!open)}
-        disabled={disabled}
+        onClick={handleToggle}
+        disabled={disabled || preparing}
       >
         <Download className="h-4 w-4" />
-        تصدير
+        {preparing ? "جاري التحضير..." : "تصدير"}
       </Button>
       {open && (
         <div className="absolute end-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[150px]">
