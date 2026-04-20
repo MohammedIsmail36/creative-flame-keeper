@@ -1759,6 +1759,39 @@ export default function InventoryReport() {
               emptyMessage="لا توجد بيانات"
             />
           )}
+          {/* ── Reconciliation footer (operational vs accounting) ── */}
+          {!isLoading && groupBy === "product" && (
+            <div className="mt-3 pt-3 border-t flex flex-wrap items-center justify-end gap-x-6 gap-y-1 text-xs">
+              <span className="text-muted-foreground">
+                مجموع التشغيلي:{" "}
+                <span className="font-mono font-semibold text-foreground">
+                  {fmt(reconciliation.operational)}
+                </span>
+              </span>
+              <span className="text-muted-foreground">│</span>
+              <span className="text-muted-foreground">
+                دفتر الأستاذ (1104):{" "}
+                <span className="font-mono font-semibold text-foreground">
+                  {fmt(reconciliation.accounting)}
+                </span>
+              </span>
+              <span className="text-muted-foreground">│</span>
+              <span className="text-muted-foreground">
+                الفرق:{" "}
+                <span
+                  className={`font-mono font-bold ${
+                    reconciliation.absDiff <= 1
+                      ? "text-emerald-600"
+                      : reconciliation.level === "critical"
+                        ? "text-destructive"
+                        : "text-amber-600"
+                  }`}
+                >
+                  {fmt(reconciliation.diff)}
+                </span>
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
