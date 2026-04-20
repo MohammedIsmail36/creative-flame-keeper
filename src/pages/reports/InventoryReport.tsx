@@ -602,7 +602,7 @@ export default function InventoryReport() {
         map[cat].lowCount++;
     });
     return Object.values(map).sort((a, b) => b.purchaseValue - a.purchaseValue);
-  }, [filtered]);
+  }, [filtered, wacMap]);
 
   const categoryColumns = useMemo<ColumnDef<any, any>[]>(
     () => [
