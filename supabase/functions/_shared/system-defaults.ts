@@ -23,7 +23,7 @@ export const SYSTEM_CODES = [
   "3102",
   "4101",
   "5101",
-  "5103",
+  "5108",
 ];
 
 // Keep Arabic defaults in one UTF-8 source to avoid accidental encoding drift.
@@ -197,13 +197,6 @@ export const DEFAULT_ACCOUNTS: DefaultAccount[] = [
     parent_code: "5",
   },
   {
-    code: "5103",
-    name: "فروقات أسعار مرتجعات الشراء",
-    account_type: "expense",
-    is_parent: false,
-    parent_code: "5",
-  },
-  {
     code: "5102",
     name: "رواتب وأجور",
     account_type: "expense",
@@ -213,6 +206,13 @@ export const DEFAULT_ACCOUNTS: DefaultAccount[] = [
   {
     code: "5103",
     name: "إيجار",
+    account_type: "expense",
+    is_parent: false,
+    parent_code: "5",
+  },
+  {
+    code: "5108",
+    name: "فروقات أسعار مرتجعات الشراء",
     account_type: "expense",
     is_parent: false,
     parent_code: "5",
