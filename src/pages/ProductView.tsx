@@ -621,9 +621,16 @@ import {
   ZoomIn,
   AlertCircle,
   Loader2,
+  Info,
 } from "lucide-react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // ─────────────────────────────────────────────
 // Types
@@ -1550,14 +1557,18 @@ export default function ProductView() {
                     value: stats.avgPurchasePrice,
                     suffix: currency,
                     icon: <Tag className="h-5 w-5" />,
+                    tooltip:
+                      "متوسط التكلفة الجاري (Moving WAC):\n(المشتريات + الرصيد الافتتاحي − مرتجعات الشراء)\n÷ صافي الكميات الداخلة\nيُستخدم في حساب تكلفة البضاعة المباعة (COGS).",
                   },
                   {
                     label: "متوسط سعر البيع",
                     value: stats.avgSellingPrice,
                     suffix: currency,
                     icon: <Barcode className="h-5 w-5" />,
+                    tooltip:
+                      "صافي متوسط سعر البيع:\n(إجمالي صافي المبيعات − إجمالي صافي مرتجعات المبيعات)\n÷ (الكميات المباعة − الكميات المرتجعة)\nيُحسب من فواتير ومرتجعات البيع المُرحَّلة فقط.",
                   },
-                ].map((stat) => (
+                ].map((stat: any) => (
                   <div
                     key={stat.label}
                     className="bg-muted/30 p-5 rounded-xl border border-border/50 flex items-center gap-4"
@@ -1565,10 +1576,33 @@ export default function ProductView() {
                     <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center text-primary">
                       {stat.icon}
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        {stat.label}
-                      </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <p className="text-sm text-muted-foreground">
+                          {stat.label}
+                        </p>
+                        {stat.tooltip && (
+                          <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="text-muted-foreground/70 hover:text-primary transition-colors"
+                                  aria-label="معلومات"
+                                >
+                                  <Info className="h-3.5 w-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent
+                                side="top"
+                                className="max-w-xs whitespace-pre-line text-xs leading-relaxed"
+                              >
+                                {stat.tooltip}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
                       <p className="text-xl font-bold font-mono text-foreground">
                         {typeof stat.value === "number"
                           ? stat.value.toLocaleString("en-US")
