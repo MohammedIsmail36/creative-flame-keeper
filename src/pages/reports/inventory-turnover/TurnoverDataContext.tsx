@@ -1197,12 +1197,33 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       0,
     );
 
-    // قيمة المخزون التشغيلية الإجمالية (Σ stockValue) — تطابق InventoryReport
+    // قيمة المخزون التشغيلية الإجمالية (Σ stockValue شامل inactive للمطابقة مع GL)
     const operationalTotalValue = allTurnoverData.reduce(
       (s, p) => s + (p.stockValue ?? 0),
       0,
     );
     const inventoryDiff = operationalTotalValue - glInventoryBalance;
+
+    // H19 — نسبة رأس المال المجمَّد
+    const frozenCapitalPct =
+      operationalTotalValue > 0
+        ? ((stagnantVal + inactiveStockValue) / operationalTotalValue) * 100
+        : 0;
+
+    // H20 — معدل إرجاع العملاء
+    const totalGrossSold = eligibleData.reduce((s, p) => s + p.grossSoldQty, 0);
+    const totalReturned = eligibleData.reduce((s, p) => s + p.returnedQty, 0);
+    const customerReturnRate =
+      totalGrossSold > 0 ? (totalReturned / totalGrossSold) * 100 : 0;
+
+    // H14 — تحذير فترة قصيرة
+    const shortPeriodWarning = rawPeriodDays < 14;
+
+    // H4 — عدد فرص البيع الضائعة + علامات الصحة
+    const lostSaleCount = eligibleData.filter((p) => p.lostSale).length;
+    const healthFlagsCount = allTurnoverData.filter(
+      (p) => p.hasAnyHealthFlag,
+    ).length;
 
     return {
       avgTurnover,
@@ -1210,10 +1231,14 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       urgentBuy,
       classACount: classA.length,
       classAPct,
-      turnoverChange:
-        prevAvgTR > 0 ? ((avgTurnover - prevAvgTR) / prevAvgTR) * 100 : null,
-      stagnantChange:
-        prevStagnantV > 0
+      turnoverChange: shortPeriodWarning
+        ? null
+        : prevAvgTR > 0
+          ? ((avgTurnover - prevAvgTR) / prevAvgTR) * 100
+          : null,
+      stagnantChange: shortPeriodWarning
+        ? null
+        : prevStagnantV > 0
           ? ((stagnantVal - prevStagnantV) / prevStagnantV) * 100
           : null,
       belowMinCount,
@@ -1223,6 +1248,11 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       glInventoryBalance,
       operationalTotalValue,
       inventoryDiff,
+      frozenCapitalPct,
+      customerReturnRate,
+      shortPeriodWarning,
+      lostSaleCount,
+      healthFlagsCount,
     };
   }, [
     eligibleData,
