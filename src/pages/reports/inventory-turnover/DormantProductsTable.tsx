@@ -51,6 +51,21 @@ export function DormantProductsTable({
         ),
       },
       {
+        accessorKey: "wac",
+        header: "WAC",
+        cell: ({ getValue }) => {
+          const v = getValue() as number | null;
+          return (
+            <span
+              className="tabular-nums font-mono text-xs text-muted-foreground"
+              title="متوسط التكلفة المرجح — من حركات المخزون"
+            >
+              {v != null ? fmt(v) : "—"}
+            </span>
+          );
+        },
+      },
+      {
         accessorKey: "stockValue",
         header: "القيمة",
         cell: ({ getValue }) => {

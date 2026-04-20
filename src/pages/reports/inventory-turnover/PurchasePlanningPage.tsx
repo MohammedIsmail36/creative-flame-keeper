@@ -214,13 +214,46 @@ export default function PurchasePlanningPage() {
         },
       },
       {
-        accessorKey: "lastPurchasePrice",
-        header: "سعر الشراء",
+        accessorKey: "wac",
+        header: "WAC",
         cell: ({ getValue }) => {
           const v = getValue() as number | null;
           return (
-            <span className="text-xs tabular-nums">
+            <span
+              className="text-xs tabular-nums text-muted-foreground"
+              title="متوسط التكلفة المرجح — من حركات المخزون"
+            >
               {v != null ? fmt(v) : "—"}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "lastPurchasePrice",
+        header: "سعر الشراء",
+        cell: ({ row }) => {
+          const v = row.original.lastPurchasePrice;
+          const wac = row.original.wac;
+          // تنبيه عند فرق > 20%
+          const variance =
+            v != null && wac != null && wac > 0
+              ? Math.abs((v - wac) / wac) * 100
+              : 0;
+          const high = variance > 20;
+          return (
+            <span
+              className={cn(
+                "text-xs tabular-nums",
+                high && "text-amber-600 font-semibold",
+              )}
+              title={
+                high
+                  ? `فرق ${variance.toFixed(0)}% عن WAC (${fmt(wac ?? 0)})`
+                  : undefined
+              }
+            >
+              {v != null ? fmt(v) : "—"}
+              {high && " ⚠"}
             </span>
           );
         },
