@@ -899,6 +899,7 @@ export default function InventoryReport() {
     dateFrom,
     dateTo,
     movementKpi,
+    wacMap,
   ]);
 
   return (
