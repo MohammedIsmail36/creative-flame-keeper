@@ -150,7 +150,8 @@ export default function TrialBalance() {
 
   useEffect(() => {
     fetchData();
-  }, [settings?.enable_fiscal_year_closing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.enable_fiscal_year_closing, dateFrom, dateTo]);
 
   const revenueExpenseTypes = ["revenue", "expense", "expenses"];
 
