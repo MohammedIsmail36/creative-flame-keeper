@@ -623,6 +623,7 @@ export default function InventoryTurnoverReport() {
     purchasesByProduct,
     salesReturnsByProduct,
     purchaseReturnsByProduct,
+    wacMap,
     periodDays,
     today,
   ]);
