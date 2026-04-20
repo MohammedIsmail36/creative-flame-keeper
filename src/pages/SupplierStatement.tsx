@@ -12,7 +12,7 @@ export default function SupplierStatement() {
         title="كشف حساب مورد"
         description="عرض حركات وأرصدة المورد"
       />
-      <AccountStatement defaultEntityType="supplier" defaultEntityId={id || undefined} />
+      <AccountStatement defaultEntityType="supplier" defaultEntityId={id || undefined} lockEntityType />
     </div>
   );
 }
