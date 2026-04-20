@@ -670,6 +670,10 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
     });
 
     // Step E: supplier returns
+    // الحماية الأساسية: لا نرشّح أي منتج للإرجاع إلا بعد فترة ملاحظة كافية
+    // (نفس عتبة المنتجات الجديدة = 30 يوم) لتفادي الحكم على منتجات حديثة
+    // الشراء/الإضافة بأنها راكدة.
+    const MIN_OBSERVATION_DAYS = DAYS_CONSIDERED_NEW; // 30 يوم
     items.forEach((p) => {
       if (
         p.turnoverClass === "new" ||
@@ -678,6 +682,18 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       )
         return;
       if (p.currentStock <= 0) return;
+
+      // حماية المنتجات حديثة الشراء/الإضافة (بصرف النظر عن المبيعات/المرتجعات)
+      if (p.effectiveAge < MIN_OBSERVATION_DAYS) return;
+
+      // حماية إضافية: إذا اشتُري المنتج خلال آخر 30 يوم فلا يُرشَّح للإرجاع
+      // حتى لو ظهرت إشارات ركود وهمية بسبب قصر الفترة.
+      if (
+        p.daysSinceLastPurchase !== null &&
+        p.daysSinceLastPurchase < MIN_OBSERVATION_DAYS
+      )
+        return;
+
       if (
         p.turnoverClass === "stagnant" &&
         p.currentStock > 0 &&
@@ -686,7 +702,7 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         p.supplierReturnCandidate = true;
         p.supplierReturnReason =
           p.soldQty === 0
-            ? "لم يُباع أي وحدة خلال الفترة"
+            ? `لم يُباع أي وحدة منذ ${p.effectiveAge} يوم`
             : `دوران راكد — تغطية ${p.coverageDays ?? "∞"} يوم`;
       } else if (
         p.abcClass === "C" &&
