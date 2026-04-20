@@ -1084,6 +1084,7 @@ export default function ProductView() {
   const { settings } = useSettings();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const currency = settings?.default_currency ?? "EGP";
 
   const {
     product,
