@@ -12,7 +12,7 @@ export default function CustomerStatement() {
         title="كشف حساب عميل"
         description="عرض حركات وأرصدة العميل"
       />
-      <AccountStatement defaultEntityType="customer" defaultEntityId={id || undefined} />
+      <AccountStatement defaultEntityType="customer" defaultEntityId={id || undefined} lockEntityType />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
+import { LookupCombobox } from "@/components/LookupCombobox";
 import {
   Users,
   Truck,
@@ -51,6 +52,7 @@ interface StatementLine {
 interface AccountStatementProps {
   defaultEntityType?: EntityType;
   defaultEntityId?: string;
+  lockEntityType?: boolean;
 }
 
 const fmt = (val: number) =>
@@ -62,6 +64,7 @@ const fmt = (val: number) =>
 export default function AccountStatement({
   defaultEntityType,
   defaultEntityId,
+  lockEntityType = false,
 }: AccountStatementProps = {}) {
   const { settings } = useSettings();
   const [entityType, setEntityType] = useState<EntityType>(
@@ -289,48 +292,50 @@ export default function AccountStatement({
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-            <div>
-              <Label className="text-xs">نوع الحساب</Label>
-              <Select
-                value={entityType}
-                onValueChange={(v) => setEntityType(v as EntityType)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="customer">
-                    <span className="flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5" />
-                      عميل
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="supplier">
-                    <span className="flex items-center gap-1.5">
-                      <Truck className="w-3.5 h-3.5" />
-                      مورد
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${lockEntityType ? "lg:grid-cols-4" : "lg:grid-cols-5"} gap-3 items-end`}>
+            {!lockEntityType && (
+              <div>
+                <Label className="text-xs">نوع الحساب</Label>
+                <Select
+                  value={entityType}
+                  onValueChange={(v) => setEntityType(v as EntityType)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="customer">
+                      <span className="flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5" />
+                        عميل
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="supplier">
+                      <span className="flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5" />
+                        مورد
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <Label className="text-xs">
                 {entityType === "customer" ? "العميل" : "المورد"}
               </Label>
-              <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {entities.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.code} - {e.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <LookupCombobox
+                items={entities.map((e) => ({
+                  id: e.id,
+                  name: `${e.code} - ${e.name}`,
+                  searchKeywords: `${e.code} ${e.name}`,
+                }))}
+                value={selectedEntity}
+                onValueChange={setSelectedEntity}
+                placeholder={`اختر ${entityType === "customer" ? "عميلاً" : "مورداً"}...`}
+                searchPlaceholder="ابحث بالكود أو الاسم..."
+                emptyMessage="لا توجد نتائج"
+              />
             </div>
             <div>
               <Label className="text-xs">من تاريخ</Label>
