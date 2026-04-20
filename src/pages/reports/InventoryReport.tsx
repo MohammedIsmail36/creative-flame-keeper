@@ -373,7 +373,7 @@ export default function InventoryReport() {
       .map((d) => ({ ...d, صافي: d.وارد - d.صادر }));
   }, [movements, timeMode]);
 
-  // ── Pie data for category stock distribution ──
+  // ── Pie data for category stock distribution (WAC-based) ──
   const categoryPieData = useMemo(() => {
     const map: Record<string, number> = {};
     products
@@ -381,15 +381,14 @@ export default function InventoryReport() {
       .forEach((p) => {
         const cat = p.product_categories?.name || "بدون تصنيف";
         map[cat] =
-          (map[cat] || 0) +
-          Number(p.quantity_on_hand) * Number(p.purchase_price ?? 0);
+          (map[cat] || 0) + Number(p.quantity_on_hand) * getWac(p);
       });
     const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
     const top5 = sorted.slice(0, 5).map(([name, value]) => ({ name, value }));
     const restValue = sorted.slice(5).reduce((s, [, v]) => s + v, 0);
     if (restValue > 0) top5.push({ name: "أخرى", value: restValue });
     return top5;
-  }, [products]);
+  }, [products, wacMap]);
 
   // ── Filtered products ──
   const filtered = useMemo(() => {
