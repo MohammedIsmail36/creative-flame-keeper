@@ -288,15 +288,14 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  // ── WAC per product (نفس مصدر InventoryReport و GL لحساب 1104) ─────────────
+  // ── WAC per product (يشمل adjustments للاتساق مع GL 1104) ──────────────
   const { data: wacMap = {} } = useQuery({
     queryKey: ["turnover-wac"],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_movements")
-        .select("product_id, movement_type, quantity, total_cost")
-        .in("movement_type", ["purchase", "opening_balance", "purchase_return"]);
+        .select("product_id, movement_type, quantity, total_cost");
       if (error) throw error;
       const agg: Record<string, { qty: number; cost: number }> = {};
       (data ?? []).forEach((m: any) => {
@@ -304,19 +303,84 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         if (!agg[pid]) agg[pid] = { qty: 0, cost: 0 };
         const q = Number(m.quantity);
         const c = Number(m.total_cost);
+        // الزيادات: شراء، رصيد افتتاحي، تسوية موجبة
+        // النقصان: مرتجع شراء، تسوية سالبة (لكن لا نطرح المبيعات لأنها لا تؤثر على WAC)
         if (m.movement_type === "purchase_return") {
           agg[pid].qty -= q;
           agg[pid].cost -= c;
-        } else {
+        } else if (
+          m.movement_type === "purchase" ||
+          m.movement_type === "opening_balance" ||
+          m.movement_type === "adjustment"
+        ) {
           agg[pid].qty += q;
           agg[pid].cost += c;
         }
+        // باقي أنواع الحركات (sale, sale_return) لا تؤثر على WAC
       });
       const result: Record<string, number> = {};
       Object.entries(agg).forEach(([pid, { qty, cost }]) => {
         result[pid] = qty > 0 ? cost / qty : 0;
       });
       return result;
+    },
+  });
+
+  // ── First-activity date per product (أول حركة شراء أو بيع) ──────────
+  const { data: firstActivityMap = {} } = useQuery({
+    queryKey: ["turnover-first-activity"],
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inventory_movements")
+        .select("product_id, movement_date, movement_type")
+        .in("movement_type", ["purchase", "opening_balance", "sale"])
+        .order("movement_date", { ascending: true });
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      (data ?? []).forEach((m: any) => {
+        const pid = m.product_id;
+        if (!map[pid]) map[pid] = m.movement_date;
+      });
+      return map;
+    },
+  });
+
+  // ── Prior year same-period sales (للكشف عن الموسمية) ──────────────────
+  const priorYearFrom = format(subDays(new Date(dateFrom), 365), "yyyy-MM-dd");
+  const priorYearTo = format(subDays(new Date(dateTo), 365), "yyyy-MM-dd");
+  const { data: priorYearSalesData = [] } = useQuery({
+    queryKey: ["turnover-prior-year-sales", priorYearFrom, priorYearTo],
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_invoice_items")
+        .select(
+          "product_id, quantity, invoice:sales_invoices!inner(invoice_date, status)",
+        )
+        .gte("invoice.invoice_date", priorYearFrom)
+        .lte("invoice.invoice_date", priorYearTo)
+        .eq("invoice.status", "posted");
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  // ── Weekly sales for variability/seasonality (CV) ─────────────────────
+  const variabilityFrom = format(subDays(new Date(), 84), "yyyy-MM-dd"); // 12 أسابيع
+  const { data: weeklySalesData = [] } = useQuery({
+    queryKey: ["turnover-weekly-sales", variabilityFrom],
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_invoice_items")
+        .select(
+          "product_id, quantity, invoice:sales_invoices!inner(invoice_date, status)",
+        )
+        .gte("invoice.invoice_date", variabilityFrom)
+        .eq("invoice.status", "posted");
+      if (error) throw error;
+      return data as any[];
     },
   });
 
