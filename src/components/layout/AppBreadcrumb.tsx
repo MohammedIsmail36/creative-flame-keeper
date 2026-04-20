@@ -39,6 +39,7 @@ const routeLabels: Record<string, string> = {
   expenses: "المصروفات",
   "expense-types": "أنواع المصروفات",
   reports: "التقارير",
+  health: "صحة المنتجات",
   "sales-report": "تقرير المبيعات",
   "purchases-report": "تقرير المشتريات",
   growth: "تحليلات النمو",
@@ -110,22 +111,28 @@ export function AppBreadcrumb() {
           </BreadcrumbLink>
         </BreadcrumbItem>
 
-        {crumbs.map((crumb, index) => (
-          <span key={crumb.path} className="contents">
-            <BreadcrumbSeparator>
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </BreadcrumbSeparator>
-            <BreadcrumbItem>
-              {index === crumbs.length - 1 ? (
-                <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-              ) : (
-                <BreadcrumbLink asChild>
-                  <Link to={crumb.path}>{crumb.label}</Link>
-                </BreadcrumbLink>
-              )}
-            </BreadcrumbItem>
-          </span>
-        ))}
+        {crumbs.map((crumb, index) => {
+          const isLast = index === crumbs.length - 1;
+          // Segments that are not navigable (no index page exists for them)
+          const nonNavigable = new Set(["/reports", "/inventory"]);
+          const isNonNavigable = nonNavigable.has(crumb.path);
+          return (
+            <span key={crumb.path} className="contents">
+              <BreadcrumbSeparator>
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </BreadcrumbSeparator>
+              <BreadcrumbItem>
+                {isLast || isNonNavigable ? (
+                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink asChild>
+                    <Link to={crumb.path}>{crumb.label}</Link>
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </span>
+          );
+        })}
       </BreadcrumbList>
     </Breadcrumb>
   );
