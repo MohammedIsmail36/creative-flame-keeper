@@ -905,9 +905,15 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         const ps = prevSalesByProduct[p.id];
         const stock = Number(p.quantity_on_hand);
         const sold = ps?.soldQty || 0;
+        // مقارنة عادلة: نفس أساس WAC المستخدم في الفترة الحالية
+        const wacFromMovements = wacMap[p.id];
         const lpp =
           purchasesByProduct[p.id]?.lastPrice ??
           (p.purchase_price ? Number(p.purchase_price) : null);
+        const wac =
+          typeof wacFromMovements === "number" && wacFromMovements > 0
+            ? wacFromMovements
+            : lpp;
         const tr = stock > 0 ? sold / stock : sold > 0 ? sold : 0;
         const ann = tr * (365 / periodDays);
         const tc: TurnoverClass =
@@ -921,7 +927,7 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         return {
           turnoverRate: tr,
           turnoverClass: tc,
-          stockValue: lpp !== null ? stock * lpp : 0,
+          stockValue: wac !== null ? stock * wac : 0,
         };
       });
 
@@ -936,8 +942,10 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       .reduce((s, p) => s + p.stockValue, 0);
 
     const belowMinCount = eligibleData.filter((p) => p.belowMinStock).length;
+    // تكلفة الشراء المقترح: lastPurchasePrice ?? wac (يضمن قيمة حتى لو لم يكن هناك آخر سعر شراء)
     const totalSuggestedCost = purchaseSuggestions.reduce(
-      (s, p) => s + p.suggestedPurchaseQty * (p.lastPurchasePrice ?? 0),
+      (s, p) =>
+        s + p.suggestedPurchaseQty * (p.lastPurchasePrice ?? p.wac ?? 0),
       0,
     );
     const inactiveStockValue = inactiveProducts.reduce(
@@ -948,6 +956,13 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       (s, p) => s + (p.stockValue ?? 0),
       0,
     );
+
+    // قيمة المخزون التشغيلية الإجمالية (Σ stockValue) — تطابق InventoryReport
+    const operationalTotalValue = allTurnoverData.reduce(
+      (s, p) => s + (p.stockValue ?? 0),
+      0,
+    );
+    const inventoryDiff = operationalTotalValue - glInventoryBalance;
 
     return {
       avgTurnover,
@@ -965,15 +980,21 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       totalSuggestedCost,
       inactiveStockValue,
       supplierReturnValue,
+      glInventoryBalance,
+      operationalTotalValue,
+      inventoryDiff,
     };
   }, [
     eligibleData,
+    allTurnoverData,
     products,
     prevSalesByProduct,
     purchasesByProduct,
     purchaseSuggestions,
     inactiveProducts,
     supplierReturnCandidates,
+    glInventoryBalance,
+    wacMap,
     periodDays,
     today,
   ]);
