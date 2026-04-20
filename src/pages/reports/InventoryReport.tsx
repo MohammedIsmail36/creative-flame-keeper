@@ -190,6 +190,44 @@ export default function InventoryReport() {
   const movements = allMovements.current;
   const prevMovements = allMovements.previous;
 
+  // ── Query: WAC per product (from ALL inventory movements)
+  // مصدر الحقيقة لقيمة المخزون = نفس مصدر حساب GL (1104)
+  const { data: wacMap = {} } = useQuery({
+    queryKey: ["inventory-report-wac"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inventory_movements")
+        .select("product_id, movement_type, quantity, total_cost")
+        .in("movement_type", ["purchase", "opening_balance", "purchase_return"]);
+      if (error) throw error;
+      const agg: Record<string, { qty: number; cost: number }> = {};
+      (data ?? []).forEach((m: any) => {
+        const pid = m.product_id;
+        if (!agg[pid]) agg[pid] = { qty: 0, cost: 0 };
+        const q = Number(m.quantity);
+        const c = Number(m.total_cost);
+        if (m.movement_type === "purchase_return") {
+          agg[pid].qty -= q;
+          agg[pid].cost -= c;
+        } else {
+          agg[pid].qty += q;
+          agg[pid].cost += c;
+        }
+      });
+      const result: Record<string, number> = {};
+      Object.entries(agg).forEach(([pid, { qty, cost }]) => {
+        result[pid] = qty > 0 ? cost / qty : 0;
+      });
+      return result;
+    },
+  });
+
+  // helper: WAC للمنتج (بديل آمن: سعر الشراء الأخير لو لا توجد حركات)
+  const getWac = (p: any) => {
+    const w = wacMap[p.id];
+    return typeof w === "number" && w > 0 ? w : Number(p.purchase_price ?? 0);
+  };
+
   // ── Movement KPIs ──
   const movementKpi = useMemo(() => {
     const inTypes = [
@@ -335,7 +373,7 @@ export default function InventoryReport() {
       .map((d) => ({ ...d, صافي: d.وارد - d.صادر }));
   }, [movements, timeMode]);
 
-  // ── Pie data for category stock distribution ──
+  // ── Pie data for category stock distribution (WAC-based) ──
   const categoryPieData = useMemo(() => {
     const map: Record<string, number> = {};
     products
@@ -343,15 +381,14 @@ export default function InventoryReport() {
       .forEach((p) => {
         const cat = p.product_categories?.name || "بدون تصنيف";
         map[cat] =
-          (map[cat] || 0) +
-          Number(p.quantity_on_hand) * Number(p.purchase_price ?? 0);
+          (map[cat] || 0) + Number(p.quantity_on_hand) * getWac(p);
       });
     const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
     const top5 = sorted.slice(0, 5).map(([name, value]) => ({ name, value }));
     const restValue = sorted.slice(5).reduce((s, [, v]) => s + v, 0);
     if (restValue > 0) top5.push({ name: "أخرى", value: restValue });
     return top5;
-  }, [products]);
+  }, [products, wacMap]);
 
   // ── Filtered products ──
   const filtered = useMemo(() => {
@@ -375,7 +412,7 @@ export default function InventoryReport() {
     const totalItems = active.length;
     const totalQty = active.reduce((s, p) => s + Number(p.quantity_on_hand), 0);
     const purchaseValue = active.reduce(
-      (s, p) => s + Number(p.quantity_on_hand) * Number(p.purchase_price ?? 0),
+      (s, p) => s + Number(p.quantity_on_hand) * getWac(p),
       0,
     );
     const sellingValue = active.reduce(
@@ -400,7 +437,7 @@ export default function InventoryReport() {
       lowStock,
       zeroStock,
     };
-  }, [products]);
+  }, [products, wacMap]);
 
   // ═══ GROUPING: By Product (default) ═══
   const productColumns = useMemo<ColumnDef<any, any>[]>(
@@ -471,8 +508,7 @@ export default function InventoryReport() {
       {
         id: "stock_value",
         header: "قيمة المخزون",
-        accessorFn: (r: any) =>
-          Number(r.quantity_on_hand) * Number(r.purchase_price ?? 0),
+        accessorFn: (r: any) => Number(r.quantity_on_hand) * getWac(r),
         cell: ({ getValue }) => (
           <span className="font-mono">{fmt(getValue() as number)}</span>
         ),
@@ -481,9 +517,7 @@ export default function InventoryReport() {
             .getFilteredRowModel()
             .rows.reduce(
               (s, r) =>
-                s +
-                Number(r.original.quantity_on_hand) *
-                  Number(r.original.purchase_price ?? 0),
+                s + Number(r.original.quantity_on_hand) * getWac(r.original),
               0,
             );
           return <span className="font-bold font-mono">{fmt(total)}</span>;
@@ -528,7 +562,7 @@ export default function InventoryReport() {
         },
       },
     ],
-    [],
+    [wacMap],
   );
 
   // ═══ GROUPING: By Category ═══
@@ -558,7 +592,7 @@ export default function InventoryReport() {
       map[cat].count++;
       map[cat].qty += Number(p.quantity_on_hand);
       map[cat].purchaseValue +=
-        Number(p.quantity_on_hand) * Number(p.purchase_price ?? 0);
+        Number(p.quantity_on_hand) * getWac(p);
       map[cat].sellingValue +=
         Number(p.quantity_on_hand) * Number(p.selling_price ?? 0);
       if (
@@ -568,7 +602,7 @@ export default function InventoryReport() {
         map[cat].lowCount++;
     });
     return Object.values(map).sort((a, b) => b.purchaseValue - a.purchaseValue);
-  }, [filtered]);
+  }, [filtered, wacMap]);
 
   const categoryColumns = useMemo<ColumnDef<any, any>[]>(
     () => [
@@ -704,7 +738,7 @@ export default function InventoryReport() {
       map[brand].count++;
       map[brand].qty += Number(p.quantity_on_hand);
       map[brand].purchaseValue +=
-        Number(p.quantity_on_hand) * Number(p.purchase_price ?? 0);
+        Number(p.quantity_on_hand) * getWac(p);
       map[brand].sellingValue +=
         Number(p.quantity_on_hand) * Number(p.selling_price ?? 0);
       if (
@@ -714,7 +748,7 @@ export default function InventoryReport() {
         map[brand].lowCount++;
     });
     return Object.values(map).sort((a, b) => b.purchaseValue - a.purchaseValue);
-  }, [filtered]);
+  }, [filtered, wacMap]);
 
   // Brand uses same columns as category
   const brandColumns = categoryColumns;
@@ -725,13 +759,13 @@ export default function InventoryReport() {
       return [...filtered]
         .sort(
           (a, b) =>
-            Number(b.quantity_on_hand) * Number(b.purchase_price ?? 0) -
-            Number(a.quantity_on_hand) * Number(a.purchase_price ?? 0),
+            Number(b.quantity_on_hand) * getWac(b) -
+            Number(a.quantity_on_hand) * getWac(a),
         )
         .slice(0, 10)
         .map((p) => ({
           name: p.name.length > 14 ? p.name.substring(0, 14) + "…" : p.name,
-          "قيمة المخزون": Number(p.quantity_on_hand) * Number(p.purchase_price),
+          "قيمة المخزون": Number(p.quantity_on_hand) * getWac(p),
         }));
     }
     const data = groupBy === "category" ? categoryData : brandData;
@@ -739,7 +773,7 @@ export default function InventoryReport() {
       name: d.name.length > 14 ? d.name.substring(0, 14) + "…" : d.name,
       "قيمة المخزون": d.purchaseValue,
     }));
-  }, [groupBy, filtered, categoryData, brandData]);
+  }, [groupBy, filtered, categoryData, brandData, wacMap]);
 
   // ── Extra KPIs ──
   const extraKpi = useMemo(() => {
@@ -801,6 +835,7 @@ export default function InventoryReport() {
           const min = Number(p.min_stock_level);
           const sell = Number(p.selling_price);
           const buy = Number(p.purchase_price);
+          const wac = getWac(p);
           const margin =
             sell > 0 ? (((sell - buy) / sell) * 100).toFixed(1) + "%" : "0%";
           return [
@@ -815,7 +850,7 @@ export default function InventoryReport() {
             min,
             buy,
             sell,
-            qty * buy,
+            qty * wac,
             margin,
             qty === 0 ? "نفد" : qty <= min ? "منخفض" : "طبيعي",
           ];
@@ -864,6 +899,7 @@ export default function InventoryReport() {
     dateFrom,
     dateTo,
     movementKpi,
+    wacMap,
   ]);
 
   return (
