@@ -742,7 +742,6 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
           flagZeroWac ||
           flagFullySupplierReturned,
       };
-      };
 
       if (!isActive) {
         return {
