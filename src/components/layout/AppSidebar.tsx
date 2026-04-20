@@ -28,6 +28,7 @@ import {
   Sparkles,
   Archive,
   Undo2,
+  ShieldAlert,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
@@ -357,6 +358,12 @@ const sections: MenuSection[] = [
             title: "التحليل الشامل",
             url: "/reports/inventory-turnover/analysis",
             icon: BarChart3,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "صحة المنتجات",
+            url: "/reports/inventory-turnover/health",
+            icon: ShieldAlert,
             roles: ["admin", "accountant"],
           },
         ],
