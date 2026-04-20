@@ -33,6 +33,12 @@ export interface TurnoverKPIValues {
   glInventoryBalance: number;
   operationalTotalValue: number;
   inventoryDiff: number;
+  // Deep analytics KPIs
+  frozenCapitalPct: number;          // (stagnant + inactive) / operationalTotalValue × 100
+  customerReturnRate: number;        // Σ returnedQty / Σ grossSoldQty × 100
+  shortPeriodWarning: boolean;       // periodDays < 14
+  lostSaleCount: number;             // عدد فرص البيع الضائعة
+  healthFlagsCount: number;          // عدد المنتجات بأي علامة صحة
 }
 
 // ─── context value ───────────────────────────────────────────────────────────
