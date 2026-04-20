@@ -73,7 +73,7 @@ export default function Ledger() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_ledger_active_accounts");
       if (error) throw error;
-      return (data as any) as Account[];
+      return (data as unknown) as Account[];
     },
   });
 
