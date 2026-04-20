@@ -1084,6 +1084,7 @@ export default function ProductView() {
   const { settings } = useSettings();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const currency = settings?.default_currency ?? "EGP";
 
   const {
     product,
@@ -1228,13 +1229,13 @@ export default function ProductView() {
                 {
                   label: "سعر البيع",
                   value: Number(product.selling_price).toLocaleString("en-US"),
-                  suffix: settings?.default_currency || "EGP",
+                  suffix: currency,
                   highlight: true,
                 },
                 {
                   label: "سعر الشراء",
                   value: Number(product.purchase_price).toLocaleString("en-US"),
-                  suffix: settings?.default_currency || "EGP",
+                  suffix: currency,
                   highlight: false,
                 },
                 {
@@ -1529,7 +1530,7 @@ export default function ProductView() {
                   {
                     label: "إجمالي المبيعات",
                     value: stats.totalSalesRevenue,
-                    suffix: settings?.default_currency || "EGP",
+                    suffix: currency,
                     icon: <BarChart3 className="h-5 w-5" />,
                   },
                   {
@@ -1541,19 +1542,19 @@ export default function ProductView() {
                   {
                     label: "إجمالي المشتريات",
                     value: stats.totalPurchaseCost,
-                    suffix: settings?.default_currency || "EGP",
+                    suffix: currency,
                     icon: <ArrowUp className="h-5 w-5" />,
                   },
                   {
                     label: "متوسط سعر الشراء",
                     value: stats.avgPurchasePrice,
-                    suffix: settings?.default_currency || "EGP",
+                    suffix: currency,
                     icon: <Tag className="h-5 w-5" />,
                   },
                   {
                     label: "متوسط سعر البيع",
                     value: stats.avgSellingPrice,
-                    suffix: settings?.default_currency || "EGP",
+                    suffix: currency,
                     icon: <Barcode className="h-5 w-5" />,
                   },
                 ].map((stat) => (
