@@ -825,7 +825,8 @@ function useProductData(id: string) {
       .from("inventory_movements")
       .select("*")
       .eq("product_id", id)
-      .order("movement_date", { ascending: false });
+      .order("movement_date", { ascending: true })
+      .order("created_at", { ascending: true });
 
     if (mvError) {
       setMovementsError("تعذّر تحميل سجل الحركات");
