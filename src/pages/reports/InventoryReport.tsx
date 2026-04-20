@@ -835,6 +835,7 @@ export default function InventoryReport() {
           const min = Number(p.min_stock_level);
           const sell = Number(p.selling_price);
           const buy = Number(p.purchase_price);
+          const wac = getWac(p);
           const margin =
             sell > 0 ? (((sell - buy) / sell) * 100).toFixed(1) + "%" : "0%";
           return [
@@ -849,7 +850,7 @@ export default function InventoryReport() {
             min,
             buy,
             sell,
-            qty * buy,
+            qty * wac,
             margin,
             qty === 0 ? "نفد" : qty <= min ? "منخفض" : "طبيعي",
           ];
