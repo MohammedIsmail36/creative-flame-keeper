@@ -748,7 +748,7 @@ export default function InventoryReport() {
         map[brand].lowCount++;
     });
     return Object.values(map).sort((a, b) => b.purchaseValue - a.purchaseValue);
-  }, [filtered]);
+  }, [filtered, wacMap]);
 
   // Brand uses same columns as category
   const brandColumns = categoryColumns;
