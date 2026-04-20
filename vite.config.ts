@@ -39,16 +39,30 @@ export default defineConfig(({ mode }) => ({
 
           // PDF generation — only needed when exporting/printing
           if (
+            id.includes("/@react-pdf/") ||
             id.includes("/jspdf") ||
-            id.includes("/jspdf-autotable") ||
             id.includes("/html2canvas") ||
-            id.includes("/canvg")
+            id.includes("/canvg") ||
+            id.includes("/pdfkit") ||
+            id.includes("/fontkit") ||
+            id.includes("/yoga-layout") ||
+            id.includes("/restructure") ||
+            id.includes("/png-js") ||
+            id.includes("/brotli") ||
+            id.includes("/linebreak") ||
+            id.includes("/unicode-")
           ) {
             return "pdf";
           }
 
           // Excel/CSV export
-          if (id.includes("/xlsx") || id.includes("/papaparse")) {
+          if (
+            id.includes("/exceljs") ||
+            id.includes("/xlsx") ||
+            id.includes("/papaparse") ||
+            id.includes("/fast-csv") ||
+            id.includes("/@fast-csv")
+          ) {
             return "excel";
           }
 
