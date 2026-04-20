@@ -497,6 +497,56 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
     return map;
   }, [purchaseData]);
 
+  // ── Prior year same-period sales (للموسمية) ──────────────────────────
+  const priorYearSalesByProduct = useMemo(() => {
+    const map: Record<string, number> = {};
+    priorYearSalesData.forEach((item: any) => {
+      const pid = item.product_id;
+      if (!pid) return;
+      map[pid] = (map[pid] || 0) + Number(item.quantity);
+    });
+    return map;
+  }, [priorYearSalesData]);
+
+  // ── Sales variability (CV) — معامل اختلاف المبيعات الأسبوعية ─────────
+  const variabilityByProduct = useMemo(() => {
+    const weekKey = (d: string) => {
+      const dt = new Date(d);
+      const onejan = new Date(dt.getFullYear(), 0, 1);
+      const week = Math.ceil(
+        ((dt.getTime() - onejan.getTime()) / 86400000 +
+          onejan.getDay() + 1) / 7,
+      );
+      return `${dt.getFullYear()}-W${week}`;
+    };
+    const buckets: Record<string, Record<string, number>> = {};
+    weeklySalesData.forEach((item: any) => {
+      const pid = item.product_id;
+      const d = item.invoice?.invoice_date;
+      if (!pid || !d) return;
+      const wk = weekKey(d);
+      if (!buckets[pid]) buckets[pid] = {};
+      buckets[pid][wk] = (buckets[pid][wk] || 0) + Number(item.quantity);
+    });
+    const result: Record<string, number | null> = {};
+    Object.entries(buckets).forEach(([pid, weeks]) => {
+      const vals = Object.values(weeks);
+      if (vals.length < 4) {
+        result[pid] = null;
+        return;
+      }
+      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+      if (mean <= 0) {
+        result[pid] = null;
+        return;
+      }
+      const variance =
+        vals.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / vals.length;
+      result[pid] = Math.sqrt(variance) / mean; // CV
+    });
+    return result;
+  }, [weeklySalesData]);
+
   // ── core calculation ─────────────────────────────────────────────────────
 
   const allTurnoverData = useMemo(() => {
