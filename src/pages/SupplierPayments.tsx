@@ -335,10 +335,9 @@ export default function SupplierPayments() {
     const paymentPostedNum = existingPaymentId
       ? await getNextPostedNumber("supplier_payments")
       : await getNextPostedNumber("supplier_payments");
-    const spPrefix = settings?.supplier_payment_prefix || "SPY-";
-    const displayPayNum = `${spPrefix}${String(paymentPostedNum).padStart(4, "0")}`;
+    const displayPayNum = `PAY-${String(paymentPostedNum).padStart(4, "0")}`;
     const supplierName = suppliers.find((s) => s.id === supId)?.name || "";
-    const desc = `سداد لمورد ${supplierName} - سند ${displayPayNum}`;
+    const desc = `سند صرف رقم ${displayPayNum} - سداد لمورد ${supplierName}`;
 
     const jePostedNum = await getNextPostedNumber("journal_entries");
     const { data: je, error: jeError } = await supabase

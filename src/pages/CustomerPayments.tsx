@@ -338,10 +338,9 @@ export default function CustomerPayments() {
     const paymentPostedNum = existingPaymentId
       ? await getNextPostedNumber("customer_payments")
       : await getNextPostedNumber("customer_payments");
-    const cpPrefix = settings?.customer_payment_prefix || "CPY-";
-    const displayPayNum = `${cpPrefix}${String(paymentPostedNum).padStart(4, "0")}`;
+    const displayPayNum = `RCV-${String(paymentPostedNum).padStart(4, "0")}`;
     const customerName = customers.find((c) => c.id === custId)?.name || "";
-    const desc = `تحصيل من عميل ${customerName} - سند ${displayPayNum}`;
+    const desc = `سند قبض رقم ${displayPayNum} - تحصيل من عميل ${customerName}`;
 
     const jePostedNum = await getNextPostedNumber("journal_entries");
     const { data: je, error: jeError } = await supabase
