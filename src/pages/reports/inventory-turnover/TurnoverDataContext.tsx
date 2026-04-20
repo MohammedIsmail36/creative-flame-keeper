@@ -29,6 +29,10 @@ export interface TurnoverKPIValues {
   totalSuggestedCost: number;
   inactiveStockValue: number;
   supplierReturnValue: number;
+  // GL reconciliation
+  glInventoryBalance: number;
+  operationalTotalValue: number;
+  inventoryDiff: number;
 }
 
 // ─── context value ───────────────────────────────────────────────────────────
@@ -102,12 +106,14 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
   const [dateTo, setDateTo] = useState(format(new Date(), "yyyy-MM-dd"));
   const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const periodDays = Math.max(
+  const rawPeriodDays = Math.max(
     differenceInDays(new Date(dateTo), new Date(dateFrom)),
     1,
   );
+  // حماية رياضية: نضمن حد أدنى 7 أيام لتجنب تطرف coverageDays/avgDailySales في الفترات القصيرة
+  const periodDays = Math.max(rawPeriodDays, 7);
   const prevFrom = format(
-    subDays(new Date(dateFrom), periodDays),
+    subDays(new Date(dateFrom), rawPeriodDays),
     "yyyy-MM-dd",
   );
   const prevTo = format(subDays(new Date(dateFrom), 1), "yyyy-MM-dd");
