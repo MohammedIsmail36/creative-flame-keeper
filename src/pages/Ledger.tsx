@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -8,8 +8,8 @@ import { AccountCombobox } from "@/components/AccountCombobox";
 import { Button } from "@/components/ui/button";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { toast } from "@/hooks/use-toast";
+import { ColumnDef, PaginationState } from "@tanstack/react-table";
+import { useQuery } from "@tanstack/react-query";
 import { ExportMenu } from "@/components/ExportMenu";
 import {
   Calculator,
@@ -35,19 +35,17 @@ interface LedgerLine {
   debit: number;
   credit: number;
   description: string | null;
-  created_at: string;
   entry_number: number;
   entry_posted_number: number | null;
   entry_date: string;
   entry_description: string;
   entry_status: string;
-  runningBalance?: number;
-  showBalance?: boolean;
-  accountName?: string;
-  accountCode?: string;
+  account_code: string;
+  account_name: string;
+  running_balance: number;
 }
 
-const formatNumber = (val: number) =>
+const fmt = (val: number) =>
   val.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -56,138 +54,70 @@ const formatNumber = (val: number) =>
 export default function Ledger() {
   const { settings } = useSettings();
   const jePrefix = (settings as any)?.journal_entry_prefix || "JV-";
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [lines, setLines] = useState<LedgerLine[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 50,
+  });
 
-  const fetchData = async () => {
-    setLoading(true);
-    const [accountsRes, linesRes] = await Promise.all([
-      supabase
-        .from("accounts")
-        .select("id, code, name, account_type")
-        .eq("is_active", true)
-        .order("code"),
-      supabase
-        .from("journal_entry_lines")
-        .select(
-          "id, journal_entry_id, account_id, debit, credit, description, created_at, journal_entries!inner(id, entry_number, posted_number, entry_date, description, status)",
-        )
-        .eq("journal_entries.status", "posted")
-        .order("created_at", { ascending: true }),
-    ]);
-
-    if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
-    if (accountsRes.error || linesRes.error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في جلب بيانات دفتر الأستاذ",
-        variant: "destructive",
-      });
-    }
-
-    if (linesRes.data && linesRes.data.length > 0) {
-      const enriched: LedgerLine[] = linesRes.data.map((l: any) => {
-        const entry = l.journal_entries;
-        return {
-          id: l.id,
-          journal_entry_id: l.journal_entry_id,
-          account_id: l.account_id,
-          description: l.description,
-          created_at: l.created_at,
-          debit: Number(l.debit),
-          credit: Number(l.credit),
-          entry_number: entry.entry_number,
-          entry_posted_number: entry.posted_number,
-          entry_date: entry.entry_date,
-          entry_description: entry.description,
-          entry_status: entry.status,
-        };
-      });
-
-      setLines(enriched);
-    } else {
-      setLines([]);
-    }
-    setLoading(false);
-  };
-
+  // Reset to first page when filters change
   useEffect(() => {
-    fetchData();
-  }, []);
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [selectedAccountId, dateFrom, dateTo]);
+
+  // Active accounts (only ones with movements)
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["ledger-active-accounts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_ledger_active_accounts");
+      if (error) throw error;
+      return (data as any) as Account[];
+    },
+  });
+
+  // Paginated lines + summary in one RPC call
+  const { data: pageData, isLoading: loading } = useQuery({
+    queryKey: [
+      "ledger-lines",
+      selectedAccountId,
+      dateFrom,
+      dateTo,
+      pagination.pageIndex,
+      pagination.pageSize,
+    ],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_ledger_lines", {
+        p_account_id: selectedAccountId === "all" ? null : selectedAccountId,
+        p_date_from: dateFrom || null,
+        p_date_to: dateTo || null,
+        p_limit: pagination.pageSize,
+        p_offset: pagination.pageIndex * pagination.pageSize,
+      });
+      if (error) throw error;
+      return data as {
+        lines: LedgerLine[];
+        total_count: number;
+        total_debit: number;
+        total_credit: number;
+        net_balance: number;
+      };
+    },
+    placeholderData: (prev) => prev,
+  });
+
+  const lines = pageData?.lines ?? [];
+  const totalCount = pageData?.total_count ?? 0;
+  const totalDebit = pageData?.total_debit ?? 0;
+  const totalCredit = pageData?.total_credit ?? 0;
+  const netBalance = pageData?.net_balance ?? 0;
 
   const accountMap = useMemo(() => {
     const map = new Map<string, Account>();
     accounts.forEach((a) => map.set(a.id, a));
     return map;
   }, [accounts]);
-
-  const accountBalances = useMemo(() => {
-    const balances = new Map<
-      string,
-      { debit: number; credit: number; balance: number }
-    >();
-    lines.forEach((l) => {
-      const current = balances.get(l.account_id) || {
-        debit: 0,
-        credit: 0,
-        balance: 0,
-      };
-      current.debit += l.debit;
-      current.credit += l.credit;
-      current.balance = current.debit - current.credit;
-      balances.set(l.account_id, current);
-    });
-    return balances;
-  }, [lines]);
-
-  const activeAccounts = useMemo(
-    () => accounts.filter((a) => accountBalances.has(a.id)),
-    [accounts, accountBalances],
-  );
-
-  const filteredLines = useMemo(() => {
-    let filtered = lines;
-    if (selectedAccountId !== "all")
-      filtered = filtered.filter((l) => l.account_id === selectedAccountId);
-    if (dateFrom) filtered = filtered.filter((l) => l.entry_date >= dateFrom);
-    if (dateTo) filtered = filtered.filter((l) => l.entry_date <= dateTo);
-    return filtered;
-  }, [lines, selectedAccountId, dateFrom, dateTo]);
-
-  const linesWithBalance = useMemo(() => {
-    if (selectedAccountId === "all") {
-      return filteredLines.map((l) => {
-        const acc = accountMap.get(l.account_id);
-        return {
-          ...l,
-          runningBalance: 0,
-          showBalance: false,
-          accountName: acc?.name || "",
-          accountCode: acc?.code || "",
-        };
-      });
-    }
-    let balance = 0;
-    return filteredLines.map((l) => {
-      balance += l.debit - l.credit;
-      const acc = accountMap.get(l.account_id);
-      return {
-        ...l,
-        runningBalance: balance,
-        showBalance: true,
-        accountName: acc?.name || "",
-        accountCode: acc?.code || "",
-      };
-    });
-  }, [filteredLines, selectedAccountId, accountMap]);
-
-  const totalDebit = filteredLines.reduce((s, l) => s + l.debit, 0);
-  const totalCredit = filteredLines.reduce((s, l) => s + l.credit, 0);
-  const netBalance = totalDebit - totalCredit;
 
   const hasFilters = selectedAccountId !== "all" || dateFrom || dateTo;
   const clearFilters = () => {
@@ -219,7 +149,7 @@ export default function Ledger() {
         <DataTableColumnHeader column={column} title="التاريخ" />
       ),
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground whitespace-nowrap">
+        <span className="text-sm text-muted-foreground whitespace-nowrap font-mono">
           {row.original.entry_date}
         </span>
       ),
@@ -234,7 +164,7 @@ export default function Ledger() {
                 className="text-primary hover:text-primary/80 font-medium text-sm transition-colors"
                 onClick={() => setSelectedAccountId(row.original.account_id)}
               >
-                {row.original.accountCode} - {row.original.accountName}
+                {row.original.account_code} - {row.original.account_name}
               </button>
             ),
           } as ColumnDef<LedgerLine, any>,
@@ -256,7 +186,7 @@ export default function Ledger() {
         <span
           className={`font-mono text-sm ${row.original.debit > 0 ? "text-emerald-600 font-bold" : "text-muted-foreground/30"}`}
         >
-          {row.original.debit > 0 ? formatNumber(row.original.debit) : "-"}
+          {row.original.debit > 0 ? fmt(row.original.debit) : "-"}
         </span>
       ),
     },
@@ -269,7 +199,7 @@ export default function Ledger() {
         <span
           className={`font-mono text-sm ${row.original.credit > 0 ? "text-rose-600 font-bold" : "text-muted-foreground/30"}`}
         >
-          {row.original.credit > 0 ? formatNumber(row.original.credit) : "-"}
+          {row.original.credit > 0 ? fmt(row.original.credit) : "-"}
         </span>
       ),
     },
@@ -279,14 +209,12 @@ export default function Ledger() {
             id: "balance",
             header: "الرصيد",
             cell: ({ row }: any) => {
-              const bal = row.original.runningBalance ?? 0;
+              const bal = Number(row.original.running_balance ?? 0);
               return (
                 <span
                   className={`font-mono text-sm font-black ${bal >= 0 ? "text-emerald-600" : "text-rose-600"}`}
                 >
-                  {bal >= 0
-                    ? formatNumber(bal)
-                    : `(${formatNumber(Math.abs(bal))})`}
+                  {bal >= 0 ? fmt(bal) : `(${fmt(Math.abs(bal))})`}
                 </span>
               );
             },
@@ -295,6 +223,7 @@ export default function Ledger() {
       : []),
   ];
 
+  // Lazy export: fetch full dataset only when triggered
   const exportConfig = {
     filenamePrefix: "دفتر-الأستاذ",
     sheetName: "دفتر الأستاذ",
@@ -311,7 +240,21 @@ export default function Ledger() {
       "دائن",
       ...(selectedAccountId !== "all" ? ["الرصيد"] : []),
     ],
-    rows: linesWithBalance.map((l) => [
+    rows: [] as any[][],
+    settings,
+    pdfOrientation: "landscape" as const,
+  };
+
+  const handleExportOpen = async () => {
+    const { data } = await supabase.rpc("get_ledger_lines", {
+      p_account_id: selectedAccountId === "all" ? null : selectedAccountId,
+      p_date_from: dateFrom || null,
+      p_date_to: dateTo || null,
+      p_limit: 100000,
+      p_offset: 0,
+    });
+    const allLines = ((data as any)?.lines ?? []) as LedgerLine[];
+    exportConfig.rows = allLines.map((l) => [
       formatDisplayNumber(
         jePrefix,
         l.entry_posted_number,
@@ -319,14 +262,12 @@ export default function Ledger() {
         l.entry_status,
       ),
       l.entry_date,
-      `${l.accountCode} - ${l.accountName}`,
+      `${l.account_code} - ${l.account_name}`,
       l.entry_description,
       l.debit > 0 ? l.debit : "",
       l.credit > 0 ? l.credit : "",
-      ...(l.showBalance ? [l.runningBalance] : []),
-    ]),
-    settings,
-    pdfOrientation: "landscape" as const,
+      ...(selectedAccountId !== "all" ? [Number(l.running_balance ?? 0)] : []),
+    ]);
   };
 
   return (
@@ -338,7 +279,8 @@ export default function Ledger() {
         actions={
           <ExportMenu
             config={exportConfig}
-            disabled={loading || linesWithBalance.length === 0}
+            onOpen={handleExportOpen}
+            disabled={loading || totalCount === 0}
           />
         }
       />
@@ -348,25 +290,25 @@ export default function Ledger() {
         {[
           {
             label: "حسابات نشطة",
-            value: activeAccounts.length.toLocaleString("en-US"),
+            value: accounts.length.toLocaleString("en-US"),
             icon: BookOpen,
             color: "bg-primary/10 text-primary",
           },
           {
             label: "إجمالي الحركات",
-            value: filteredLines.length.toLocaleString("en-US"),
+            value: totalCount.toLocaleString("en-US"),
             icon: ArrowUpDown,
             color: "bg-blue-500/10 text-blue-600",
           },
           {
             label: "إجمالي المدين",
-            value: formatNumber(totalDebit),
+            value: fmt(totalDebit),
             icon: TrendingUp,
             color: "bg-emerald-500/10 text-emerald-600",
           },
           {
             label: "إجمالي الدائن",
-            value: formatNumber(totalCredit),
+            value: fmt(totalCredit),
             icon: TrendingDown,
             color: "bg-rose-500/10 text-rose-600",
           },
@@ -374,8 +316,8 @@ export default function Ledger() {
             label: "صافي الرصيد",
             value:
               netBalance >= 0
-                ? formatNumber(netBalance)
-                : `(${formatNumber(Math.abs(netBalance))})`,
+                ? fmt(netBalance)
+                : `(${fmt(Math.abs(netBalance))})`,
             icon: Coins,
             color:
               netBalance >= 0
@@ -401,13 +343,17 @@ export default function Ledger() {
         ))}
       </div>
 
-      {/* Data Table */}
+      {/* Data Table — server-side pagination */}
       <DataTable
         columns={columns}
-        data={linesWithBalance}
-        searchPlaceholder="البحث في الحركات..."
+        data={lines}
         isLoading={loading}
         emptyMessage="لا توجد حركات محاسبية"
+        manualPagination
+        pageCount={Math.ceil(totalCount / pagination.pageSize)}
+        totalRows={totalCount}
+        pagination={pagination}
+        onPaginationChange={setPagination}
         toolbarContent={
           <div className="flex items-center gap-2 flex-wrap">
             <AccountCombobox
