@@ -224,9 +224,8 @@ export default function Expenses() {
         .eq("journal_entry_id", cancelTarget.journal_entry_id);
 
       const jePostedNum = await getNextPostedNumber("journal_entries");
-      const expPrefix = (settings as any)?.expense_prefix || "EXP-";
       const displayNum = formatDisplayNumber(
-        expPrefix,
+        "EXP-",
         cancelTarget.posted_number,
         cancelTarget.expense_number,
         cancelTarget.status,
