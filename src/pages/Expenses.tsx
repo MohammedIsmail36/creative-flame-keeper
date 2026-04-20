@@ -156,9 +156,8 @@ export default function Expenses() {
 
       const expPostedNum = await getNextPostedNumber("expenses" as any);
       const jePostedNum = await getNextPostedNumber("journal_entries");
-      const expPrefix = (settings as any)?.expense_prefix || "EXP-";
-      const displayNum = `${expPrefix}${String(expPostedNum).padStart(4, "0")}`;
-      const desc = `مصروف ${postTarget.expense_type_name} - ${displayNum}${postTarget.description ? ` - ${postTarget.description}` : ""}`;
+      const displayNum = `EXP-${String(expPostedNum).padStart(4, "0")}`;
+      const desc = `سند مصروف رقم ${displayNum} - ${postTarget.expense_type_name}${postTarget.description ? ` - ${postTarget.description}` : ""}`;
 
       const { data: je, error: jeError } = await supabase
         .from("journal_entries")
