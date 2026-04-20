@@ -1857,6 +1857,17 @@ export type Database = {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined
       }
+      get_account_statement: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_entity_id: string
+          p_entity_type: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: Json
+      }
       get_avg_purchase_price: { Args: { _product_id: string }; Returns: number }
       get_avg_selling_price: { Args: { _product_id: string }; Returns: number }
       get_inventory_movements_summary: {
@@ -1869,6 +1880,17 @@ export type Database = {
       }
       get_journal_summary: {
         Args: { p_date_from?: string; p_date_to?: string }
+        Returns: Json
+      }
+      get_ledger_active_accounts: { Args: never; Returns: Json }
+      get_ledger_lines: {
+        Args: {
+          p_account_id?: string
+          p_date_from?: string
+          p_date_to?: string
+          p_limit?: number
+          p_offset?: number
+        }
         Returns: Json
       }
       get_products_summary: { Args: never; Returns: Json }
