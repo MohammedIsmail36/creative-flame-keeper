@@ -363,7 +363,7 @@ export default function Dashboard() {
     const todayLocal = `${cy}-${String(cm + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const ys = `${cy}-01-01`;
     const ye = todayLocal;
-    const [sItemsR, pItemsR, eR, srItemsR, prItemsR, cogsR] = await Promise.all(
+    const [sItemsR, pItemsR, eR, srItemsR, prItemsR, cogsR, opExpR] = await Promise.all(
       [
         supabase
           .from("sales_invoice_items")
@@ -405,6 +405,18 @@ export default function Dashboard() {
           .in("movement_type", ["sale", "sale_return"])
           .gte("movement_date", ys)
           .lte("movement_date", ye),
+        // Operating expenses from GL: all expense accounts EXCEPT COGS (5101)
+        // This captures PPV (5108), JV entries, and regular expenses uniformly.
+        supabase
+          .from("journal_entry_lines")
+          .select(
+            "debit, credit, accounts!inner(code, account_type), journal_entries!inner(entry_date, status)",
+          )
+          .eq("accounts.account_type", "expense")
+          .neq("accounts.code", "5101")
+          .in("journal_entries.status", ["posted", "approved"])
+          .gte("journal_entries.entry_date", ys)
+          .lte("journal_entries.entry_date", ye),
       ],
     );
 
@@ -429,10 +441,17 @@ export default function Dashboard() {
     const salesReturnItems = srItemsR.data || [];
     const purchaseReturnItems = prItemsR.data || [];
     const cogsRows = cogsR.data || [];
+    const opExpLines = opExpR.data || [];
 
     setTotalSales(sumNet(salesItems));
     setTotalPurchases(sumNet(purchaseItems));
-    setTotalExpenses(expenses.reduce((s, i) => s + Number(i.amount || 0), 0));
+    // Operating expenses = Σ(debit − credit) across all expense GL accounts except COGS
+    setTotalExpenses(
+      opExpLines.reduce(
+        (s: number, l: any) => s + Number(l.debit || 0) - Number(l.credit || 0),
+        0,
+      ),
+    );
     setTotalSalesReturns(sumTotal(salesReturnItems));
     setTotalPurchaseReturns(sumTotal(purchaseReturnItems));
     setTotalCOGS(
