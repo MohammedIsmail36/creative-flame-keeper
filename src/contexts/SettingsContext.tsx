@@ -65,7 +65,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const { data, isLoading } = useCompanySettingsQuery();
   const invalidate = useInvalidateCompanySettings();
 
-  const settings = (data ?? null) as CompanySettings | null;
+  const settings = (data ?? null) as unknown as CompanySettings | null;
   const currency = settings?.default_currency || "EGP";
 
   const formatCurrency = useCallback(
