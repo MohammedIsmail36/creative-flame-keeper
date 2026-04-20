@@ -562,7 +562,7 @@ export default function InventoryReport() {
         },
       },
     ],
-    [],
+    [wacMap],
   );
 
   // ═══ GROUPING: By Category ═══
