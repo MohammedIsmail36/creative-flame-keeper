@@ -52,6 +52,7 @@ export interface ProductTurnoverData {
   lastSaleDate: string | null;
   lastPurchaseDate: string | null;
   lastPurchasePrice: number | null;
+  wac: number | null;
   sellingPrice: number | null;
   profitMargin: number | null;
   turnoverRate: number | null;

@@ -229,6 +229,38 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // ── WAC per product (نفس مصدر InventoryReport و GL لحساب 1104) ─────────────
+  const { data: wacMap = {} } = useQuery({
+    queryKey: ["turnover-wac"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inventory_movements")
+        .select("product_id, movement_type, quantity, total_cost")
+        .in("movement_type", ["purchase", "opening_balance", "purchase_return"]);
+      if (error) throw error;
+      const agg: Record<string, { qty: number; cost: number }> = {};
+      (data ?? []).forEach((m: any) => {
+        const pid = m.product_id;
+        if (!agg[pid]) agg[pid] = { qty: 0, cost: 0 };
+        const q = Number(m.quantity);
+        const c = Number(m.total_cost);
+        if (m.movement_type === "purchase_return") {
+          agg[pid].qty -= q;
+          agg[pid].cost -= c;
+        } else {
+          agg[pid].qty += q;
+          agg[pid].cost += c;
+        }
+      });
+      const result: Record<string, number> = {};
+      Object.entries(agg).forEach(([pid, { qty, cost }]) => {
+        result[pid] = qty > 0 ? cost / qty : 0;
+      });
+      return result;
+    },
+  });
+
   const isLoading = loadingProducts || loadingSales || loadingPurchases;
 
   // ── aggregations ─────────────────────────────────────────────────────────
@@ -344,6 +376,13 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       const lastPurchasePrice =
         purchases?.lastPrice ??
         (p.purchase_price != null ? Number(p.purchase_price) : null);
+      // WAC = نفس مصدر تقرير المخزون و GL (حساب 1104)
+      // fallback: لو لا توجد حركات، نستخدم آخر سعر شراء
+      const wacFromMovements = wacMap[p.id];
+      const wac =
+        typeof wacFromMovements === "number" && wacFromMovements > 0
+          ? wacFromMovements
+          : lastPurchasePrice;
       const lastSupplierName = purchases?.lastSupplierName || null;
       const revenue = Math.max(
         0,
@@ -359,9 +398,10 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       const belowMinStock =
         minStockLevel !== null && currentStock < minStockLevel;
 
+      // هامش الربح يُحتسب على WAC للاتساق مع COGS و GL
       const profitMargin =
-        sellingPrice && lastPurchasePrice && sellingPrice > 0
-          ? ((sellingPrice - lastPurchasePrice) / sellingPrice) * 100
+        sellingPrice && wac && sellingPrice > 0
+          ? ((sellingPrice - wac) / sellingPrice) * 100
           : null;
 
       const daysSinceAdded = p.created_at
@@ -387,8 +427,8 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         isNeverPurchased &&
         daysSinceAdded < DAYS_CONSIDERED_NEW;
 
-      const stockValue =
-        lastPurchasePrice !== null ? currentStock * lastPurchasePrice : null;
+      // قيمة المخزون التشغيلية = الكمية × WAC (تتطابق مع جدول InventoryReport)
+      const stockValue = wac !== null ? currentStock * wac : null;
       const productName = formatProductDisplay(
         p.name,
         p.product_brands?.name,
@@ -413,6 +453,7 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         lastSaleDate,
         lastPurchaseDate,
         lastPurchasePrice,
+        wac,
         sellingPrice,
         profitMargin,
         abcClass: "excluded" as ABCClass,
@@ -595,6 +636,7 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
     purchasesByProduct,
     salesReturnsByProduct,
     purchaseReturnsByProduct,
+    wacMap,
     periodDays,
     today,
   ]);
