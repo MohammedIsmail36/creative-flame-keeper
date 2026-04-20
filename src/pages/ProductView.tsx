@@ -636,6 +636,8 @@ import {
   AlertCircle,
   Loader2,
   Info,
+  ExternalLink,
+  X as XIcon,
 } from "lucide-react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
