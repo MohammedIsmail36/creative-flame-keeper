@@ -362,6 +362,17 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
     return map;
   }, [salesData]);
 
+  // مرتجعات الفترة السابقة لكل منتج (لخصمها من المبيعات السابقة في المقارنة)
+  const prevSalesReturnsByProduct = useMemo(() => {
+    const map: Record<string, number> = {};
+    prevSalesReturnData.forEach((item: any) => {
+      const pid = item.product_id;
+      if (!pid) return;
+      map[pid] = (map[pid] || 0) + Number(item.quantity);
+    });
+    return map;
+  }, [prevSalesReturnData]);
+
   const prevSalesByProduct = useMemo(() => {
     const map: Record<string, { soldQty: number; revenue: number }> = {};
     prevSalesData.forEach((item: any) => {
@@ -371,8 +382,14 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       map[pid].soldQty += Number(item.quantity);
       map[pid].revenue += Number(item.total);
     });
+    // خصم المرتجعات من نفس الفترة السابقة لمقارنة عادلة
+    Object.entries(prevSalesReturnsByProduct).forEach(([pid, retQty]) => {
+      if (map[pid]) {
+        map[pid].soldQty = Math.max(0, map[pid].soldQty - retQty);
+      }
+    });
     return map;
-  }, [prevSalesData]);
+  }, [prevSalesData, prevSalesReturnsByProduct]);
 
   const purchasesByProduct = useMemo(() => {
     const map: Record<
