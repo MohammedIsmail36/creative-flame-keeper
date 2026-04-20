@@ -738,7 +738,7 @@ export default function InventoryReport() {
       map[brand].count++;
       map[brand].qty += Number(p.quantity_on_hand);
       map[brand].purchaseValue +=
-        Number(p.quantity_on_hand) * Number(p.purchase_price ?? 0);
+        Number(p.quantity_on_hand) * getWac(p);
       map[brand].sellingValue +=
         Number(p.quantity_on_hand) * Number(p.selling_price ?? 0);
       if (
