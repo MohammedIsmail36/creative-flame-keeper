@@ -74,7 +74,9 @@ export default function Purchases() {
     setLoading(true);
     const [invoiceRes, returnRes] = await Promise.all([
       (supabase.from("purchase_invoices" as any) as any)
-        .select("*, suppliers:supplier_id(name)")
+        .select(
+          "id, invoice_number, posted_number, supplier_id, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, reference, notes, suppliers:supplier_id(name)",
+        )
         .order("invoice_number", { ascending: false }),
       supabase
         .from("purchase_returns")

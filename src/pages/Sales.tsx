@@ -73,7 +73,9 @@ export default function Sales() {
     setLoading(true);
     const [invoiceRes, returnRes] = await Promise.all([
       (supabase.from("sales_invoices") as any)
-        .select("*, customers:customer_id(name)")
+        .select(
+          "id, invoice_number, posted_number, customer_id, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, reference, notes, customers:customer_id(name)",
+        )
         .order("invoice_number", { ascending: false }),
       supabase
         .from("sales_returns")

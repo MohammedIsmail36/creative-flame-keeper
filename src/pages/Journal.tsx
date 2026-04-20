@@ -57,7 +57,9 @@ export default function Journal() {
   const fetchData = async () => {
     setLoading(true);
     const { data, error } = await (supabase.from("journal_entries") as any)
-      .select("*")
+      .select(
+        "id, entry_number, posted_number, entry_date, description, status, total_debit, total_credit, created_at",
+      )
       .order("entry_number", { ascending: false });
     if (error) {
       toast({
