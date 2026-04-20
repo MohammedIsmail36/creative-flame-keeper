@@ -25,6 +25,10 @@ import {
 import { useTurnoverData } from "./TurnoverDataContext";
 import { TurnoverFilterBar } from "./TurnoverFilterBar";
 import {
+  ReconciliationBanner,
+  computeReconciliation,
+} from "./ReconciliationBanner";
+import {
   MATRIX_DECISIONS,
   DAYS_CONSIDERED_NEW,
   ChangeIndicator,
@@ -56,6 +60,16 @@ export default function TurnoverDashboardPage() {
       />
 
       <TurnoverFilterBar />
+
+      {/* شريط التطابق المحاسبي مع GL لحساب 1104 — مطابق لـ InventoryReport */}
+      {!isLoading && (
+        <ReconciliationBanner
+          data={computeReconciliation(
+            kpis.operationalTotalValue,
+            kpis.glInventoryBalance,
+          )}
+        />
+      )}
 
       {allProductsNew && !isLoading && (
         <Card className="border shadow-sm">

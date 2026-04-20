@@ -176,6 +176,21 @@ export default function FullAnalysisPage() {
         },
       },
       {
+        accessorKey: "wac",
+        header: "WAC",
+        cell: ({ getValue }) => {
+          const v = getValue() as number | null;
+          return (
+            <span
+              className="text-xs tabular-nums text-muted-foreground"
+              title="متوسط التكلفة المرجح — محسوب من حركات المخزون"
+            >
+              {v != null ? fmt(v) : "—"}
+            </span>
+          );
+        },
+      },
+      {
         accessorKey: "stockValue",
         header: "القيمة",
         cell: ({ getValue }) => {

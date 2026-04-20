@@ -29,6 +29,10 @@ export interface TurnoverKPIValues {
   totalSuggestedCost: number;
   inactiveStockValue: number;
   supplierReturnValue: number;
+  // GL reconciliation
+  glInventoryBalance: number;
+  operationalTotalValue: number;
+  inventoryDiff: number;
 }
 
 // ─── context value ───────────────────────────────────────────────────────────
@@ -102,12 +106,14 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
   const [dateTo, setDateTo] = useState(format(new Date(), "yyyy-MM-dd"));
   const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const periodDays = Math.max(
+  const rawPeriodDays = Math.max(
     differenceInDays(new Date(dateTo), new Date(dateFrom)),
     1,
   );
+  // حماية رياضية: نضمن حد أدنى 7 أيام لتجنب تطرف coverageDays/avgDailySales في الفترات القصيرة
+  const periodDays = Math.max(rawPeriodDays, 7);
   const prevFrom = format(
-    subDays(new Date(dateFrom), periodDays),
+    subDays(new Date(dateFrom), rawPeriodDays),
     "yyyy-MM-dd",
   );
   const prevTo = format(subDays(new Date(dateFrom), 1), "yyyy-MM-dd");
@@ -213,6 +219,53 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Previous-period sales returns (لخصمها من مبيعات الفترة السابقة في المقارنة)
+  const { data: prevSalesReturnData = [] } = useQuery({
+    queryKey: ["turnover-prev-sales-returns", prevFrom, prevTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_return_items")
+        .select(
+          "product_id, quantity, ret:sales_returns!inner(return_date, status)",
+        )
+        .gte("ret.return_date", prevFrom)
+        .lte("ret.return_date", prevTo)
+        .eq("ret.status", "posted");
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  // GL balance لحساب المخزون 1104 (مصدر الحقيقة المحاسبي)
+  const { data: glInventoryBalance = 0 } = useQuery({
+    queryKey: ["turnover-gl-1104", settings?.locked_until_date],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data: acc, error: accErr } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("code", "1104")
+        .maybeSingle();
+      if (accErr) throw accErr;
+      if (!acc?.id) return 0;
+      let q = supabase
+        .from("journal_entry_lines")
+        .select("debit, credit, journal_entries!inner(status, entry_date)")
+        .eq("account_id", acc.id)
+        .eq("journal_entries.status", "posted");
+      if (settings?.locked_until_date) {
+        q = q.gt("journal_entries.entry_date", settings.locked_until_date);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      const balance = (data ?? []).reduce(
+        (s: number, l: any) => s + Number(l.debit || 0) - Number(l.credit || 0),
+        0,
+      );
+      return Math.round(balance * 100) / 100;
+    },
+  });
+
   const { data: purchaseReturnData = [] } = useQuery({
     queryKey: ["turnover-purchase-returns"],
     staleTime: 5 * 60 * 1000,
@@ -309,6 +362,17 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
     return map;
   }, [salesData]);
 
+  // مرتجعات الفترة السابقة لكل منتج (لخصمها من المبيعات السابقة في المقارنة)
+  const prevSalesReturnsByProduct = useMemo(() => {
+    const map: Record<string, number> = {};
+    prevSalesReturnData.forEach((item: any) => {
+      const pid = item.product_id;
+      if (!pid) return;
+      map[pid] = (map[pid] || 0) + Number(item.quantity);
+    });
+    return map;
+  }, [prevSalesReturnData]);
+
   const prevSalesByProduct = useMemo(() => {
     const map: Record<string, { soldQty: number; revenue: number }> = {};
     prevSalesData.forEach((item: any) => {
@@ -318,8 +382,14 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       map[pid].soldQty += Number(item.quantity);
       map[pid].revenue += Number(item.total);
     });
+    // خصم المرتجعات من نفس الفترة السابقة لمقارنة عادلة
+    Object.entries(prevSalesReturnsByProduct).forEach(([pid, retQty]) => {
+      if (map[pid]) {
+        map[pid].soldQty = Math.max(0, map[pid].soldQty - retQty);
+      }
+    });
     return map;
-  }, [prevSalesData]);
+  }, [prevSalesData, prevSalesReturnsByProduct]);
 
   const purchasesByProduct = useMemo(() => {
     const map: Record<
@@ -835,9 +905,15 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         const ps = prevSalesByProduct[p.id];
         const stock = Number(p.quantity_on_hand);
         const sold = ps?.soldQty || 0;
+        // مقارنة عادلة: نفس أساس WAC المستخدم في الفترة الحالية
+        const wacFromMovements = wacMap[p.id];
         const lpp =
           purchasesByProduct[p.id]?.lastPrice ??
           (p.purchase_price ? Number(p.purchase_price) : null);
+        const wac =
+          typeof wacFromMovements === "number" && wacFromMovements > 0
+            ? wacFromMovements
+            : lpp;
         const tr = stock > 0 ? sold / stock : sold > 0 ? sold : 0;
         const ann = tr * (365 / periodDays);
         const tc: TurnoverClass =
@@ -851,7 +927,7 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         return {
           turnoverRate: tr,
           turnoverClass: tc,
-          stockValue: lpp !== null ? stock * lpp : 0,
+          stockValue: wac !== null ? stock * wac : 0,
         };
       });
 
@@ -866,8 +942,10 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       .reduce((s, p) => s + p.stockValue, 0);
 
     const belowMinCount = eligibleData.filter((p) => p.belowMinStock).length;
+    // تكلفة الشراء المقترح: lastPurchasePrice ?? wac (يضمن قيمة حتى لو لم يكن هناك آخر سعر شراء)
     const totalSuggestedCost = purchaseSuggestions.reduce(
-      (s, p) => s + p.suggestedPurchaseQty * (p.lastPurchasePrice ?? 0),
+      (s, p) =>
+        s + p.suggestedPurchaseQty * (p.lastPurchasePrice ?? p.wac ?? 0),
       0,
     );
     const inactiveStockValue = inactiveProducts.reduce(
@@ -878,6 +956,13 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       (s, p) => s + (p.stockValue ?? 0),
       0,
     );
+
+    // قيمة المخزون التشغيلية الإجمالية (Σ stockValue) — تطابق InventoryReport
+    const operationalTotalValue = allTurnoverData.reduce(
+      (s, p) => s + (p.stockValue ?? 0),
+      0,
+    );
+    const inventoryDiff = operationalTotalValue - glInventoryBalance;
 
     return {
       avgTurnover,
@@ -895,15 +980,21 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       totalSuggestedCost,
       inactiveStockValue,
       supplierReturnValue,
+      glInventoryBalance,
+      operationalTotalValue,
+      inventoryDiff,
     };
   }, [
     eligibleData,
+    allTurnoverData,
     products,
     prevSalesByProduct,
     purchasesByProduct,
     purchaseSuggestions,
     inactiveProducts,
     supplierReturnCandidates,
+    glInventoryBalance,
+    wacMap,
     periodDays,
     today,
   ]);

@@ -220,6 +220,28 @@ function AlertTable({
 }
 
 export function SmartAlertsSection({ alerts }: SmartAlertsSectionProps) {
+  // تقسيم urgent إلى 3 مستويات بصرية للوضوح:
+  // 🔴 نفد، 🟠 تغطية حرجة (<7 أيام)، 🟡 تحت الحد الأدنى
+  const urgentOutOfStock = alerts.urgent.filter((p) => p.currentStock === 0);
+  const urgentLowCoverage = alerts.urgent.filter(
+    (p) =>
+      p.currentStock > 0 &&
+      p.coverageDays !== null &&
+      p.coverageDays < 7,
+  );
+  const urgentBelowMin = alerts.urgent.filter(
+    (p) =>
+      p.currentStock > 0 &&
+      (p.coverageDays === null || p.coverageDays >= 7) &&
+      p.belowMinStock,
+  );
+  const urgentRest = alerts.urgent.filter(
+    (p) =>
+      !urgentOutOfStock.includes(p) &&
+      !urgentLowCoverage.includes(p) &&
+      !urgentBelowMin.includes(p),
+  );
+
   if (
     alerts.urgent.length === 0 &&
     alerts.followup.length === 0 &&
@@ -230,8 +252,17 @@ export function SmartAlertsSection({ alerts }: SmartAlertsSectionProps) {
 
   return (
     <div className="space-y-2">
-      {alerts.urgent.length > 0 && (
-        <AlertTable data={alerts.urgent} tier="urgent" />
+      {urgentOutOfStock.length > 0 && (
+        <AlertTable data={urgentOutOfStock} tier="urgent" />
+      )}
+      {urgentLowCoverage.length > 0 && (
+        <AlertTable data={urgentLowCoverage} tier="urgent" />
+      )}
+      {urgentBelowMin.length > 0 && (
+        <AlertTable data={urgentBelowMin} tier="followup" />
+      )}
+      {urgentRest.length > 0 && (
+        <AlertTable data={urgentRest} tier="urgent" />
       )}
       {alerts.followup.length > 0 && (
         <AlertTable data={alerts.followup} tier="followup" />

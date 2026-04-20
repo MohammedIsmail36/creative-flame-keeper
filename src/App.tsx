@@ -68,7 +68,6 @@ const GrowthAnalyticsPage = lazy(() => import("./pages/reports/GrowthAnalyticsPa
 const ProductAnalyticsPage = lazy(() => import("./pages/reports/ProductAnalyticsPage"));
 const AccountBalancesPage = lazy(() => import("./pages/reports/AccountBalancesPage"));
 const ProfitLossPage = lazy(() => import("./pages/reports/ProfitLossPage"));
-const InventoryTurnoverPage = lazy(() => import("./pages/reports/InventoryTurnoverPage"));
 const TurnoverLayout = lazy(() => import("./pages/reports/inventory-turnover/TurnoverLayout"));
 const TurnoverDashboardPage = lazy(() => import("./pages/reports/inventory-turnover/TurnoverDashboardPage"));
 const UrgentActionsPage = lazy(() => import("./pages/reports/inventory-turnover/UrgentActionsPage"));
@@ -152,7 +151,7 @@ const App = () => (
             <Route path="/supplier-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<SupplierStatement />)}</AppLayout></ProtectedRoute>} />
             <Route path="/inventory-movements" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryMovements />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/inventory-turnover" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<TurnoverLayout />)}</AppLayout></ProtectedRoute>}>
-              <Route index element={withSuspense(<InventoryTurnoverPage />)} />
+              <Route index element={withSuspense(<TurnoverDashboardPage />)} />
               <Route path="dashboard" element={withSuspense(<TurnoverDashboardPage />)} />
               <Route path="urgent-actions" element={withSuspense(<UrgentActionsPage />)} />
               <Route path="purchase-planning" element={withSuspense(<PurchasePlanningPage />)} />
