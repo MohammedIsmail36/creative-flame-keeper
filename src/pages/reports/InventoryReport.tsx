@@ -233,6 +233,35 @@ export default function InventoryReport() {
     return typeof w === "number" && w > 0 ? w : Number(p.purchase_price ?? 0);
   };
 
+  // ── Query: GL balance for inventory account 1104 (مصدر الحقيقة المحاسبي) ──
+  const { data: glInventoryBalance = 0 } = useQuery({
+    queryKey: ["inventory-report-gl-1104", settings?.locked_until_date],
+    queryFn: async () => {
+      const { data: acc, error: accErr } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("code", "1104")
+        .maybeSingle();
+      if (accErr) throw accErr;
+      if (!acc?.id) return 0;
+      let q = supabase
+        .from("journal_entry_lines")
+        .select("debit, credit, journal_entries!inner(status, entry_date)")
+        .eq("account_id", acc.id)
+        .eq("journal_entries.status", "posted");
+      if (settings?.locked_until_date) {
+        q = q.gt("journal_entries.entry_date", settings.locked_until_date);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      const balance = (data ?? []).reduce(
+        (s: number, l: any) => s + Number(l.debit || 0) - Number(l.credit || 0),
+        0,
+      );
+      return Math.round(balance * 100) / 100;
+    },
+  });
+
   // ── Movement KPIs ──
   const movementKpi = useMemo(() => {
     const inTypes = [
