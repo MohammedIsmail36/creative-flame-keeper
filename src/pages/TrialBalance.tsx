@@ -61,7 +61,8 @@ export default function TrialBalance() {
   const fetchData = async () => {
     setLoading(true);
 
-    // Fetch last closing entry date if fiscal year closing is enabled
+    // Last closing date (used to exclude pre-closing revenue/expense activity)
+    let closingDate: string | null = null;
     if (settings?.enable_fiscal_year_closing) {
       const { data: closingEntry } = await supabase
         .from("journal_entries")
@@ -71,18 +72,62 @@ export default function TrialBalance() {
         .order("entry_date", { ascending: false })
         .limit(1)
         .maybeSingle();
-      setLastClosingDate(closingEntry?.entry_date || null);
+      closingDate = closingEntry?.entry_date || null;
+      setLastClosingDate(closingDate);
     } else {
       setLastClosingDate(null);
     }
 
+    // Fetch accounts (light) in parallel with lines
+    const accountsPromise = supabase
+      .from("accounts")
+      .select("id, code, name, account_type")
+      .eq("is_active", true)
+      .eq("is_parent", false)
+      .order("code");
+
+    // When no fiscal-year closing logic is needed AND no manual filters,
+    // use the fast aggregated RPC. Otherwise we need raw lines for the
+    // per-account closing filter.
+    const needsRawLines =
+      !!closingDate || !!dateFrom || !!dateTo;
+
+    if (!needsRawLines) {
+      const [accountsRes, balRes] = await Promise.all([
+        accountsPromise,
+        (supabase.rpc as any)("get_account_balances", {
+          p_only_with_activity: true,
+        }),
+      ]);
+      if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
+      // Adapt aggregated rows -> minimal "lines" shape consumed by the memo:
+      // one synthetic line per account with the precomputed totals.
+      const rows = (balRes.data?.rows ?? []) as Array<{
+        id: string;
+        debit: number;
+        credit: number;
+      }>;
+      const synthetic = rows.map((r) => ({
+        account_id: r.id,
+        debit: Number(r.debit),
+        credit: Number(r.credit),
+        journal_entries: { entry_date: "9999-12-31", description: "" },
+      }));
+      setLines(synthetic);
+      if (accountsRes.error || balRes.error) {
+        toast({
+          title: "خطأ",
+          description: "فشل في جلب البيانات",
+          variant: "destructive",
+        });
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Fallback: raw lines (closing-aware path)
     const [accountsRes, linesRes] = await Promise.all([
-      supabase
-        .from("accounts")
-        .select("id, code, name, account_type")
-        .eq("is_active", true)
-        .eq("is_parent", false)
-        .order("code"),
+      accountsPromise,
       supabase
         .from("journal_entry_lines")
         .select(
