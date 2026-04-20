@@ -944,6 +944,9 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
     salesReturnsByProduct,
     purchaseReturnsByProduct,
     wacMap,
+    firstActivityMap,
+    variabilityByProduct,
+    priorYearSalesByProduct,
     periodDays,
     today,
   ]);
