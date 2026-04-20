@@ -2,15 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -19,12 +11,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
-import { FileDown, FileSpreadsheet, Users, Truck } from "lucide-react";
-import { exportToExcel } from "@/lib/excel-export";
-import { exportReportPdf } from "@/lib/report-pdf";
+import {
+  Users,
+  Truck,
+  TrendingUp,
+  TrendingDown,
+  Coins,
+  ArrowUpDown,
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { DataTable } from "@/components/ui/data-table";
+import { ColumnDef, PaginationState } from "@tanstack/react-table";
+import { ExportMenu } from "@/components/ExportMenu";
 
 type EntityType = "customer" | "supplier";
 
@@ -36,13 +36,16 @@ interface Entity {
 }
 
 interface StatementLine {
-  date: string;
-  type: string;
-  reference: string;
+  line_date: string;
+  line_type: string;
+  doc_number: number;
+  doc_posted_number: number | null;
+  doc_status: string;
+  doc_kind: string;
   description: string;
   debit: number;
   credit: number;
-  runningBalance: number;
+  running_balance: number;
 }
 
 interface AccountStatementProps {
@@ -50,351 +53,239 @@ interface AccountStatementProps {
   defaultEntityId?: string;
 }
 
+const fmt = (val: number) =>
+  Number(val || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
 export default function AccountStatement({
   defaultEntityType,
   defaultEntityId,
 }: AccountStatementProps = {}) {
-  const { formatCurrency, settings } = useSettings();
+  const { settings } = useSettings();
   const [entityType, setEntityType] = useState<EntityType>(
     defaultEntityType || "customer",
   );
-  const [entities, setEntities] = useState<Entity[]>([]);
   const [selectedEntity, setSelectedEntity] = useState(defaultEntityId || "");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [lines, setLines] = useState<StatementLine[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [entityName, setEntityName] = useState("");
-  const [autoLoaded, setAutoLoaded] = useState(false);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 50,
+  });
 
-  // Load entities list
+  // Reset page when filters change
   useEffect(() => {
-    const fetchEntities = async () => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [entityType, selectedEntity, dateFrom, dateTo]);
+
+  // Reset selection when entity type changes
+  useEffect(() => {
+    if (!defaultEntityId) setSelectedEntity("");
+  }, [entityType, defaultEntityId]);
+
+  // Entities list
+  const { data: entities = [] } = useQuery({
+    queryKey: ["statement-entities", entityType],
+    queryFn: async () => {
       const table = entityType === "customer" ? "customers" : "suppliers";
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from(table)
         .select("id, code, name, balance")
         .eq("is_active", true)
         .order("code");
-      setEntities((data || []) as Entity[]);
-      if (!defaultEntityId) {
-        setSelectedEntity("");
-        setLines([]);
-      }
-    };
-    fetchEntities();
-  }, [entityType]);
+      if (error) throw error;
+      return (data || []) as Entity[];
+    },
+  });
 
-  // Auto-load statement when entity is pre-selected
-  useEffect(() => {
-    if (defaultEntityId && entities.length > 0 && !autoLoaded) {
-      setSelectedEntity(defaultEntityId);
-      setAutoLoaded(true);
+  const entity = entities.find((e) => e.id === selectedEntity);
+  const entityName = entity?.name || "";
+
+  // Server-side paginated statement
+  const { data: pageData, isLoading: loading } = useQuery({
+    queryKey: [
+      "account-statement",
+      entityType,
+      selectedEntity,
+      dateFrom,
+      dateTo,
+      pagination.pageIndex,
+      pagination.pageSize,
+    ],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_account_statement", {
+        p_entity_type: entityType,
+        p_entity_id: selectedEntity,
+        p_date_from: dateFrom || null,
+        p_date_to: dateTo || null,
+        p_limit: pagination.pageSize,
+        p_offset: pagination.pageIndex * pagination.pageSize,
+      });
+      if (error) throw error;
+      return data as unknown as {
+        lines: StatementLine[];
+        total_count: number;
+        total_debit: number;
+        total_credit: number;
+        final_balance: number;
+      };
+    },
+    enabled: !!selectedEntity,
+    placeholderData: (prev) => prev,
+  });
+
+  const lines = pageData?.lines ?? [];
+  const totalCount = pageData?.total_count ?? 0;
+  const totalDebit = pageData?.total_debit ?? 0;
+  const totalCredit = pageData?.total_credit ?? 0;
+  const finalBalance = pageData?.final_balance ?? 0;
+
+  // Reference prefix per doc_kind
+  const refPrefix = (kind: string): string => {
+    switch (kind) {
+      case "sales_invoice":
+        return settings?.sales_invoice_prefix || "INV-";
+      case "sales_return":
+        return settings?.sales_return_prefix || "SRN-";
+      case "customer_payment":
+        return settings?.customer_payment_prefix || "CPV-";
+      case "purchase_invoice":
+        return settings?.purchase_invoice_prefix || "PUR-";
+      case "purchase_return":
+        return settings?.purchase_return_prefix || "PRN-";
+      case "supplier_payment":
+        return settings?.supplier_payment_prefix || "SPV-";
+      default:
+        return "";
     }
-  }, [defaultEntityId, entities, autoLoaded]);
+  };
 
-  const fetchStatement = async () => {
+  const columns: ColumnDef<StatementLine, any>[] = [
+    {
+      accessorKey: "line_date",
+      header: "التاريخ",
+      cell: ({ row }) => (
+        <span className="text-sm font-mono text-muted-foreground whitespace-nowrap">
+          {row.original.line_date}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "line_type",
+      header: "النوع",
+      cell: ({ row }) => (
+        <span className="text-sm">{row.original.line_type}</span>
+      ),
+    },
+    {
+      id: "reference",
+      header: "المرجع",
+      cell: ({ row }) => (
+        <span className="font-mono font-bold text-sm">
+          {formatDisplayNumber(
+            refPrefix(row.original.doc_kind),
+            row.original.doc_posted_number,
+            row.original.doc_number,
+            row.original.doc_status,
+          )}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "description",
+      header: "البيان",
+      cell: ({ row }) => (
+        <span className="text-sm">{row.original.description}</span>
+      ),
+    },
+    {
+      accessorKey: "debit",
+      header: "مدين",
+      cell: ({ row }) => (
+        <span
+          className={`font-mono text-sm ${row.original.debit > 0 ? "text-emerald-600 font-bold" : "text-muted-foreground/30"}`}
+        >
+          {row.original.debit > 0 ? fmt(row.original.debit) : "-"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "credit",
+      header: "دائن",
+      cell: ({ row }) => (
+        <span
+          className={`font-mono text-sm ${row.original.credit > 0 ? "text-rose-600 font-bold" : "text-muted-foreground/30"}`}
+        >
+          {row.original.credit > 0 ? fmt(row.original.credit) : "-"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "running_balance",
+      header: "الرصيد",
+      cell: ({ row }) => {
+        const bal = Number(row.original.running_balance ?? 0);
+        return (
+          <span
+            className={`font-mono text-sm font-black ${bal >= 0 ? "text-emerald-600" : "text-rose-600"}`}
+          >
+            {bal >= 0 ? fmt(bal) : `(${fmt(Math.abs(bal))})`}
+          </span>
+        );
+      },
+    },
+  ];
+
+  // Lazy export
+  const exportConfig = {
+    filenamePrefix: `كشف-حساب-${entityName || ""}`,
+    sheetName: "كشف حساب",
+    pdfTitle: `كشف حساب: ${entityName}`,
+    headers: [
+      "التاريخ",
+      "النوع",
+      "المرجع",
+      "البيان",
+      "مدين",
+      "دائن",
+      "الرصيد",
+    ],
+    rows: [] as any[][],
+    settings,
+    pdfOrientation: "landscape" as const,
+  };
+
+  const handleExportOpen = async () => {
     if (!selectedEntity) return;
-    setLoading(true);
-
-    const entity = entities.find((e) => e.id === selectedEntity);
-    setEntityName(entity?.name || "");
-
-    const allLines: StatementLine[] = [];
-
-    if (entityType === "customer") {
-      // Sales invoices
-      const salesPrefix = settings?.sales_invoice_prefix || "INV-";
-      let q = supabase
-        .from("sales_invoices")
-        .select("invoice_number, posted_number, invoice_date, total, status")
-        .eq("customer_id", selectedEntity)
-        .eq("status", "posted")
-        .order("invoice_date");
-      if (dateFrom) q = q.gte("invoice_date", dateFrom);
-      if (dateTo) q = q.lte("invoice_date", dateTo);
-      const { data: invoices } = await q;
-
-      (invoices || []).forEach((inv: any) => {
-        allLines.push({
-          date: inv.invoice_date,
-          type: "فاتورة مبيعات",
-          reference: formatDisplayNumber(
-            salesPrefix,
-            inv.posted_number,
-            inv.invoice_number,
-            inv.status,
-          ),
-          description: "فاتورة مبيعات",
-          debit: Number(inv.total),
-          credit: 0,
-          runningBalance: 0,
-        });
-      });
-
-      // Sales returns
-      const salesReturnPrefix = settings?.sales_return_prefix || "SRN-";
-      let qr = supabase
-        .from("sales_returns")
-        .select("return_number, posted_number, return_date, total, status")
-        .eq("customer_id", selectedEntity)
-        .eq("status", "posted")
-        .order("return_date");
-      if (dateFrom) qr = qr.gte("return_date", dateFrom);
-      if (dateTo) qr = qr.lte("return_date", dateTo);
-      const { data: returns } = await qr;
-
-      (returns || []).forEach((ret: any) => {
-        allLines.push({
-          date: ret.return_date,
-          type: "مرتجع مبيعات",
-          reference: formatDisplayNumber(
-            salesReturnPrefix,
-            ret.posted_number,
-            ret.return_number,
-            ret.status,
-          ),
-          description: "مرتجع مبيعات",
-          debit: 0,
-          credit: Number(ret.total),
-          runningBalance: 0,
-        });
-      });
-
-      // Customer payments
-      const custPayPrefix = settings?.customer_payment_prefix || "CPV-";
-      let qp = supabase
-        .from("customer_payments")
-        .select(
-          "id, payment_number, posted_number, payment_date, amount, status",
-        )
-        .eq("customer_id", selectedEntity)
-        .eq("status", "posted")
-        .order("payment_date");
-      if (dateFrom) qp = qp.gte("payment_date", dateFrom);
-      if (dateTo) qp = qp.lte("payment_date", dateTo);
-      const { data: payments } = await qp;
-
-      // Identify refund payments (linked to sales returns)
-      const custPaymentIds = (payments || []).map((p: any) => p.id);
-      let custRefundIds = new Set<string>();
-      if (custPaymentIds.length > 0) {
-        const { data: returnAllocs } = await supabase
-          .from("sales_return_payment_allocations")
-          .select("payment_id")
-          .in("payment_id", custPaymentIds);
-        custRefundIds = new Set(
-          (returnAllocs || []).map((a: any) => a.payment_id),
-        );
-      }
-
-      (payments || []).forEach((pay: any) => {
-        const isRefund = custRefundIds.has(pay.id);
-        allLines.push({
-          date: pay.payment_date,
-          type: isRefund ? "رد مبلغ لعميل" : "سند قبض",
-          reference: formatDisplayNumber(
-            custPayPrefix,
-            pay.posted_number,
-            pay.payment_number,
-            pay.status,
-          ),
-          description: isRefund ? "رد مبلغ مرتجع للعميل" : "تحصيل من العميل",
-          debit: isRefund ? Number(pay.amount) : 0,
-          credit: isRefund ? 0 : Number(pay.amount),
-          runningBalance: 0,
-        });
-      });
-    } else {
-      // Purchase invoices
-      const purchasePrefix = settings?.purchase_invoice_prefix || "PUR-";
-      let q = supabase
-        .from("purchase_invoices")
-        .select("invoice_number, posted_number, invoice_date, total, status")
-        .eq("supplier_id", selectedEntity)
-        .eq("status", "posted")
-        .order("invoice_date");
-      if (dateFrom) q = q.gte("invoice_date", dateFrom);
-      if (dateTo) q = q.lte("invoice_date", dateTo);
-      const { data: invoices } = await q;
-
-      (invoices || []).forEach((inv: any) => {
-        allLines.push({
-          date: inv.invoice_date,
-          type: "فاتورة مشتريات",
-          reference: formatDisplayNumber(
-            purchasePrefix,
-            inv.posted_number,
-            inv.invoice_number,
-            inv.status,
-          ),
-          description: "فاتورة مشتريات",
-          debit: 0,
-          credit: Number(inv.total),
-          runningBalance: 0,
-        });
-      });
-
-      // Purchase returns
-      const purchaseReturnPrefix = settings?.purchase_return_prefix || "PRN-";
-      let qr = supabase
-        .from("purchase_returns")
-        .select("return_number, posted_number, return_date, total, status")
-        .eq("supplier_id", selectedEntity)
-        .eq("status", "posted")
-        .order("return_date");
-      if (dateFrom) qr = qr.gte("return_date", dateFrom);
-      if (dateTo) qr = qr.lte("return_date", dateTo);
-      const { data: returns } = await qr;
-
-      (returns || []).forEach((ret: any) => {
-        allLines.push({
-          date: ret.return_date,
-          type: "مرتجع مشتريات",
-          reference: formatDisplayNumber(
-            purchaseReturnPrefix,
-            ret.posted_number,
-            ret.return_number,
-            ret.status,
-          ),
-          description: "مرتجع مشتريات",
-          debit: Number(ret.total),
-          credit: 0,
-          runningBalance: 0,
-        });
-      });
-
-      // Supplier payments
-      const supPayPrefix = settings?.supplier_payment_prefix || "SPV-";
-      let qp = supabase
-        .from("supplier_payments")
-        .select(
-          "id, payment_number, posted_number, payment_date, amount, status",
-        )
-        .eq("supplier_id", selectedEntity)
-        .eq("status", "posted")
-        .order("payment_date");
-      if (dateFrom) qp = qp.gte("payment_date", dateFrom);
-      if (dateTo) qp = qp.lte("payment_date", dateTo);
-      const { data: payments } = await qp;
-
-      // Identify refund payments (linked to purchase returns)
-      const supPaymentIds = (payments || []).map((p: any) => p.id);
-      let supRefundIds = new Set<string>();
-      if (supPaymentIds.length > 0) {
-        const { data: returnAllocs } = await supabase
-          .from("purchase_return_payment_allocations")
-          .select("payment_id")
-          .in("payment_id", supPaymentIds);
-        supRefundIds = new Set(
-          (returnAllocs || []).map((a: any) => a.payment_id),
-        );
-      }
-
-      (payments || []).forEach((pay: any) => {
-        const isRefund = supRefundIds.has(pay.id);
-        allLines.push({
-          date: pay.payment_date,
-          type: isRefund ? "مبلغ مسترد من مورد" : "سند صرف",
-          reference: formatDisplayNumber(
-            supPayPrefix,
-            pay.posted_number,
-            pay.payment_number,
-            pay.status,
-          ),
-          description: isRefund ? "استلام مبلغ مرتجع من المورد" : "دفعة للمورد",
-          debit: isRefund ? 0 : Number(pay.amount),
-          credit: isRefund ? Number(pay.amount) : 0,
-          runningBalance: 0,
-        });
-      });
-    }
-
-    // Sort by date
-    allLines.sort((a, b) => a.date.localeCompare(b.date));
-
-    // Calculate running balance
-    let balance = 0;
-    allLines.forEach((line) => {
-      balance += line.debit - line.credit;
-      line.runningBalance = balance;
+    const { data } = await supabase.rpc("get_account_statement", {
+      p_entity_type: entityType,
+      p_entity_id: selectedEntity,
+      p_date_from: dateFrom || null,
+      p_date_to: dateTo || null,
+      p_limit: 100000,
+      p_offset: 0,
     });
-
-    setLines(allLines);
-    setLoading(false);
-  };
-
-  const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
-  const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
-  const finalBalance = totalDebit - totalCredit;
-
-  const handleExportExcel = () => {
-    exportToExcel({
-      filename: `كشف_حساب_${entityName}`,
-      sheetName: "كشف حساب",
-      headers: [
-        "التاريخ",
-        "النوع",
-        "المرجع",
-        "البيان",
-        "مدين",
-        "دائن",
-        "الرصيد",
-      ],
-      rows: lines.map((l) => [
-        l.date,
-        l.type,
-        l.reference,
-        l.description,
-        l.debit || "",
-        l.credit || "",
-        l.runningBalance,
-      ]),
-    });
-  };
-
-  const handleExportPdf = async () => {
-    await exportReportPdf({
-      title: `كشف حساب: ${entityName}`,
-      settings,
-      headers: [
-        "التاريخ",
-        "النوع",
-        "المرجع",
-        "البيان",
-        "مدين",
-        "دائن",
-        "الرصيد",
-      ],
-      rows: lines.map((l) => [
-        l.date,
-        l.type,
-        l.reference,
-        l.description,
-        l.debit ? formatCurrency(l.debit) : "-",
-        l.credit ? formatCurrency(l.credit) : "-",
-        l.runningBalance >= 0
-          ? formatCurrency(l.runningBalance)
-          : `(${formatCurrency(Math.abs(l.runningBalance))})`,
-      ]),
-      summaryCards: [
-        { label: "إجمالي المدين", value: formatCurrency(totalDebit) },
-        { label: "إجمالي الدائن", value: formatCurrency(totalCredit) },
-        {
-          label: "الرصيد النهائي",
-          value:
-            finalBalance >= 0
-              ? formatCurrency(finalBalance)
-              : `(${formatCurrency(Math.abs(finalBalance))})`,
-        },
-      ],
-      orientation: "landscape",
-      filename: `كشف_حساب_${entityName}`,
-    });
+    const all = (((data as any)?.lines) ?? []) as StatementLine[];
+    exportConfig.rows = all.map((l) => [
+      l.line_date,
+      l.line_type,
+      formatDisplayNumber(
+        refPrefix(l.doc_kind),
+        l.doc_posted_number,
+        l.doc_number,
+        l.doc_status,
+      ),
+      l.description,
+      l.debit > 0 ? l.debit : "",
+      l.credit > 0 ? l.credit : "",
+      Number(l.running_balance ?? 0),
+    ]);
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
@@ -457,141 +348,95 @@ export default function AccountStatement({
                 placeholder="إلى تاريخ"
               />
             </div>
-            <Button
-              onClick={fetchStatement}
-              disabled={!selectedEntity || loading}
-            >
-              {loading ? "جاري التحميل..." : "عرض الكشف"}
-            </Button>
+            <ExportMenu
+              config={exportConfig}
+              onOpen={handleExportOpen}
+              disabled={!selectedEntity || loading || totalCount === 0}
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Results */}
-      {lines.length > 0 && (
-        <>
-          {/* Summary */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">إجمالي المدين</p>
-                <p className="text-xl font-bold text-primary">
-                  {formatCurrency(totalDebit)}
+      {/* KPIs */}
+      {selectedEntity && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            {
+              label: "إجمالي الحركات",
+              value: totalCount.toLocaleString("en-US"),
+              icon: ArrowUpDown,
+              color: "bg-primary/10 text-primary",
+            },
+            {
+              label: "إجمالي المدين",
+              value: fmt(totalDebit),
+              icon: TrendingUp,
+              color: "bg-emerald-500/10 text-emerald-600",
+            },
+            {
+              label: "إجمالي الدائن",
+              value: fmt(totalCredit),
+              icon: TrendingDown,
+              color: "bg-rose-500/10 text-rose-600",
+            },
+            {
+              label: "الرصيد النهائي",
+              value:
+                finalBalance >= 0
+                  ? fmt(finalBalance)
+                  : `(${fmt(Math.abs(finalBalance))})`,
+              icon: Coins,
+              color:
+                finalBalance >= 0
+                  ? "bg-emerald-500/10 text-emerald-600"
+                  : "bg-rose-500/10 text-rose-600",
+            },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <Card key={label}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="text-2xl font-black text-foreground font-mono">
+                  {value}
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">{label}</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">إجمالي الدائن</p>
-                <p className="text-xl font-bold text-warning">
-                  {formatCurrency(totalCredit)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">الرصيد النهائي</p>
-                <p
-                  className={`text-xl font-bold ${finalBalance >= 0 ? "text-success" : "text-destructive"}`}
-                >
-                  {finalBalance >= 0
-                    ? formatCurrency(finalBalance)
-                    : `(${formatCurrency(Math.abs(finalBalance))})`}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Export buttons */}
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleExportExcel}>
-              <FileSpreadsheet className="w-4 h-4 ml-1" />
-              Excel
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleExportPdf}>
-              <FileDown className="w-4 h-4 ml-1" />
-              PDF
-            </Button>
-          </div>
-
-          {/* Table */}
-          <Card>
-            <CardHeader className="py-3 border-b bg-muted/30">
-              <CardTitle className="text-base">
-                كشف حساب: {entityName}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/20">
-                    <TableHead className="text-right">التاريخ</TableHead>
-                    <TableHead className="text-right">النوع</TableHead>
-                    <TableHead className="text-right">المرجع</TableHead>
-                    <TableHead className="text-right">البيان</TableHead>
-                    <TableHead className="text-right">مدين</TableHead>
-                    <TableHead className="text-right">دائن</TableHead>
-                    <TableHead className="text-right">الرصيد</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lines.map((line, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-sm">
-                        {new Date(line.date).toLocaleDateString("en-GB")}
-                      </TableCell>
-                      <TableCell className="text-sm">{line.type}</TableCell>
-                      <TableCell className="text-sm font-mono">
-                        {line.reference}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {line.description}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {line.debit ? formatCurrency(line.debit) : "-"}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {line.credit ? formatCurrency(line.credit) : "-"}
-                      </TableCell>
-                      <TableCell
-                        className={`text-sm font-bold ${line.runningBalance >= 0 ? "text-green-600" : "text-red-600"}`}
-                      >
-                        {line.runningBalance >= 0
-                          ? formatCurrency(line.runningBalance)
-                          : `(${formatCurrency(Math.abs(line.runningBalance))})`}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {/* Totals row */}
-                  <TableRow className="bg-muted/30 font-bold">
-                    <TableCell colSpan={4} className="text-sm">
-                      الإجمالي
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {formatCurrency(totalDebit)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {formatCurrency(totalCredit)}
-                    </TableCell>
-                    <TableCell
-                      className={`text-sm ${finalBalance >= 0 ? "text-green-600" : "text-red-600"}`}
-                    >
-                      {finalBalance >= 0
-                        ? formatCurrency(finalBalance)
-                        : `(${formatCurrency(Math.abs(finalBalance))})`}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </>
+          ))}
+        </div>
       )}
 
-      {lines.length === 0 && selectedEntity && !loading && (
+      {/* Table */}
+      {selectedEntity ? (
+        <DataTable
+          columns={columns}
+          data={lines}
+          isLoading={loading}
+          emptyMessage="لا توجد حركات لهذا الحساب"
+          manualPagination
+          pageCount={Math.ceil(totalCount / pagination.pageSize)}
+          totalRows={totalCount}
+          pagination={pagination}
+          onPaginationChange={setPagination}
+          columnLabels={{
+            line_date: "التاريخ",
+            line_type: "النوع",
+            reference: "المرجع",
+            description: "البيان",
+            debit: "مدين",
+            credit: "دائن",
+            running_balance: "الرصيد",
+          }}
+        />
+      ) : (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            اضغط "عرض الكشف" لعرض حركات الحساب
+            اختر {entityType === "customer" ? "عميلاً" : "مورداً"} لعرض كشف الحساب
           </CardContent>
         </Card>
       )}
