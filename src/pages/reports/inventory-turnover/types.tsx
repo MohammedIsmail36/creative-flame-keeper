@@ -72,6 +72,22 @@ export interface ProductTurnoverData {
   effectiveAge: number;
   supplierReturnCandidate: boolean;
   supplierReturnReason: string | null;
+  // ── Deep analysis fields (decision-maker friendly) ──────────────
+  firstActivityDate: string | null;          // أقل تاريخ من (شراء، بيع، إنشاء)
+  daysSinceFirstActivity: number;            // عمر فعلي من أول حركة
+  salesVariability: number | null;           // CV للمبيعات الأسبوعية
+  isSeasonalOrVolatile: boolean;             // CV > 1.5
+  priorYearSalesQty: number | null;          // مبيعات نفس الفترة العام الماضي
+  lostSale: boolean;                         // currentStock=0 + soldQty>0 + لم يُشترى منذ +14 يوم
+  daysWithoutRepurchase: number | null;      // أيام منذ آخر شراء عند نفاد المخزون
+  // Health Flags
+  flagHighReturns: boolean;                  // returnedQty/grossSold > 30%
+  flagNoSellingPrice: boolean;               // sellingPrice null/0
+  flagNegativeMargin: boolean;               // wac > sellingPrice
+  flagZeroWac: boolean;                      // مخزون موجود بدون WAC
+  flagFullySupplierReturned: boolean;        // اشتُري ثم أُرجِع كله للمورد
+  flagNoMinStock: boolean;                   // A/B بدون min_stock_level
+  hasAnyHealthFlag: boolean;
 }
 
 // ─── constants ───────────────────────────────────────────────────────────────

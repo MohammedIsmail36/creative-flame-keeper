@@ -77,6 +77,7 @@ const SupplierReturnsPage = lazy(() => import("./pages/reports/inventory-turnove
 const NewProductsPage = lazy(() => import("./pages/reports/inventory-turnover/NewProductsPage"));
 const UnlistedProductsPage = lazy(() => import("./pages/reports/inventory-turnover/UnlistedProductsPage"));
 const FullAnalysisPage = lazy(() => import("./pages/reports/inventory-turnover/FullAnalysisPage"));
+const ProductHealthPage = lazy(() => import("./pages/reports/inventory-turnover/ProductHealthPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -160,6 +161,7 @@ const App = () => (
               <Route path="new-products" element={withSuspense(<NewProductsPage />)} />
               <Route path="unlisted" element={withSuspense(<UnlistedProductsPage />)} />
               <Route path="analysis" element={withSuspense(<FullAnalysisPage />)} />
+              <Route path="health" element={withSuspense(<ProductHealthPage />)} />
             </Route>
             <Route path="/inventory-adjustments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryAdjustments />)}</AppLayout></ProtectedRoute>} />
             <Route path="/inventory-adjustments/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryAdjustmentForm />)}</AppLayout></ProtectedRoute>} />
