@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { User, Session } from "@supabase/supabase-js";
 
 type AppRole = "admin" | "accountant" | "sales";
@@ -27,44 +28,59 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(true);
   const [mfaRequired, setMfaRequired] = useState(false);
+
+  // Cached role + profile via React Query (deduplicated across components)
+  const { data: role = null } = useQuery({
+    queryKey: ["user-role", user?.id],
+    enabled: !!user?.id,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user!.id)
+        .single();
+      if (error) throw error;
+      return (data?.role ?? null) as AppRole | null;
+    },
+  });
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    enabled: !!user?.id,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user!.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const fullName = profile?.full_name || "";
 
   const checkMfaStatus = async () => {
     try {
       const { data: aalData } =
         await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aalData) {
-        // If current level is aal1 but next level requires aal2, MFA verification is needed
         setMfaRequired(
           aalData.currentLevel === "aal1" && aalData.nextLevel === "aal2",
         );
       }
     } catch (err) {
       console.error("Error checking MFA status:", err);
-      // MFA check failure — default to requiring MFA for safety
       setMfaRequired(true);
-    }
-  };
-
-  const fetchUserData = async (userId: string) => {
-    try {
-      const [{ data: roleData }, { data: profileData }] = await Promise.all([
-        supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", userId)
-          .single(),
-        supabase.from("profiles").select("full_name").eq("id", userId).single(),
-      ]);
-      if (roleData) setRole(roleData.role as AppRole);
-      if (profileData) setFullName(profileData.full_name || "");
-    } catch (error) {
-      console.error("Error fetching user data:", error);
     }
   };
 
@@ -76,15 +92,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        // Use setTimeout to avoid Supabase auth deadlock
         setTimeout(() => {
-          fetchUserData(session.user.id);
           checkMfaStatus();
         }, 0);
       } else {
-        setRole(null);
-        setFullName("");
         setMfaRequired(false);
+        // Clear cached user data on sign-out
+        queryClient.removeQueries({ queryKey: ["user-role"] });
+        queryClient.removeQueries({ queryKey: ["profile"] });
       }
       setLoading(false);
     });
@@ -92,23 +107,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserData(session.user.id);
-        checkMfaStatus();
-      }
+      if (session?.user) checkMfaStatus();
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [queryClient]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-    setRole(null);
-    setFullName("");
     setMfaRequired(false);
+    queryClient.clear();
   };
 
   return (

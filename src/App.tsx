@@ -77,7 +77,16 @@ const NewProductsPage = lazy(() => import("./pages/reports/inventory-turnover/Ne
 const UnlistedProductsPage = lazy(() => import("./pages/reports/inventory-turnover/UnlistedProductsPage"));
 const FullAnalysisPage = lazy(() => import("./pages/reports/inventory-turnover/FullAnalysisPage"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const withSuspense = (node: React.ReactNode) => (
   <Suspense fallback={<PageSkeleton />}>{node}</Suspense>
