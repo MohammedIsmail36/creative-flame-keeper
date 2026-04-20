@@ -679,9 +679,12 @@ interface InventoryMovement {
   id: string;
   movement_type: string;
   quantity: number;
+  unit_cost?: number;
   total_cost: number;
   movement_date: string;
   notes?: string;
+  reference_id?: string | null;
+  reference_type?: string | null;
 }
 
 interface ProductStats {
