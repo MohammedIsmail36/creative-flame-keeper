@@ -441,14 +441,18 @@ export default function InventoryReport() {
   }, [products, stockFilter]);
 
   // ── KPI (always from all active products) ──
+  // قيمة المخزون الإجمالية = رصيد GL (1104) — مصدر الحقيقة المحاسبي
+  // قيمة المخزون التشغيلية (للمقارنة) = Σ qty × WAC لكل منتج
   const kpi = useMemo(() => {
     const active = products.filter((p) => p.is_active);
     const totalItems = active.length;
     const totalQty = active.reduce((s, p) => s + Number(p.quantity_on_hand), 0);
-    const purchaseValue = active.reduce(
+    const operationalValue = active.reduce(
       (s, p) => s + Number(p.quantity_on_hand) * getWac(p),
       0,
     );
+    // قيمة المخزون المعتمدة في KPIs = GL
+    const purchaseValue = glInventoryBalance;
     const sellingValue = active.reduce(
       (s, p) => s + Number(p.quantity_on_hand) * Number(p.selling_price ?? 0),
       0,
@@ -466,12 +470,29 @@ export default function InventoryReport() {
       totalItems,
       totalQty,
       purchaseValue,
+      operationalValue,
       sellingValue,
       expectedProfit,
       lowStock,
       zeroStock,
     };
-  }, [products, wacMap]);
+  }, [products, wacMap, glInventoryBalance]);
+
+  // ── Reconciliation between operational (WAC) and accounting (GL) ──
+  const reconciliation = useMemo(() => {
+    const operational = kpi.operationalValue;
+    const accounting = glInventoryBalance;
+    const diff = operational - accounting;
+    const absDiff = Math.abs(diff);
+    const deviationPct =
+      accounting !== 0 ? (absDiff / Math.abs(accounting)) * 100 : 0;
+    let level: "match" | "rounding" | "minor" | "critical";
+    if (absDiff === 0) level = "match";
+    else if (absDiff <= 1) level = "rounding";
+    else if (absDiff > 1000 || deviationPct > 5) level = "critical";
+    else level = "minor";
+    return { operational, accounting, diff, absDiff, deviationPct, level };
+  }, [kpi.operationalValue, glInventoryBalance]);
 
   // ═══ GROUPING: By Product (default) ═══
   const productColumns = useMemo<ColumnDef<any, any>[]>(
