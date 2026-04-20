@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,69 +8,80 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import Dashboard from "./pages/Dashboard";
-import Accounts from "./pages/Accounts";
-import Journal from "./pages/Journal";
-import JournalEntryForm from "./pages/JournalEntryForm";
-import Ledger from "./pages/Ledger";
-import Sales from "./pages/Sales";
-import SalesInvoiceForm from "./pages/SalesInvoiceForm";
-import SalesReturns from "./pages/SalesReturns";
-import SalesReturnForm from "./pages/SalesReturnForm";
-import CustomerPayments from "./pages/CustomerPayments";
-import Customers from "./pages/Customers";
-import Purchases from "./pages/Purchases";
-import PurchaseInvoiceForm from "./pages/PurchaseInvoiceForm";
-import PurchaseReturns from "./pages/PurchaseReturns";
-import PurchaseReturnForm from "./pages/PurchaseReturnForm";
-import SupplierPayments from "./pages/SupplierPayments";
-import Suppliers from "./pages/Suppliers";
-import Products from "./pages/Products";
-import ProductForm from "./pages/ProductForm";
-import ProductView from "./pages/ProductView";
-import ProductImport from "./pages/ProductImport";
-import LookupManagement from "./pages/LookupManagement";
-import CategoryManagement from "./pages/CategoryManagement";
-import SalesReportPage from "./pages/reports/SalesReportPage";
-import PurchasesReportPage from "./pages/reports/PurchasesReportPage";
-import InventoryReportPage from "./pages/reports/InventoryReportPage";
-import DebtAgingReportPage from "./pages/reports/DebtAgingReportPage";
-import GrowthAnalyticsPage from "./pages/reports/GrowthAnalyticsPage";
-import ProductAnalyticsPage from "./pages/reports/ProductAnalyticsPage";
-import AccountBalancesPage from "./pages/reports/AccountBalancesPage";
-import ProfitLossPage from "./pages/reports/ProfitLossPage";
-import InventoryMovements from "./pages/InventoryMovements";
-import InventoryTurnoverPage from "./pages/reports/InventoryTurnoverPage";
-import TurnoverLayout from "./pages/reports/inventory-turnover/TurnoverLayout";
-import TurnoverDashboardPage from "./pages/reports/inventory-turnover/TurnoverDashboardPage";
-import UrgentActionsPage from "./pages/reports/inventory-turnover/UrgentActionsPage";
-import PurchasePlanningPage from "./pages/reports/inventory-turnover/PurchasePlanningPage";
-import DormantInventoryPage from "./pages/reports/inventory-turnover/DormantInventoryPage";
-import SupplierReturnsPage from "./pages/reports/inventory-turnover/SupplierReturnsPage";
-import NewProductsPage from "./pages/reports/inventory-turnover/NewProductsPage";
-import UnlistedProductsPage from "./pages/reports/inventory-turnover/UnlistedProductsPage";
-import FullAnalysisPage from "./pages/reports/inventory-turnover/FullAnalysisPage";
-import InventoryAdjustments from "./pages/InventoryAdjustments";
-import InventoryAdjustmentForm from "./pages/InventoryAdjustmentForm";
-import TrialBalance from "./pages/TrialBalance";
-import IncomeStatement from "./pages/IncomeStatement";
-import BalanceSheet from "./pages/BalanceSheet";
-import CashFlowStatement from "./pages/CashFlowStatement";
-import SettingsPage from "./pages/SettingsPage";
-import UserManagement from "./pages/UserManagement";
+import { PageSkeleton } from "@/components/PageSkeleton";
+
+// Eager (small + first-paint critical)
 import Auth from "./pages/Auth";
 import MfaVerify from "./pages/MfaVerify";
-import Profile from "./pages/Profile";
-import SystemSetup from "./pages/SystemSetup";
-import CustomerStatement from "./pages/CustomerStatement";
-import SupplierStatement from "./pages/SupplierStatement";
 import NotFound from "./pages/NotFound";
-import FiscalYearClosing from "./pages/FiscalYearClosing";
-import ExpenseTypes from "./pages/ExpenseTypes";
-import Expenses from "./pages/Expenses";
-import ExpenseForm from "./pages/ExpenseForm";
+import Dashboard from "./pages/Dashboard";
+
+// Lazy — list pages
+const Accounts = lazy(() => import("./pages/Accounts"));
+const Journal = lazy(() => import("./pages/Journal"));
+const JournalEntryForm = lazy(() => import("./pages/JournalEntryForm"));
+const Ledger = lazy(() => import("./pages/Ledger"));
+const Sales = lazy(() => import("./pages/Sales"));
+const SalesInvoiceForm = lazy(() => import("./pages/SalesInvoiceForm"));
+const SalesReturns = lazy(() => import("./pages/SalesReturns"));
+const SalesReturnForm = lazy(() => import("./pages/SalesReturnForm"));
+const CustomerPayments = lazy(() => import("./pages/CustomerPayments"));
+const Customers = lazy(() => import("./pages/Customers"));
+const Purchases = lazy(() => import("./pages/Purchases"));
+const PurchaseInvoiceForm = lazy(() => import("./pages/PurchaseInvoiceForm"));
+const PurchaseReturns = lazy(() => import("./pages/PurchaseReturns"));
+const PurchaseReturnForm = lazy(() => import("./pages/PurchaseReturnForm"));
+const SupplierPayments = lazy(() => import("./pages/SupplierPayments"));
+const Suppliers = lazy(() => import("./pages/Suppliers"));
+const Products = lazy(() => import("./pages/Products"));
+const ProductForm = lazy(() => import("./pages/ProductForm"));
+const ProductView = lazy(() => import("./pages/ProductView"));
+const ProductImport = lazy(() => import("./pages/ProductImport"));
+const LookupManagement = lazy(() => import("./pages/LookupManagement"));
+const CategoryManagement = lazy(() => import("./pages/CategoryManagement"));
+const InventoryMovements = lazy(() => import("./pages/InventoryMovements"));
+const InventoryAdjustments = lazy(() => import("./pages/InventoryAdjustments"));
+const InventoryAdjustmentForm = lazy(() => import("./pages/InventoryAdjustmentForm"));
+const TrialBalance = lazy(() => import("./pages/TrialBalance"));
+const IncomeStatement = lazy(() => import("./pages/IncomeStatement"));
+const BalanceSheet = lazy(() => import("./pages/BalanceSheet"));
+const CashFlowStatement = lazy(() => import("./pages/CashFlowStatement"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const UserManagement = lazy(() => import("./pages/UserManagement"));
+const Profile = lazy(() => import("./pages/Profile"));
+const SystemSetup = lazy(() => import("./pages/SystemSetup"));
+const CustomerStatement = lazy(() => import("./pages/CustomerStatement"));
+const SupplierStatement = lazy(() => import("./pages/SupplierStatement"));
+const FiscalYearClosing = lazy(() => import("./pages/FiscalYearClosing"));
+const ExpenseTypes = lazy(() => import("./pages/ExpenseTypes"));
+const Expenses = lazy(() => import("./pages/Expenses"));
+const ExpenseForm = lazy(() => import("./pages/ExpenseForm"));
+
+// Lazy — reports (heavy: recharts/jspdf/xlsx)
+const SalesReportPage = lazy(() => import("./pages/reports/SalesReportPage"));
+const PurchasesReportPage = lazy(() => import("./pages/reports/PurchasesReportPage"));
+const InventoryReportPage = lazy(() => import("./pages/reports/InventoryReportPage"));
+const DebtAgingReportPage = lazy(() => import("./pages/reports/DebtAgingReportPage"));
+const GrowthAnalyticsPage = lazy(() => import("./pages/reports/GrowthAnalyticsPage"));
+const ProductAnalyticsPage = lazy(() => import("./pages/reports/ProductAnalyticsPage"));
+const AccountBalancesPage = lazy(() => import("./pages/reports/AccountBalancesPage"));
+const ProfitLossPage = lazy(() => import("./pages/reports/ProfitLossPage"));
+const InventoryTurnoverPage = lazy(() => import("./pages/reports/InventoryTurnoverPage"));
+const TurnoverLayout = lazy(() => import("./pages/reports/inventory-turnover/TurnoverLayout"));
+const TurnoverDashboardPage = lazy(() => import("./pages/reports/inventory-turnover/TurnoverDashboardPage"));
+const UrgentActionsPage = lazy(() => import("./pages/reports/inventory-turnover/UrgentActionsPage"));
+const PurchasePlanningPage = lazy(() => import("./pages/reports/inventory-turnover/PurchasePlanningPage"));
+const DormantInventoryPage = lazy(() => import("./pages/reports/inventory-turnover/DormantInventoryPage"));
+const SupplierReturnsPage = lazy(() => import("./pages/reports/inventory-turnover/SupplierReturnsPage"));
+const NewProductsPage = lazy(() => import("./pages/reports/inventory-turnover/NewProductsPage"));
+const UnlistedProductsPage = lazy(() => import("./pages/reports/inventory-turnover/UnlistedProductsPage"));
+const FullAnalysisPage = lazy(() => import("./pages/reports/inventory-turnover/FullAnalysisPage"));
 
 const queryClient = new QueryClient();
+
+const withSuspense = (node: React.ReactNode) => (
+  <Suspense fallback={<PageSkeleton />}>{node}</Suspense>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -83,74 +95,74 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/mfa" element={<MfaVerify />} />
             <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
-            <Route path="/accounts" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Accounts /></AppLayout></ProtectedRoute>} />
-            <Route path="/journal" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Journal /></AppLayout></ProtectedRoute>} />
-            <Route path="/journal/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><JournalEntryForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/journal/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><JournalEntryForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/ledger" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Ledger /></AppLayout></ProtectedRoute>} />
-            <Route path="/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Sales /></AppLayout></ProtectedRoute>} />
-            <Route path="/sales/new" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesInvoiceForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/sales/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesInvoiceForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/sales-returns" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesReturns /></AppLayout></ProtectedRoute>} />
-            <Route path="/sales-returns/new" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesReturnForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/sales-returns/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesReturnForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/customer-payments" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><CustomerPayments /></AppLayout></ProtectedRoute>} />
-            <Route path="/customers" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Customers /></AppLayout></ProtectedRoute>} />
-            <Route path="/customer-statement/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><CustomerStatement /></AppLayout></ProtectedRoute>} />
-            <Route path="/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Purchases /></AppLayout></ProtectedRoute>} />
-            <Route path="/purchases/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseInvoiceForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/purchases/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseInvoiceForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/purchase-returns" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseReturns /></AppLayout></ProtectedRoute>} />
-            <Route path="/purchase-returns/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseReturnForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/purchase-returns/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchaseReturnForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/supplier-payments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><SupplierPayments /></AppLayout></ProtectedRoute>} />
-            <Route path="/suppliers" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><Suppliers /></AppLayout></ProtectedRoute>} />
-            <Route path="/supplier-statement/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><SupplierStatement /></AppLayout></ProtectedRoute>} />
-            <Route path="/products" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Products /></AppLayout></ProtectedRoute>} />
-            <Route path="/products/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ProductForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/products/import" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ProductImport /></AppLayout></ProtectedRoute>} />
-            <Route path="/products/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><ProductView /></AppLayout></ProtectedRoute>} />
-            <Route path="/products/:id/edit" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ProductForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/inventory/categories" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><CategoryManagement /></AppLayout></ProtectedRoute>} />
-            <Route path="/inventory/:type" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><LookupManagement /></AppLayout></ProtectedRoute>} />
-            <Route path="/trial-balance" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><TrialBalance /></AppLayout></ProtectedRoute>} />
-            <Route path="/income-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><IncomeStatement /></AppLayout></ProtectedRoute>} />
-            <Route path="/balance-sheet" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><BalanceSheet /></AppLayout></ProtectedRoute>} />
-            <Route path="/cash-flow" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><CashFlowStatement /></AppLayout></ProtectedRoute>} />
-            <Route path="/reports/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><SalesReportPage /></AppLayout></ProtectedRoute>} />
-            <Route path="/reports/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><PurchasesReportPage /></AppLayout></ProtectedRoute>} />
-            <Route path="/reports/inventory" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryReportPage /></AppLayout></ProtectedRoute>} />
-            <Route path="/reports/aging" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><DebtAgingReportPage /></AppLayout></ProtectedRoute>} />
-            <Route path="/reports/growth" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><GrowthAnalyticsPage /></AppLayout></ProtectedRoute>} />
-            <Route path="/reports/products" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ProductAnalyticsPage /></AppLayout></ProtectedRoute>} />
-            <Route path="/reports/balances" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><AccountBalancesPage /></AppLayout></ProtectedRoute>} />
-            <Route path="/reports/profit-loss" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ProfitLossPage /></AppLayout></ProtectedRoute>} />
-            <Route path="/customer-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><CustomerStatement /></AppLayout></ProtectedRoute>} />
-            <Route path="/supplier-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><SupplierStatement /></AppLayout></ProtectedRoute>} />
-            <Route path="/inventory-movements" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryMovements /></AppLayout></ProtectedRoute>} />
-            <Route path="/reports/inventory-turnover" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><TurnoverLayout /></AppLayout></ProtectedRoute>}>
-              <Route index element={<InventoryTurnoverPage />} />
-              <Route path="dashboard" element={<TurnoverDashboardPage />} />
-              <Route path="urgent-actions" element={<UrgentActionsPage />} />
-              <Route path="purchase-planning" element={<PurchasePlanningPage />} />
-              <Route path="dormant" element={<DormantInventoryPage />} />
-              <Route path="supplier-returns" element={<SupplierReturnsPage />} />
-              <Route path="new-products" element={<NewProductsPage />} />
-              <Route path="unlisted" element={<UnlistedProductsPage />} />
-              <Route path="analysis" element={<FullAnalysisPage />} />
+            <Route path="/accounts" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<Accounts />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/journal" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<Journal />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/journal/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<JournalEntryForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/journal/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<JournalEntryForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/ledger" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<Ledger />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<Sales />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/sales/new" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<SalesInvoiceForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/sales/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<SalesInvoiceForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/sales-returns" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<SalesReturns />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/sales-returns/new" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<SalesReturnForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/sales-returns/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<SalesReturnForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/customer-payments" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<CustomerPayments />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/customers" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<Customers />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/customer-statement/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<CustomerStatement />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<Purchases />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/purchases/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<PurchaseInvoiceForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/purchases/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<PurchaseInvoiceForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/purchase-returns" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<PurchaseReturns />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/purchase-returns/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<PurchaseReturnForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/purchase-returns/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<PurchaseReturnForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/supplier-payments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<SupplierPayments />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/suppliers" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<Suppliers />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/supplier-statement/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<SupplierStatement />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/products" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<Products />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/products/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProductForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/products/import" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProductImport />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/products/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<ProductView />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/products/:id/edit" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProductForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/inventory/categories" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<CategoryManagement />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/inventory/:type" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<LookupManagement />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/trial-balance" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<TrialBalance />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/income-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<IncomeStatement />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/balance-sheet" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<BalanceSheet />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/cash-flow" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<CashFlowStatement />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<SalesReportPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<PurchasesReportPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/inventory" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryReportPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/aging" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<DebtAgingReportPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/growth" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<GrowthAnalyticsPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/products" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProductAnalyticsPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/balances" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<AccountBalancesPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/profit-loss" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProfitLossPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/customer-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<CustomerStatement />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/supplier-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<SupplierStatement />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/inventory-movements" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryMovements />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/inventory-turnover" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<TurnoverLayout />)}</AppLayout></ProtectedRoute>}>
+              <Route index element={withSuspense(<InventoryTurnoverPage />)} />
+              <Route path="dashboard" element={withSuspense(<TurnoverDashboardPage />)} />
+              <Route path="urgent-actions" element={withSuspense(<UrgentActionsPage />)} />
+              <Route path="purchase-planning" element={withSuspense(<PurchasePlanningPage />)} />
+              <Route path="dormant" element={withSuspense(<DormantInventoryPage />)} />
+              <Route path="supplier-returns" element={withSuspense(<SupplierReturnsPage />)} />
+              <Route path="new-products" element={withSuspense(<NewProductsPage />)} />
+              <Route path="unlisted" element={withSuspense(<UnlistedProductsPage />)} />
+              <Route path="analysis" element={withSuspense(<FullAnalysisPage />)} />
             </Route>
-            <Route path="/inventory-adjustments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryAdjustments /></AppLayout></ProtectedRoute>} />
-            <Route path="/inventory-adjustments/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryAdjustmentForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/inventory-adjustments/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><InventoryAdjustmentForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
-            <Route path="/users" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout><UserManagement /></AppLayout></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>} />
-            <Route path="/system-setup" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout><SystemSetup /></AppLayout></ProtectedRoute>} />
-            <Route path="/fiscal-year-closing" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><FiscalYearClosing /></AppLayout></ProtectedRoute>} />
-            <Route path="/expense-types" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout><ExpenseTypes /></AppLayout></ProtectedRoute>} />
-            <Route path="/expenses" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><Expenses /></AppLayout></ProtectedRoute>} />
-            <Route path="/expenses/new" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><ExpenseForm /></AppLayout></ProtectedRoute>} />
-            <Route path="/expenses/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout><ExpenseForm /></AppLayout></ProtectedRoute>} />
+            <Route path="/inventory-adjustments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryAdjustments />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/inventory-adjustments/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryAdjustmentForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/inventory-adjustments/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryAdjustmentForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout>{withSuspense(<SettingsPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/users" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout>{withSuspense(<UserManagement />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><AppLayout>{withSuspense(<Profile />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/system-setup" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout>{withSuspense(<SystemSetup />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/fiscal-year-closing" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<FiscalYearClosing />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/expense-types" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ExpenseTypes />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/expenses" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<Expenses />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/expenses/new" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<ExpenseForm />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/expenses/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<ExpenseForm />)}</AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </SettingsProvider>
