@@ -1859,6 +1859,27 @@ export type Database = {
       }
       get_avg_purchase_price: { Args: { _product_id: string }; Returns: number }
       get_avg_selling_price: { Args: { _product_id: string }; Returns: number }
+      get_inventory_movements_summary: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_product_id?: string
+        }
+        Returns: Json
+      }
+      get_journal_summary: {
+        Args: { p_date_from?: string; p_date_to?: string }
+        Returns: Json
+      }
+      get_products_summary: { Args: never; Returns: Json }
+      get_purchases_summary: {
+        Args: { p_date_from?: string; p_date_to?: string }
+        Returns: Json
+      }
+      get_sales_summary: {
+        Args: { p_date_from?: string; p_date_to?: string }
+        Returns: Json
+      }
       get_top_products: {
         Args: { p_limit?: number }
         Returns: {
@@ -1894,6 +1915,8 @@ export type Database = {
       }
       post_purchase_invoice: { Args: { p_invoice_id: string }; Returns: Json }
       post_sales_invoice: { Args: { p_invoice_id: string }; Returns: Json }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       app_role: "admin" | "accountant" | "sales"
