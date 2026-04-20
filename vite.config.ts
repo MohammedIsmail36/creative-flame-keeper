@@ -103,15 +103,7 @@ export default defineConfig(({ mode }) => ({
             return "supabase";
           }
 
-          // React core stays in the main vendor chunk for fastest TTI
-          if (
-            id.includes("/react/") ||
-            id.includes("/react-dom/") ||
-            id.includes("/react-router") ||
-            id.includes("/scheduler/")
-          ) {
-            return "react-vendor";
-          }
+          // React core handled at top of function
 
           return "vendor";
         },
