@@ -52,6 +52,7 @@ interface StatementLine {
 interface AccountStatementProps {
   defaultEntityType?: EntityType;
   defaultEntityId?: string;
+  lockEntityType?: boolean;
 }
 
 const fmt = (val: number) =>
