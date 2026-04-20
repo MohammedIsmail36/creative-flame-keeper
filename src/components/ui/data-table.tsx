@@ -481,15 +481,15 @@ export function DataTable<TData, TValue>({
               </span>
             )}
             <span className="text-xs text-muted-foreground">
-              {table.getFilteredRowModel().rows.length !== data.length ? (
+              {manualPagination ? (
+                <>{(totalRows ?? 0).toLocaleString("ar-EG")} عنصر</>
+              ) : table.getFilteredRowModel().rows.length !== data.length ? (
                 <>
                   {table.getFilteredRowModel().rows.length} من أصل {data.length}{" "}
                   عنصر
                 </>
               ) : (
                 <>{data.length} عنصر</>
-              )}
-            </span>
           </div>
 
           {/* Controls */}
