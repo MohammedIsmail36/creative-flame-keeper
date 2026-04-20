@@ -1130,6 +1130,206 @@ export default function ProductView() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const canEdit = role === "admin" || role === "accountant";
 
+  // ── Movements table filters ──
+  const [mvType, setMvType] = useState<string>("all");
+  const [mvFrom, setMvFrom] = useState<string>("");
+  const [mvTo, setMvTo] = useState<string>("");
+
+  // Cumulative balance (asc) → reverse for display (newest first)
+  const movementsWithBalance = useMemo(() => {
+    let bal = 0;
+    const withBal = allMovements.map((m) => {
+      if (m.movement_type === "adjustment") {
+        bal += Number(m.quantity);
+      } else {
+        const isIn = MOVEMENT_IN_TYPES.includes(m.movement_type);
+        bal += isIn ? Number(m.quantity) : -Number(m.quantity);
+      }
+      return { ...m, cumulativeBalance: bal };
+    });
+    return withBal.slice().reverse();
+  }, [allMovements]);
+
+  const filteredMovements = useMemo(() => {
+    return movementsWithBalance.filter((m) => {
+      if (mvType !== "all" && m.movement_type !== mvType) return false;
+      if (mvFrom && m.movement_date < mvFrom) return false;
+      if (mvTo && m.movement_date > mvTo) return false;
+      return true;
+    });
+  }, [movementsWithBalance, mvType, mvFrom, mvTo]);
+
+  const movementColumns = useMemo<ColumnDef<any, any>[]>(
+    () => [
+      {
+        accessorKey: "movement_date",
+        header: "التاريخ",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground whitespace-nowrap">
+            {row.original.movement_date}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "movement_type",
+        header: "نوع الحركة",
+        cell: ({ row }) => (
+          <Badge
+            variant="secondary"
+            className={MOVEMENT_TYPE_COLORS[row.original.movement_type] || ""}
+          >
+            {MOVEMENT_TYPE_LABELS[row.original.movement_type] ||
+              row.original.movement_type}
+          </Badge>
+        ),
+      },
+      {
+        id: "reference",
+        header: "المرجع",
+        cell: ({ row }) => {
+          const { reference_type, reference_id } = row.original;
+          if (!reference_type || !reference_id)
+            return <span className="text-muted-foreground">-</span>;
+          const basePath = REFERENCE_ROUTE_MAP[reference_type];
+          const labels: Record<string, string> = {
+            purchase_invoice: "فاتورة شراء",
+            sales_invoice: "فاتورة بيع",
+            purchase_return: "مرتجع شراء",
+            sales_return: "مرتجع بيع",
+            inventory_adjustment: "تسوية مخزون",
+            adjustment: "تسوية مخزون",
+          };
+          const label = labels[reference_type] || reference_type;
+          return basePath ? (
+            <button
+              onClick={() => navigate(`${basePath}/${reference_id}`)}
+              className="flex items-center gap-1.5 text-primary hover:text-primary/80 font-medium text-xs transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          ) : (
+            <span className="text-xs text-muted-foreground">{label}</span>
+          );
+        },
+      },
+      {
+        id: "in_qty",
+        header: "وارد",
+        cell: ({ row }) => {
+          const mt = row.original.movement_type;
+          const qty = Number(row.original.quantity);
+          const isIn =
+            mt === "adjustment" ? qty > 0 : MOVEMENT_IN_TYPES.includes(mt);
+          return isIn ? (
+            <span className="font-bold text-emerald-600 font-mono">
+              +{Math.abs(qty).toLocaleString("en-US")}
+            </span>
+          ) : (
+            <span className="text-muted-foreground/30">-</span>
+          );
+        },
+      },
+      {
+        id: "out_qty",
+        header: "صادر",
+        cell: ({ row }) => {
+          const mt = row.original.movement_type;
+          const qty = Number(row.original.quantity);
+          const isOut =
+            mt === "adjustment" ? qty < 0 : !MOVEMENT_IN_TYPES.includes(mt);
+          return isOut ? (
+            <span className="font-bold text-rose-600 font-mono">
+              -{Math.abs(qty).toLocaleString("en-US")}
+            </span>
+          ) : (
+            <span className="text-muted-foreground/30">-</span>
+          );
+        },
+      },
+      {
+        accessorKey: "unit_cost",
+        header: "تكلفة الوحدة",
+        cell: ({ row }) => (
+          <span className="font-mono">
+            {Number(row.original.unit_cost ?? 0).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            })}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "total_cost",
+        header: "إجمالي التكلفة",
+        cell: ({ row }) => (
+          <span className="font-mono font-bold">
+            {Number(row.original.total_cost).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            })}
+          </span>
+        ),
+      },
+      {
+        id: "balance",
+        header: "الرصيد بعد",
+        cell: ({ row }) => (
+          <span className="font-black font-mono text-foreground">
+            {Number(row.original.cumulativeBalance).toLocaleString("en-US")}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "notes",
+        header: "ملاحظات",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground max-w-[160px] truncate block">
+            {row.original.notes || "-"}
+          </span>
+        ),
+      },
+    ],
+    [navigate],
+  );
+
+  const movementsExportConfig = useMemo(
+    () => ({
+      filenamePrefix: `حركات-المنتج-${product?.code ?? ""}`,
+      sheetName: "حركات المنتج",
+      pdfTitle: `سجل حركات المنتج: ${product?.name ?? ""}`,
+      headers: [
+        "التاريخ",
+        "نوع الحركة",
+        "وارد",
+        "صادر",
+        "تكلفة الوحدة",
+        "إجمالي التكلفة",
+        "الرصيد بعد",
+        "ملاحظات",
+      ],
+      rows: filteredMovements.map((m: any) => {
+        const mt = m.movement_type;
+        const qty = Number(m.quantity);
+        const isIn =
+          mt === "adjustment" ? qty > 0 : MOVEMENT_IN_TYPES.includes(mt);
+        const isOut =
+          mt === "adjustment" ? qty < 0 : !MOVEMENT_IN_TYPES.includes(mt);
+        return [
+          m.movement_date,
+          MOVEMENT_TYPE_LABELS[mt] || mt,
+          isIn ? Math.abs(qty) : "",
+          isOut ? Math.abs(qty) : "",
+          Number(m.unit_cost ?? 0),
+          Number(m.total_cost),
+          Number(m.cumulativeBalance),
+          m.notes || "",
+        ];
+      }),
+      settings,
+      pdfOrientation: "landscape" as const,
+    }),
+    [filteredMovements, product, settings],
+  );
+
   // Redirect on error
   useEffect(() => {
     if (error) {
