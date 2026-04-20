@@ -64,6 +64,7 @@ const fmt = (val: number) =>
 export default function AccountStatement({
   defaultEntityType,
   defaultEntityId,
+  lockEntityType = false,
 }: AccountStatementProps = {}) {
   const { settings } = useSettings();
   const [entityType, setEntityType] = useState<EntityType>(
