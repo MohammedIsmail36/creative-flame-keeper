@@ -61,6 +61,18 @@ export default function TurnoverDashboardPage() {
 
       <TurnoverFilterBar />
 
+      {/* H14 — تحذير فترة قصيرة (مقارنة الفترة السابقة قد لا تكون موثوقة) */}
+      {!isLoading && kpis.shortPeriodWarning && (
+        <Card className="border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/5 shadow-sm">
+          <CardContent className="py-2.5 px-4 flex items-center gap-2">
+            <Info className="h-4 w-4 text-amber-600 shrink-0" />
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              فترة التقرير أقل من 14 يوم — تم تعطيل مقارنة الفترة السابقة لتفادي مؤشرات مضلِّلة.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* شريط التطابق المحاسبي مع GL لحساب 1104 — مطابق لـ InventoryReport */}
       {!isLoading && (
         <ReconciliationBanner
