@@ -490,6 +490,8 @@ export function DataTable<TData, TValue>({
                 </>
               ) : (
                 <>{data.length} عنصر</>
+              )}
+            </span>
           </div>
 
           {/* Controls */}
