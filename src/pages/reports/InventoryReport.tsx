@@ -58,6 +58,11 @@ import {
   ExternalLink,
   BarChart3,
   PieChart as PieChartIcon,
+  CheckCircle2,
+  AlertCircle,
+  ShieldAlert,
+  BookOpen,
+  Wrench,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -227,6 +232,35 @@ export default function InventoryReport() {
     const w = wacMap[p.id];
     return typeof w === "number" && w > 0 ? w : Number(p.purchase_price ?? 0);
   };
+
+  // ── Query: GL balance for inventory account 1104 (مصدر الحقيقة المحاسبي) ──
+  const { data: glInventoryBalance = 0 } = useQuery({
+    queryKey: ["inventory-report-gl-1104", settings?.locked_until_date],
+    queryFn: async () => {
+      const { data: acc, error: accErr } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("code", "1104")
+        .maybeSingle();
+      if (accErr) throw accErr;
+      if (!acc?.id) return 0;
+      let q = supabase
+        .from("journal_entry_lines")
+        .select("debit, credit, journal_entries!inner(status, entry_date)")
+        .eq("account_id", acc.id)
+        .eq("journal_entries.status", "posted");
+      if (settings?.locked_until_date) {
+        q = q.gt("journal_entries.entry_date", settings.locked_until_date);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      const balance = (data ?? []).reduce(
+        (s: number, l: any) => s + Number(l.debit || 0) - Number(l.credit || 0),
+        0,
+      );
+      return Math.round(balance * 100) / 100;
+    },
+  });
 
   // ── Movement KPIs ──
   const movementKpi = useMemo(() => {
@@ -407,14 +441,18 @@ export default function InventoryReport() {
   }, [products, stockFilter]);
 
   // ── KPI (always from all active products) ──
+  // قيمة المخزون الإجمالية = رصيد GL (1104) — مصدر الحقيقة المحاسبي
+  // قيمة المخزون التشغيلية (للمقارنة) = Σ qty × WAC لكل منتج
   const kpi = useMemo(() => {
     const active = products.filter((p) => p.is_active);
     const totalItems = active.length;
     const totalQty = active.reduce((s, p) => s + Number(p.quantity_on_hand), 0);
-    const purchaseValue = active.reduce(
+    const operationalValue = active.reduce(
       (s, p) => s + Number(p.quantity_on_hand) * getWac(p),
       0,
     );
+    // قيمة المخزون المعتمدة في KPIs = GL
+    const purchaseValue = glInventoryBalance;
     const sellingValue = active.reduce(
       (s, p) => s + Number(p.quantity_on_hand) * Number(p.selling_price ?? 0),
       0,
@@ -432,12 +470,29 @@ export default function InventoryReport() {
       totalItems,
       totalQty,
       purchaseValue,
+      operationalValue,
       sellingValue,
       expectedProfit,
       lowStock,
       zeroStock,
     };
-  }, [products, wacMap]);
+  }, [products, wacMap, glInventoryBalance]);
+
+  // ── Reconciliation between operational (WAC) and accounting (GL) ──
+  const reconciliation = useMemo(() => {
+    const operational = kpi.operationalValue;
+    const accounting = glInventoryBalance;
+    const diff = operational - accounting;
+    const absDiff = Math.abs(diff);
+    const deviationPct =
+      accounting !== 0 ? (absDiff / Math.abs(accounting)) * 100 : 0;
+    let level: "match" | "rounding" | "minor" | "critical";
+    if (absDiff === 0) level = "match";
+    else if (absDiff <= 1) level = "rounding";
+    else if (absDiff > 1000 || deviationPct > 5) level = "critical";
+    else level = "minor";
+    return { operational, accounting, diff, absDiff, deviationPct, level };
+  }, [kpi.operationalValue, glInventoryBalance]);
 
   // ═══ GROUPING: By Product (default) ═══
   const productColumns = useMemo<ColumnDef<any, any>[]>(
@@ -983,6 +1038,170 @@ export default function InventoryReport() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Reconciliation Banner (GL vs Operational) ── */}
+      {!isLoading && (() => {
+        const r = reconciliation;
+        if (r.level === "match") {
+          return (
+            <Card className="border-emerald-500/40 bg-emerald-500/5 shadow-sm">
+              <CardContent className="py-3 px-4 flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div className="flex-1 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                    ✓ المخزون متطابق محاسبياً
+                  </span>
+                  <span className="text-muted-foreground">
+                    التقرير: <span className="font-mono font-semibold text-foreground">{fmt(r.operational)}</span>
+                  </span>
+                  <span className="text-muted-foreground">
+                    دفتر الأستاذ (1104): <span className="font-mono font-semibold text-foreground">{fmt(r.accounting)}</span>
+                  </span>
+                  <span className="text-muted-foreground">
+                    الفرق: <span className="font-mono font-semibold text-emerald-600">0.00</span>
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        }
+        if (r.level === "rounding") {
+          return (
+            <Card className="border-emerald-500/30 bg-emerald-500/5 shadow-sm">
+              <CardContent className="py-3 px-4 flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div className="flex-1 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                    ✓ متطابق (فرق تقريب مقبول: {fmt(r.absDiff)} ج.م)
+                  </span>
+                  <span className="text-muted-foreground">
+                    التقرير: <span className="font-mono font-semibold text-foreground">{fmt(r.operational)}</span>
+                  </span>
+                  <span className="text-muted-foreground">
+                    دفتر الأستاذ: <span className="font-mono font-semibold text-foreground">{fmt(r.accounting)}</span>
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        }
+        if (r.level === "minor") {
+          return (
+            <Card className="border-amber-500/50 bg-amber-500/5 shadow-sm">
+              <CardContent className="py-4 px-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+                      <span className="font-semibold text-amber-700 dark:text-amber-400 text-sm">
+                        ⚠ فرق محاسبي: {fmt(r.absDiff)} ج.م
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        التقرير (تشغيلي): <span className="font-mono font-semibold text-foreground">{fmt(r.operational)}</span>
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        دفتر الأستاذ: <span className="font-mono font-semibold text-foreground">{fmt(r.accounting)}</span>
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        نسبة الانحراف: <span className="font-mono font-semibold">{r.deviationPct.toFixed(2)}%</span>
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      السبب المحتمل: قيد محاسبي مباشر على حساب 1104 لا يقابله حركة مخزون
+                      (مثل: فروقات أسعار PPV، تسوية جرد، إعادة تقييم).
+                      راجع كشف حساب 1104 وحدد القيد المسبب للفرق.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs border-amber-500/50 hover:bg-amber-500/10"
+                        onClick={() => navigate("/ledger?account=1104")}
+                      >
+                        <BookOpen className="w-3.5 h-3.5 ml-1" />
+                        فتح دفتر الأستاذ
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs border-amber-500/50 hover:bg-amber-500/10"
+                        onClick={() => navigate("/inventory-adjustments")}
+                      >
+                        <Wrench className="w-3.5 h-3.5 ml-1" />
+                        تسويات المخزون
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        }
+        // critical
+        return (
+          <Card className="border-destructive/60 bg-destructive/5 shadow-md">
+            <CardContent className="py-4 px-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <ShieldAlert className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-2">
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+                    <span className="font-bold text-destructive text-sm">
+                      🚨 فرق جوهري — يتطلب تدقيق فوري
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
+                    <span className="text-muted-foreground">
+                      التقرير: <span className="font-mono font-semibold text-foreground">{fmt(r.operational)}</span>
+                    </span>
+                    <span className="text-muted-foreground">
+                      دفتر الأستاذ: <span className="font-mono font-semibold text-foreground">{fmt(r.accounting)}</span>
+                    </span>
+                    <span className="text-muted-foreground">
+                      الفرق: <span className="font-mono font-bold text-destructive">{fmt(r.absDiff)}</span>
+                    </span>
+                    <span className="text-muted-foreground">
+                      نسبة الانحراف: <span className="font-mono font-bold text-destructive">{r.deviationPct.toFixed(2)}%</span>
+                    </span>
+                  </div>
+                  <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2">
+                    <p className="text-xs font-semibold text-destructive">
+                      ⛔ يُرجى إيقاف إقفال الشهر حتى تسوية هذا الفرق مع إدارة المالية.
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-foreground">خطوات التدقيق:</p>
+                    <ol className="text-xs text-muted-foreground list-decimal pr-5 space-y-0.5">
+                      <li>راجع كشف حساب 1104 من دفتر الأستاذ</li>
+                      <li>راجع آخر تسويات المخزون</li>
+                      <li>تأكد من ترحيل كل قيود PPV ومرتجعات الشراء</li>
+                    </ol>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-8 text-xs"
+                      onClick={() => navigate("/ledger?account=1104")}
+                    >
+                      <BookOpen className="w-3.5 h-3.5 ml-1" />
+                      فتح دفتر الأستاذ
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs border-destructive/50 hover:bg-destructive/10"
+                      onClick={() => navigate("/inventory-adjustments")}
+                    >
+                      <Wrench className="w-3.5 h-3.5 ml-1" />
+                      تسويات المخزون
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* ── KPI Cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -1539,6 +1758,39 @@ export default function InventoryReport() {
               searchPlaceholder="بحث بالماركة..."
               emptyMessage="لا توجد بيانات"
             />
+          )}
+          {/* ── Reconciliation footer (operational vs accounting) ── */}
+          {!isLoading && groupBy === "product" && (
+            <div className="mt-3 pt-3 border-t flex flex-wrap items-center justify-end gap-x-6 gap-y-1 text-xs">
+              <span className="text-muted-foreground">
+                مجموع التشغيلي:{" "}
+                <span className="font-mono font-semibold text-foreground">
+                  {fmt(reconciliation.operational)}
+                </span>
+              </span>
+              <span className="text-muted-foreground">│</span>
+              <span className="text-muted-foreground">
+                دفتر الأستاذ (1104):{" "}
+                <span className="font-mono font-semibold text-foreground">
+                  {fmt(reconciliation.accounting)}
+                </span>
+              </span>
+              <span className="text-muted-foreground">│</span>
+              <span className="text-muted-foreground">
+                الفرق:{" "}
+                <span
+                  className={`font-mono font-bold ${
+                    reconciliation.absDiff <= 1
+                      ? "text-emerald-600"
+                      : reconciliation.level === "critical"
+                        ? "text-destructive"
+                        : "text-amber-600"
+                  }`}
+                >
+                  {fmt(reconciliation.diff)}
+                </span>
+              </span>
+            </div>
           )}
         </CardContent>
       </Card>
