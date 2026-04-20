@@ -58,6 +58,11 @@ import {
   ExternalLink,
   BarChart3,
   PieChart as PieChartIcon,
+  CheckCircle2,
+  AlertCircle,
+  ShieldAlert,
+  BookOpen,
+  Wrench,
 } from "lucide-react";
 
 const fmt = (n: number) =>
