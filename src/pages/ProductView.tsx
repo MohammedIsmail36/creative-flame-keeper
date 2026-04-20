@@ -589,7 +589,7 @@
 //   );
 // }
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -599,7 +599,21 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   MOVEMENT_TYPE_LABELS_DETAIL,
   MOVEMENT_TYPE_COLORS,
+  MOVEMENT_TYPE_LABELS,
+  MOVEMENT_IN_TYPES,
+  REFERENCE_ROUTE_MAP,
 } from "@/lib/constants";
+import { DataTable } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
+import { DatePickerInput } from "@/components/DatePickerInput";
+import { ExportMenu } from "@/components/ExportMenu";
+import {
+  Select as FilterSelect,
+  SelectContent as FilterSelectContent,
+  SelectItem as FilterSelectItem,
+  SelectTrigger as FilterSelectTrigger,
+  SelectValue as FilterSelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -622,6 +636,8 @@ import {
   AlertCircle,
   Loader2,
   Info,
+  ExternalLink,
+  X as XIcon,
 } from "lucide-react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -679,9 +695,12 @@ interface InventoryMovement {
   id: string;
   movement_type: string;
   quantity: number;
+  unit_cost?: number;
   total_cost: number;
   movement_date: string;
   notes?: string;
+  reference_id?: string | null;
+  reference_type?: string | null;
 }
 
 interface ProductStats {
@@ -806,7 +825,8 @@ function useProductData(id: string) {
       .from("inventory_movements")
       .select("*")
       .eq("product_id", id)
-      .order("movement_date", { ascending: false });
+      .order("movement_date", { ascending: true })
+      .order("created_at", { ascending: true });
 
     if (mvError) {
       setMovementsError("تعذّر تحميل سجل الحركات");
@@ -1109,6 +1129,206 @@ export default function ProductView() {
   const [selectedGalleryIdx, setSelectedGalleryIdx] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const canEdit = role === "admin" || role === "accountant";
+
+  // ── Movements table filters ──
+  const [mvType, setMvType] = useState<string>("all");
+  const [mvFrom, setMvFrom] = useState<string>("");
+  const [mvTo, setMvTo] = useState<string>("");
+
+  // Cumulative balance (asc) → reverse for display (newest first)
+  const movementsWithBalance = useMemo(() => {
+    let bal = 0;
+    const withBal = allMovements.map((m) => {
+      if (m.movement_type === "adjustment") {
+        bal += Number(m.quantity);
+      } else {
+        const isIn = MOVEMENT_IN_TYPES.includes(m.movement_type);
+        bal += isIn ? Number(m.quantity) : -Number(m.quantity);
+      }
+      return { ...m, cumulativeBalance: bal };
+    });
+    return withBal.slice().reverse();
+  }, [allMovements]);
+
+  const filteredMovements = useMemo(() => {
+    return movementsWithBalance.filter((m) => {
+      if (mvType !== "all" && m.movement_type !== mvType) return false;
+      if (mvFrom && m.movement_date < mvFrom) return false;
+      if (mvTo && m.movement_date > mvTo) return false;
+      return true;
+    });
+  }, [movementsWithBalance, mvType, mvFrom, mvTo]);
+
+  const movementColumns = useMemo<ColumnDef<any, any>[]>(
+    () => [
+      {
+        accessorKey: "movement_date",
+        header: "التاريخ",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground whitespace-nowrap">
+            {row.original.movement_date}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "movement_type",
+        header: "نوع الحركة",
+        cell: ({ row }) => (
+          <Badge
+            variant="secondary"
+            className={MOVEMENT_TYPE_COLORS[row.original.movement_type] || ""}
+          >
+            {MOVEMENT_TYPE_LABELS[row.original.movement_type] ||
+              row.original.movement_type}
+          </Badge>
+        ),
+      },
+      {
+        id: "reference",
+        header: "المرجع",
+        cell: ({ row }) => {
+          const { reference_type, reference_id } = row.original;
+          if (!reference_type || !reference_id)
+            return <span className="text-muted-foreground">-</span>;
+          const basePath = REFERENCE_ROUTE_MAP[reference_type];
+          const labels: Record<string, string> = {
+            purchase_invoice: "فاتورة شراء",
+            sales_invoice: "فاتورة بيع",
+            purchase_return: "مرتجع شراء",
+            sales_return: "مرتجع بيع",
+            inventory_adjustment: "تسوية مخزون",
+            adjustment: "تسوية مخزون",
+          };
+          const label = labels[reference_type] || reference_type;
+          return basePath ? (
+            <button
+              onClick={() => navigate(`${basePath}/${reference_id}`)}
+              className="flex items-center gap-1.5 text-primary hover:text-primary/80 font-medium text-xs transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          ) : (
+            <span className="text-xs text-muted-foreground">{label}</span>
+          );
+        },
+      },
+      {
+        id: "in_qty",
+        header: "وارد",
+        cell: ({ row }) => {
+          const mt = row.original.movement_type;
+          const qty = Number(row.original.quantity);
+          const isIn =
+            mt === "adjustment" ? qty > 0 : MOVEMENT_IN_TYPES.includes(mt);
+          return isIn ? (
+            <span className="font-bold text-emerald-600 font-mono">
+              +{Math.abs(qty).toLocaleString("en-US")}
+            </span>
+          ) : (
+            <span className="text-muted-foreground/30">-</span>
+          );
+        },
+      },
+      {
+        id: "out_qty",
+        header: "صادر",
+        cell: ({ row }) => {
+          const mt = row.original.movement_type;
+          const qty = Number(row.original.quantity);
+          const isOut =
+            mt === "adjustment" ? qty < 0 : !MOVEMENT_IN_TYPES.includes(mt);
+          return isOut ? (
+            <span className="font-bold text-rose-600 font-mono">
+              -{Math.abs(qty).toLocaleString("en-US")}
+            </span>
+          ) : (
+            <span className="text-muted-foreground/30">-</span>
+          );
+        },
+      },
+      {
+        accessorKey: "unit_cost",
+        header: "تكلفة الوحدة",
+        cell: ({ row }) => (
+          <span className="font-mono">
+            {Number(row.original.unit_cost ?? 0).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            })}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "total_cost",
+        header: "إجمالي التكلفة",
+        cell: ({ row }) => (
+          <span className="font-mono font-bold">
+            {Number(row.original.total_cost).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            })}
+          </span>
+        ),
+      },
+      {
+        id: "balance",
+        header: "الرصيد بعد",
+        cell: ({ row }) => (
+          <span className="font-black font-mono text-foreground">
+            {Number(row.original.cumulativeBalance).toLocaleString("en-US")}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "notes",
+        header: "ملاحظات",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground max-w-[160px] truncate block">
+            {row.original.notes || "-"}
+          </span>
+        ),
+      },
+    ],
+    [navigate],
+  );
+
+  const movementsExportConfig = useMemo(
+    () => ({
+      filenamePrefix: `حركات-المنتج-${product?.code ?? ""}`,
+      sheetName: "حركات المنتج",
+      pdfTitle: `سجل حركات المنتج: ${product?.name ?? ""}`,
+      headers: [
+        "التاريخ",
+        "نوع الحركة",
+        "وارد",
+        "صادر",
+        "تكلفة الوحدة",
+        "إجمالي التكلفة",
+        "الرصيد بعد",
+        "ملاحظات",
+      ],
+      rows: filteredMovements.map((m: any) => {
+        const mt = m.movement_type;
+        const qty = Number(m.quantity);
+        const isIn =
+          mt === "adjustment" ? qty > 0 : MOVEMENT_IN_TYPES.includes(mt);
+        const isOut =
+          mt === "adjustment" ? qty < 0 : !MOVEMENT_IN_TYPES.includes(mt);
+        return [
+          m.movement_date,
+          MOVEMENT_TYPE_LABELS[mt] || mt,
+          isIn ? Math.abs(qty) : "",
+          isOut ? Math.abs(qty) : "",
+          Number(m.unit_cost ?? 0),
+          Number(m.total_cost),
+          Number(m.cumulativeBalance),
+          m.notes || "",
+        ];
+      }),
+      settings,
+      pdfOrientation: "landscape" as const,
+    }),
+    [filteredMovements, product, settings],
+  );
 
   // Redirect on error
   useEffect(() => {
@@ -1480,17 +1700,87 @@ export default function ProductView() {
         {/* ── Movements Tab ── */}
         <TabsContent value="movements" className="mt-8">
           <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between">
-              <h3 className="font-bold text-foreground">
-                سجل حركات المنتج الكامل
-              </h3>
-              {allMovements.length > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  {allMovements.length} حركة مسجلة
-                </span>
-              )}
+            <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h3 className="font-bold text-foreground">
+                  سجل حركات المنتج الكامل
+                </h3>
+                {allMovements.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    {filteredMovements.length} من أصل {allMovements.length} حركة
+                  </span>
+                )}
+              </div>
+              <ExportMenu
+                config={movementsExportConfig}
+                disabled={filteredMovements.length === 0}
+              />
             </div>
-            <div className="p-6">
+
+            <div className="p-6 space-y-4">
+              {/* Filters bar */}
+              {!loadingMovements && allMovements.length > 0 && (
+                <div className="flex flex-wrap items-end gap-2 p-3 rounded-lg bg-muted/30 border border-border/50">
+                  <div className="flex flex-col gap-1 w-[180px]">
+                    <label className="text-xs text-muted-foreground">
+                      نوع الحركة
+                    </label>
+                    <FilterSelect value={mvType} onValueChange={setMvType}>
+                      <FilterSelectTrigger className="h-9 text-sm">
+                        <FilterSelectValue />
+                      </FilterSelectTrigger>
+                      <FilterSelectContent>
+                        <FilterSelectItem value="all">الكل</FilterSelectItem>
+                        {Object.entries(MOVEMENT_TYPE_LABELS).map(
+                          ([k, v]) => (
+                            <FilterSelectItem key={k} value={k}>
+                              {v}
+                            </FilterSelectItem>
+                          ),
+                        )}
+                      </FilterSelectContent>
+                    </FilterSelect>
+                  </div>
+                  <div className="flex flex-col gap-1 w-[160px]">
+                    <label className="text-xs text-muted-foreground">
+                      من تاريخ
+                    </label>
+                    <DatePickerInput
+                      value={mvFrom}
+                      onChange={setMvFrom}
+                      placeholder="من"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 w-[160px]">
+                    <label className="text-xs text-muted-foreground">
+                      إلى تاريخ
+                    </label>
+                    <DatePickerInput
+                      value={mvTo}
+                      onChange={setMvTo}
+                      placeholder="إلى"
+                      className="h-9"
+                    />
+                  </div>
+                  {(mvType !== "all" || mvFrom || mvTo) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setMvType("all");
+                        setMvFrom("");
+                        setMvTo("");
+                      }}
+                      className="h-9 gap-1.5"
+                    >
+                      <XIcon className="h-3.5 w-3.5" />
+                      مسح الفلاتر
+                    </Button>
+                  )}
+                </div>
+              )}
+
               {loadingMovements && (
                 <div className="flex items-center justify-center py-12 gap-3 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -1511,19 +1801,19 @@ export default function ProductView() {
                   </p>
                 )}
               {!loadingMovements && allMovements.length > 0 && (
-                <div className="space-y-3">
-                  {allMovements.map((mv) => (
-                    <MovementRow
-                      key={mv.id}
-                      mv={mv}
-                      formatCurrency={formatCurrency}
-                    />
-                  ))}
-                </div>
+                <DataTable
+                  columns={movementColumns}
+                  data={filteredMovements}
+                  searchPlaceholder="بحث في الملاحظات..."
+                  pageSize={15}
+                  showColumnToggle={false}
+                  emptyMessage="لا توجد حركات مطابقة للفلاتر"
+                />
               )}
             </div>
           </div>
         </TabsContent>
+
 
         {/* ── Stats Tab ── */}
         <TabsContent value="stats" className="mt-8">
