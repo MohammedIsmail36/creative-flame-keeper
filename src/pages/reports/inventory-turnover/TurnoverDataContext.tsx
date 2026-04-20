@@ -603,15 +603,36 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       const daysSinceLastSaleVal = lastSaleDate
         ? differenceInDays(today, new Date(lastSaleDate))
         : null;
-      const effectiveAge = lastPurchaseDate
-        ? daysSinceLastPurchaseVal
-        : daysSinceAdded;
+
+      // ── أول حركة فعلية للمنتج (شراء/بيع/افتتاحي) — حماية المنتجات الحديثة ─
+      const firstMovement = firstActivityMap[p.id] || null;
+      const candidateDates: string[] = [];
+      if (firstMovement) candidateDates.push(firstMovement);
+      if (lastPurchaseDate) candidateDates.push(lastPurchaseDate);
+      if (lastSaleDate) candidateDates.push(lastSaleDate);
+      if (p.created_at) candidateDates.push(String(p.created_at).slice(0, 10));
+      const firstActivityDate =
+        candidateDates.length > 0
+          ? candidateDates.sort()[0]
+          : null;
+      const daysSinceFirstActivity = firstActivityDate
+        ? differenceInDays(today, new Date(firstActivityDate))
+        : daysSinceAdded === Infinity
+          ? 9999
+          : daysSinceAdded;
+
+      // ── effectiveAge محسّن: نأخذ الأقدم من (آخر شراء، أول حركة) ─────────
+      // يضمن أن منتج اشتُري قبل 60 يوم لكن أول حركة قبل 20 يوم لا يُحكَم عليه كراكد
+      const effectiveAge = Math.min(
+        lastPurchaseDate ? daysSinceLastPurchaseVal : Infinity,
+        daysSinceFirstActivity,
+        daysSinceAdded === Infinity ? 9999 : daysSinceAdded,
+      );
 
       const isNeverPurchased = lastPurchaseDate === null && soldQty === 0;
+      // المنتج "جديد" إذا أول حركة له < 30 يوم، حتى لو بِيعت منه وحدة (H17)
       const isNewProduct =
-        soldQty === 0 &&
-        !isNeverPurchased &&
-        effectiveAge < DAYS_CONSIDERED_NEW;
+        !isNeverPurchased && daysSinceFirstActivity < DAYS_CONSIDERED_NEW;
       const isRecentlyAdded =
         soldQty === 0 &&
         isNeverPurchased &&
@@ -624,6 +645,43 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         p.product_brands?.name,
         p.model_number,
       );
+
+      // ── Health Flags (لا تؤثر على التصنيف، فقط للعرض) ─────────────────
+      const flagHighReturns =
+        grossSoldQty > 0 && returnedQty / grossSoldQty > 0.3;
+      const flagNoSellingPrice = !sellingPrice || sellingPrice <= 0;
+      const flagNegativeMargin =
+        sellingPrice !== null &&
+        sellingPrice > 0 &&
+        wac !== null &&
+        wac > sellingPrice;
+      const flagZeroWac = currentStock > 0 && (!wac || wac <= 0);
+      const flagFullySupplierReturned =
+        grossPurchasedQty > 0 &&
+        purchaseReturnedQty >= grossPurchasedQty;
+
+      // ── Sales variability (CV) ──────────────────────────────────────
+      const salesVariability = variabilityByProduct[p.id] ?? null;
+      const isSeasonalOrVolatile =
+        salesVariability !== null && salesVariability > 1.5;
+
+      // ── Prior year same-period sales ────────────────────────────────
+      const priorYearSalesQty =
+        daysSinceFirstActivity >= 365
+          ? priorYearSalesByProduct[p.id] ?? 0
+          : null;
+
+      // ── Lost sale: نفد ولديه مبيعات ولم يُشترى منذ +14 يوم ───────────
+      const lostSale =
+        currentStock === 0 &&
+        soldQty > 0 &&
+        (daysSinceLastPurchaseVal === Infinity ||
+          daysSinceLastPurchaseVal >= 14);
+      const daysWithoutRepurchase = lostSale
+        ? daysSinceLastPurchaseVal === Infinity
+          ? null
+          : daysSinceLastPurchaseVal
+        : null;
 
       const baseProps = {
         productId: p.id,
@@ -663,6 +721,27 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         effectiveAge: effectiveAge === Infinity ? 9999 : effectiveAge,
         supplierReturnCandidate: false,
         supplierReturnReason: null as string | null,
+        // Deep analytics fields
+        firstActivityDate,
+        daysSinceFirstActivity,
+        salesVariability,
+        isSeasonalOrVolatile,
+        priorYearSalesQty,
+        lostSale,
+        daysWithoutRepurchase,
+        flagHighReturns,
+        flagNoSellingPrice,
+        flagNegativeMargin,
+        flagZeroWac,
+        flagFullySupplierReturned,
+        flagNoMinStock: false, // سيُحدَّد بعد ABC
+        hasAnyHealthFlag:
+          flagHighReturns ||
+          flagNoSellingPrice ||
+          flagNegativeMargin ||
+          flagZeroWac ||
+          flagFullySupplierReturned,
+      };
       };
 
       if (!isActive) {
