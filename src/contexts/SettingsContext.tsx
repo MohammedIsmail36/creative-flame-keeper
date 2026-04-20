@@ -1,11 +1,8 @@
+import { createContext, useContext, useCallback } from "react";
 import {
-  useEffect,
-  useState,
-  createContext,
-  useContext,
-  useCallback,
-} from "react";
-import { supabase } from "@/integrations/supabase/client";
+  useCompanySettingsQuery,
+  useInvalidateCompanySettings,
+} from "@/hooks/use-company-settings";
 
 export interface CompanySettings {
   id: string;
@@ -65,26 +62,10 @@ const SettingsContext = createContext<SettingsContextType>({
 });
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<CompanySettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = useCompanySettingsQuery();
+  const invalidate = useInvalidateCompanySettings();
 
-  const fetchSettings = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("company_settings")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
-    if (error) {
-      console.error("فشل في تحميل إعدادات النظام:", error);
-    }
-    if (data) setSettings(data as unknown as CompanySettings);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
-
+  const settings = (data ?? null) as CompanySettings | null;
   const currency = settings?.default_currency || "EGP";
 
   const formatCurrency = useCallback(
@@ -99,12 +80,16 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     [currency],
   );
 
+  const refetch = useCallback(async () => {
+    await invalidate();
+  }, [invalidate]);
+
   return (
     <SettingsContext.Provider
       value={{
         settings,
-        loading,
-        refetch: fetchSettings,
+        loading: isLoading,
+        refetch,
         currency,
         formatCurrency,
       }}
