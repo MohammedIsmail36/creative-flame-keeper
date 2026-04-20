@@ -190,6 +190,44 @@ export default function InventoryReport() {
   const movements = allMovements.current;
   const prevMovements = allMovements.previous;
 
+  // ── Query: WAC per product (from ALL inventory movements)
+  // مصدر الحقيقة لقيمة المخزون = نفس مصدر حساب GL (1104)
+  const { data: wacMap = {} } = useQuery({
+    queryKey: ["inventory-report-wac"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inventory_movements")
+        .select("product_id, movement_type, quantity, total_cost")
+        .in("movement_type", ["purchase", "opening_balance", "purchase_return"]);
+      if (error) throw error;
+      const agg: Record<string, { qty: number; cost: number }> = {};
+      (data ?? []).forEach((m: any) => {
+        const pid = m.product_id;
+        if (!agg[pid]) agg[pid] = { qty: 0, cost: 0 };
+        const q = Number(m.quantity);
+        const c = Number(m.total_cost);
+        if (m.movement_type === "purchase_return") {
+          agg[pid].qty -= q;
+          agg[pid].cost -= c;
+        } else {
+          agg[pid].qty += q;
+          agg[pid].cost += c;
+        }
+      });
+      const result: Record<string, number> = {};
+      Object.entries(agg).forEach(([pid, { qty, cost }]) => {
+        result[pid] = qty > 0 ? cost / qty : 0;
+      });
+      return result;
+    },
+  });
+
+  // helper: WAC للمنتج (بديل آمن: سعر الشراء الأخير لو لا توجد حركات)
+  const getWac = (p: any) => {
+    const w = wacMap[p.id];
+    return typeof w === "number" && w > 0 ? w : Number(p.purchase_price ?? 0);
+  };
+
   // ── Movement KPIs ──
   const movementKpi = useMemo(() => {
     const inTypes = [
