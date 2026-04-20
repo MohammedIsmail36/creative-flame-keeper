@@ -96,7 +96,7 @@ export default function Ledger() {
         p_offset: pagination.pageIndex * pagination.pageSize,
       });
       if (error) throw error;
-      return data as {
+      return data as unknown as {
         lines: LedgerLine[];
         total_count: number;
         total_debit: number;
