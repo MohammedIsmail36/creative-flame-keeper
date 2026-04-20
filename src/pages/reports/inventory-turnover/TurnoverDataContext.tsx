@@ -453,6 +453,7 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
         lastSaleDate,
         lastPurchaseDate,
         lastPurchasePrice,
+        wac,
         sellingPrice,
         profitMargin,
         abcClass: "excluded" as ABCClass,
@@ -635,6 +636,7 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
     purchasesByProduct,
     salesReturnsByProduct,
     purchaseReturnsByProduct,
+    wacMap,
     periodDays,
     today,
   ]);
