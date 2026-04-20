@@ -7,6 +7,7 @@ import {
   VisibilityState,
   RowSelectionState,
   OnChangeFn,
+  PaginationState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -101,6 +102,16 @@ interface DataTableProps<TData, TValue> {
   toolbarContent?: React.ReactNode;
   /** Extra toolbar content rendered before search (left side in RTL) */
   toolbarStart?: React.ReactNode;
+  /** Server-side pagination mode */
+  manualPagination?: boolean;
+  /** Total page count (required when manualPagination=true) */
+  pageCount?: number;
+  /** Total row count from server (for "X من Y" display) */
+  totalRows?: number;
+  /** Current pagination state (controlled externally) */
+  pagination?: PaginationState;
+  /** Pagination change handler */
+  onPaginationChange?: OnChangeFn<PaginationState>;
 }
 
 // ── Main DataTable ─────────────────────────────────────────
@@ -128,6 +139,11 @@ export function DataTable<TData, TValue>({
   toolbarContent,
   toolbarStart,
   globalFilterFn: customGlobalFilterFn,
+  manualPagination = false,
+  pageCount,
+  totalRows,
+  pagination: externalPagination,
+  onPaginationChange,
 }: DataTableProps<TData, TValue>) {
   // ── Internal state (used when not controlled externally) ──
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -203,18 +219,30 @@ export function DataTable<TData, TValue>({
       [onColumnFiltersChange],
     );
 
+  const [internalPagination, setInternalPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize,
+  });
+  const paginationValue = externalPagination ?? internalPagination;
+  const handlePaginationChange = onPaginationChange ?? setInternalPagination;
+
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: showPagination ? getPaginationRowModel() : undefined,
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: showPagination && !manualPagination ? getPaginationRowModel() : undefined,
+    getSortedRowModel: !manualPagination ? getSortedRowModel() : undefined,
+    getFilteredRowModel: !manualPagination ? getFilteredRowModel() : undefined,
+    manualPagination,
+    manualFiltering: manualPagination,
+    manualSorting: manualPagination,
+    pageCount: manualPagination ? (pageCount ?? -1) : undefined,
     onSortingChange: setSorting,
     onColumnVisibilityChange: handleColumnVisibilityChange as any,
     onColumnFiltersChange: handleColumnFiltersChange,
     onRowSelectionChange: handleRowSelectionChange,
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: handlePaginationChange,
     globalFilterFn: customGlobalFilterFn ?? "includesString",
     getRowId,
     state: {
@@ -223,9 +251,7 @@ export function DataTable<TData, TValue>({
       columnFilters: columnFiltersValue,
       rowSelection: rowSelectionValue,
       globalFilter: globalFilterValue,
-    },
-    initialState: {
-      pagination: { pageSize },
+      pagination: paginationValue,
     },
   });
 
