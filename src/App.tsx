@@ -14,7 +14,9 @@ import { PageSkeleton } from "@/components/PageSkeleton";
 import Auth from "./pages/Auth";
 import MfaVerify from "./pages/MfaVerify";
 import NotFound from "./pages/NotFound";
-import Dashboard from "./pages/Dashboard";
+
+// Dashboard is heavy (recharts) — lazy load it
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 
 // Lazy — list pages
 const Accounts = lazy(() => import("./pages/Accounts"));
@@ -103,7 +105,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/mfa" element={<MfaVerify />} />
-            <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedRoute><AppLayout>{withSuspense(<Dashboard />)}</AppLayout></ProtectedRoute>} />
             <Route path="/accounts" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<Accounts />)}</AppLayout></ProtectedRoute>} />
             <Route path="/journal" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<Journal />)}</AppLayout></ProtectedRoute>} />
             <Route path="/journal/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<JournalEntryForm />)}</AppLayout></ProtectedRoute>} />
