@@ -1857,6 +1857,14 @@ export type Database = {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined
       }
+      get_account_balances: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_only_with_activity?: boolean
+        }
+        Returns: Json
+      }
       get_account_statement: {
         Args: {
           p_date_from?: string

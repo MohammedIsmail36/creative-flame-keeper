@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Calculator, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -38,75 +38,48 @@ const typeLabels: Record<string, string> = {
   expense: "المصروفات",
 };
 
+const fmt = (v: number) =>
+  Number(v).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
 export default function AccountBalancesReport() {
-  const { formatCurrency } = useSettings();
+  const { currency } = useSettings();
   const [loading, setLoading] = useState(true);
   const [balances, setBalances] = useState<AccountBalance[]>([]);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
 
   useEffect(() => {
-    fetchBalances();
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const { data, error } = await (supabase.rpc as any)(
+        "get_account_balances",
+        { p_only_with_activity: true },
+      );
+      if (cancelled) return;
+      if (error || !data) {
+        setBalances([]);
+        setLoading(false);
+        return;
+      }
+      const rows = (data.rows ?? []) as AccountBalance[];
+      setBalances(
+        rows.map((r) => ({
+          ...r,
+          debit: Number(r.debit),
+          credit: Number(r.credit),
+          balance: Number(r.balance),
+        })),
+      );
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  const fetchBalances = async () => {
-    setLoading(true);
-    const [accountsRes, linesRes] = await Promise.all([
-      supabase
-        .from("accounts")
-        .select("id, code, name, account_type")
-        .eq("is_active", true)
-        .eq("is_parent", false)
-        .order("code"),
-      supabase
-        .from("journal_entry_lines")
-        .select("account_id, debit, credit, journal_entry_id"),
-    ]);
-
-    if (!accountsRes.data || !linesRes.data) {
-      setLoading(false);
-      return;
-    }
-
-    const entryIds = [
-      ...new Set(linesRes.data.map((l: any) => l.journal_entry_id)),
-    ];
-    if (!entryIds.length) {
-      setLoading(false);
-      return;
-    }
-
-    const { data: entries } = await supabase
-      .from("journal_entries")
-      .select("id")
-      .in("id", entryIds)
-      .eq("status", "posted");
-    const postedIds = new Set((entries || []).map((e) => e.id));
-
-    const balMap = new Map<string, { debit: number; credit: number }>();
-    linesRes.data.forEach((l: any) => {
-      if (!postedIds.has(l.journal_entry_id)) return;
-      const cur = balMap.get(l.account_id) || { debit: 0, credit: 0 };
-      cur.debit += Number(l.debit);
-      cur.credit += Number(l.credit);
-      balMap.set(l.account_id, cur);
-    });
-
-    setBalances(
-      accountsRes.data
-        .filter((a: any) => balMap.has(a.id))
-        .map((a: any) => {
-          const b = balMap.get(a.id)!;
-          return {
-            ...a,
-            debit: b.debit,
-            credit: b.credit,
-            balance: b.debit - b.credit,
-          };
-        }),
-    );
-    setLoading(false);
-  };
 
   const filtered = balances
     .filter((acc) => {
@@ -120,7 +93,6 @@ export default function AccountBalancesReport() {
   const totalDebit = filtered.reduce((s, a) => s + a.debit, 0);
   const totalCredit = filtered.reduce((s, a) => s + a.credit, 0);
 
-  // Group summary
   const typeGroups: Record<string, number> = {};
   balances.forEach((acc) => {
     typeGroups[acc.account_type] =
@@ -129,7 +101,6 @@ export default function AccountBalancesReport() {
 
   return (
     <div className="space-y-4">
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {Object.entries(typeGroups).map(([key, total]) => (
           <Card key={key} className="border-border/60 shadow-none">
@@ -140,7 +111,7 @@ export default function AccountBalancesReport() {
               <p
                 className={`text-lg font-bold ${total >= 0 ? "text-foreground" : "text-destructive"}`}
               >
-                {formatCurrency(Math.abs(total))}
+                {fmt(Math.abs(total))} {currency}
               </p>
               <p className="text-[10px] text-muted-foreground">
                 {total >= 0 ? "مدين" : "دائن"}
@@ -150,7 +121,6 @@ export default function AccountBalancesReport() {
         ))}
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -176,7 +146,6 @@ export default function AccountBalancesReport() {
         </Select>
       </div>
 
-      {/* Table */}
       <Card className="border-border/60 shadow-none">
         <CardContent className="p-0">
           {loading ? (
@@ -211,16 +180,16 @@ export default function AccountBalancesReport() {
                     <TableCell className="text-xs text-muted-foreground">
                       {typeLabels[acc.account_type] || acc.account_type}
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {formatCurrency(acc.debit)}
+                    <TableCell className="text-sm font-mono">
+                      {fmt(acc.debit)} {currency}
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {formatCurrency(acc.credit)}
+                    <TableCell className="text-sm font-mono">
+                      {fmt(acc.credit)} {currency}
                     </TableCell>
                     <TableCell
-                      className={`text-sm font-bold ${acc.balance >= 0 ? "text-success" : "text-destructive"}`}
+                      className={`text-sm font-bold font-mono ${acc.balance >= 0 ? "text-success" : "text-destructive"}`}
                     >
-                      {formatCurrency(Math.abs(acc.balance))}{" "}
+                      {fmt(Math.abs(acc.balance))} {currency}{" "}
                       {acc.balance >= 0 ? "مدين" : "دائن"}
                     </TableCell>
                   </TableRow>
@@ -229,16 +198,16 @@ export default function AccountBalancesReport() {
                   <TableCell colSpan={3} className="text-sm">
                     الإجمالي
                   </TableCell>
-                  <TableCell className="text-sm">
-                    {formatCurrency(totalDebit)}
+                  <TableCell className="text-sm font-mono">
+                    {fmt(totalDebit)} {currency}
                   </TableCell>
-                  <TableCell className="text-sm">
-                    {formatCurrency(totalCredit)}
+                  <TableCell className="text-sm font-mono">
+                    {fmt(totalCredit)} {currency}
                   </TableCell>
                   <TableCell
-                    className={`text-sm font-bold ${totalDebit - totalCredit >= 0 ? "text-success" : "text-destructive"}`}
+                    className={`text-sm font-bold font-mono ${totalDebit - totalCredit >= 0 ? "text-success" : "text-destructive"}`}
                   >
-                    {formatCurrency(Math.abs(totalDebit - totalCredit))}
+                    {fmt(Math.abs(totalDebit - totalCredit))} {currency}
                   </TableCell>
                 </TableRow>
               </TableBody>
