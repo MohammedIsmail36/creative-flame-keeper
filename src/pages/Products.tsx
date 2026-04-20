@@ -137,7 +137,7 @@ export default function Products() {
     const { data, error } = await supabase
       .from("products")
       .select(
-        "*, product_categories(name), product_units(name), product_brands(name)" as any,
+        "id, code, name, description, barcode, model_number, main_image_url, purchase_price, selling_price, quantity_on_hand, min_stock_level, is_active, created_at, category, unit, brand_id, category_id, unit_id, product_categories(name), product_units(name), product_brands(name)" as any,
       )
       .order("code");
     if (error) {
