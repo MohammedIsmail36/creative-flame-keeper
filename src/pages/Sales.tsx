@@ -6,13 +6,6 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DatePickerInput } from "@/components/DatePickerInput";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import {
@@ -26,6 +19,7 @@ import {
   Undo2,
   AlertTriangle,
   CreditCard,
+  Ban,
 } from "lucide-react";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
@@ -33,6 +27,7 @@ import { toast } from "@/hooks/use-toast";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useQuery } from "@tanstack/react-query";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
+import { StatusChips } from "@/components/StatusChips";
 
 interface Invoice {
   id: string;
@@ -53,37 +48,31 @@ interface Invoice {
 }
 
 const PAGE_SIZE = 50;
+const fmtNum = (n: number) => Number(n || 0).toLocaleString("en-US");
 
 export default function Sales() {
   const { settings, formatCurrency } = useSettings();
   const prefix = settings?.sales_invoice_prefix || "INV-";
   const navigate = useNavigate();
 
-  // Filters
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
 
-  // Pagination
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: PAGE_SIZE,
   });
 
-  const filterArgs = {
-    date_from: dateFrom || null,
-    date_to: dateTo || null,
-  };
-
-  // ── KPIs (RPC) ───────────────────────────────────────────
+  // KPIs
   const { data: summary } = useQuery({
-    queryKey: ["sales-summary", filterArgs],
+    queryKey: ["sales-summary", dateFrom, dateTo],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_sales_summary" as any, {
-        p_date_from: filterArgs.date_from,
-        p_date_to: filterArgs.date_to,
+        p_date_from: dateFrom || null,
+        p_date_to: dateTo || null,
       });
       if (error) throw error;
       return data as any;
@@ -91,19 +80,17 @@ export default function Sales() {
     staleTime: 30_000,
   });
 
-  // ── Paged invoices list ──────────────────────────────────
-  const listKey = [
-    "sales-list",
-    pagination.pageIndex,
-    pagination.pageSize,
-    statusFilter,
-    dateFrom,
-    dateTo,
-    debouncedSearch,
-  ] as const;
-
+  // Paged invoices
   const { data: pagedData, isLoading } = usePagedQuery<Invoice>(
-    listKey,
+    [
+      "sales-list",
+      pagination.pageIndex,
+      pagination.pageSize,
+      statusFilter,
+      dateFrom,
+      dateTo,
+      debouncedSearch,
+    ] as const,
     async () => {
       const from = pagination.pageIndex * pagination.pageSize;
       const to = from + pagination.pageSize - 1;
@@ -125,7 +112,6 @@ export default function Sales() {
         if (!isNaN(asNum)) {
           q = q.or(`invoice_number.eq.${asNum},posted_number.eq.${asNum}`);
         } else {
-          // search by customer name via foreign filter
           q = q.ilike("customers.name", `%${s}%`);
         }
       }
@@ -153,7 +139,6 @@ export default function Sales() {
   const totalCount = pagedData?.totalCount ?? 0;
   const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
 
-  // ── Lazy fetch all rows for export ───────────────────────
   const fetchAllForExport = async (): Promise<Invoice[]> => {
     let q = (supabase.from("sales_invoices") as any)
       .select(
@@ -174,7 +159,6 @@ export default function Sales() {
   };
 
   const [exportRows, setExportRows] = useState<any[][]>([]);
-
   const handlePrepareExport = async () => {
     const all = await fetchAllForExport();
     setExportRows(
@@ -201,7 +185,6 @@ export default function Sales() {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   };
 
-  // Reset to page 0 when filters change
   React.useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
@@ -241,7 +224,7 @@ export default function Sales() {
           <DataTableColumnHeader column={column} title="التاريخ" />
         ),
         cell: ({ row }) => (
-          <span className="text-muted-foreground">
+          <span className="text-muted-foreground font-mono">
             {row.original.invoice_date}
           </span>
         ),
@@ -252,9 +235,7 @@ export default function Sales() {
           <DataTableColumnHeader column={column} title="الإجمالي" />
         ),
         cell: ({ row }) => (
-          <span className="font-mono">
-            {formatCurrency(row.original.total)}
-          </span>
+          <span className="font-mono">{formatCurrency(row.original.total)}</span>
         ),
       },
       {
@@ -287,7 +268,9 @@ export default function Sales() {
           const remaining = row.original.total - row.original.paid_amount;
           return (
             <span
-              className={`font-mono font-semibold ${remaining > 0 ? "text-destructive" : "text-emerald-600"}`}
+              className={`font-mono font-semibold ${
+                remaining > 0 ? "text-destructive" : "text-emerald-600"
+              }`}
             >
               {formatCurrency(remaining)}
             </span>
@@ -310,7 +293,9 @@ export default function Sales() {
             due_date < new Date().toISOString().slice(0, 10);
           return (
             <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground text-sm">{due_date}</span>
+              <span className="text-muted-foreground text-sm font-mono">
+                {due_date}
+              </span>
               {isOverdue && (
                 <Badge
                   variant="destructive"
@@ -360,12 +345,80 @@ export default function Sales() {
   const totalReturns = summary?.total_returns ?? 0;
   const netSales = totalSales - totalReturns;
 
+  // Top KPI cards (financial — bigger)
+  const kpiCards = [
+    {
+      label: "إجمالي المبيعات",
+      value: formatCurrency(totalSales),
+      icon: DollarSign,
+      color: "bg-blue-500/10 text-blue-600",
+    },
+    {
+      label: "المرتجعات",
+      value: formatCurrency(totalReturns),
+      icon: Undo2,
+      color: "bg-orange-500/10 text-orange-600",
+    },
+    {
+      label: "صافي المبيعات",
+      value: formatCurrency(netSales),
+      icon: DollarSign,
+      color: "bg-teal-500/10 text-teal-600",
+    },
+    {
+      label: "المحصّل",
+      value: formatCurrency(totalPaid),
+      icon: CreditCard,
+      color: "bg-emerald-500/10 text-emerald-600",
+    },
+    {
+      label: "المتبقي",
+      value: formatCurrency(totalOutstanding),
+      icon: AlertTriangle,
+      color:
+        totalOutstanding > 0
+          ? "bg-destructive/10 text-destructive"
+          : "bg-emerald-500/10 text-emerald-600",
+    },
+  ];
+
+  const statusChips = [
+    {
+      label: "الكل",
+      value: fmtNum(summary?.total_count ?? 0),
+      filter: "all",
+      icon: FileText,
+      color: "bg-primary/10 text-primary",
+    },
+    {
+      label: "مسودة",
+      value: fmtNum(summary?.draft_count ?? 0),
+      filter: "draft",
+      icon: Clock,
+      color: "bg-amber-500/10 text-amber-600",
+    },
+    {
+      label: "مُرحّل",
+      value: fmtNum(summary?.posted_count ?? 0),
+      filter: "posted",
+      icon: CheckCircle,
+      color: "bg-emerald-500/10 text-emerald-600",
+    },
+    {
+      label: "ملغي",
+      value: fmtNum(summary?.cancelled_count ?? 0),
+      filter: "cancelled",
+      icon: Ban,
+      color: "bg-destructive/10 text-destructive",
+    },
+  ];
+
   return (
     <div className="space-y-6" dir="rtl">
       <PageHeader
         icon={FileText}
         title="فواتير البيع"
-        description={`${(summary?.total_count ?? 0).toLocaleString("ar-EG")} فاتورة`}
+        description={`${fmtNum(summary?.total_count ?? 0)} فاتورة`}
         actions={
           <>
             <ExportMenu
@@ -401,72 +454,12 @@ export default function Sales() {
         }
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          {
-            label: "الكل",
-            value: (summary?.total_count ?? 0).toLocaleString("ar-EG"),
-            filter: "all",
-            icon: FileText,
-            color: "bg-primary/10 text-primary",
-          },
-          {
-            label: "مسودة",
-            value: (summary?.draft_count ?? 0).toLocaleString("ar-EG"),
-            filter: "draft",
-            icon: Clock,
-            color: "bg-amber-500/10 text-amber-600",
-          },
-          {
-            label: "مُرحّل",
-            value: (summary?.posted_count ?? 0).toLocaleString("ar-EG"),
-            filter: "posted",
-            icon: CheckCircle,
-            color: "bg-emerald-500/10 text-emerald-600",
-          },
-          {
-            label: "إجمالي المبيعات",
-            value: formatCurrency(totalSales),
-            filter: "",
-            icon: DollarSign,
-            color: "bg-blue-500/10 text-blue-600",
-          },
-          {
-            label: "المرتجعات",
-            value: formatCurrency(totalReturns),
-            filter: "",
-            icon: Undo2,
-            color: "bg-orange-500/10 text-orange-600",
-          },
-          {
-            label: "صافي المبيعات",
-            value: formatCurrency(netSales),
-            filter: "",
-            icon: DollarSign,
-            color: "bg-teal-500/10 text-teal-600",
-          },
-          {
-            label: "المحصّل",
-            value: formatCurrency(totalPaid),
-            filter: "",
-            icon: CreditCard,
-            color: "bg-emerald-500/10 text-emerald-600",
-          },
-          {
-            label: "المتبقي",
-            value: formatCurrency(totalOutstanding),
-            filter: "",
-            icon: AlertTriangle,
-            color:
-              totalOutstanding > 0
-                ? "bg-destructive/10 text-destructive"
-                : "bg-emerald-500/10 text-emerald-600",
-          },
-        ].map(({ label, value, filter, icon: Icon, color }) => (
-          <button
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {kpiCards.map(({ label, value, icon: Icon, color }) => (
+          <div
             key={label}
-            onClick={() => filter && setStatusFilter(filter)}
-            className={`rounded-xl border p-4 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}
+            className="rounded-xl border p-4 bg-card transition-all hover:shadow-md"
           >
             <div className="flex items-center justify-between mb-2">
               <div
@@ -474,14 +467,21 @@ export default function Sales() {
               >
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-2xl font-black text-foreground font-mono">
+              <span className="text-xl font-black text-foreground font-mono">
                 {value}
               </span>
             </div>
             <p className="text-xs text-muted-foreground">{label}</p>
-          </button>
+          </div>
         ))}
       </div>
+
+      {/* Status chips */}
+      <StatusChips
+        chips={statusChips}
+        active={statusFilter}
+        onSelect={setStatusFilter}
+      />
 
       <DataTable
         columns={columns}
@@ -500,17 +500,6 @@ export default function Sales() {
         pageSize={PAGE_SIZE}
         toolbarContent={
           <div className="flex items-center gap-2 flex-wrap">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32 h-9 text-sm">
-                <SelectValue placeholder="الحالة" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل الحالات</SelectItem>
-                <SelectItem value="draft">مسودة</SelectItem>
-                <SelectItem value="posted">مُرحّل</SelectItem>
-                <SelectItem value="cancelled">ملغي</SelectItem>
-              </SelectContent>
-            </Select>
             <DatePickerInput
               value={dateFrom}
               onChange={setDateFrom}
