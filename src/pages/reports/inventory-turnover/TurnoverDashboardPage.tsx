@@ -475,6 +475,183 @@ export default function TurnoverDashboardPage() {
             </Card>
           </div>
 
+          {/* KPI Row 3 — Deep Analytics (H19, H20, H4, Health) */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Frozen Capital % */}
+            <Card className="border shadow-sm overflow-hidden">
+              <div
+                className={cn(
+                  "h-1",
+                  kpis.frozenCapitalPct < 10
+                    ? "bg-emerald-500"
+                    : kpis.frozenCapitalPct < 20
+                      ? "bg-amber-500"
+                      : kpis.frozenCapitalPct < 35
+                        ? "bg-orange-500"
+                        : "bg-red-500",
+                )}
+              />
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                </div>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-20 mb-1" />
+                ) : (
+                  <p className="text-3xl font-black tabular-nums leading-none mb-1">
+                    {kpis.frozenCapitalPct.toFixed(1)}%
+                  </p>
+                )}
+                <div className="flex items-center gap-1">
+                  <p className="text-xs text-muted-foreground">رأس المال المجمَّد</p>
+                  <MetricHelp text="نسبة (راكد + غير نشط) من قيمة المخزون التشغيلية. أخضر <10، أصفر <20، برتقالي <35، أحمر >35." />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Customer Return Rate */}
+            <Card className="border shadow-sm overflow-hidden">
+              <div
+                className={cn(
+                  "h-1",
+                  kpis.customerReturnRate < 5
+                    ? "bg-emerald-500"
+                    : kpis.customerReturnRate < 10
+                      ? "bg-amber-500"
+                      : "bg-red-500",
+                )}
+              />
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
+                    <Undo2 className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                </div>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-20 mb-1" />
+                ) : (
+                  <p className="text-3xl font-black tabular-nums leading-none mb-1">
+                    {kpis.customerReturnRate.toFixed(1)}%
+                  </p>
+                )}
+                <div className="flex items-center gap-1">
+                  <p className="text-xs text-muted-foreground">معدل إرجاع العملاء</p>
+                  <MetricHelp text="نسبة الكميات المرتجعة من العملاء إلى إجمالي المباع. ارتفاعها يدل على مشكلة جودة." />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Lost Sales */}
+            <Card
+              className={cn(
+                "border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow",
+                kpis.lostSaleCount > 0 && "ring-1 ring-red-500/30",
+              )}
+              onClick={() =>
+                navigate("/reports/inventory-turnover/urgent-actions")
+              }
+            >
+              <div
+                className={cn(
+                  "h-1",
+                  kpis.lostSaleCount > 0 ? "bg-red-500" : "bg-muted",
+                )}
+              />
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div
+                    className={cn(
+                      "w-9 h-9 rounded-xl flex items-center justify-center",
+                      kpis.lostSaleCount > 0 ? "bg-red-500/10" : "bg-muted",
+                    )}
+                  >
+                    <ShoppingCart
+                      className={cn(
+                        "w-4 h-4",
+                        kpis.lostSaleCount > 0
+                          ? "text-red-600"
+                          : "text-muted-foreground",
+                      )}
+                    />
+                  </div>
+                </div>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-12 mb-1" />
+                ) : (
+                  <p
+                    className={cn(
+                      "text-3xl font-black tabular-nums leading-none mb-1",
+                      kpis.lostSaleCount > 0
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-foreground",
+                    )}
+                  >
+                    {kpis.lostSaleCount}
+                  </p>
+                )}
+                <div className="flex items-center gap-1">
+                  <p className="text-xs text-muted-foreground">فرص بيع ضائعة</p>
+                  <MetricHelp text="منتجات نفد مخزونها وبِيع منها سابقاً ولم يُعد شراؤها منذ 14 يوم أو أكثر." />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Health Flags */}
+            <Card
+              className={cn(
+                "border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow",
+                kpis.healthFlagsCount > 0 && "ring-1 ring-amber-500/30",
+              )}
+              onClick={() => navigate("/reports/inventory-turnover/health")}
+            >
+              <div
+                className={cn(
+                  "h-1",
+                  kpis.healthFlagsCount > 0 ? "bg-amber-500" : "bg-muted",
+                )}
+              />
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div
+                    className={cn(
+                      "w-9 h-9 rounded-xl flex items-center justify-center",
+                      kpis.healthFlagsCount > 0 ? "bg-amber-500/10" : "bg-muted",
+                    )}
+                  >
+                    <Info
+                      className={cn(
+                        "w-4 h-4",
+                        kpis.healthFlagsCount > 0
+                          ? "text-amber-600"
+                          : "text-muted-foreground",
+                      )}
+                    />
+                  </div>
+                </div>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-12 mb-1" />
+                ) : (
+                  <p
+                    className={cn(
+                      "text-3xl font-black tabular-nums leading-none mb-1",
+                      kpis.healthFlagsCount > 0
+                        ? "text-amber-600"
+                        : "text-foreground",
+                    )}
+                  >
+                    {kpis.healthFlagsCount}
+                  </p>
+                )}
+                <div className="flex items-center gap-1">
+                  <p className="text-xs text-muted-foreground">منتجات بمؤشرات صحة</p>
+                  <MetricHelp text="منتجات لها علامة واحدة على الأقل (إرجاع مرتفع، بدون سعر، بيع بخسارة، WAC=0، مرتجع كلي، أو بدون حد أدنى لـ A/B)." />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Quick Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button
