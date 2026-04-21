@@ -17,6 +17,25 @@ import {
 } from "@/components/ui/select";
 import { AccountCombobox } from "@/components/AccountCombobox";
 import { toast } from "sonner";
+import { z } from "zod";
+
+const prefixSchema = z
+  .string({ invalid_type_error: "يجب أن تكون البادئة نصاً" })
+  .trim()
+  .min(1, "لا يمكن أن تكون البادئة فارغة")
+  .max(10, "يجب ألا تتجاوز البادئة 10 أحرف");
+
+const prefixFields: { key: keyof CompanySettings; label: string }[] = [
+  { key: "sales_invoice_prefix", label: "بادئة فواتير المبيعات" },
+  { key: "purchase_invoice_prefix", label: "بادئة فواتير المشتريات" },
+  { key: "sales_return_prefix", label: "بادئة مرتجعات المبيعات" },
+  { key: "purchase_return_prefix", label: "بادئة مرتجعات المشتريات" },
+  { key: "customer_payment_prefix", label: "بادئة سندات القبض" },
+  { key: "supplier_payment_prefix", label: "بادئة سندات الصرف" },
+  { key: "journal_entry_prefix", label: "بادئة قيود اليومية" },
+  { key: "expense_prefix", label: "بادئة المصروفات" },
+  { key: "product_code_prefix", label: "بادئة أكواد المنتجات" },
+];
 import {
   Building2,
   DollarSign,
@@ -143,6 +162,14 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (!settings) return;
+    // التحقق من البادئات (لا تكون فارغة وتكون نصاً)
+    for (const { key, label } of prefixFields) {
+      const result = prefixSchema.safeParse(settings[key]);
+      if (!result.success) {
+        toast.error(`${label}: ${result.error.issues[0].message}`);
+        return;
+      }
+    }
     // التحقق من إعدادات الضريبة عند التفعيل
     if (settings.enable_tax) {
       if (!settings.tax_rate || settings.tax_rate <= 0) {
