@@ -128,10 +128,9 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
 
       <Dialog open={preparing}>
         <DialogContent
-          className="sm:max-w-md"
+          className="sm:max-w-md [&>button]:hidden"
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
-          hideClose
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-right">
