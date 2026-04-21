@@ -413,32 +413,35 @@ export default function Customers() {
             header: "إجراءات" as const,
             enableHiding: false,
             cell: ({ row }: any) => (
-              <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+              <div className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="h-7 w-7"
                   aria-label="كشف حساب"
                   onClick={() =>
                     navigate(`/customer-statement/${row.original.id}`)
                   }
                 >
-                  <FileText className="h-4 w-4 text-primary" />
+                  <FileText className="h-3.5 w-3.5 text-primary" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="h-7 w-7"
                   aria-label="تعديل العميل"
                   onClick={() => openEdit(row.original)}
                 >
-                  <Pencil className="h-4 w-4" />
+                  <Pencil className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="h-7 w-7"
                   aria-label="حذف العميل"
                   onClick={() => setDeleteTarget(row.original)}
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
+                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
                 </Button>
               </div>
             ),
