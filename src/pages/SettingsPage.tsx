@@ -155,7 +155,25 @@ export default function SettingsPage() {
       toast.error("خطأ في تحميل الإعدادات");
       console.error(error);
     } else if (data) {
-      setSettings(data as unknown as CompanySettings);
+      // ضمان قيم افتراضية للبادئات إذا كانت فارغة في قاعدة البيانات
+      const defaults: Record<string, string> = {
+        sales_invoice_prefix: "INV-",
+        purchase_invoice_prefix: "PUR-",
+        sales_return_prefix: "SRN-",
+        purchase_return_prefix: "PRN-",
+        customer_payment_prefix: "RCV-",
+        supplier_payment_prefix: "PAY-",
+        journal_entry_prefix: "JV-",
+        expense_prefix: "EXP-",
+        product_code_prefix: "PRD-",
+      };
+      const normalized: any = { ...data };
+      for (const k of Object.keys(defaults)) {
+        if (!normalized[k] || typeof normalized[k] !== "string" || !normalized[k].trim()) {
+          normalized[k] = defaults[k];
+        }
+      }
+      setSettings(normalized as CompanySettings);
     }
     setLoading(false);
   };
