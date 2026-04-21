@@ -68,7 +68,7 @@ const methodLabels: Record<string, string> = {
   bank: "تحويل بنكي",
 };
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 20;
 
 export default function Expenses() {
   const { role } = useAuth();
