@@ -95,11 +95,30 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
         className="gap-1.5 shadow-sm"
         onClick={handleToggle}
         disabled={disabled || preparing}
+        aria-busy={preparing}
       >
-        <Download className="h-4 w-4" />
-        {preparing ? "جاري التحضير..." : "تصدير"}
+        {preparing ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Download className="h-4 w-4" />
+        )}
+        {preparing ? "جاري تحضير البيانات..." : "تصدير"}
       </Button>
-      {open && (
+      {preparing && (
+        <div className="absolute end-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-3 min-w-[220px]">
+          <div className="flex items-center gap-2 text-sm text-foreground mb-2">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span>جارٍ جلب كافة السجلات...</span>
+          </div>
+          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+            <div className="h-full w-1/2 bg-primary rounded-full animate-pulse" />
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            قد يستغرق ذلك بضع ثوانٍ حسب حجم البيانات
+          </p>
+        </div>
+      )}
+      {open && !preparing && (
         <div className="absolute end-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[150px]">
           <button
             onClick={handleCSV}
