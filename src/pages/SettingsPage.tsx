@@ -936,7 +936,7 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label className="text-sm font-bold">بادئة المنتجات</Label>
                 <Input
-                  value={settings.product_code_prefix || "PRD-"}
+                  value={settings.product_code_prefix ?? ""}
                   onChange={(e) =>
                     updateField("product_code_prefix", e.target.value)
                   }
