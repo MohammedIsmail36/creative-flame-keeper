@@ -864,6 +864,9 @@ export default function JournalEntryForm() {
             </div>
           ))}
       </div>
+      <UnsavedChangesDialog
+        open={navGuard.isBlocked}
+        onStay={navGuard.cancel}
+        onLeave={navGuard.confirm}
+      />
     </div>
-  );
-}

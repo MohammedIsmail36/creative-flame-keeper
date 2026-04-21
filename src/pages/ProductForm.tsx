@@ -979,6 +979,9 @@ export default function ProductForm() {
           </DialogContent>
         </Dialog>
       ))}
+      <UnsavedChangesDialog
+        open={navGuard.isBlocked}
+        onStay={navGuard.cancel}
+        onLeave={navGuard.confirm}
+      />
     </div>
-  );
-}

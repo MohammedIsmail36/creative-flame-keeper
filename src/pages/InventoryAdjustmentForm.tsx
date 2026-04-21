@@ -1248,6 +1248,9 @@ export default function InventoryAdjustmentForm() {
           </div>
         </div>
       </div>
+      <UnsavedChangesDialog
+        open={navGuard.isBlocked}
+        onStay={navGuard.cancel}
+        onLeave={navGuard.confirm}
+      />
     </div>
-  );
-}

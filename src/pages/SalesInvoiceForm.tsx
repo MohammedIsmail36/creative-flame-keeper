@@ -1221,6 +1221,9 @@ export default function SalesInvoiceForm() {
           </div>
         </div>
       )}
+      <UnsavedChangesDialog
+        open={navGuard.isBlocked}
+        onStay={navGuard.cancel}
+        onLeave={navGuard.confirm}
+      />
     </div>
-  );
-}
