@@ -892,7 +892,7 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label className="text-sm font-bold">القيود المحاسبية</Label>
                 <Input
-                  value={settings.journal_entry_prefix || "JV-"}
+                  value={settings.journal_entry_prefix ?? ""}
                   onChange={(e) =>
                     updateField("journal_entry_prefix", e.target.value)
                   }
