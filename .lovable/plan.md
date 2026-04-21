@@ -1,67 +1,77 @@
-# تنفيذ Blockers ما قبل النشر — Sprint 1
 
-## ✅ المُنجَز في هذه الجلسة
 
-### 1. قفل الفترات في النماذج (LOGIC-001) — UI
-- `src/pages/SalesInvoiceForm.tsx` — فحص `locked_until_date` قبل استدعاء RPC
-- `src/pages/PurchaseInvoiceForm.tsx` — نفس الفحص
-- `src/pages/InventoryAdjustmentForm.tsx` — فحص قبل اعتماد التسوية + إضافة `settings` من `useSettings()`
-- ملاحظة: دوال DB `post_sales_invoice` / `post_purchase_invoice` تتحقق فعلاً من القفل أيضاً (طبقة دفاعية مزدوجة).
+## تقييم خطة الاختبار اليدوي الحالية
 
-### 2. Concurrency Lock (LOGIC-002) — DB
-- إعادة كتابة `adjust_product_quantity` لاستخدام `SELECT ... FOR UPDATE` على صف المنتج قبل الخصم/الإضافة، مما يسلسل الترحيلات المتزامنة على نفس المنتج.
-
-### 3. حماية كميات المرتجعات (LOGIC-003) — DB
-- Trigger `trg_check_sales_return_qty` على `sales_return_items`
-- Trigger `trg_check_purchase_return_qty` على `purchase_return_items`
-- يمنعان تجاوز الكمية الأصلية في الفاتورة المرجعية.
-
-### 5. ErrorBoundary على الجذر (UX-001)
-- `src/App.tsx` — لف `BrowserRouter` بـ `<ErrorBoundary>` لمنع الشاشة البيضاء.
-
-### 7. تشديد RLS على audit_log (SEC-001)
-- استبدال سياسة `audit_log_view` (أي authenticated) بسياسة جديدة محصورة على دور `admin`.
-
-### إضافات أمنية مكمّلة
-- CHECK constraints لمنع المبالغ السالبة على: المدفوعات، التخصيصات، التسويات، المصروفات.
-- Trigger `protect_closing_entries` يمنع تعديل/حذف قيود الإقفال (`entry_type='closing'`).
+**الإجابة المختصرة**: نعم، خطة `docs/MANUAL_TEST_PLAN.md` (1,285 سطر، 20 مرحلة) **كافية لتغطية المنطق المحاسبي الأساسي** للنظام، لكنها **لا تغطي تحسينات هذه الجلسات الأخيرة** (Pagination, Export Batching, Compact Rows, ExportMenu race condition).
 
 ---
 
-## ✅ Sprint 2 — تحسينات UX (الجلسة الحالية)
+## ما تغطّيه الخطة الحالية بشكل ممتاز ✅
 
-### 8. wrapper موحد لرسائل أخطاء Supabase (UX-003)
-- `src/lib/format-error.ts` — `formatSupabaseError(err)` يترجم: UNIQUE, CHECK, FK, NOT NULL, RLS, Auth, Network إلى رسائل عربية واضحة.
-- يحترم الرسائل الخاصة من triggers (التي أصلاً عربية).
-
-### 9. صفحة Forbidden + تحديث ProtectedRoute (UX-010)
-- `src/pages/Forbidden.tsx` — صفحة 403 احترافية بالعربية.
-- `ProtectedRoute` الآن يعرض `<Forbidden />` بدل التوجيه الصامت لـ `/`.
-
-### 10. تحسين صفحة 404
-- `NotFound.tsx` بالعربية مع تصميم متسق وأيقونة.
-
-### 11. فحص window.confirm/alert (UX-008)
-- ✅ نتيجة الفحص: لا توجد أي استخدامات. كل التأكيدات تستخدم AlertDialog.
+| المجال | التغطية |
+|--------|---------|
+| دورة شراء/بيع/مرتجع كاملة | مساران (بضريبة / بدون) |
+| حسابات WAC والـ COGS | شامل + حالات حافة |
+| الخصومات (سطر/إجمالي) + الضريبة | كامل مع حالات الجمع الممنوعة |
+| التقارير المالية + التطابق بينها | جدول تطابق حرج 11.1 |
+| دوران المخزون (7 صفحات) | المرحلة 12 |
+| الصلاحيات RBAC + MFA | المرحلتان 15 و16 |
+| Breadcrumb بالعربية | المرحلة 17 |
+| كشوف الحساب + RPC | المرحلة 17.A |
+| الإلغاء، الإقفال، Edge Cases | المراحل 18-20 |
 
 ---
 
-## ⏸️ مؤجل (يحتاج جلسات مخصصة)
+## فجوات يجب إضافتها (مرحلة 21 جديدة)
 
-### 4. توحيد دقة الأعمدة النقدية (LOGIC-004)
-- تحويل كل `numeric` إلى `numeric(18,2)` للنقدية و`numeric(18,3)` للكميات.
-- مؤجل لأنه يتطلب migration كبيرة + باكب احترازي + اختبار كل ALTER COLUMN على بيانات حقيقية.
+تحسينات الجلسات الأخيرة غير مُختبَرة في الخطة الحالية. أقترح إضافة **المرحلة 21: اختبارات الأداء وتجربة المستخدم المُحدَّثة**:
 
-### 6. Pagination للصفحات الكبيرة (PERF-001) — قيد التنفيذ
-- ✅ `Customers.tsx` — server-side pagination + search + balance filter
-- ✅ `Suppliers.tsx` — نفس النمط
-- ✅ `Expenses.tsx` — server-side pagination + status/type/date filters + stats منفصلة
-- ⏸️ `Accounts.tsx` — مؤجل (شجرة هرمية، عدد الحسابات محدود <500)
+### 21.1 — Pagination خادمي للقوائم الكبيرة
+- العملاء، الموردين، المصروفات، المبيعات، المشتريات، المرتجعات، المنتجات، المدفوعات
+- **التحقق**: أن صفحة فيها 5,000+ سجل تفتح في < 1.5s
+- البحث + الفلاتر تُرسل للخادم وتُعيد ضبط الصفحة لـ 1
+- اختيار حجم الصفحة (10/20/50) يعمل
+
+### 21.2 — التصدير المُجزّأ مع شريط التقدم
+لكل من: Journal, InventoryMovements, Sales, Purchases, SalesReturns, PurchaseReturns, Products
+- [ ] شريط التقدم يظهر ويتحرك من 0% إلى 100%
+- [ ] **الضغط الأول يُنزّل ملفاً مكتمل البيانات** (لا فارغ) — اختبار إصلاح race condition
+- [ ] أزرار PDF/Excel/CSV معطّلة أثناء التحضير
+- [ ] تغيير فلتر يُلغي `exportRows` السابقة
+- [ ] ملف بـ 5,000 صف يُنزَّل بنجاح
+
+### 21.3 — ارتفاع الصفوف المضغوط (compactRows)
+- [ ] Sales / Purchases / SalesReturns / PurchaseReturns / Journal / Ledger / Customers / Suppliers — ارتفاع الصف ≈ 36px
+- [ ] Products — ارتفاع الصف الافتراضي (الصور ظاهرة بوضوح)
+- [ ] أزرار العمليات في Customers/Suppliers بحجم h-7 w-7
+
+### 21.4 — التحقق من توحيد PAGE_SIZE = 20 عبر القوائم
+
+### 21.5 — اختبار الحمل المتزامن (اختياري)
+- مستخدمان يرحّلان فاتورة على نفس المنتج في نفس اللحظة
+- [ ] لا تكسير في WAC، الـ `SELECT FOR UPDATE` يُسلسل العملية
 
 ---
 
-## التحذيرات الأمنية الموجودة مسبقاً (ليست من هذه الجلسة)
-- WARN: Extension in Public schema
-- WARN: Public storage bucket allows listing
+## فجوات صغيرة أخرى مفقودة
 
-تتطلب قراراً منفصلاً من المسؤول.
+| الفجوة | الأولوية |
+|--------|---------|
+| اختبار `useBeforeUnload` على نماذج الفواتير (تحذير قبل المغادرة) | متوسطة |
+| اختبار `ErrorBoundary` (محاكاة خطأ في صفحة) | منخفضة |
+| اختبار `Forbidden`/404 بصرياً | منخفضة |
+| اختبار قفل الفترة `locked_until_date` من واجهة الفاتورة | عالية (موجود في PRE_LAUNCH لكن ليس في MANUAL_TEST) |
+
+---
+
+## الخطة المقترحة للتنفيذ
+
+**عند الموافقة، سأضيف للملف `docs/MANUAL_TEST_PLAN.md`:**
+
+1. **مرحلة 21 جديدة** (≈150 سطر) تغطي Pagination + Export Batching + Compact Rows + Race Condition Fix
+2. **بند جديد في المرحلة 3/6** لاختبار قفل الفترة (`locked_until_date`) من النموذج
+3. **تحديث جدول التحقق النهائي** بإضافة 5 بنود (#27 إلى #31) للتحسينات الجديدة
+4. **تحديث ترتيب التنفيذ المقترح** ليُصبح 7 أيام بدل 6
+
+**النتيجة**: خطة اختبار جاهزة 100% تغطي كل ما تم بناؤه حتى الآن، قابلة للتنفيذ يدوياً عبر 7 أيام عمل.
+
