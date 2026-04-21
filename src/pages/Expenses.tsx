@@ -608,14 +608,21 @@ export default function Expenses() {
   ];
 
   // Export: fetch ALL matching rows on demand (respects current filters/search)
-  async function fetchAllForExport(): Promise<Expense[]> {
-    let q = (supabase.from("expenses" as any) as any).select("*");
-    q = applyFilters(q);
-    const { data, error } = await q
-      .order("expense_number", { ascending: false })
-      .range(0, 9999);
-    if (error) throw error;
-    return ((data as any[]) || []).map((e: any) => ({
+  async function fetchAllForExport(
+    onProgress?: (loaded: number, total: number) => void
+  ): Promise<Expense[]> {
+    const { fetchAllPaged } = await import("@/lib/paged-fetch");
+    const data = await fetchAllPaged<any>(
+      () => {
+        let q = (supabase.from("expenses" as any) as any).select("*", {
+          count: "exact",
+        });
+        q = applyFilters(q);
+        return q.order("expense_number", { ascending: false });
+      },
+      { batchSize: 500, maxRows: 9999, onProgress }
+    );
+    return data.map((e: any) => ({
       ...e,
       expense_type_name: typesMap.get(e.expense_type_id)?.name,
       account_id: typesMap.get(e.expense_type_id)?.account_id,
@@ -663,8 +670,8 @@ export default function Expenses() {
         actions={
           <>
             <ExportMenu
-              onOpen={async () => {
-                const all = await fetchAllForExport();
+              onOpen={async (onProgress) => {
+                const all = await fetchAllForExport(onProgress);
                 setExportRows(all);
               }}
               config={exportConfig}

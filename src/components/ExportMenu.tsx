@@ -16,17 +16,24 @@ export interface ExportConfig {
   pdfOrientation?: "portrait" | "landscape";
 }
 
+export type ExportProgress = (loaded: number, total: number) => void;
+
 interface ExportMenuProps {
   config: ExportConfig;
   disabled?: boolean;
-  /** Called once when the menu is opened (lazy-load full data for export). */
-  onOpen?: () => void | Promise<void>;
+  /** Called when an export format is chosen (lazy-load full data for export).
+   *  Receives an `onProgress(loaded, total)` callback to report fetch progress. */
+  onOpen?: (onProgress?: ExportProgress) => void | Promise<void>;
 }
 
 export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const [preparing, setPreparing] = useState(false);
+  const [progress, setProgress] = useState<{ loaded: number; total: number }>({
+    loaded: 0,
+    total: 0,
+  });
   const configRef = useRef(config);
   configRef.current = config;
 
@@ -45,9 +52,12 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
 
   const prepareData = async () => {
     if (onOpen) {
+      setProgress({ loaded: 0, total: 0 });
       setPreparing(true);
       try {
-        await onOpen();
+        await onOpen((loaded, total) => {
+          setProgress({ loaded, total });
+        });
       } finally {
         setPreparing(false);
       }
@@ -152,14 +162,40 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
               يتم الآن جلب كافة السجلات المطابقة للفلاتر الحالية. قد يستغرق ذلك بضع ثوانٍ حسب حجم البيانات.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-2">
-            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-              <div className="h-full w-1/3 bg-primary rounded-full animate-[progress_1.5s_ease-in-out_infinite]" />
-            </div>
-            <p className="text-xs text-muted-foreground mt-3 text-center">
-              يرجى عدم إغلاق النافذة...
-            </p>
-          </div>
+          {(() => {
+            const pct =
+              progress.total > 0
+                ? Math.min(100, Math.round((progress.loaded / progress.total) * 100))
+                : 0;
+            const determinate = progress.total > 0;
+            return (
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                  <span>
+                    {determinate
+                      ? `${progress.loaded.toLocaleString("ar-EG")} من ${progress.total.toLocaleString("ar-EG")} سجل`
+                      : "جاري حساب الإجمالي..."}
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {determinate ? `${pct}%` : ""}
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                  {determinate ? (
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${pct}%` }}
+                    />
+                  ) : (
+                    <div className="h-full w-1/3 bg-primary rounded-full animate-pulse" />
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-3 text-center">
+                  يرجى عدم إغلاق النافذة...
+                </p>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </>

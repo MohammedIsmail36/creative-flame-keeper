@@ -144,19 +144,25 @@ export default function Suppliers() {
     queryClient.invalidateQueries({ queryKey: ["suppliers"] });
   }
 
-  async function fetchAllForExport(): Promise<Supplier[]> {
-    let q = (supabase.from("suppliers" as any) as any)
-      .select("*")
-      .eq("is_active", true);
-    if (debouncedSearch.trim()) {
-      const term = `%${debouncedSearch.trim()}%`;
-      q = q.or(`name.ilike.${term},code.ilike.${term},phone.ilike.${term}`);
-    }
-    if (balanceFilter === "has_balance") q = q.gt("balance", 0);
-    if (balanceFilter === "no_balance") q = q.lte("balance", 0);
-    const { data, error } = await q.order("code").range(0, 9999);
-    if (error) throw error;
-    return (data as Supplier[]) || [];
+  async function fetchAllForExport(
+    onProgress?: (loaded: number, total: number) => void
+  ): Promise<Supplier[]> {
+    const { fetchAllPaged } = await import("@/lib/paged-fetch");
+    return await fetchAllPaged<Supplier>(
+      () => {
+        let q = (supabase.from("suppliers" as any) as any)
+          .select("*", { count: "exact" })
+          .eq("is_active", true);
+        if (debouncedSearch.trim()) {
+          const term = `%${debouncedSearch.trim()}%`;
+          q = q.or(`name.ilike.${term},code.ilike.${term},phone.ilike.${term}`);
+        }
+        if (balanceFilter === "has_balance") q = q.gt("balance", 0);
+        if (balanceFilter === "no_balance") q = q.lte("balance", 0);
+        return q.order("code");
+      },
+      { batchSize: 500, maxRows: 9999, onProgress }
+    );
   }
 
   const [exportRows, setExportRows] = useState<Supplier[] | null>(null);
@@ -492,8 +498,8 @@ export default function Suppliers() {
               </Button>
             )}
             <ExportMenu
-              onOpen={async () => {
-                const all = await fetchAllForExport();
+              onOpen={async (onProgress) => {
+                const all = await fetchAllForExport(onProgress);
                 setExportRows(all);
               }}
               config={{
