@@ -27,16 +27,10 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const [preparing, setPreparing] = useState(false);
+  const configRef = useRef(config);
+  configRef.current = config;
 
-  const handleToggle = async () => {
-    if (!open && onOpen) {
-      setPreparing(true);
-      try {
-        await onOpen();
-      } finally {
-        setPreparing(false);
-      }
-    }
+  const handleToggle = () => {
     setOpen(!open);
   };
 
@@ -49,44 +43,61 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  const prepareData = async () => {
+    if (onOpen) {
+      setPreparing(true);
+      try {
+        await onOpen();
+      } finally {
+        setPreparing(false);
+      }
+    }
+  };
+
   const handleCSV = async () => {
+    setOpen(false);
+    await prepareData();
+    const cfg = configRef.current;
     const { exportToCsv } = await import("@/lib/csv-export");
     exportToCsv({
-      filename: config.filenamePrefix,
-      headers: config.headers,
-      rows: config.rows,
+      filename: cfg.filenamePrefix,
+      headers: cfg.headers,
+      rows: cfg.rows,
     });
     toast({ title: "تم التصدير", description: "تم التصدير بصيغة CSV" });
-    setOpen(false);
   };
 
   const handleExcel = async () => {
+    setOpen(false);
+    await prepareData();
+    const cfg = configRef.current;
     const { exportToExcel } = await import("@/lib/excel-export");
     await exportToExcel({
-      filename: config.filenamePrefix,
-      sheetName: config.sheetName,
-      headers: config.headers,
-      rows: config.rows,
+      filename: cfg.filenamePrefix,
+      sheetName: cfg.sheetName,
+      headers: cfg.headers,
+      rows: cfg.rows,
     });
     toast({ title: "تم التصدير", description: "تم التصدير بصيغة Excel" });
-    setOpen(false);
   };
 
   const handlePDF = async () => {
+    setOpen(false);
+    await prepareData();
+    const cfg = configRef.current;
     const { exportReportPdf } = await import("@/lib/report-pdf");
     await exportReportPdf({
-      title: config.pdfTitle,
-      settings: config.settings || null,
-      headers: config.headers,
-      rows: config.rows,
-      summaryCards: config.summaryCards,
+      title: cfg.pdfTitle,
+      settings: cfg.settings || null,
+      headers: cfg.headers,
+      rows: cfg.rows,
+      summaryCards: cfg.summaryCards,
       orientation:
-        config.pdfOrientation ||
-        (config.headers.length > 6 ? "landscape" : "portrait"),
-      filename: config.filenamePrefix,
+        cfg.pdfOrientation ||
+        (cfg.headers.length > 6 ? "landscape" : "portrait"),
+      filename: cfg.filenamePrefix,
     });
     toast({ title: "تم التصدير", description: "تم التصدير بصيغة PDF" });
-    setOpen(false);
   };
 
   return (
