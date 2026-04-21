@@ -27,6 +27,8 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const [preparing, setPreparing] = useState(false);
+  const configRef = useRef(config);
+  configRef.current = config;
 
   const handleToggle = () => {
     setOpen(!open);
