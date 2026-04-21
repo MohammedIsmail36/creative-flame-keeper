@@ -162,14 +162,40 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
               يتم الآن جلب كافة السجلات المطابقة للفلاتر الحالية. قد يستغرق ذلك بضع ثوانٍ حسب حجم البيانات.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-2">
-            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-              <div className="h-full w-1/3 bg-primary rounded-full animate-[progress_1.5s_ease-in-out_infinite]" />
-            </div>
-            <p className="text-xs text-muted-foreground mt-3 text-center">
-              يرجى عدم إغلاق النافذة...
-            </p>
-          </div>
+          {(() => {
+            const pct =
+              progress.total > 0
+                ? Math.min(100, Math.round((progress.loaded / progress.total) * 100))
+                : 0;
+            const determinate = progress.total > 0;
+            return (
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                  <span>
+                    {determinate
+                      ? `${progress.loaded.toLocaleString("ar-EG")} من ${progress.total.toLocaleString("ar-EG")} سجل`
+                      : "جاري حساب الإجمالي..."}
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {determinate ? `${pct}%` : ""}
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                  {determinate ? (
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${pct}%` }}
+                    />
+                  ) : (
+                    <div className="h-full w-1/3 bg-primary rounded-full animate-pulse" />
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-3 text-center">
+                  يرجى عدم إغلاق النافذة...
+                </p>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </>
