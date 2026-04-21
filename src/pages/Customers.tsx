@@ -61,7 +61,7 @@ interface Customer {
   is_active: boolean;
 }
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 20;
 
 export default function Customers() {
   const { role } = useAuth();

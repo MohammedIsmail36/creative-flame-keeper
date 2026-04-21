@@ -62,7 +62,7 @@ interface Supplier {
   created_at: string;
 }
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 20;
 
 export default function Suppliers() {
   const { role } = useAuth();
