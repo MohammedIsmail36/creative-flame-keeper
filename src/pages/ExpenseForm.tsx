@@ -407,3 +407,5 @@ export default function ExpenseForm() {
         onLeave={navGuard.confirm}
       />
     </div>
+  );
+}

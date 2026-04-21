@@ -1193,3 +1193,5 @@ export default function PurchaseInvoiceForm() {
         onLeave={navGuard.confirm}
       />
     </div>
+  );
+}

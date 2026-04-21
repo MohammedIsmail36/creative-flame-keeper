@@ -1321,3 +1321,5 @@ export default function SalesReturnForm() {
         onLeave={navGuard.confirm}
       />
     </div>
+  );
+}

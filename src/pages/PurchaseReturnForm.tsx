@@ -1288,3 +1288,5 @@ export default function PurchaseReturnForm() {
         onLeave={navGuard.confirm}
       />
     </div>
+  );
+}

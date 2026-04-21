@@ -985,3 +985,5 @@ export default function ProductForm() {
         onLeave={navGuard.confirm}
       />
     </div>
+  );
+}

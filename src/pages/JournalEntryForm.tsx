@@ -870,3 +870,5 @@ export default function JournalEntryForm() {
         onLeave={navGuard.confirm}
       />
     </div>
+  );
+}

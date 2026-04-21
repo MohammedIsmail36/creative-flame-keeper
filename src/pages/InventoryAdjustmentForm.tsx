@@ -1254,3 +1254,5 @@ export default function InventoryAdjustmentForm() {
         onLeave={navGuard.confirm}
       />
     </div>
+  );
+}
