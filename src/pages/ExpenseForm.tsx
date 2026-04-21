@@ -51,7 +51,7 @@ export default function ExpenseForm() {
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  useBeforeUnload(isDirty);
+  const navGuard = useNavigationGuard(isDirty);
 
   useEffect(() => {
     fetchExpenseTypes();

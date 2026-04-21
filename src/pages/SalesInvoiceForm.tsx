@@ -143,7 +143,7 @@ export default function SalesInvoiceForm() {
   const [invoiceDiscount, setInvoiceDiscount] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  useBeforeUnload(isDirty && editMode);
+  const navGuard = useNavigationGuard(isDirty);
 
   useEffect(() => {
     loadData();

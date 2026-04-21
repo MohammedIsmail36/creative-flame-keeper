@@ -91,7 +91,7 @@ export default function JournalEntryForm() {
   const [isLinked, setIsLinked] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  useBeforeUnload(isDirty && editMode);
+  const navGuard = useNavigationGuard(isDirty);
 
   const [lines, setLines] = useState<JournalEntryLine[]>([
     { account_id: "", debit: 0, credit: 0, description: "" },

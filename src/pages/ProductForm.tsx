@@ -64,7 +64,7 @@ export default function ProductForm() {
   const [loading, setLoading] = useState(isEdit);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  useBeforeUnload(isDirty);
+  const navGuard = useNavigationGuard(isDirty);
 
   // Quick-add dialogs
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);

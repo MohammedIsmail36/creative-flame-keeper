@@ -137,7 +137,7 @@ export default function PurchaseReturnForm() {
   const [editMode, setEditMode] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  useBeforeUnload(isDirty && editMode);
+  const navGuard = useNavigationGuard(isDirty);
 
   useEffect(() => {
     loadData();
