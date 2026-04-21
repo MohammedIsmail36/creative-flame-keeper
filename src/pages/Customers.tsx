@@ -467,6 +467,7 @@ export default function Customers() {
       />
 
       <DataTable
+        compactRows
         columns={columns}
         data={rows}
         searchPlaceholder="بحث بالاسم أو الكود أو الهاتف..."
