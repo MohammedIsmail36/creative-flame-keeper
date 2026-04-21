@@ -320,19 +320,25 @@ export default function Customers() {
   }
 
   // Export: fetch ALL matching rows on demand (respects current filters/search)
-  async function fetchAllForExport(): Promise<Customer[]> {
-    let q = (supabase.from("customers" as any) as any)
-      .select("*")
-      .eq("is_active", true);
-    if (debouncedSearch.trim()) {
-      const term = `%${debouncedSearch.trim()}%`;
-      q = q.or(`name.ilike.${term},code.ilike.${term},phone.ilike.${term}`);
-    }
-    if (balanceFilter === "has_balance") q = q.gt("balance", 0);
-    if (balanceFilter === "no_balance") q = q.lte("balance", 0);
-    const { data, error } = await q.order("code").range(0, 9999);
-    if (error) throw error;
-    return (data as Customer[]) || [];
+  async function fetchAllForExport(
+    onProgress?: (loaded: number, total: number) => void
+  ): Promise<Customer[]> {
+    const { fetchAllPaged } = await import("@/lib/paged-fetch");
+    return await fetchAllPaged<Customer>(
+      () => {
+        let q = (supabase.from("customers" as any) as any)
+          .select("*", { count: "exact" })
+          .eq("is_active", true);
+        if (debouncedSearch.trim()) {
+          const term = `%${debouncedSearch.trim()}%`;
+          q = q.or(`name.ilike.${term},code.ilike.${term},phone.ilike.${term}`);
+        }
+        if (balanceFilter === "has_balance") q = q.gt("balance", 0);
+        if (balanceFilter === "no_balance") q = q.lte("balance", 0);
+        return q.order("code");
+      },
+      { batchSize: 500, maxRows: 9999, onProgress }
+    );
   }
 
   const [exportRows, setExportRows] = useState<Customer[] | null>(null);
