@@ -162,6 +162,14 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (!settings) return;
+    // التحقق من البادئات (لا تكون فارغة وتكون نصاً)
+    for (const { key, label } of prefixFields) {
+      const result = prefixSchema.safeParse(settings[key]);
+      if (!result.success) {
+        toast.error(`${label}: ${result.error.issues[0].message}`);
+        return;
+      }
+    }
     // التحقق من إعدادات الضريبة عند التفعيل
     if (settings.enable_tax) {
       if (!settings.tax_rate || settings.tax_rate <= 0) {
