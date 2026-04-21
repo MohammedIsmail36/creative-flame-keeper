@@ -156,7 +156,8 @@ export default function Expenses() {
 
       const expPostedNum = await getNextPostedNumber("expenses" as any);
       const jePostedNum = await getNextPostedNumber("journal_entries");
-      const displayNum = `EXP-${String(expPostedNum).padStart(4, "0")}`;
+      const expPrefix = (settings as any)?.expense_prefix || "EXP-";
+      const displayNum = `${expPrefix}${String(expPostedNum).padStart(4, "0")}`;
       const desc = `سند مصروف رقم ${displayNum} - ${postTarget.expense_type_name}${postTarget.description ? ` - ${postTarget.description}` : ""}`;
 
       const { data: je, error: jeError } = await supabase
@@ -224,8 +225,9 @@ export default function Expenses() {
         .eq("journal_entry_id", cancelTarget.journal_entry_id);
 
       const jePostedNum = await getNextPostedNumber("journal_entries");
+      const expPrefix = (settings as any)?.expense_prefix || "EXP-";
       const displayNum = formatDisplayNumber(
-        "EXP-",
+        expPrefix,
         cancelTarget.posted_number,
         cancelTarget.expense_number,
         cancelTarget.status,
