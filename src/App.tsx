@@ -9,6 +9,7 @@ import { SettingsProvider } from "@/contexts/SettingsContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PageSkeleton } from "@/components/PageSkeleton";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Eager (small + first-paint critical)
 import Auth from "./pages/Auth";
@@ -99,10 +100,11 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <SettingsProvider>
-          <Routes>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <AuthProvider>
+            <SettingsProvider>
+            <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/mfa" element={<MfaVerify />} />
             <Route path="/" element={<ProtectedRoute><AppLayout>{withSuspense(<Dashboard />)}</AppLayout></ProtectedRoute>} />
