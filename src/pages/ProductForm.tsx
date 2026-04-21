@@ -3,7 +3,8 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useParams } from "react-router-dom";
-import { useBeforeUnload } from "@/hooks/use-before-unload";
+import { useNavigationGuard } from "@/hooks/use-navigation-guard";
+import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { PageHeader } from "@/components/PageHeader";
@@ -63,7 +64,7 @@ export default function ProductForm() {
   const [loading, setLoading] = useState(isEdit);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  useBeforeUnload(isDirty);
+  const navGuard = useNavigationGuard(isDirty);
 
   // Quick-add dialogs
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
@@ -978,6 +979,11 @@ export default function ProductForm() {
           </DialogContent>
         </Dialog>
       ))}
+      <UnsavedChangesDialog
+        open={navGuard.isBlocked}
+        onStay={navGuard.cancel}
+        onLeave={navGuard.confirm}
+      />
     </div>
   );
 }

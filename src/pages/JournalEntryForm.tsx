@@ -5,7 +5,8 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { useBeforeUnload } from "@/hooks/use-before-unload";
+import { useNavigationGuard } from "@/hooks/use-navigation-guard";
+import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { Button } from "@/components/ui/button";
@@ -90,7 +91,7 @@ export default function JournalEntryForm() {
   const [isLinked, setIsLinked] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  useBeforeUnload(isDirty && editMode);
+  const navGuard = useNavigationGuard(isDirty);
 
   const [lines, setLines] = useState<JournalEntryLine[]>([
     { account_id: "", debit: 0, credit: 0, description: "" },
@@ -863,6 +864,11 @@ export default function JournalEntryForm() {
             </div>
           ))}
       </div>
+      <UnsavedChangesDialog
+        open={navGuard.isBlocked}
+        onStay={navGuard.cancel}
+        onLeave={navGuard.confirm}
+      />
     </div>
   );
 }

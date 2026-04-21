@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSettings } from "@/contexts/SettingsContext";
-import { useBeforeUnload } from "@/hooks/use-before-unload";
+import { useNavigationGuard } from "@/hooks/use-navigation-guard";
+import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { PageHeader } from "@/components/PageHeader";
 import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
@@ -50,7 +51,7 @@ export default function ExpenseForm() {
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  useBeforeUnload(isDirty);
+  const navGuard = useNavigationGuard(isDirty);
 
   useEffect(() => {
     fetchExpenseTypes();
@@ -400,6 +401,11 @@ export default function ExpenseForm() {
           </div>
         </CardContent>
       </Card>
+      <UnsavedChangesDialog
+        open={navGuard.isBlocked}
+        onStay={navGuard.cancel}
+        onLeave={navGuard.confirm}
+      />
     </div>
   );
 }
