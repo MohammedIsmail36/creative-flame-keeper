@@ -303,12 +303,13 @@ export default function Suppliers() {
         toast({ title: "تمت الإضافة", description: "تم إضافة المورد بنجاح" });
       }
       setDialogOpen(false);
-      fetchSuppliers();
+      refetchAll();
     } catch (error: any) {
-      const msg = error.message?.includes("duplicate")
-        ? "كود المورد موجود مسبقاً"
-        : error.message;
-      toast({ title: "خطأ", description: msg, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: formatSupabaseError(error),
+        variant: "destructive",
+      });
     }
     setSaving(false);
   }
@@ -333,7 +334,7 @@ export default function Suppliers() {
     if (error) {
       toast({
         title: "خطأ",
-        description: error.message,
+        description: formatSupabaseError(error),
         variant: "destructive",
       });
       setDeleteTarget(null);
@@ -341,7 +342,7 @@ export default function Suppliers() {
     }
     toast({ title: "تم الحذف", description: "تم حذف المورد" });
     setDeleteTarget(null);
-    fetchSuppliers();
+    refetchAll();
   }
 
   const columns: ColumnDef<Supplier, any>[] = [
@@ -443,7 +444,7 @@ export default function Suppliers() {
       <PageHeader
         icon={Truck}
         title="الموردين"
-        description={`${suppliers.length} مورد`}
+        description={`${totalCount} مورد`}
         actions={
           canEdit ? (
             <Button onClick={openAdd} className="gap-2">
@@ -456,10 +457,17 @@ export default function Suppliers() {
 
       <DataTable
         columns={columns}
-        data={filtered}
+        data={rows}
         searchPlaceholder="بحث بالاسم أو الكود أو الهاتف..."
-        isLoading={loading}
+        isLoading={isLoading}
         emptyMessage="لا يوجد موردين"
+        manualPagination
+        pageCount={pageCount}
+        totalRows={totalCount}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        globalFilter={search}
+        onGlobalFilterChange={(v) => setSearch(typeof v === "string" ? v : "")}
         toolbarContent={
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={balanceFilter} onValueChange={setBalanceFilter}>
@@ -484,12 +492,16 @@ export default function Suppliers() {
               </Button>
             )}
             <ExportMenu
+              onOpen={async () => {
+                const all = await fetchAllForExport();
+                setExportRows(all);
+              }}
               config={{
                 filenamePrefix: "الموردين",
                 sheetName: "الموردين",
                 pdfTitle: "قائمة الموردين",
                 headers: ["الكود", "الاسم", "الهاتف", "البريد", "الرصيد"],
-                rows: filtered.map((s) => [
+                rows: exportRowsResolved.map((s) => [
                   s.code,
                   s.name,
                   s.phone || "",
@@ -500,7 +512,7 @@ export default function Suppliers() {
                 ]),
                 settings,
               }}
-              disabled={loading}
+              disabled={isLoading}
             />
           </div>
         }
