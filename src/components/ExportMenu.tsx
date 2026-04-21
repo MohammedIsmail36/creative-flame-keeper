@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, FileSpreadsheet, FileDown } from "lucide-react";
+import { Download, FileText, FileSpreadsheet, FileDown, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import type { CompanySettings } from "@/contexts/SettingsContext";
 
