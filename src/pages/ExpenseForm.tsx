@@ -124,7 +124,7 @@ export default function ExpenseForm() {
         if (error) throw error;
         toast({ title: "تم الحفظ", description: "تم حفظ المصروف كمسودة" });
       }
-      setIsDirty(false);
+      setIsDirty(false); navGuard.allowNext();
       navigate("/expenses");
     } catch (error: any) {
       toast({
@@ -230,7 +230,7 @@ export default function ExpenseForm() {
         title: "تم الترحيل",
         description: `تم تسجيل المصروف ${displayNum} بنجاح`,
       });
-      setIsDirty(false);
+      setIsDirty(false); navGuard.allowNext();
       navigate("/expenses");
     } catch (error: any) {
       toast({

@@ -268,7 +268,7 @@ export default function InventoryAdjustmentForm() {
       if (itemsErr) throw itemsErr;
 
       toast({ title: "تم حفظ التسوية بنجاح" });
-      setIsDirty(false);
+      setIsDirty(false); navGuard.allowNext();
       navigate(`/inventory-adjustments/${adjId}`);
     } catch (e: any) {
       toast({
@@ -292,7 +292,7 @@ export default function InventoryAdjustmentForm() {
         .delete()
         .eq("id", id);
       toast({ title: "تم حذف التسوية بنجاح" });
-      setIsDirty(false);
+      setIsDirty(false); navGuard.allowNext();
       navigate("/inventory-adjustments");
     } catch {
       toast({ title: "خطأ في الحذف", variant: "destructive" });

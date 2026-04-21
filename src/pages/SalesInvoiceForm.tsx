@@ -301,7 +301,7 @@ export default function SalesInvoiceForm() {
           title: "تمت الإضافة",
           description: "تم إنشاء فاتورة البيع كمسودة",
         });
-        setIsDirty(false);
+        setIsDirty(false); navGuard.allowNext();
         navigate(`/sales/${inv.id}`);
       } else {
         const { error } = await (supabase.from("sales_invoices") as any)
@@ -324,7 +324,7 @@ export default function SalesInvoiceForm() {
         }));
         await (supabase.from("sales_invoice_items") as any).insert(rows);
         toast({ title: "تم التحديث", description: "تم تحديث فاتورة البيع" });
-        setIsDirty(false);
+        setIsDirty(false); navGuard.allowNext();
         loadData();
       }
     } catch (error: any) {
@@ -395,7 +395,7 @@ export default function SalesInvoiceForm() {
         .eq("invoice_id", id);
       await (supabase.from("sales_invoices") as any).delete().eq("id", id);
       toast({ title: "تم الحذف", description: "تم حذف فاتورة البيع المسودة" });
-      setIsDirty(false);
+      setIsDirty(false); navGuard.allowNext();
       navigate("/sales");
     } catch (error: any) {
       toast({

@@ -297,7 +297,7 @@ export default function PurchaseInvoiceForm() {
           title: "تمت الإضافة",
           description: "تم إنشاء فاتورة الشراء كمسودة",
         });
-        setIsDirty(false);
+        setIsDirty(false); navGuard.allowNext();
         navigate(`/purchases/${inv.id}`);
       } else {
         const { error } = await (
@@ -324,7 +324,7 @@ export default function PurchaseInvoiceForm() {
           rows,
         );
         toast({ title: "تم التحديث", description: "تم تحديث فاتورة الشراء" });
-        setIsDirty(false);
+        setIsDirty(false); navGuard.allowNext();
         loadData();
       }
     } catch (error: any) {
@@ -397,7 +397,7 @@ export default function PurchaseInvoiceForm() {
         .delete()
         .eq("id", id);
       toast({ title: "تم الحذف", description: "تم حذف فاتورة الشراء المسودة" });
-      setIsDirty(false);
+      setIsDirty(false); navGuard.allowNext();
       navigate("/purchases");
     } catch (error: any) {
       toast({

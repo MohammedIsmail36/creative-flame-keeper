@@ -274,7 +274,7 @@ export default function SalesReturnForm() {
           title: "تمت الإضافة",
           description: "تم إنشاء مرتجع البيع كمسودة",
         });
-        setIsDirty(false);
+        setIsDirty(false); navGuard.allowNext();
         navigate(`/sales-returns/${ret.id}`);
       } else {
         await (supabase.from("sales_returns") as any)
@@ -295,7 +295,7 @@ export default function SalesReturnForm() {
         }));
         await (supabase.from("sales_return_items") as any).insert(rows);
         toast({ title: "تم التحديث", description: "تم تحديث مرتجع البيع" });
-        setIsDirty(false);
+        setIsDirty(false); navGuard.allowNext();
         loadData();
       }
     } catch (error: any) {
@@ -689,7 +689,7 @@ export default function SalesReturnForm() {
         .eq("return_id", id);
       await (supabase.from("sales_returns") as any).delete().eq("id", id);
       toast({ title: "تم الحذف", description: "تم حذف المرتجع" });
-      setIsDirty(false);
+      setIsDirty(false); navGuard.allowNext();
       navigate("/sales-returns");
     } catch (error: any) {
       toast({
