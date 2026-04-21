@@ -30,6 +30,10 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const [preparing, setPreparing] = useState(false);
+  const [progress, setProgress] = useState<{ loaded: number; total: number }>({
+    loaded: 0,
+    total: 0,
+  });
   const configRef = useRef(config);
   configRef.current = config;
 
@@ -48,9 +52,12 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
 
   const prepareData = async () => {
     if (onOpen) {
+      setProgress({ loaded: 0, total: 0 });
       setPreparing(true);
       try {
-        await onOpen();
+        await onOpen((loaded, total) => {
+          setProgress({ loaded, total });
+        });
       } finally {
         setPreparing(false);
       }
