@@ -414,6 +414,7 @@ export default function Journal() {
       />
 
       <DataTable
+        compactRows
         columns={columns}
         data={entries}
         searchPlaceholder="البحث في القيود..."
