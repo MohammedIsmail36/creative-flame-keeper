@@ -48,7 +48,7 @@ interface Invoice {
   notes: string | null;
 }
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 const fmtNum = (n: number) => Number(n || 0).toLocaleString("en-US");
 
 export default function Purchases() {
@@ -143,26 +143,39 @@ export default function Purchases() {
   const totalCount = pagedData?.totalCount ?? 0;
   const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
 
-  const fetchAllForExport = async (): Promise<Invoice[]> => {
-    let q = (supabase.from("purchase_invoices") as any)
-      .select(
-        "id, invoice_number, posted_number, supplier_id, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, reference, notes, suppliers:supplier_id(name)",
-      )
-      .order("invoice_number", { ascending: false });
-    if (statusFilter !== "all") q = q.eq("status", statusFilter);
-    if (dateFrom) q = q.gte("invoice_date", dateFrom);
-    if (dateTo) q = q.lte("invoice_date", dateTo);
-    const { data, error } = await q;
-    if (error) throw error;
-    return (data || []).map((inv: any) => ({
+  const fetchAllForExport = async (
+    onProgress?: (loaded: number, total: number) => void,
+  ): Promise<Invoice[]> => {
+    const { fetchAllPaged } = await import("@/lib/paged-fetch");
+    const rows = await fetchAllPaged<any>(
+      () => {
+        let q = (supabase.from("purchase_invoices") as any)
+          .select(
+            "id, invoice_number, posted_number, supplier_id, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, reference, notes, suppliers:supplier_id(name)",
+            { count: "exact" },
+          )
+          .order("invoice_number", { ascending: false });
+        if (statusFilter !== "all") q = q.eq("status", statusFilter);
+        if (dateFrom) q = q.gte("invoice_date", dateFrom);
+        if (dateTo) q = q.lte("invoice_date", dateTo);
+        return q;
+      },
+      { batchSize: 500, maxRows: 50000, onProgress },
+    );
+    return rows.map((inv: any) => ({
       ...inv,
       supplier_name: inv.suppliers?.name,
     }));
   };
 
   const [exportRows, setExportRows] = useState<any[][]>([]);
-  const handlePrepareExport = async () => {
-    const all = await fetchAllForExport();
+  React.useEffect(() => {
+    setExportRows([]);
+  }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
+  const handlePrepareExport = async (
+    onProgress?: (loaded: number, total: number) => void,
+  ) => {
+    const all = await fetchAllForExport(onProgress);
     setExportRows(
       all.map((i) => [
         formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status),
