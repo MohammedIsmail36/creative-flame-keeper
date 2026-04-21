@@ -494,6 +494,10 @@ export default function Customers() {
               </Button>
             )}
             <ExportMenu
+              onOpen={async () => {
+                const all = await fetchAllForExport();
+                setExportRows(all);
+              }}
               config={{
                 filenamePrefix: "العملاء",
                 sheetName: "العملاء",
@@ -509,12 +513,7 @@ export default function Customers() {
                   }),
                 ]),
                 settings,
-                onBeforeExport: async () => {
-                  const all = await fetchAllForExport();
-                  setExportRows(all);
-                  return true;
-                },
-              } as any}
+              }}
               disabled={isLoading}
             />
           </div>
