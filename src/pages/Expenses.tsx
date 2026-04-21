@@ -670,8 +670,8 @@ export default function Expenses() {
         actions={
           <>
             <ExportMenu
-              onOpen={async () => {
-                const all = await fetchAllForExport();
+              onOpen={async (onProgress) => {
+                const all = await fetchAllForExport(onProgress);
                 setExportRows(all);
               }}
               config={exportConfig}
