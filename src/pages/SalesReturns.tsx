@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import {
   Select,
@@ -18,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import {
   Plus,
   RotateCcw,
@@ -31,6 +29,8 @@ import {
 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useQuery } from "@tanstack/react-query";
+import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 
 interface Return {
   id: string;
@@ -43,77 +43,170 @@ interface Return {
   total: number;
 }
 
+const PAGE_SIZE = 20;
+const fmtNum = (n: number) => Number(n || 0).toLocaleString("en-US");
+
 export default function SalesReturns() {
   const navigate = useNavigate();
   const { settings, formatCurrency } = useSettings();
-  const [returns, setReturns] = useState<Return[]>([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
 
-  useEffect(() => {
-    fetchAll();
-  }, []);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
+  });
 
-  async function fetchAll() {
-    setLoading(true);
-    const { data, error } = await (supabase.from("sales_returns") as any)
-      .select("*, customers:customer_id(name)")
-      .order("return_number", { ascending: false });
-    if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في تحميل المرتجعات",
-        variant: "destructive",
+  // KPI summary (lightweight - by status)
+  const { data: stats } = useQuery({
+    queryKey: ["sales-returns-summary", dateFrom, dateTo],
+    queryFn: async () => {
+      let q = (supabase.from("sales_returns") as any).select(
+        "status, total",
+      );
+      if (dateFrom) q = q.gte("return_date", dateFrom);
+      if (dateTo) q = q.lte("return_date", dateTo);
+      const { data, error } = await q;
+      if (error) throw error;
+      const s = {
+        total: (data || []).length,
+        draft: 0,
+        posted: 0,
+        cancelled: 0,
+        totalAmount: 0,
+      };
+      (data || []).forEach((r: any) => {
+        if (r.status === "draft") s.draft++;
+        else if (r.status === "posted") {
+          s.posted++;
+          s.totalAmount += Number(r.total);
+        } else if (r.status === "cancelled") s.cancelled++;
       });
-      setLoading(false);
-      return;
-    }
-    setReturns(
-      (data || []).map((r: any) => ({
-        ...r,
-        customer_name: r.customers?.name,
-      })),
+      return s;
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: pagedData, isLoading } = usePagedQuery<Return>(
+    [
+      "sales-returns-list",
+      pagination.pageIndex,
+      pagination.pageSize,
+      statusFilter,
+      dateFrom,
+      dateTo,
+      debouncedSearch,
+    ] as const,
+    async () => {
+      const from = pagination.pageIndex * pagination.pageSize;
+      const to = from + pagination.pageSize - 1;
+
+      let q = (supabase.from("sales_returns") as any)
+        .select("*, customers:customer_id(name)", { count: "exact" })
+        .order("return_number", { ascending: false })
+        .range(from, to);
+
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      if (dateFrom) q = q.gte("return_date", dateFrom);
+      if (dateTo) q = q.lte("return_date", dateTo);
+      if (debouncedSearch.trim()) {
+        const s = debouncedSearch.trim();
+        const asNum = Number(s);
+        if (!isNaN(asNum)) {
+          q = q.or(`return_number.eq.${asNum},posted_number.eq.${asNum}`);
+        }
+      }
+
+      const { data, error, count } = await q;
+      if (error) {
+        toast({
+          title: "خطأ",
+          description: "فشل في تحميل المرتجعات",
+          variant: "destructive",
+        });
+        throw error;
+      }
+      return {
+        rows: (data || []).map((r: any) => ({
+          ...r,
+          customer_name: r.customers?.name,
+        })),
+        totalCount: count ?? 0,
+      };
+    },
+  );
+
+  const returns = pagedData?.rows ?? [];
+  const totalCount = pagedData?.totalCount ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
+
+  React.useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
+
+  const fetchAllForExport = async (
+    onProgress?: (loaded: number, total: number) => void,
+  ): Promise<Return[]> => {
+    const { fetchAllPaged } = await import("@/lib/paged-fetch");
+    const rows = await fetchAllPaged<any>(
+      () => {
+        let q = (supabase.from("sales_returns") as any)
+          .select("*, customers:customer_id(name)", { count: "exact" })
+          .order("return_number", { ascending: false });
+        if (statusFilter !== "all") q = q.eq("status", statusFilter);
+        if (dateFrom) q = q.gte("return_date", dateFrom);
+        if (dateTo) q = q.lte("return_date", dateTo);
+        return q;
+      },
+      { batchSize: 500, maxRows: 50000, onProgress },
     );
-    setLoading(false);
-  }
+    return rows.map((r: any) => ({ ...r, customer_name: r.customers?.name }));
+  };
 
-  const filtered = useMemo(() => {
-    return returns.filter((r) => {
-      if (statusFilter !== "all" && r.status !== statusFilter) return false;
-      if (dateFrom && r.return_date < dateFrom) return false;
-      if (dateTo && r.return_date > dateTo) return false;
-      return true;
-    });
-  }, [returns, statusFilter, dateFrom, dateTo]);
+  const [exportRows, setExportRows] = useState<any[][]>([]);
+  React.useEffect(() => {
+    setExportRows([]);
+  }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
+  const handlePrepareExport = async (
+    onProgress?: (loaded: number, total: number) => void,
+  ) => {
+    const all = await fetchAllForExport(onProgress);
+    setExportRows(
+      all.map((r) => [
+        formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status),
+        r.customer_name || "—",
+        r.return_date,
+        formatCurrency(r.total),
+        INVOICE_STATUS_LABELS[r.status] || r.status,
+      ]),
+    );
+  };
 
-  const stats = useMemo(() => {
-    const s = {
-      total: returns.length,
-      draft: 0,
-      posted: 0,
-      cancelled: 0,
-      totalAmount: 0,
-    };
-    returns.forEach((r) => {
-      if (r.status === "draft") s.draft++;
-      else if (r.status === "posted") {
-        s.posted++;
-        s.totalAmount += Number(r.total);
-      } else if (r.status === "cancelled") s.cancelled++;
-    });
-    return s;
-  }, [returns]);
-
-  const hasFilters = statusFilter !== "all" || dateFrom || dateTo;
+  const hasFilters =
+    statusFilter !== "all" || dateFrom || dateTo || search.trim();
   const clearFilters = () => {
     setStatusFilter("all");
     setDateFrom("");
     setDateTo("");
+    setSearch("");
   };
 
   const prefix = settings?.sales_return_prefix || "SRN-";
+
+  const exportConfig = useMemo(
+    () => ({
+      filenamePrefix: "مرتجعات-المبيعات",
+      sheetName: "مرتجعات المبيعات",
+      pdfTitle: "مرتجعات المبيعات",
+      headers: ["رقم المرتجع", "العميل", "التاريخ", "الإجمالي", "الحالة"],
+      rows: exportRows,
+      settings,
+    }),
+    [exportRows, settings],
+  );
 
   const columns: ColumnDef<Return, any>[] = [
     {
@@ -199,36 +292,13 @@ export default function SalesReturns() {
       <PageHeader
         icon={RotateCcw}
         title="مرتجعات المبيعات"
-        description={`${returns.length} مرتجع`}
+        description={`${fmtNum(stats?.total ?? 0)} مرتجع`}
         actions={
           <>
             <ExportMenu
-              config={{
-                filenamePrefix: "مرتجعات-المبيعات",
-                sheetName: "مرتجعات المبيعات",
-                pdfTitle: "مرتجعات المبيعات",
-                headers: [
-                  "رقم المرتجع",
-                  "العميل",
-                  "التاريخ",
-                  "الإجمالي",
-                  "الحالة",
-                ],
-                rows: filtered.map((r) => [
-                  formatDisplayNumber(
-                    prefix,
-                    r.posted_number,
-                    r.return_number,
-                    r.status,
-                  ),
-                  r.customer_name || "—",
-                  r.return_date,
-                  formatCurrency(r.total),
-                  INVOICE_STATUS_LABELS[r.status] || r.status,
-                ]),
-                settings,
-              }}
-              disabled={loading}
+              config={exportConfig}
+              disabled={isLoading}
+              onOpen={handlePrepareExport}
             />
             <Button
               onClick={() => navigate("/sales-returns/new")}
@@ -246,35 +316,35 @@ export default function SalesReturns() {
         {[
           {
             label: "إجمالي المرتجعات",
-            value: stats.total,
+            value: fmtNum(stats?.total ?? 0),
             icon: RotateCcw,
             color: "bg-primary/10 text-primary",
             filter: "all",
           },
           {
             label: "مسودات",
-            value: stats.draft,
+            value: fmtNum(stats?.draft ?? 0),
             icon: Clock,
             color: "bg-amber-500/10 text-amber-600",
             filter: "draft",
           },
           {
             label: "مُرحّلة",
-            value: stats.posted,
+            value: fmtNum(stats?.posted ?? 0),
             icon: CheckCircle,
             color: "bg-emerald-500/10 text-emerald-600",
             filter: "posted",
           },
           {
             label: "ملغاة",
-            value: stats.cancelled,
+            value: fmtNum(stats?.cancelled ?? 0),
             icon: Ban,
             color: "bg-destructive/10 text-destructive",
             filter: "cancelled",
           },
           {
             label: "إجمالي المبالغ",
-            value: formatCurrency(stats.totalAmount),
+            value: formatCurrency(stats?.totalAmount ?? 0),
             icon: DollarSign,
             color: "bg-blue-500/10 text-blue-600",
             filter: "",
@@ -302,11 +372,19 @@ export default function SalesReturns() {
 
       <DataTable
         columns={columns}
-        data={filtered}
+        data={returns}
         searchPlaceholder="بحث..."
-        isLoading={loading}
+        isLoading={isLoading}
         emptyMessage="لا توجد مرتجعات"
         onRowClick={(r) => navigate(`/sales-returns/${r.id}`)}
+        globalFilter={search}
+        onGlobalFilterChange={setSearch}
+        manualPagination
+        pageCount={pageCount}
+        totalRows={totalCount}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        pageSize={PAGE_SIZE}
         toolbarContent={
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={statusFilter} onValueChange={setStatusFilter}>

@@ -75,7 +75,7 @@ interface ProductRow {
   product_brands?: { name: string } | null;
 }
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 const fmtNum = (n: number) =>
   Number(n || 0).toLocaleString("en-US", {
     minimumFractionDigits: 2,
@@ -286,36 +286,47 @@ export default function Products() {
     );
   };
 
-  // Lazy export
-  const fetchAllForExport = async (): Promise<ProductRow[]> => {
-    let q = (supabase.from("products") as any)
-      .select(
-        "id, code, name, description, barcode, model_number, main_image_url, purchase_price, selling_price, quantity_on_hand, min_stock_level, is_active, created_at, category, unit, brand_id, category_id, unit_id, product_categories(name), product_units(name), product_brands(name)",
-      )
-      .order("code");
-
-    if (statusFilter === "active") q = q.eq("is_active", true);
-    else if (statusFilter === "inactive") q = q.eq("is_active", false);
-    if (stockFilter === "out") q = q.lte("quantity_on_hand", 0);
-    if (matchingCategoryIds && matchingCategoryIds.length > 0) {
-      q = q.in("category_id", matchingCategoryIds);
-    }
-
-    const { data, error } = await q;
-    if (error) throw error;
-    let rows = (data || []) as ProductRow[];
+  // Lazy export with batching + progress
+  const fetchAllForExport = async (
+    onProgress?: (loaded: number, total: number) => void,
+  ): Promise<ProductRow[]> => {
+    const { fetchAllPaged } = await import("@/lib/paged-fetch");
+    const rows = await fetchAllPaged<ProductRow>(
+      () => {
+        let q = (supabase.from("products") as any)
+          .select(
+            "id, code, name, description, barcode, model_number, main_image_url, purchase_price, selling_price, quantity_on_hand, min_stock_level, is_active, created_at, category, unit, brand_id, category_id, unit_id, product_categories(name), product_units(name), product_brands(name)",
+            { count: "exact" },
+          )
+          .order("code");
+        if (statusFilter === "active") q = q.eq("is_active", true);
+        else if (statusFilter === "inactive") q = q.eq("is_active", false);
+        if (stockFilter === "out") q = q.lte("quantity_on_hand", 0);
+        if (matchingCategoryIds && matchingCategoryIds.length > 0) {
+          q = q.in("category_id", matchingCategoryIds);
+        }
+        return q;
+      },
+      { batchSize: 500, maxRows: 50000, onProgress },
+    );
+    let result = rows;
     if (stockFilter === "low") {
-      rows = rows.filter(
-        (p) =>
+      result = result.filter(
+        (p: any) =>
           p.quantity_on_hand > 0 && p.quantity_on_hand < p.min_stock_level,
       );
     }
-    return rows;
+    return result;
   };
 
   const [exportRows, setExportRows] = useState<any[][]>([]);
-  const handlePrepareExport = async () => {
-    const all = await fetchAllForExport();
+  React.useEffect(() => {
+    setExportRows([]);
+  }, [statusFilter, stockFilter, categoryFilter, debouncedSearch]);
+  const handlePrepareExport = async (
+    onProgress?: (loaded: number, total: number) => void,
+  ) => {
+    const all = await fetchAllForExport(onProgress);
     setExportRows(
       all.map((p) => [
         p.code,
