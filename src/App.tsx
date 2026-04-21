@@ -182,6 +182,7 @@ const App = () => (
           </SettingsProvider>
         </AuthProvider>
       </BrowserRouter>
+      </ErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
 );
