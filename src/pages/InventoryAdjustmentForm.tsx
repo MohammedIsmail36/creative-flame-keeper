@@ -69,7 +69,7 @@ export default function InventoryAdjustmentForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, role } = useAuth();
-  const { formatCurrency } = useSettings();
+  const { settings, formatCurrency } = useSettings();
   const isNew = !id;
   const canEdit = role === "admin" || role === "accountant";
 
