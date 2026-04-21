@@ -1141,6 +1141,7 @@ export type Database = {
           description: string | null
           discount: number
           id: string
+          net_total: number
           product_id: string | null
           quantity: number
           return_id: string
@@ -1153,6 +1154,7 @@ export type Database = {
           description?: string | null
           discount?: number
           id?: string
+          net_total?: number
           product_id?: string | null
           quantity?: number
           return_id: string
@@ -1165,6 +1167,7 @@ export type Database = {
           description?: string | null
           discount?: number
           id?: string
+          net_total?: number
           product_id?: string | null
           quantity?: number
           return_id?: string
@@ -1490,6 +1493,7 @@ export type Database = {
           description: string | null
           discount: number
           id: string
+          net_total: number
           product_id: string | null
           quantity: number
           return_id: string
@@ -1502,6 +1506,7 @@ export type Database = {
           description?: string | null
           discount?: number
           id?: string
+          net_total?: number
           product_id?: string | null
           quantity?: number
           return_id: string
@@ -1514,6 +1519,7 @@ export type Database = {
           description?: string | null
           discount?: number
           id?: string
+          net_total?: number
           product_id?: string | null
           quantity?: number
           return_id?: string

@@ -15,7 +15,7 @@ import { PageSkeleton } from "@/components/PageSkeleton";
 import { SectionHeader } from "@/components/SectionHeader";
 import { calcInvoiceTotals } from "@/lib/invoice-totals";
 import { useLineItems } from "@/hooks/use-line-items";
-import { cn } from "@/lib/utils";
+import { cn, round2 } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -259,6 +259,8 @@ export default function SalesReturnForm() {
           .select("id")
           .single();
         if (error) throw error;
+        const sumTotals = items.reduce((s, x) => s + x.total, 0);
+        const headerDiscount = payload.discount || 0;
         const rows = items.map((i, idx) => ({
           return_id: ret.id,
           product_id: i.product_id,
@@ -267,6 +269,11 @@ export default function SalesReturnForm() {
           unit_price: i.unit_price,
           discount: i.discount,
           total: i.total,
+          net_total: round2(
+            sumTotals > 0 && headerDiscount > 0
+              ? i.total - (i.total / sumTotals) * headerDiscount
+              : i.total
+          ),
           sort_order: idx,
         }));
         await (supabase.from("sales_return_items") as any).insert(rows);
@@ -283,6 +290,8 @@ export default function SalesReturnForm() {
         await (supabase.from("sales_return_items") as any)
           .delete()
           .eq("return_id", id);
+        const sumTotals = items.reduce((s, x) => s + x.total, 0);
+        const headerDiscount = payload.discount || 0;
         const rows = items.map((i, idx) => ({
           return_id: id,
           product_id: i.product_id,
@@ -291,6 +300,11 @@ export default function SalesReturnForm() {
           unit_price: i.unit_price,
           discount: i.discount,
           total: i.total,
+          net_total: round2(
+            sumTotals > 0 && headerDiscount > 0
+              ? i.total - (i.total / sumTotals) * headerDiscount
+              : i.total
+          ),
           sort_order: idx,
         }));
         await (supabase.from("sales_return_items") as any).insert(rows);
