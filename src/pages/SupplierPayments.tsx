@@ -335,7 +335,8 @@ export default function SupplierPayments() {
     const paymentPostedNum = existingPaymentId
       ? await getNextPostedNumber("supplier_payments")
       : await getNextPostedNumber("supplier_payments");
-    const displayPayNum = `PAY-${String(paymentPostedNum).padStart(4, "0")}`;
+    const payPrefix = settings?.supplier_payment_prefix || "SPY-";
+    const displayPayNum = `${payPrefix}${String(paymentPostedNum).padStart(4, "0")}`;
     const supplierName = suppliers.find((s) => s.id === supId)?.name || "";
     const desc = `سند صرف رقم ${displayPayNum} - سداد لمورد ${supplierName}`;
 

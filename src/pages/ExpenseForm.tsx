@@ -166,7 +166,8 @@ export default function ExpenseForm() {
 
       const expPostedNum = await getNextPostedNumber("expenses" as any);
       const jePostedNum = await getNextPostedNumber("journal_entries");
-      const displayNum = `EXP-${String(expPostedNum).padStart(4, "0")}`;
+      const expPrefix = (settings as any)?.expense_prefix || "EXP-";
+      const displayNum = `${expPrefix}${String(expPostedNum).padStart(4, "0")}`;
       const desc = `سند مصروف رقم ${displayNum} - ${expType.name}${description.trim() ? ` - ${description.trim()}` : ""}`;
 
       // Create journal entry

@@ -338,7 +338,8 @@ export default function CustomerPayments() {
     const paymentPostedNum = existingPaymentId
       ? await getNextPostedNumber("customer_payments")
       : await getNextPostedNumber("customer_payments");
-    const displayPayNum = `RCV-${String(paymentPostedNum).padStart(4, "0")}`;
+    const payPrefix = settings?.customer_payment_prefix || "CPY-";
+    const displayPayNum = `${payPrefix}${String(paymentPostedNum).padStart(4, "0")}`;
     const customerName = customers.find((c) => c.id === custId)?.name || "";
     const desc = `سند قبض رقم ${displayPayNum} - تحصيل من عميل ${customerName}`;
 
