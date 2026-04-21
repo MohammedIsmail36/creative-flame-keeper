@@ -116,11 +116,24 @@ export function useNavigationGuard(isDirty: boolean) {
     [proceed],
   );
 
+  /**
+   * يسمح بالتنقل التالي دون عرض حوار التحذير.
+   * استخدمها قبل navigate() مباشرة بعد الحفظ الناجح.
+   */
+  const allowNext = useCallback(() => {
+    allowNextRef.current = true;
+    isDirtyRef.current = false;
+    setTimeout(() => {
+      allowNextRef.current = false;
+    }, 100);
+  }, []);
+
   return {
     isBlocked,
     cancel,
     confirm: proceed,
     saveAndLeave,
     saving,
+    allowNext,
   };
 }
