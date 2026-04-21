@@ -28,15 +28,7 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [preparing, setPreparing] = useState(false);
 
-  const handleToggle = async () => {
-    if (!open && onOpen) {
-      setPreparing(true);
-      try {
-        await onOpen();
-      } finally {
-        setPreparing(false);
-      }
-    }
+  const handleToggle = () => {
     setOpen(!open);
   };
 
@@ -49,7 +41,20 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  const prepareData = async () => {
+    if (onOpen) {
+      setPreparing(true);
+      try {
+        await onOpen();
+      } finally {
+        setPreparing(false);
+      }
+    }
+  };
+
   const handleCSV = async () => {
+    setOpen(false);
+    await prepareData();
     const { exportToCsv } = await import("@/lib/csv-export");
     exportToCsv({
       filename: config.filenamePrefix,
@@ -57,10 +62,11 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
       rows: config.rows,
     });
     toast({ title: "تم التصدير", description: "تم التصدير بصيغة CSV" });
-    setOpen(false);
   };
 
   const handleExcel = async () => {
+    setOpen(false);
+    await prepareData();
     const { exportToExcel } = await import("@/lib/excel-export");
     await exportToExcel({
       filename: config.filenamePrefix,
@@ -69,10 +75,11 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
       rows: config.rows,
     });
     toast({ title: "تم التصدير", description: "تم التصدير بصيغة Excel" });
-    setOpen(false);
   };
 
   const handlePDF = async () => {
+    setOpen(false);
+    await prepareData();
     const { exportReportPdf } = await import("@/lib/report-pdf");
     await exportReportPdf({
       title: config.pdfTitle,
@@ -86,7 +93,6 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
       filename: config.filenamePrefix,
     });
     toast({ title: "تم التصدير", description: "تم التصدير بصيغة PDF" });
-    setOpen(false);
   };
 
   return (
