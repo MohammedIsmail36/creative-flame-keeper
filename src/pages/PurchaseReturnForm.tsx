@@ -270,7 +270,7 @@ export default function PurchaseReturnForm() {
           title: "تمت الإضافة",
           description: "تم إنشاء مرتجع الشراء كمسودة",
         });
-        setIsDirty(false);
+        setIsDirty(false); navGuard.allowNext();
         navigate(`/purchase-returns/${ret.id}`);
       } else {
         await (supabase.from("purchase_returns") as any)
@@ -291,7 +291,7 @@ export default function PurchaseReturnForm() {
         }));
         await (supabase.from("purchase_return_items") as any).insert(rows);
         toast({ title: "تم التحديث", description: "تم تحديث مرتجع الشراء" });
-        setIsDirty(false);
+        setIsDirty(false); navGuard.allowNext();
         loadData();
       }
     } catch (error: any) {
@@ -664,7 +664,7 @@ export default function PurchaseReturnForm() {
         .eq("return_id", id);
       await (supabase.from("purchase_returns") as any).delete().eq("id", id);
       toast({ title: "تم الحذف", description: "تم حذف المرتجع" });
-      setIsDirty(false);
+      setIsDirty(false); navGuard.allowNext();
       navigate("/purchase-returns");
     } catch (error: any) {
       toast({

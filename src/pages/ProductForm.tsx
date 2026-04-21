@@ -374,7 +374,7 @@ export default function ProductForm() {
         title: isEdit ? "تم التحديث" : "تمت الإضافة",
         description: isEdit ? "تم تعديل المنتج بنجاح" : "تم إضافة المنتج بنجاح",
       });
-      setIsDirty(false);
+      setIsDirty(false); navGuard.allowNext();
       navigate("/products");
     } catch (error: any) {
       let msg = error.message;

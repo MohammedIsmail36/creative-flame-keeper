@@ -284,7 +284,7 @@ export default function JournalEntryForm() {
         }));
         await supabase.from("journal_entry_lines").insert(linesPayload as any);
         toast({ title: "تم التحديث", description: "تم تعديل القيد بنجاح" });
-        setIsDirty(false);
+        setIsDirty(false); navGuard.allowNext();
         loadData();
       } else {
         const { data, error } = await (supabase.from("journal_entries") as any)
@@ -301,7 +301,7 @@ export default function JournalEntryForm() {
         }));
         await supabase.from("journal_entry_lines").insert(linesPayload as any);
         toast({ title: "تمت الإضافة", description: "تم إنشاء القيد بنجاح" });
-        setIsDirty(false);
+        setIsDirty(false); navGuard.allowNext();
         navigate(`/journal/${data.id}`);
       }
     } catch (error: any) {
@@ -364,7 +364,7 @@ export default function JournalEntryForm() {
         .eq("journal_entry_id", id);
       await (supabase.from("journal_entries") as any).delete().eq("id", id);
       toast({ title: "تم الحذف", description: "تم حذف القيد بنجاح" });
-      setIsDirty(false);
+      setIsDirty(false); navGuard.allowNext();
       navigate("/journal");
     } catch (error: any) {
       toast({
