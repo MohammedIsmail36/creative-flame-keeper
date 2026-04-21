@@ -15,7 +15,7 @@ import { PageSkeleton } from "@/components/PageSkeleton";
 import { SectionHeader } from "@/components/SectionHeader";
 import { calcInvoiceTotals } from "@/lib/invoice-totals";
 import { useLineItems } from "@/hooks/use-line-items";
-import { cn } from "@/lib/utils";
+import { cn, round2 } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
