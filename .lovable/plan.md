@@ -52,10 +52,11 @@
 - تحويل كل `numeric` إلى `numeric(18,2)` للنقدية و`numeric(18,3)` للكميات.
 - مؤجل لأنه يتطلب migration كبيرة + باكب احترازي + اختبار كل ALTER COLUMN على بيانات حقيقية.
 
-### 6. Pagination للصفحات الكبيرة (PERF-001)
-- `Customers.tsx`, `Suppliers.tsx`, `Accounts.tsx`, `Expenses.tsx` كل واحدة 600-900 سطر.
-- تتطلب إعادة هيكلة كاملة (state + range + UI pagination + count).
-- مؤجل لجلسة مستقلة لكل صفحة.
+### 6. Pagination للصفحات الكبيرة (PERF-001) — قيد التنفيذ
+- ✅ `Customers.tsx` — server-side pagination + search + balance filter
+- ✅ `Suppliers.tsx` — نفس النمط
+- ✅ `Expenses.tsx` — server-side pagination + status/type/date filters + stats منفصلة
+- ⏸️ `Accounts.tsx` — مؤجل (شجرة هرمية، عدد الحسابات محدود <500)
 
 ---
 

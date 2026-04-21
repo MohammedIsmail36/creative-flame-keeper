@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import {
   Plus,
@@ -39,12 +39,14 @@ import {
   Pencil,
   X,
   Clock,
-  Ban,
   Wallet,
 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useNavigate } from "react-router-dom";
 import { ACCOUNT_CODES, INVOICE_STATUS_LABELS } from "@/lib/constants";
+import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatSupabaseError } from "@/lib/format-error";
 
 interface Expense {
   id: string;
@@ -66,16 +68,20 @@ const methodLabels: Record<string, string> = {
   bank: "تحويل بنكي",
 };
 
+const PAGE_SIZE = 25;
+
 export default function Expenses() {
   const { role } = useAuth();
   const { settings, formatCurrency } = useSettings();
   const navigate = useNavigate();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [expenseTypes, setExpenseTypes] = useState<
-    { id: string; name: string; account_id: string }[]
-  >([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
+  });
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -86,52 +92,134 @@ export default function Expenses() {
   const [cancelTarget, setCancelTarget] = useState<Expense | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Reset pagination on filter/search change
   useEffect(() => {
-    fetchAll();
-  }, []);
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [debouncedSearch, statusFilter, typeFilter, dateFrom, dateTo]);
 
-  async function fetchAll() {
-    setLoading(true);
-    const [expRes, typesRes] = await Promise.all([
-      (supabase.from("expenses" as any) as any)
-        .select("*")
-        .order("expense_number", { ascending: false }),
-      (supabase.from("expense_types" as any) as any)
+  // Expense types lookup (small) - fetched once
+  const { data: expenseTypes = [] } = useQuery({
+    queryKey: ["expense_types_active"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("expense_types" as any) as any)
         .select("id, name, account_id")
-        .eq("is_active", true),
-    ]);
-    const typesMap = new Map(
-      ((typesRes.data as any[]) || []).map((t: any) => [t.id, t]),
-    );
-    const mapped = ((expRes.data as any) || []).map((e: any) => ({
-      ...e,
-      expense_type_name: typesMap.get(e.expense_type_id)?.name,
-      account_id: typesMap.get(e.expense_type_id)?.account_id,
-    }));
-    setExpenses(mapped);
-    setExpenseTypes(typesRes.data || []);
-    setLoading(false);
+        .eq("is_active", true);
+      if (error) throw error;
+      return (data as { id: string; name: string; account_id: string }[]) || [];
+    },
+  });
+  const typesMap = useMemo(
+    () => new Map(expenseTypes.map((t) => [t.id, t])),
+    [expenseTypes],
+  );
+
+  // Build server query (paged)
+  function applyFilters(q: any) {
+    if (statusFilter !== "all") q = q.eq("status", statusFilter);
+    if (typeFilter !== "all") q = q.eq("expense_type_id", typeFilter);
+    if (dateFrom) q = q.gte("expense_date", dateFrom);
+    if (dateTo) q = q.lte("expense_date", dateTo);
+    if (debouncedSearch.trim()) {
+      const term = `%${debouncedSearch.trim()}%`;
+      // search on description; numeric expense_number cast not trivial via supabase
+      q = q.ilike("description", term);
+    }
+    return q;
   }
 
-  const filtered = useMemo(() => {
-    return expenses.filter((e) => {
-      if (statusFilter !== "all" && e.status !== statusFilter) return false;
-      if (typeFilter !== "all" && e.expense_type_id !== typeFilter)
-        return false;
-      if (dateFrom && e.expense_date < dateFrom) return false;
-      if (dateTo && e.expense_date > dateTo) return false;
-      return true;
-    });
-  }, [expenses, statusFilter, typeFilter, dateFrom, dateTo]);
+  const queryKey = [
+    "expenses",
+    pagination.pageIndex,
+    pagination.pageSize,
+    debouncedSearch,
+    statusFilter,
+    typeFilter,
+    dateFrom,
+    dateTo,
+  ] as const;
+
+  const { data: pageData, isLoading } = usePagedQuery<Expense>(
+    queryKey,
+    async () => {
+      const from = pagination.pageIndex * pagination.pageSize;
+      const to = from + pagination.pageSize - 1;
+      let q = (supabase.from("expenses" as any) as any).select("*", {
+        count: "exact",
+      });
+      q = applyFilters(q);
+      const { data, error, count } = await q
+        .order("expense_number", { ascending: false })
+        .range(from, to);
+      if (error) throw error;
+      const mapped = ((data as any[]) || []).map((e: any) => ({
+        ...e,
+        expense_type_name: typesMap.get(e.expense_type_id)?.name,
+        account_id: typesMap.get(e.expense_type_id)?.account_id,
+      })) as Expense[];
+      return { rows: mapped, totalCount: count || 0 };
+    },
+  );
+
+  const rows = pageData?.rows ?? [];
+  const totalCount = pageData?.totalCount ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
+
+  // Status counts + total posted (independent lightweight queries; not affected by pagination)
+  const { data: stats } = useQuery({
+    queryKey: ["expenses_stats"],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const [allRes, draftRes, postedRes, cancelledRes, sumRes] =
+        await Promise.all([
+          (supabase.from("expenses" as any) as any)
+            .select("id", { count: "exact", head: true }),
+          (supabase.from("expenses" as any) as any)
+            .select("id", { count: "exact", head: true })
+            .eq("status", "draft"),
+          (supabase.from("expenses" as any) as any)
+            .select("id", { count: "exact", head: true })
+            .eq("status", "posted"),
+          (supabase.from("expenses" as any) as any)
+            .select("id", { count: "exact", head: true })
+            .eq("status", "cancelled"),
+          (supabase.from("expenses" as any) as any)
+            .select("amount")
+            .eq("status", "posted")
+            .range(0, 9999),
+        ]);
+      const totalPosted = ((sumRes.data as any[]) || []).reduce(
+        (s, r) => s + Number(r.amount || 0),
+        0,
+      );
+      return {
+        all: allRes.count || 0,
+        draft: draftRes.count || 0,
+        posted: postedRes.count || 0,
+        cancelled: cancelledRes.count || 0,
+        totalPosted,
+      };
+    },
+  });
+
+  function refetchAll() {
+    queryClient.invalidateQueries({ queryKey: ["expenses"] });
+    queryClient.invalidateQueries({ queryKey: ["expenses_stats"] });
+  }
 
   const clearFilters = () => {
     setStatusFilter("all");
     setTypeFilter("all");
     setDateFrom("");
     setDateTo("");
+    setSearch("");
   };
   const hasFilters =
-    statusFilter !== "all" || typeFilter !== "all" || dateFrom || dateTo;
+    statusFilter !== "all" ||
+    typeFilter !== "all" ||
+    !!dateFrom ||
+    !!dateTo ||
+    !!search;
 
   async function handlePost() {
     if (!postTarget) return;
@@ -204,11 +292,11 @@ export default function Expenses() {
         description: `تم ترحيل المصروف ${displayNum}`,
       });
       setPostTarget(null);
-      fetchAll();
+      refetchAll();
     } catch (error: any) {
       toast({
         title: "خطأ",
-        description: error.message,
+        description: formatSupabaseError(error),
         variant: "destructive",
       });
     }
@@ -273,11 +361,11 @@ export default function Expenses() {
         description: `تم إلغاء المصروف وعكس القيد المحاسبي`,
       });
       setCancelTarget(null);
-      fetchAll();
+      refetchAll();
     } catch (error: any) {
       toast({
         title: "خطأ",
-        description: error.message,
+        description: formatSupabaseError(error),
         variant: "destructive",
       });
     }
@@ -293,11 +381,11 @@ export default function Expenses() {
       if (error) throw error;
       toast({ title: "تم الحذف", description: "تم حذف المصروف" });
       setDeleteTarget(null);
-      fetchAll();
+      refetchAll();
     } catch (error: any) {
       toast({
         title: "خطأ",
-        description: error.message,
+        description: formatSupabaseError(error),
         variant: "destructive",
       });
     }
@@ -305,28 +393,10 @@ export default function Expenses() {
 
   const prefix = (settings as any)?.expense_prefix || "EXP-";
 
-  const statusCounts = useMemo(() => {
-    const counts = { all: expenses.length, draft: 0, posted: 0, cancelled: 0 };
-    expenses.forEach((e) => {
-      if (e.status === "draft") counts.draft++;
-      else if (e.status === "cancelled") counts.cancelled++;
-      else counts.posted++;
-    });
-    return counts;
-  }, [expenses]);
-
-  const totalPosted = useMemo(
-    () =>
-      expenses
-        .filter((e) => e.status === "posted")
-        .reduce((s, e) => s + e.amount, 0),
-    [expenses],
-  );
-
   const statCards = [
     {
       label: "إجمالي المصروفات",
-      value: expenses.length,
+      value: stats?.all ?? 0,
       icon: Receipt,
       iconBg: "bg-blue-100 dark:bg-blue-500/20",
       iconColor: "text-blue-600 dark:text-blue-400",
@@ -334,7 +404,7 @@ export default function Expenses() {
     },
     {
       label: "مسودات",
-      value: statusCounts.draft,
+      value: stats?.draft ?? 0,
       icon: Clock,
       iconBg: "bg-amber-100 dark:bg-amber-500/20",
       iconColor: "text-amber-600 dark:text-amber-400",
@@ -342,7 +412,7 @@ export default function Expenses() {
     },
     {
       label: "مرحّلة",
-      value: statusCounts.posted,
+      value: stats?.posted ?? 0,
       icon: CheckCircle,
       iconBg: "bg-green-100 dark:bg-green-500/20",
       iconColor: "text-green-600 dark:text-green-400",
@@ -350,7 +420,7 @@ export default function Expenses() {
     },
     {
       label: "إجمالي المرحّل",
-      value: formatCurrency(totalPosted),
+      value: formatCurrency(stats?.totalPosted ?? 0),
       icon: Wallet,
       iconBg: "bg-purple-100 dark:bg-purple-500/20",
       iconColor: "text-purple-600 dark:text-purple-400",
@@ -537,6 +607,27 @@ export default function Expenses() {
     },
   ];
 
+  // Export: fetch ALL matching rows on demand (respects current filters/search)
+  async function fetchAllForExport(): Promise<Expense[]> {
+    let q = (supabase.from("expenses" as any) as any).select("*");
+    q = applyFilters(q);
+    const { data, error } = await q
+      .order("expense_number", { ascending: false })
+      .range(0, 9999);
+    if (error) throw error;
+    return ((data as any[]) || []).map((e: any) => ({
+      ...e,
+      expense_type_name: typesMap.get(e.expense_type_id)?.name,
+      account_id: typesMap.get(e.expense_type_id)?.account_id,
+    })) as Expense[];
+  }
+
+  const [exportRows, setExportRows] = useState<Expense[] | null>(null);
+  useEffect(() => {
+    setExportRows(null);
+  }, [debouncedSearch, statusFilter, typeFilter, dateFrom, dateTo]);
+  const exportRowsResolved = exportRows ?? rows;
+
   const exportHeaders = [
     "الرقم",
     "التاريخ",
@@ -546,22 +637,20 @@ export default function Expenses() {
     "البيان",
     "الحالة",
   ];
-  const exportRows = filtered.map((e) => [
-    formatDisplayNumber(prefix, e.posted_number, e.expense_number, e.status),
-    e.expense_date,
-    e.expense_type_name || "",
-    e.amount,
-    methodLabels[e.payment_method] || e.payment_method,
-    e.description || "",
-    INVOICE_STATUS_LABELS[e.status] || e.status,
-  ]);
-
   const exportConfig = {
     filenamePrefix: "expenses",
     sheetName: "المصروفات",
     pdfTitle: "المصروفات",
     headers: exportHeaders,
-    rows: exportRows,
+    rows: exportRowsResolved.map((e) => [
+      formatDisplayNumber(prefix, e.posted_number, e.expense_number, e.status),
+      e.expense_date,
+      e.expense_type_name || "",
+      e.amount,
+      methodLabels[e.payment_method] || e.payment_method,
+      e.description || "",
+      INVOICE_STATUS_LABELS[e.status] || e.status,
+    ]),
     settings,
   };
 
@@ -570,10 +659,17 @@ export default function Expenses() {
       <PageHeader
         icon={Receipt}
         title="المصروفات"
-        description="إدارة وتسجيل المصروفات اليومية"
+        description={`${totalCount} مصروف`}
         actions={
           <>
-            <ExportMenu config={exportConfig} disabled={loading} />
+            <ExportMenu
+              onOpen={async () => {
+                const all = await fetchAllForExport();
+                setExportRows(all);
+              }}
+              config={exportConfig}
+              disabled={isLoading}
+            />
             <Button
               className="gap-2 shadow-md shadow-primary/20 font-bold"
               onClick={() => navigate("/expenses/new")}
@@ -613,10 +709,17 @@ export default function Expenses() {
       {/* Data Table */}
       <DataTable
         columns={columns}
-        data={filtered}
-        searchPlaceholder="البحث في المصروفات..."
-        isLoading={loading}
+        data={rows}
+        searchPlaceholder="البحث في البيان..."
+        isLoading={isLoading}
         emptyMessage="لا توجد مصروفات"
+        manualPagination
+        pageCount={pageCount}
+        totalRows={totalCount}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        globalFilter={search}
+        onGlobalFilterChange={(v) => setSearch(typeof v === "string" ? v : "")}
         toolbarContent={
           <div className="flex gap-3 flex-wrap items-center">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -624,18 +727,10 @@ export default function Expenses() {
                 <SelectValue placeholder="الحالة" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">
-                  كل الحالات ({statusCounts.all})
-                </SelectItem>
-                <SelectItem value="draft">
-                  مسودة ({statusCounts.draft})
-                </SelectItem>
-                <SelectItem value="posted">
-                  مرحّل ({statusCounts.posted})
-                </SelectItem>
-                <SelectItem value="cancelled">
-                  ملغي ({statusCounts.cancelled})
-                </SelectItem>
+                <SelectItem value="all">كل الحالات</SelectItem>
+                <SelectItem value="draft">مسودة</SelectItem>
+                <SelectItem value="posted">مرحّل</SelectItem>
+                <SelectItem value="cancelled">ملغي</SelectItem>
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
