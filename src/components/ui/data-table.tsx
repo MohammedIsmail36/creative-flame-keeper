@@ -146,6 +146,7 @@ export function DataTable<TData, TValue>({
   totalRows,
   pagination: externalPagination,
   onPaginationChange,
+  compactRows = false,
 }: DataTableProps<TData, TValue>) {
   // ── Internal state (used when not controlled externally) ──
   const [sorting, setSorting] = React.useState<SortingState>([]);
