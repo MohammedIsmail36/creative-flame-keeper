@@ -176,18 +176,18 @@ export default function Purchases() {
     onProgress?: (loaded: number, total: number) => void,
   ) => {
     const all = await fetchAllForExport(onProgress);
-    setExportRows(
-      all.map((i) => [
-        formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status),
-        i.supplier_name || "—",
-        i.invoice_date,
-        formatCurrency(i.total),
-        i.status === "posted" ? formatCurrency(i.paid_amount) : "—",
-        i.status === "posted" ? formatCurrency(i.total - i.paid_amount) : "—",
-        i.due_date || "—",
-        INVOICE_STATUS_LABELS[i.status] || i.status,
-      ]),
-    );
+    const rows = all.map((i) => [
+      formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status),
+      i.supplier_name || "—",
+      i.invoice_date,
+      formatCurrency(i.total),
+      i.status === "posted" ? formatCurrency(i.paid_amount) : "—",
+      i.status === "posted" ? formatCurrency(i.total - i.paid_amount) : "—",
+      i.due_date || "—",
+      INVOICE_STATUS_LABELS[i.status] || i.status,
+    ]);
+    setExportRows(rows);
+    return { rows };
   };
 
   const hasFilters =

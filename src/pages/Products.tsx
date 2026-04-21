@@ -327,20 +327,20 @@ export default function Products() {
     onProgress?: (loaded: number, total: number) => void,
   ) => {
     const all = await fetchAllForExport(onProgress);
-    setExportRows(
-      all.map((p) => [
-        p.code,
-        p.name,
-        getBrandName(p),
-        p.model_number || "",
-        p.barcode || "",
-        getCategoryName(p),
-        fmtNum(p.purchase_price),
-        fmtNum(p.selling_price),
-        fmtInt(Number(p.quantity_on_hand)),
-        fmtInt(Number(p.min_stock_level)),
-      ]),
-    );
+    const rows = all.map((p) => [
+      p.code,
+      p.name,
+      getBrandName(p),
+      p.model_number || "",
+      p.barcode || "",
+      getCategoryName(p),
+      fmtNum(p.purchase_price),
+      fmtNum(p.selling_price),
+      fmtInt(Number(p.quantity_on_hand)),
+      fmtInt(Number(p.min_stock_level)),
+    ]);
+    setExportRows(rows);
+    return { rows };
   };
 
   const exportConfig = {

@@ -176,15 +176,15 @@ export default function PurchaseReturns() {
     onProgress?: (loaded: number, total: number) => void,
   ) => {
     const all = await fetchAllForExport(onProgress);
-    setExportRows(
-      all.map((r) => [
-        formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status),
-        r.supplier_name || "—",
-        r.return_date,
-        formatCurrency(r.total),
-        INVOICE_STATUS_LABELS[r.status] || r.status,
-      ]),
-    );
+    const rows = all.map((r) => [
+      formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status),
+      r.supplier_name || "—",
+      r.return_date,
+      formatCurrency(r.total),
+      INVOICE_STATUS_LABELS[r.status] || r.status,
+    ]);
+    setExportRows(rows);
+    return { rows };
   };
 
   const hasFilters =

@@ -162,26 +162,26 @@ export default function Journal() {
     onProgress?: (loaded: number, total: number) => void,
   ) => {
     const all = await fetchAllForExport(onProgress);
-    setExportRows(
-      all.map((e) => [
-        formatDisplayNumber(prefix, e.posted_number, e.entry_number, e.status),
-        e.entry_date,
-        e.description,
-        e.status === "posted"
-          ? "معتمد"
-          : e.status === "cancelled"
-            ? "ملغي"
-            : "مسودة",
-        Number(e.total_debit).toLocaleString("en-US", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }),
-        Number(e.total_credit).toLocaleString("en-US", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }),
-      ]),
-    );
+    const rows = all.map((e) => [
+      formatDisplayNumber(prefix, e.posted_number, e.entry_number, e.status),
+      e.entry_date,
+      e.description,
+      e.status === "posted"
+        ? "معتمد"
+        : e.status === "cancelled"
+          ? "ملغي"
+          : "مسودة",
+      Number(e.total_debit).toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      Number(e.total_credit).toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    ]);
+    setExportRows(rows);
+    return { rows };
   };
 
   const journalExportConfig = useMemo(
