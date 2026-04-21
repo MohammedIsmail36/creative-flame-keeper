@@ -69,7 +69,7 @@ export default function InventoryAdjustmentForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, role } = useAuth();
-  const { formatCurrency } = useSettings();
+  const { settings, formatCurrency } = useSettings();
   const isNew = !id;
   const canEdit = role === "admin" || role === "accountant";
 
@@ -302,6 +302,17 @@ export default function InventoryAdjustmentForm() {
 
   async function handleApprove() {
     if (!id || saving) return;
+    if (
+      settings?.locked_until_date &&
+      adjustmentDate <= settings.locked_until_date
+    ) {
+      toast({
+        title: "الفترة مقفلة",
+        description: `لا يمكن اعتماد تسوية بتاريخ ${adjustmentDate} — الفترة مقفلة حتى ${settings.locked_until_date}`,
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     try {
       // 1. Fetch accounts

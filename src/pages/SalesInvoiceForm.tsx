@@ -338,6 +338,17 @@ export default function SalesInvoiceForm() {
 
   async function postInvoice() {
     if (saving) return;
+    if (
+      settings?.locked_until_date &&
+      invoiceDate <= settings.locked_until_date
+    ) {
+      toast({
+        title: "الفترة مقفلة",
+        description: `لا يمكن ترحيل فاتورة بتاريخ ${invoiceDate} — الفترة مقفلة حتى ${settings.locked_until_date}`,
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     try {
       const { data: result, error: rpcError } = await supabase.rpc(
