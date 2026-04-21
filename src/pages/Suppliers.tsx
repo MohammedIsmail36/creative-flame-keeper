@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,7 +23,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Truck, X, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -33,6 +33,9 @@ import { getNextPostedNumber } from "@/lib/posted-number-utils";
 import { generateEntityCode } from "@/lib/code-generation";
 import { ACCOUNT_CODES } from "@/lib/constants";
 import { round2 } from "@/lib/utils";
+import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { formatSupabaseError } from "@/lib/format-error";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,12 +62,22 @@ interface Supplier {
   created_at: string;
 }
 
+const PAGE_SIZE = 25;
+
 export default function Suppliers() {
   const { role } = useAuth();
   const { settings } = useSettings();
   const navigate = useNavigate();
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
+  });
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [balanceFilter, setBalanceFilter] = useState("all");
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<Supplier | null>(null);
   const [saving, setSaving] = useState(false);
@@ -79,36 +92,81 @@ export default function Suppliers() {
     notes: "",
     opening_balance: "",
   });
-  const [balanceFilter, setBalanceFilter] = useState("all");
   const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null);
 
   const canEdit = role === "admin" || role === "accountant";
 
-  useEffect(() => {
-    fetchSuppliers();
-  }, []);
+  React.useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [debouncedSearch, balanceFilter]);
 
-  async function fetchSuppliers() {
-    setLoading(true);
-    const { data } = await (supabase.from("suppliers" as any) as any)
-      .select("*")
-      .eq("is_active", true)
-      .order("code");
-    setSuppliers(data || []);
-    setLoading(false);
+  const queryKey = [
+    "suppliers",
+    pagination.pageIndex,
+    pagination.pageSize,
+    debouncedSearch,
+    balanceFilter,
+  ] as const;
+
+  const { data: pageData, isLoading } = usePagedQuery<Supplier>(
+    queryKey,
+    async () => {
+      const from = pagination.pageIndex * pagination.pageSize;
+      const to = from + pagination.pageSize - 1;
+      let q = (supabase.from("suppliers" as any) as any)
+        .select("*", { count: "exact" })
+        .eq("is_active", true);
+
+      if (debouncedSearch.trim()) {
+        const term = `%${debouncedSearch.trim()}%`;
+        q = q.or(`name.ilike.${term},code.ilike.${term},phone.ilike.${term}`);
+      }
+      if (balanceFilter === "has_balance") q = q.gt("balance", 0);
+      if (balanceFilter === "no_balance") q = q.lte("balance", 0);
+
+      const { data, error, count } = await q.order("code").range(from, to);
+      if (error) throw error;
+      return { rows: (data as Supplier[]) || [], totalCount: count || 0 };
+    },
+  );
+
+  const rows = pageData?.rows ?? [];
+  const totalCount = pageData?.totalCount ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
+
+  const hasFilters = balanceFilter !== "all" || search !== "";
+  const clearFilters = () => {
+    setBalanceFilter("all");
+    setSearch("");
+  };
+
+  function refetchAll() {
+    queryClient.invalidateQueries({ queryKey: ["suppliers"] });
   }
 
-  const filtered = useMemo(() => {
-    if (balanceFilter === "all") return suppliers;
-    if (balanceFilter === "has_balance")
-      return suppliers.filter((s) => s.balance > 0);
-    if (balanceFilter === "no_balance")
-      return suppliers.filter((s) => s.balance <= 0);
-    return suppliers;
-  }, [suppliers, balanceFilter]);
+  async function fetchAllForExport(): Promise<Supplier[]> {
+    let q = (supabase.from("suppliers" as any) as any)
+      .select("*")
+      .eq("is_active", true);
+    if (debouncedSearch.trim()) {
+      const term = `%${debouncedSearch.trim()}%`;
+      q = q.or(`name.ilike.${term},code.ilike.${term},phone.ilike.${term}`);
+    }
+    if (balanceFilter === "has_balance") q = q.gt("balance", 0);
+    if (balanceFilter === "no_balance") q = q.lte("balance", 0);
+    const { data, error } = await q.order("code").range(0, 9999);
+    if (error) throw error;
+    return (data as Supplier[]) || [];
+  }
 
-  const hasFilters = balanceFilter !== "all";
-  const clearFilters = () => setBalanceFilter("all");
+  const [exportRows, setExportRows] = useState<Supplier[] | null>(null);
+  React.useEffect(() => {
+    setExportRows(null);
+  }, [debouncedSearch, balanceFilter]);
+  const exportRowsResolved = useMemo(
+    () => exportRows ?? rows,
+    [exportRows, rows],
+  );
 
   async function openAdd() {
     setEditItem(null);
