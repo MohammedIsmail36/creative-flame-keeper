@@ -22,8 +22,17 @@ interface ExportMenuProps {
   config: ExportConfig;
   disabled?: boolean;
   /** Called when an export format is chosen (lazy-load full data for export).
-   *  Receives an `onProgress(loaded, total)` callback to report fetch progress. */
-  onOpen?: (onProgress?: ExportProgress) => void | Promise<void>;
+   *  Receives an `onProgress(loaded, total)` callback to report fetch progress.
+   *  May return the prepared rows (and optional overrides) directly to avoid
+   *  React re-render race conditions where `config.rows` would otherwise still
+   *  be stale on the first export attempt. */
+  onOpen?: (
+    onProgress?: ExportProgress,
+  ) =>
+    | void
+    | Promise<void>
+    | Partial<ExportConfig>
+    | Promise<Partial<ExportConfig> | void>;
 }
 
 export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
