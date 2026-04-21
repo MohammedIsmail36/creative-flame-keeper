@@ -112,6 +112,8 @@ interface DataTableProps<TData, TValue> {
   pagination?: PaginationState;
   /** Pagination change handler */
   onPaginationChange?: OnChangeFn<PaginationState>;
+  /** Reduce row height for dense single-line tables (default: false) */
+  compactRows?: boolean;
 }
 
 // ── Main DataTable ─────────────────────────────────────────
