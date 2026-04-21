@@ -28,6 +28,24 @@
 
 ---
 
+## ✅ Sprint 2 — تحسينات UX (الجلسة الحالية)
+
+### 8. wrapper موحد لرسائل أخطاء Supabase (UX-003)
+- `src/lib/format-error.ts` — `formatSupabaseError(err)` يترجم: UNIQUE, CHECK, FK, NOT NULL, RLS, Auth, Network إلى رسائل عربية واضحة.
+- يحترم الرسائل الخاصة من triggers (التي أصلاً عربية).
+
+### 9. صفحة Forbidden + تحديث ProtectedRoute (UX-010)
+- `src/pages/Forbidden.tsx` — صفحة 403 احترافية بالعربية.
+- `ProtectedRoute` الآن يعرض `<Forbidden />` بدل التوجيه الصامت لـ `/`.
+
+### 10. تحسين صفحة 404
+- `NotFound.tsx` بالعربية مع تصميم متسق وأيقونة.
+
+### 11. فحص window.confirm/alert (UX-008)
+- ✅ نتيجة الفحص: لا توجد أي استخدامات. كل التأكيدات تستخدم AlertDialog.
+
+---
+
 ## ⏸️ مؤجل (يحتاج جلسات مخصصة)
 
 ### 4. توحيد دقة الأعمدة النقدية (LOGIC-004)

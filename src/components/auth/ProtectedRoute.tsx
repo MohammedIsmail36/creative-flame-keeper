@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import Forbidden from "@/pages/Forbidden";
 
 type AppRole = "admin" | "accountant" | "sales";
 
@@ -29,7 +30,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (allowedRoles && role && !allowedRoles.includes(role)) {
-    return <Navigate to="/" replace />;
+    return <Forbidden />;
   }
 
   return <>{children}</>;
