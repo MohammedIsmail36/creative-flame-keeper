@@ -1,102 +1,105 @@
 
 
-## تقييم احترافية الحل المقترح لتحذير "تغييرات غير محفوظة"
+## الخطة المصححة — متوسط سعر البيع باستخدام صافي المبيعات وصافي المرتجعات
 
-### الإجابة المختصرة
-**نعم، الحل احترافي ويغطي ~95% من الحالات**، وهو النمط المعتمد في تطبيقات SaaS الكبرى (Notion, Linear, Odoo). لكن هناك **3 تحسينات صغيرة** ترفعه إلى مستوى Enterprise كامل.
+### تصحيح الفهم
+كنت محقاً تماماً. صافي المبيعات بعد الخصم هو الصحيح محاسبياً (لأن العميل دفع فعلياً 5850 وليس 5950). إذن:
 
----
+- **النتيجة الحالية (97):** صحيحة من جانب المبيعات (تستخدم net_total) لكنها **غير متماثلة** لأن المرتجعات تستخدم `total` بدون خصم.
+- **المشكلة الحقيقية:** عندما يكون للمرتجع نفسه خصم (سطر أو إجمالي)، الدالة تطرح المرتجع بقيمته الإجمالية بدل الصافي → نتيجة منحرفة لأعلى.
 
-## لماذا الحل احترافي ✅
-
-| المعيار | التقييم |
-|---------|---------|
-| **يغطي تحذير المتصفح** (Refresh/Close Tab) | ✅ عبر `beforeunload` + `returnValue` |
-| **يغطي التنقل الداخلي** (Sidebar/Cancel/Back) | ✅ عبر `useBlocker` من React Router v6 |
-| **يستخدم Dialog متناسق مع التصميم** | ✅ `AlertDialog` Radix الموجود |
-| **يدعم العربية + RTL** | ✅ نص عربي + خياران واضحان |
-| **لا يتداخل مع منطق الحفظ** | ✅ `setIsDirty(false)` يُلغي الحماية تلقائياً |
-| **معياري وقابل لإعادة الاستخدام** | ✅ Hook + Component منفصلان |
+### الحل الاحترافي الصحيح
+توحيد المنطق بحيث **يُحسب كل من المبيعات والمرتجعات على أساس الصافي بعد الخصم.**
 
 ---
 
-## الحالات المُغطّاة بالكامل
+## ما سيتم تنفيذه
 
+### 1) Migration — قاعدة البيانات
+
+**أ. إضافة عمود `net_total` لجداول المرتجعات** (لتطابق فواتير البيع/الشراء):
+- `sales_return_items.net_total numeric NOT NULL DEFAULT 0`
+- `purchase_return_items.net_total numeric NOT NULL DEFAULT 0` (للاتساق المستقبلي)
+
+**ب. Backfill للبيانات الموجودة:**
+لكل مرتجع موجود، يُحسب `net_total` لكل سطر بنفس قاعدة الفواتير:
 ```text
-┌─────────────────────────────────┬──────────────┐
-│ السيناريو                        │ الحماية      │
-├─────────────────────────────────┼──────────────┤
-│ إغلاق التاب                      │ ✅ متصفح     │
-│ Refresh (F5)                    │ ✅ متصفح     │
-│ إغلاق المتصفح                    │ ✅ متصفح     │
-│ زر "إلغاء" في النموذج            │ ✅ Dialog    │
-│ نقر رابط في Sidebar              │ ✅ Dialog    │
-│ نقر Breadcrumb                  │ ✅ Dialog    │
-│ زر Back في المتصفح               │ ✅ Dialog    │
-│ فاتورة جديدة (لم تُحفظ بعد)       │ ✅ بعد إزالة │
-│                                 │   شرط edit  │
-│ بعد الحفظ الناجح (لا تحذير)      │ ✅ تلقائي   │
-└─────────────────────────────────┴──────────────┘
+line.net_total = line.total − (line.total / sum(items.total)) × header.discount
+```
+في حالة عدم وجود خصم على المرتجع: `net_total = total`.
+
+**ج. تحديث `get_avg_selling_price`:**
+```sql
+WITH sales AS (
+  SELECT SUM(si.quantity) qty, SUM(si.net_total) amt
+  FROM sales_invoice_items si
+  JOIN sales_invoices s ON s.id = si.invoice_id
+  WHERE si.product_id = _product_id AND s.status = 'posted'
+),
+rets AS (
+  SELECT SUM(ri.quantity) qty, SUM(ri.net_total) amt   -- ← التغيير الوحيد
+  FROM sales_return_items ri
+  JOIN sales_returns r ON r.id = ri.return_id
+  WHERE ri.product_id = _product_id AND r.status = 'posted'
+)
+SELECT (sales.amt - rets.amt) / NULLIF(sales.qty - rets.qty, 0)
+FROM sales, rets;
+```
+
+### 2) كود التطبيق — تعبئة net_total عند إنشاء/ترحيل المرتجعات
+
+**ملفات تحتاج تعديل:**
+- `src/pages/SalesReturnForm.tsx` — حساب net_total لكل سطر عند الحفظ (نفس منطق `SalesInvoiceForm`).
+- `src/pages/PurchaseReturnForm.tsx` — نفس الشيء.
+
+**المنطق:**
+عند الحفظ، توزيع `discount` العام للمرتجع نسبياً على أسطر الـ `total` لإنتاج `net_total` لكل سطر — مطابق 100% لمنطق الفواتير الموجود (`mem://features/sales-invoice-discount-logic`).
+
+### 3) التقارير المتأثرة (تحقق فقط)
+- `ProductView.tsx` — يستخدم RPC مباشرة، سيستفيد تلقائياً.
+- تقارير المبيعات/التحليلات التي تستخدم `net_total` للمرتجعات (إن وُجدت) ستصبح أكثر دقة.
+
+---
+
+## التحقق بعد التنفيذ
+
+| المنتج | قبل | بعد |
+|--------|-----|-----|
+| PRD-001 (مرتجع بدون خصم) | 97.00 | 97.00 ✅ (لا تغيير) |
+| منتج بمرتجع فيه خصم 10% | منحرف لأعلى | يعكس الصافي الفعلي ✅ |
+
+**استعلام تحقق:**
+```sql
+SELECT p.code,
+  get_avg_selling_price(p.id) AS avg_price,
+  -- مقارنة يدوية:
+  (SELECT SUM(net_total) FROM sales_invoice_items si JOIN sales_invoices s ON s.id=si.invoice_id 
+   WHERE si.product_id=p.id AND s.status='posted') AS sales_net,
+  (SELECT SUM(net_total) FROM sales_return_items ri JOIN sales_returns r ON r.id=ri.return_id 
+   WHERE ri.product_id=p.id AND r.status='posted') AS returns_net
+FROM products p WHERE p.code='PRD-001';
 ```
 
 ---
 
-## التحسينات الـ 3 المقترحة (لرفع الحل إلى Enterprise)
+## الملفات النهائية
 
-### 1. زر "حفظ ومغادرة" في الـ Dialog (تحسين UX رئيسي)
-بدلاً من خيارين فقط (البقاء / مغادرة بدون حفظ)، نضيف خياراً ثالثاً:
+**Migration جديدة (1):**
+- إضافة `net_total` لـ `sales_return_items` + `purchase_return_items`
+- Backfill للبيانات القديمة بالصيغة المتناسبة
+- تحديث دالة `get_avg_selling_price`
 
-```text
-┌─────────────────────────────────────────┐
-│  لديك تغييرات غير محفوظة                  │
-│  هل تريد حفظ التغييرات قبل المغادرة؟      │
-├─────────────────────────────────────────┤
-│  [البقاء في الصفحة]                       │
-│  [مغادرة بدون حفظ]                        │
-│  [حفظ ومتابعة]    ← جديد                  │
-└─────────────────────────────────────────┘
-```
-هذا يقلل خطوات المستخدم بنسبة 50% في الحالة الأكثر شيوعاً.
+**كود معدّل (2):**
+- `src/pages/SalesReturnForm.tsx` — حساب net_total عند الحفظ
+- `src/pages/PurchaseReturnForm.tsx` — حساب net_total عند الحفظ
 
-### 2. استثناء التنقل الداخلي للنموذج نفسه
-عند الانتقال من `/sales/new` إلى `/sales/123` بعد الحفظ مباشرة، يجب ألا يظهر التحذير. الحل: تمرير `setIsDirty(false)` في `onSuccess` **قبل** `navigate()` (موجود بالفعل في معظم النماذج، نتأكد منه).
-
-### 3. حماية موحّدة عبر مكوّن Wrapper اختياري
-بدلاً من إضافة Hook في كل نموذج، إنشاء `<FormGuard isDirty={isDirty}>` يُغلّف النموذج. أبسط للصيانة على المدى الطويل.
+**لا تعديل في:** `ProductView.tsx`، التقارير، أو منطق GL (لأن `net_total` المرتجع لا يؤثر على القيود — القيود تستخدم `total`).
 
 ---
 
-## الحدود التقنية المعروفة (مقبولة)
-
-| الحالة | الحل |
-|--------|------|
-| تحذير المتصفح يعرض رسالة عامة (لا يمكن تخصيصها) | قيد W3C — مقبول عالمياً |
-| لا يعمل في علامة تبويب الخصوصية أحياناً | سلوك متصفح — لا يمكن تجاوزه |
-| `useBlocker` يتطلب React Router v6.4+ | متوفر في المشروع ✅ |
-
----
-
-## الملفات النهائية (10 ملفات)
-
-**جديدة (2):**
-- `src/hooks/use-navigation-guard.ts`
-- `src/components/UnsavedChangesDialog.tsx`
-
-**معدّلة (8):**
-- `src/hooks/use-before-unload.ts` (إضافة `e.returnValue = ""`)
-- `src/pages/SalesInvoiceForm.tsx` + إزالة `&& editMode`
-- `src/pages/PurchaseInvoiceForm.tsx` + إزالة `&& editMode`
-- `src/pages/SalesReturnForm.tsx` + إزالة `&& editMode`
-- `src/pages/PurchaseReturnForm.tsx` + إزالة `&& editMode`
-- `src/pages/InventoryAdjustmentForm.tsx` + إزالة `&& editMode`
-- `src/pages/JournalEntryForm.tsx` + إزالة `&& editMode`
-- `src/pages/ProductForm.tsx` + `src/pages/ExpenseForm.tsx` (إضافة Hook فقط)
-
----
-
-## الخلاصة
-
-**الحل احترافي ويغطي كل سيناريوهات الاستخدام الواقعية.** إضافة زر "حفظ ومتابعة" (التحسين #1) ترفعه من ممتاز إلى استثنائي وتُحاكي تجربة Google Docs / Microsoft 365.
-
-**الجهد:** 30-45 دقيقة. **التأثير:** صفر على المحاسبة وقاعدة البيانات. **النتيجة:** حماية كاملة لبيانات المستخدم في كل النماذج.
+## ضمان عدم الكسر
+- الحقل الجديد NOT NULL DEFAULT 0 + Backfill فوري → لا أسطر بدون قيمة.
+- المرتجعات التي بلا خصم: `net_total = total` → سلوك محاسبي مطابق للحالي.
+- لا تغيير في القيود اليومية، الأرصدة، أو حسابات GL.
+- التغيير الوحيد المرئي: متوسط سعر البيع يصبح **أكثر دقة** للمنتجات التي مرّت بمرتجع فيه خصم.
 
