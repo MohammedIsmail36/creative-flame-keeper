@@ -59,24 +59,26 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const prepareData = async () => {
-    if (onOpen) {
-      setProgress({ loaded: 0, total: 0 });
-      setPreparing(true);
-      try {
-        await onOpen((loaded, total) => {
-          setProgress({ loaded, total });
-        });
-      } finally {
-        setPreparing(false);
-      }
+  const prepareData = async (): Promise<ExportConfig> => {
+    if (!onOpen) return configRef.current;
+    setProgress({ loaded: 0, total: 0 });
+    setPreparing(true);
+    try {
+      const result = await onOpen((loaded, total) => {
+        setProgress({ loaded, total });
+      });
+      // Merge any returned overrides (e.g. fresh `rows`) on top of latest config.
+      // This avoids a render race where `configRef.current.rows` is still empty
+      // immediately after the parent calls `setState` inside `onOpen`.
+      return { ...configRef.current, ...(result || {}) } as ExportConfig;
+    } finally {
+      setPreparing(false);
     }
   };
 
   const handleCSV = async () => {
     setOpen(false);
-    await prepareData();
-    const cfg = configRef.current;
+    const cfg = await prepareData();
     const { exportToCsv } = await import("@/lib/csv-export");
     exportToCsv({
       filename: cfg.filenamePrefix,
@@ -88,8 +90,7 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
 
   const handleExcel = async () => {
     setOpen(false);
-    await prepareData();
-    const cfg = configRef.current;
+    const cfg = await prepareData();
     const { exportToExcel } = await import("@/lib/excel-export");
     await exportToExcel({
       filename: cfg.filenamePrefix,
@@ -102,8 +103,7 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
 
   const handlePDF = async () => {
     setOpen(false);
-    await prepareData();
-    const cfg = configRef.current;
+    const cfg = await prepareData();
     const { exportReportPdf } = await import("@/lib/report-pdf");
     await exportReportPdf({
       title: cfg.pdfTitle,
