@@ -495,6 +495,7 @@ export default function Sales() {
       />
 
       <DataTable
+        compactRows
         columns={columns}
         data={invoices}
         isLoading={isLoading}

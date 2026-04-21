@@ -490,6 +490,7 @@ export default function Purchases() {
       />
 
       <DataTable
+        compactRows
         columns={columns}
         data={invoices}
         searchPlaceholder="بحث برقم الفاتورة أو اسم المورد..."

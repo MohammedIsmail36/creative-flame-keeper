@@ -345,6 +345,7 @@ export default function Ledger() {
 
       {/* Data Table — server-side pagination */}
       <DataTable
+        compactRows
         columns={columns}
         data={lines}
         isLoading={loading}

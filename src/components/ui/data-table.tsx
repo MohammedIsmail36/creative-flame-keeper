@@ -112,6 +112,8 @@ interface DataTableProps<TData, TValue> {
   pagination?: PaginationState;
   /** Pagination change handler */
   onPaginationChange?: OnChangeFn<PaginationState>;
+  /** Reduce row height for dense single-line tables (default: false) */
+  compactRows?: boolean;
 }
 
 // ── Main DataTable ─────────────────────────────────────────
@@ -144,6 +146,7 @@ export function DataTable<TData, TValue>({
   totalRows,
   pagination: externalPagination,
   onPaginationChange,
+  compactRows = false,
 }: DataTableProps<TData, TValue>) {
   // ── Internal state (used when not controlled externally) ──
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -397,11 +400,10 @@ export function DataTable<TData, TValue>({
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
                     className={cn(
-                      // ↓ h-11 ثابت (44px) — موحّد ومحكم
-                      "h-11 border-b border-border/50 transition-colors",
-                      // ↓ zebra بقيمة /25 مرئية لكن غير ثقيلة
+                      compactRows
+                        ? "h-9 border-b border-border/50 transition-colors"
+                        : "h-11 border-b border-border/50 transition-colors",
                       idx % 2 === 1 && "bg-muted/25",
-                      // ↓ hover فقط إذا الصف قابل للنقر
                       onRowClick
                         ? "cursor-pointer hover:bg-primary/5"
                         : "hover:bg-muted/40",
@@ -411,8 +413,10 @@ export function DataTable<TData, TValue>({
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}
-                        // ↓ py-0 لأن الارتفاع محكوم بـ h-10 على الـ row
-                        className="px-3 py-2 text-sm"
+                        className={cn(
+                          "px-3 text-sm",
+                          compactRows ? "py-1" : "py-2",
+                        )}
                       >
                         {flexRender(
                           cell.column.columnDef.cell,

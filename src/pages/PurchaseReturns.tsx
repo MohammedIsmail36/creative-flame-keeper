@@ -375,6 +375,7 @@ export default function PurchaseReturns() {
       </div>
 
       <DataTable
+        compactRows
         columns={columns}
         data={returns}
         searchPlaceholder="بحث..."
