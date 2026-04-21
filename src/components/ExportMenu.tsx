@@ -16,11 +16,14 @@ export interface ExportConfig {
   pdfOrientation?: "portrait" | "landscape";
 }
 
+export type ExportProgress = (loaded: number, total: number) => void;
+
 interface ExportMenuProps {
   config: ExportConfig;
   disabled?: boolean;
-  /** Called once when the menu is opened (lazy-load full data for export). */
-  onOpen?: () => void | Promise<void>;
+  /** Called when an export format is chosen (lazy-load full data for export).
+   *  Receives an `onProgress(loaded, total)` callback to report fetch progress. */
+  onOpen?: (onProgress?: ExportProgress) => void | Promise<void>;
 }
 
 export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
