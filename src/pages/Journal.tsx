@@ -39,7 +39,7 @@ interface JournalEntry {
   created_at: string;
 }
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 const fmtNum = (n: number) => Number(n || 0).toLocaleString("en-US");
 
 export default function Journal() {
@@ -133,23 +133,35 @@ export default function Journal() {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
 
-  const fetchAllForExport = async (): Promise<JournalEntry[]> => {
-    let q = (supabase.from("journal_entries") as any)
-      .select(
-        "id, entry_number, posted_number, entry_date, description, status, total_debit, total_credit, created_at",
-      )
-      .order("entry_number", { ascending: false });
-    if (statusFilter !== "all") q = q.eq("status", statusFilter);
-    if (dateFrom) q = q.gte("entry_date", dateFrom);
-    if (dateTo) q = q.lte("entry_date", dateTo);
-    const { data, error } = await q;
-    if (error) throw error;
-    return data || [];
+  const fetchAllForExport = async (
+    onProgress?: (loaded: number, total: number) => void,
+  ): Promise<JournalEntry[]> => {
+    const { fetchAllPaged } = await import("@/lib/paged-fetch");
+    return await fetchAllPaged<JournalEntry>(
+      () => {
+        let q = (supabase.from("journal_entries") as any)
+          .select(
+            "id, entry_number, posted_number, entry_date, description, status, total_debit, total_credit, created_at",
+            { count: "exact" },
+          )
+          .order("entry_number", { ascending: false });
+        if (statusFilter !== "all") q = q.eq("status", statusFilter);
+        if (dateFrom) q = q.gte("entry_date", dateFrom);
+        if (dateTo) q = q.lte("entry_date", dateTo);
+        return q;
+      },
+      { batchSize: 500, maxRows: 50000, onProgress },
+    );
   };
 
   const [exportRows, setExportRows] = useState<any[][]>([]);
-  const handlePrepareExport = async () => {
-    const all = await fetchAllForExport();
+  React.useEffect(() => {
+    setExportRows([]);
+  }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
+  const handlePrepareExport = async (
+    onProgress?: (loaded: number, total: number) => void,
+  ) => {
+    const all = await fetchAllForExport(onProgress);
     setExportRows(
       all.map((e) => [
         formatDisplayNumber(prefix, e.posted_number, e.entry_number, e.status),
