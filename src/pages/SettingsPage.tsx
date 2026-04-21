@@ -878,6 +878,17 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label className="text-sm font-bold">المصروفات</Label>
+                <Input
+                  value={settings.expense_prefix}
+                  onChange={(e) =>
+                    updateField("expense_prefix", e.target.value)
+                  }
+                  dir="ltr"
+                  className="rounded-lg"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label className="text-sm font-bold">بادئة المنتجات</Label>
                 <Input
                   value={settings.product_code_prefix || "PRD-"}
