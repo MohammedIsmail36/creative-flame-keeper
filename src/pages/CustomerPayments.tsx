@@ -132,17 +132,22 @@ export default function CustomerPayments() {
 
   async function fetchAll() {
     setLoading(true);
-    const [custRes, payRes] = await Promise.all([
+    const { fetchAllPaged } = await import("@/lib/paged-fetch");
+    const [custRes, payments] = await Promise.all([
       (supabase.from("customers" as any) as any)
         .select("id, code, name, balance")
         .eq("is_active", true)
         .order("name"),
-      (supabase.from("customer_payments" as any) as any)
-        .select("*, customers:customer_id(name)")
-        .order("payment_number", { ascending: false }),
+      fetchAllPaged<any>(
+        () =>
+          (supabase.from("customer_payments") as any)
+            .select("*, customers:customer_id(name)", { count: "exact" })
+            .order("payment_number", { ascending: false }),
+        { batchSize: 500, maxRows: 50000 },
+      ),
     ]);
     setCustomers(custRes.data || []);
-    const rawPayments = (payRes.data || []).map((p: any) => ({
+    const rawPayments = (payments || []).map((p: any) => ({
       ...p,
       customer_name: p.customers?.name,
     }));
