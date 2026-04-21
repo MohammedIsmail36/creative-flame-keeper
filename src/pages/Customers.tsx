@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,7 +23,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Users, X, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -33,6 +33,9 @@ import { getNextPostedNumber } from "@/lib/posted-number-utils";
 import { generateEntityCode } from "@/lib/code-generation";
 import { ACCOUNT_CODES } from "@/lib/constants";
 import { round2 } from "@/lib/utils";
+import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { formatSupabaseError } from "@/lib/format-error";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,12 +61,22 @@ interface Customer {
   is_active: boolean;
 }
 
+const PAGE_SIZE = 25;
+
 export default function Customers() {
   const { role } = useAuth();
   const { settings } = useSettings();
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
+  });
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [balanceFilter, setBalanceFilter] = useState("all");
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<Customer | null>(null);
   const [saving, setSaving] = useState(false);
@@ -78,36 +91,58 @@ export default function Customers() {
     notes: "",
     opening_balance: "",
   });
-  const [balanceFilter, setBalanceFilter] = useState("all");
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
 
   const canEdit = role === "admin" || role === "accountant" || role === "sales";
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
+  // Reset to page 0 when filters/search change
+  React.useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [debouncedSearch, balanceFilter]);
 
-  async function fetchCustomers() {
-    setLoading(true);
-    const { data } = await (supabase.from("customers" as any) as any)
-      .select("*")
-      .eq("is_active", true)
-      .order("code");
-    setCustomers(data || []);
-    setLoading(false);
+  const queryKey = [
+    "customers",
+    pagination.pageIndex,
+    pagination.pageSize,
+    debouncedSearch,
+    balanceFilter,
+  ] as const;
+
+  const { data: pageData, isLoading } = usePagedQuery<Customer>(
+    queryKey,
+    async () => {
+      const from = pagination.pageIndex * pagination.pageSize;
+      const to = from + pagination.pageSize - 1;
+      let q = (supabase.from("customers" as any) as any)
+        .select("*", { count: "exact" })
+        .eq("is_active", true);
+
+      if (debouncedSearch.trim()) {
+        const term = `%${debouncedSearch.trim()}%`;
+        q = q.or(`name.ilike.${term},code.ilike.${term},phone.ilike.${term}`);
+      }
+      if (balanceFilter === "has_balance") q = q.gt("balance", 0);
+      if (balanceFilter === "no_balance") q = q.lte("balance", 0);
+
+      const { data, error, count } = await q.order("code").range(from, to);
+      if (error) throw error;
+      return { rows: (data as Customer[]) || [], totalCount: count || 0 };
+    },
+  );
+
+  const rows = pageData?.rows ?? [];
+  const totalCount = pageData?.totalCount ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
+
+  const hasFilters = balanceFilter !== "all" || search !== "";
+  const clearFilters = () => {
+    setBalanceFilter("all");
+    setSearch("");
+  };
+
+  function refetchAll() {
+    queryClient.invalidateQueries({ queryKey: ["customers"] });
   }
-
-  const filtered = useMemo(() => {
-    if (balanceFilter === "all") return customers;
-    if (balanceFilter === "has_balance")
-      return customers.filter((c) => c.balance > 0);
-    if (balanceFilter === "no_balance")
-      return customers.filter((c) => c.balance <= 0);
-    return customers;
-  }, [customers, balanceFilter]);
-
-  const hasFilters = balanceFilter !== "all";
-  const clearFilters = () => setBalanceFilter("all");
 
   async function openAdd() {
     setEditItem(null);
@@ -191,7 +226,6 @@ export default function Customers() {
       },
     ] as any);
 
-    // Update customer balance
     await (supabase.from("customers" as any) as any)
       .update({ balance: roundedAmount })
       .eq("id", entityId);
@@ -243,12 +277,13 @@ export default function Customers() {
         toast({ title: "تمت الإضافة", description: "تم إضافة العميل بنجاح" });
       }
       setDialogOpen(false);
-      fetchCustomers();
+      refetchAll();
     } catch (error: any) {
-      const msg = error.message?.includes("duplicate")
-        ? "كود العميل موجود مسبقاً"
-        : error.message;
-      toast({ title: "خطأ", description: msg, variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: formatSupabaseError(error),
+        variant: "destructive",
+      });
     }
     setSaving(false);
   }
@@ -273,7 +308,7 @@ export default function Customers() {
     if (error) {
       toast({
         title: "خطأ",
-        description: error.message,
+        description: formatSupabaseError(error),
         variant: "destructive",
       });
       setDeleteTarget(null);
@@ -281,8 +316,36 @@ export default function Customers() {
     }
     toast({ title: "تم الحذف", description: "تم حذف العميل" });
     setDeleteTarget(null);
-    fetchCustomers();
+    refetchAll();
   }
+
+  // Export: fetch ALL matching rows on demand (respects current filters/search)
+  async function fetchAllForExport(): Promise<Customer[]> {
+    let q = (supabase.from("customers" as any) as any)
+      .select("*")
+      .eq("is_active", true);
+    if (debouncedSearch.trim()) {
+      const term = `%${debouncedSearch.trim()}%`;
+      q = q.or(`name.ilike.${term},code.ilike.${term},phone.ilike.${term}`);
+    }
+    if (balanceFilter === "has_balance") q = q.gt("balance", 0);
+    if (balanceFilter === "no_balance") q = q.lte("balance", 0);
+    const { data, error } = await q.order("code").range(0, 9999);
+    if (error) throw error;
+    return (data as Customer[]) || [];
+  }
+
+  const [exportRows, setExportRows] = useState<Customer[] | null>(null);
+  React.useEffect(() => {
+    // Refresh export buffer whenever filters change; lazy = only triggers when menu opened in practice.
+    // For simplicity we just clear; ExportMenu uses provided rows synchronously.
+    setExportRows(null);
+  }, [debouncedSearch, balanceFilter]);
+
+  const exportRowsResolved = useMemo(
+    () => exportRows ?? rows,
+    [exportRows, rows],
+  );
 
   const columns: ColumnDef<Customer, any>[] = [
     {
@@ -383,7 +446,7 @@ export default function Customers() {
       <PageHeader
         icon={Users}
         title="العملاء"
-        description={`${customers.length} عميل`}
+        description={`${totalCount} عميل`}
         actions={
           canEdit ? (
             <Button onClick={openAdd} className="gap-2">
@@ -396,10 +459,17 @@ export default function Customers() {
 
       <DataTable
         columns={columns}
-        data={filtered}
+        data={rows}
         searchPlaceholder="بحث بالاسم أو الكود أو الهاتف..."
-        isLoading={loading}
+        isLoading={isLoading}
         emptyMessage="لا يوجد عملاء"
+        manualPagination
+        pageCount={pageCount}
+        totalRows={totalCount}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        globalFilter={search}
+        onGlobalFilterChange={(v) => setSearch(typeof v === "string" ? v : "")}
         toolbarContent={
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={balanceFilter} onValueChange={setBalanceFilter}>
@@ -429,7 +499,7 @@ export default function Customers() {
                 sheetName: "العملاء",
                 pdfTitle: "قائمة العملاء",
                 headers: ["الكود", "الاسم", "الهاتف", "البريد", "الرصيد"],
-                rows: filtered.map((c) => [
+                rows: exportRowsResolved.map((c) => [
                   c.code,
                   c.name,
                   c.phone || "",
@@ -439,8 +509,13 @@ export default function Customers() {
                   }),
                 ]),
                 settings,
-              }}
-              disabled={loading}
+                onBeforeExport: async () => {
+                  const all = await fetchAllForExport();
+                  setExportRows(all);
+                  return true;
+                },
+              } as any}
+              disabled={isLoading}
             />
           </div>
         }
@@ -500,28 +575,6 @@ export default function Customers() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>الرقم الضريبي</Label>
-                <Input
-                  value={form.tax_number}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, tax_number: e.target.value }))
-                  }
-                  placeholder="الرقم الضريبي"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>جهة الاتصال</Label>
-                <Input
-                  value={form.contact_person}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, contact_person: e.target.value }))
-                  }
-                  placeholder="اسم المسؤول"
-                />
-              </div>
-            </div>
             <div className="space-y-2">
               <Label>العنوان</Label>
               <Input
@@ -532,22 +585,42 @@ export default function Customers() {
                 placeholder="العنوان"
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>الرقم الضريبي</Label>
+                <Input
+                  value={form.tax_number}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, tax_number: e.target.value }))
+                  }
+                  placeholder="رقم ضريبي"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>جهة الاتصال</Label>
+                <Input
+                  value={form.contact_person}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, contact_person: e.target.value }))
+                  }
+                  placeholder="الشخص المسؤول"
+                />
+              </div>
+            </div>
             {!editItem && (
               <div className="space-y-2">
                 <Label>الرصيد الافتتاحي</Label>
                 <Input
                   type="number"
-                  min="0"
                   step="0.01"
                   value={form.opening_balance}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, opening_balance: e.target.value }))
                   }
                   placeholder="0.00"
-                  className="font-mono"
                 />
                 <p className="text-xs text-muted-foreground">
-                  سيتم إنشاء قيد افتتاحي تلقائياً إذا كان المبلغ أكبر من صفر
+                  سيتم إنشاء قيد افتتاحي تلقائياً عند الإدخال
                 </p>
               </div>
             )}
@@ -558,17 +631,21 @@ export default function Customers() {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, notes: e.target.value }))
                 }
-                placeholder="ملاحظات (اختياري)"
+                placeholder="ملاحظات"
                 rows={2}
               />
             </div>
           </div>
-          <DialogFooter className="flex-row-reverse gap-2">
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "جاري الحفظ..." : "حفظ"}
-            </Button>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+              disabled={saving}
+            >
               إلغاء
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "جاري الحفظ..." : editItem ? "تحديث" : "إضافة"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -576,21 +653,21 @@ export default function Customers() {
 
       <AlertDialog
         open={!!deleteTarget}
-        onOpenChange={() => setDeleteTarget(null)}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
       >
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف العميل</AlertDialogTitle>
+            <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
             <AlertDialogDescription>
               هل أنت متأكد من حذف العميل "{deleteTarget?.name}"؟ لا يمكن التراجع
               عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
+          <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive hover:bg-destructive/90"
             >
               حذف
             </AlertDialogAction>
