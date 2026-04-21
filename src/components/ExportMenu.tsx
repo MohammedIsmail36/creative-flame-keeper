@@ -57,11 +57,12 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
   const handleCSV = async () => {
     setOpen(false);
     await prepareData();
+    const cfg = configRef.current;
     const { exportToCsv } = await import("@/lib/csv-export");
     exportToCsv({
-      filename: config.filenamePrefix,
-      headers: config.headers,
-      rows: config.rows,
+      filename: cfg.filenamePrefix,
+      headers: cfg.headers,
+      rows: cfg.rows,
     });
     toast({ title: "تم التصدير", description: "تم التصدير بصيغة CSV" });
   };
@@ -69,12 +70,13 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
   const handleExcel = async () => {
     setOpen(false);
     await prepareData();
+    const cfg = configRef.current;
     const { exportToExcel } = await import("@/lib/excel-export");
     await exportToExcel({
-      filename: config.filenamePrefix,
-      sheetName: config.sheetName,
-      headers: config.headers,
-      rows: config.rows,
+      filename: cfg.filenamePrefix,
+      sheetName: cfg.sheetName,
+      headers: cfg.headers,
+      rows: cfg.rows,
     });
     toast({ title: "تم التصدير", description: "تم التصدير بصيغة Excel" });
   };
@@ -82,17 +84,18 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
   const handlePDF = async () => {
     setOpen(false);
     await prepareData();
+    const cfg = configRef.current;
     const { exportReportPdf } = await import("@/lib/report-pdf");
     await exportReportPdf({
-      title: config.pdfTitle,
-      settings: config.settings || null,
-      headers: config.headers,
-      rows: config.rows,
-      summaryCards: config.summaryCards,
+      title: cfg.pdfTitle,
+      settings: cfg.settings || null,
+      headers: cfg.headers,
+      rows: cfg.rows,
+      summaryCards: cfg.summaryCards,
       orientation:
-        config.pdfOrientation ||
-        (config.headers.length > 6 ? "landscape" : "portrait"),
-      filename: config.filenamePrefix,
+        cfg.pdfOrientation ||
+        (cfg.headers.length > 6 ? "landscape" : "portrait"),
+      filename: cfg.filenamePrefix,
     });
     toast({ title: "تم التصدير", description: "تم التصدير بصيغة PDF" });
   };
