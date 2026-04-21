@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, FileSpreadsheet, FileDown, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import type { CompanySettings } from "@/contexts/SettingsContext";
 
@@ -89,57 +90,67 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
   };
 
   return (
-    <div className="relative" ref={ref}>
-      <Button
-        variant="outline"
-        className="gap-1.5 shadow-sm"
-        onClick={handleToggle}
-        disabled={disabled || preparing}
-        aria-busy={preparing}
-      >
-        {preparing ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
+    <>
+      <div className="relative" ref={ref}>
+        <Button
+          variant="outline"
+          className="gap-1.5 shadow-sm"
+          onClick={handleToggle}
+          disabled={disabled || preparing}
+          aria-busy={preparing}
+        >
           <Download className="h-4 w-4" />
+          تصدير
+        </Button>
+        {open && !preparing && (
+          <div className="absolute end-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[150px]">
+            <button
+              onClick={handleCSV}
+              className="w-full flex items-center gap-2 text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors"
+            >
+              <FileDown className="h-4 w-4 text-muted-foreground" /> CSV
+            </button>
+            <button
+              onClick={handleExcel}
+              className="w-full flex items-center gap-2 text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors"
+            >
+              <FileSpreadsheet className="h-4 w-4 text-muted-foreground" /> Excel
+            </button>
+            <button
+              onClick={handlePDF}
+              className="w-full flex items-center gap-2 text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors"
+            >
+              <FileText className="h-4 w-4 text-muted-foreground" /> PDF
+            </button>
+          </div>
         )}
-        {preparing ? "جاري تحضير البيانات..." : "تصدير"}
-      </Button>
-      {preparing && (
-        <div className="absolute end-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-3 min-w-[220px]">
-          <div className="flex items-center gap-2 text-sm text-foreground mb-2">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <span>جارٍ جلب كافة السجلات...</span>
+      </div>
+
+      <Dialog open={preparing}>
+        <DialogContent
+          className="sm:max-w-md [&>button]:hidden"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-right">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              جاري تحضير البيانات للتصدير
+            </DialogTitle>
+            <DialogDescription className="text-right">
+              يتم الآن جلب كافة السجلات المطابقة للفلاتر الحالية. قد يستغرق ذلك بضع ثوانٍ حسب حجم البيانات.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2">
+            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+              <div className="h-full w-1/3 bg-primary rounded-full animate-[progress_1.5s_ease-in-out_infinite]" />
+            </div>
+            <p className="text-xs text-muted-foreground mt-3 text-center">
+              يرجى عدم إغلاق النافذة...
+            </p>
           </div>
-          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-            <div className="h-full w-1/2 bg-primary rounded-full animate-pulse" />
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            قد يستغرق ذلك بضع ثوانٍ حسب حجم البيانات
-          </p>
-        </div>
-      )}
-      {open && !preparing && (
-        <div className="absolute end-0 top-full mt-1 z-50 bg-popover border rounded-lg shadow-lg p-1 min-w-[150px]">
-          <button
-            onClick={handleCSV}
-            className="w-full flex items-center gap-2 text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors"
-          >
-            <FileDown className="h-4 w-4 text-muted-foreground" /> CSV
-          </button>
-          <button
-            onClick={handleExcel}
-            className="w-full flex items-center gap-2 text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors"
-          >
-            <FileSpreadsheet className="h-4 w-4 text-muted-foreground" /> Excel
-          </button>
-          <button
-            onClick={handlePDF}
-            className="w-full flex items-center gap-2 text-right px-3 py-2 text-sm rounded hover:bg-muted transition-colors"
-          >
-            <FileText className="h-4 w-4 text-muted-foreground" /> PDF
-          </button>
-        </div>
-      )}
-    </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
