@@ -371,44 +371,44 @@ export default function InventoryMovements() {
     const all = await fetchAllForExport(onProgress);
     // Build cumulative balance per product (for export only)
     const balances: Record<string, number> = {};
-    setExportRows(
-      all.map((m) => {
-        const pid = m.product_id;
-        if (!(pid in balances)) balances[pid] = 0;
-        if (m.movement_type === "adjustment") {
-          balances[pid] += Number(m.quantity);
-        } else {
-          const isIn = MOVEMENT_IN_TYPES.includes(m.movement_type);
-          balances[pid] += isIn ? Number(m.quantity) : -Number(m.quantity);
-        }
-        const p = m.products as any;
-        const isInRow =
-          m.movement_type === "adjustment"
-            ? Number(m.quantity) > 0
-            : MOVEMENT_IN_TYPES.includes(m.movement_type);
-        const isOutRow =
-          m.movement_type === "adjustment"
-            ? Number(m.quantity) < 0
-            : !MOVEMENT_IN_TYPES.includes(m.movement_type);
-        return [
-          m.movement_date,
-          p
-            ? formatProductDisplay(
-                p.name,
-                p.product_brands?.name,
-                p.model_number,
-              )
-            : "",
-          p?.code || "",
-          MOVEMENT_TYPE_LABELS[m.movement_type] || m.movement_type,
-          isInRow ? fmtInt(Math.abs(Number(m.quantity))) : "",
-          isOutRow ? fmtInt(Math.abs(Number(m.quantity))) : "",
-          fmtNum(Number(m.unit_cost)),
-          fmtNum(Number(m.total_cost)),
-          fmtInt(balances[pid]),
-        ];
-      }),
-    );
+    const rows = all.map((m) => {
+      const pid = m.product_id;
+      if (!(pid in balances)) balances[pid] = 0;
+      if (m.movement_type === "adjustment") {
+        balances[pid] += Number(m.quantity);
+      } else {
+        const isIn = MOVEMENT_IN_TYPES.includes(m.movement_type);
+        balances[pid] += isIn ? Number(m.quantity) : -Number(m.quantity);
+      }
+      const p = m.products as any;
+      const isInRow =
+        m.movement_type === "adjustment"
+          ? Number(m.quantity) > 0
+          : MOVEMENT_IN_TYPES.includes(m.movement_type);
+      const isOutRow =
+        m.movement_type === "adjustment"
+          ? Number(m.quantity) < 0
+          : !MOVEMENT_IN_TYPES.includes(m.movement_type);
+      return [
+        m.movement_date,
+        p
+          ? formatProductDisplay(
+              p.name,
+              p.product_brands?.name,
+              p.model_number,
+            )
+          : "",
+        p?.code || "",
+        MOVEMENT_TYPE_LABELS[m.movement_type] || m.movement_type,
+        isInRow ? fmtInt(Math.abs(Number(m.quantity))) : "",
+        isOutRow ? fmtInt(Math.abs(Number(m.quantity))) : "",
+        fmtNum(Number(m.unit_cost)),
+        fmtNum(Number(m.total_cost)),
+        fmtInt(balances[pid]),
+      ];
+    });
+    setExportRows(rows);
+    return { rows };
   };
 
   const exportConfig = {
