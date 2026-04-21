@@ -122,6 +122,7 @@ export type Database = {
           monthly_sales_target: number
           payment_terms_days: number
           phone: string | null
+          product_code_prefix: string
           purchase_invoice_prefix: string
           purchase_return_prefix: string
           purchase_tax_account_id: string | null
@@ -162,6 +163,7 @@ export type Database = {
           monthly_sales_target?: number
           payment_terms_days?: number
           phone?: string | null
+          product_code_prefix?: string
           purchase_invoice_prefix?: string
           purchase_return_prefix?: string
           purchase_tax_account_id?: string | null
@@ -202,6 +204,7 @@ export type Database = {
           monthly_sales_target?: number
           payment_terms_days?: number
           phone?: string | null
+          product_code_prefix?: string
           purchase_invoice_prefix?: string
           purchase_return_prefix?: string
           purchase_tax_account_id?: string | null
