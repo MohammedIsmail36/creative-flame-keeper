@@ -1,74 +1,53 @@
 
 
-## توحيد نظام التنبيهات (Toaster)
+## تحديث عنوان التبويب ديناميكياً (Dynamic Tab Title)
 
-### الوضع الحالي
-النظام يحتوي فعلياً على **مكوّنين منفصلين** للتنبيهات يعملان في نفس الوقت:
+### المشكلة
+كل التبويبات في المتصفح تعرض نفس الاسم `Lovable App`، فلا يستطيع المستخدم التمييز بين الشاشات المفتوحة.
 
-1. **Sonner** (`@/components/ui/sonner`) — يستخدمه 3 ملفات فقط (`SettingsPage`, `FiscalYearClosing`, إلخ).
-2. **Legacy Radix Toast** (`@/hooks/use-toast` + `@/components/ui/toaster`) — يستخدمه **42 ملف** (Products, Customers, Suppliers, Expenses... إلخ).
+### الحل
+إنشاء **Hook موحّد** (`usePageTitle`) يستخدم `routeLabels` الموجودة في `AppBreadcrumb.tsx` ويُحدّث `document.title` تلقائياً عند تغيير المسار، بصيغة:
 
-كلاهما مُسجَّل في `src/App.tsx`:
-```tsx
-<Toaster />        // legacy radix
-<Sonner />         // sonner
+```
+اسم الشاشة • نظام الباقي
 ```
 
-**سبب بقاء بعض التنبيهات لا تختفي:** ملف `src/hooks/use-toast.ts` يُعرّف:
-```ts
-const TOAST_REMOVE_DELAY = 1000000; // ≈ 16 دقيقة!
-```
-أي أن أي تنبيه عبر النظام القديم لا يختفي تلقائياً — يجب إغلاقه يدوياً. هذا هو السبب الحقيقي لما تراه، وليس وجود مكونات متعددة في صفحات مختلفة.
+أمثلة:
+- `/sales` → `فواتير البيع • نظام الباقي`
+- `/products/new` → `إضافة منتج جديد • نظام الباقي`
+- `/profile` → `الملف الشخصي • نظام الباقي`
+- `/` → `لوحة التحكم • نظام الباقي`
 
----
+### الخطوات
 
-### الخطة المقترحة
+1. **استخراج `routeLabels` إلى ملف مشترك** (`src/lib/route-labels.ts`):
+   - نقل الخريطة من `AppBreadcrumb.tsx` لتُستخدم في مكانين (Breadcrumb + Title) بدون تكرار.
+   - `AppBreadcrumb.tsx` يستوردها بدلاً من تعريفها داخلياً.
 
-#### 1) اعتماد Sonner كمكوّن واحد للنظام بأكمله
-- إزالة `<Toaster />` (الـ legacy radix) من `src/App.tsx` والإبقاء على `<Sonner />` فقط.
-- تخصيص `src/components/ui/sonner.tsx` ليكون موحّداً:
-  - `position="top-center"` — أعلى منتصف الصفحة.
-  - `duration={3000}` — يختفي تلقائياً بعد 3 ثواني.
-  - `dir="rtl"` — لدعم اللغة العربية.
-  - `richColors` + `closeButton` — ألوان واضحة للنجاح/الفشل/التحذير + زر إغلاق يدوي اختياري.
-  - حد أقصى للتنبيهات المتراكمة (`visibleToasts={3}`).
+2. **إنشاء Hook جديد** (`src/hooks/use-page-title.ts`):
+   - يقرأ `location.pathname`.
+   - يبني العنوان من آخر segment ذو معنى (متجاهلاً الـ UUIDs).
+   - يدعم دمج الـ segments الخاصة مثل `new` / `edit` / `import` مع السياق (مثل: `إضافة منتج جديد` بدل `إضافة جديد` فقط).
+   - يُحدّث `document.title` عبر `useEffect`.
+   - يُعيد العنوان أيضاً للقراءة عند الحاجة.
 
-#### 2) إنشاء جسر توافقي (Compatibility Shim)
-بدل تعديل 42 ملفاً يدوياً، سأعيد كتابة `src/hooks/use-toast.ts` كغلاف رفيع حول `sonner`:
-- `toast({ title, description, variant })` → ينادي `sonner.toast.success/error/...` تلقائياً حسب `variant`.
-- `useToast()` يُعيد نفس الواجهة (`{ toast, dismiss }`) لكن تحت الغطاء يستخدم Sonner.
-- النتيجة: كل الكود الموجود يعمل بدون تعديل، ويُعرض عبر مكوّن واحد فقط.
+3. **تركيب الـ Hook في `AppLayout.tsx`**:
+   - استدعاء `usePageTitle()` مرة واحدة داخل `AppLayout` ليعمل على كل الصفحات المحمية.
+   - لصفحات خارج الـ Layout (`/auth`, `/auth/mfa`, `/forbidden`, `/404`) يُستدعى الـ Hook داخلها مباشرة، أو يُضاف على مستوى `App.tsx` ضمن `BrowserRouter` ليغطّي كل المسارات.
 
-#### 3) تنظيف
-- حذف `src/components/ui/toaster.tsx` (لم يعد مستخدماً).
-- حذف `src/components/ui/use-toast.ts` (re-export قديم) أو إبقاؤه كـ re-export للجسر الجديد.
-- الإبقاء على `src/components/ui/toast.tsx` (مكوّنات Radix) فقط إذا احتاجها أي مكان آخر؛ وإلا يُحذف.
-
----
-
-### تخصيص الأنواع (موحّد للنظام)
-
-| النوع | الاستخدام | اللون | المدة |
-|---|---|---|---|
-| `toast.success` | عمليات ناجحة (حفظ، حذف، ترحيل) | أخضر | 3s |
-| `toast.error` | فشل/أخطاء (variant: destructive) | أحمر | 4s (أطول للقراءة) |
-| `toast.warning` | تحذيرات (مخزون منخفض، تكرار) | أصفر | 3s |
-| `toast.info` | معلومات عامة | أزرق | 3s |
-
-الموقع: `top-center`، اتجاه RTL، حد أقصى 3 تنبيهات مرئية، زر إغلاق ظاهر.
-
----
+4. **تحديث `index.html`**:
+   - تغيير `<title>Lovable App</title>` إلى `<title>نظام الباقي</title>` كقيمة افتراضية أثناء التحميل الأولي.
+   - تحديث `<meta name="description">` و `og:title` لتعكس اسم النظام بدل الاسم الافتراضي.
+   - تغيير `<html lang="en">` إلى `<html lang="ar" dir="rtl">`.
 
 ### الملفات المتأثرة
-- ✏️ `src/App.tsx` — إزالة `<Toaster />` legacy.
-- ✏️ `src/components/ui/sonner.tsx` — إعدادات `position`, `duration`, `dir`, `richColors`.
-- ✏️ `src/hooks/use-toast.ts` — إعادة كتابة كاملة كغلاف لـ sonner (الإصلاح الأساسي لمشكلة عدم الاختفاء).
-- 🗑️ `src/components/ui/toaster.tsx` — حذف.
-- ✅ 42 ملف يستخدم `useToast`/`toast` — **لا تحتاج أي تعديل** بفضل الجسر التوافقي.
+- ✏️ `index.html` — تحديث العنوان الافتراضي و lang/dir.
+- 🆕 `src/lib/route-labels.ts` — مصدر موحّد لتسميات المسارات.
+- 🆕 `src/hooks/use-page-title.ts` — Hook لتحديث `document.title`.
+- ✏️ `src/components/layout/AppBreadcrumb.tsx` — استيراد `routeLabels` من الملف المشترك.
+- ✏️ `src/components/layout/AppLayout.tsx` — تركيب الـ Hook.
+- ✏️ `src/App.tsx` — (اختياري) تركيب الـ Hook على مستوى أعلى ليشمل صفحات خارج Layout.
 
-### النتيجة المتوقعة
-- مصدر واحد للتنبيهات في كل النظام.
-- كل تنبيه يظهر أعلى منتصف الشاشة ويختفي تلقائياً بعد 3 ثواني.
-- لا مزيد من التنبيهات "العالقة" التي تتطلب إغلاقاً يدوياً.
-- ألوان موحّدة وواضحة لكل نوع (نجاح/خطأ/تحذير).
+### النتيجة
+كل تبويب في المتصفح يعرض اسم الشاشة الفعلية، فيستطيع المستخدم التنقل بين عشرات التبويبات والتعرّف على كل شاشة من شريط العنوان مباشرة.
 
