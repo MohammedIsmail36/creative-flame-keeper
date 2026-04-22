@@ -303,16 +303,37 @@ export default function ProductImport() {
       }
     }
 
+    // Pre-fetch existing products keyed by (brand_id|model_number) for upsert matching
+    const { data: existingProds } = await (supabase.from("products") as any)
+      .select("id, code, brand_id, model_number");
+    const upsertKey = (brandId: string | null, model: string | null) =>
+      `${brandId || ""}::${(model || "").trim().toLowerCase()}`;
+    const existingByKey = new Map<string, { id: string; code: string }>();
+    (existingProds || []).forEach((p: any) => {
+      if (p.brand_id && p.model_number) {
+        existingByKey.set(upsertKey(p.brand_id, p.model_number), {
+          id: p.id,
+          code: p.code,
+        });
+      }
+    });
+
     // Import products one-by-one to track individual failures
     let successCount = 0;
+    let updatedCount = 0;
     let failCount = 0;
     const updatedRows = [...rows];
     const prefix = settings?.product_code_prefix || "PRD-";
 
     for (const row of validRows) {
-      // Auto-generate code if missing
+      const brandId = (row.brand && brands.get(row.brand)) || null;
+      const modelNo = row.model_number?.trim() || null;
+      const matchKey = brandId && modelNo ? upsertKey(brandId, modelNo) : null;
+      const existing = matchKey ? existingByKey.get(matchKey) : null;
+
+      // Auto-generate code only for new products
       let productCode = row.code;
-      if (!productCode) {
+      if (!productCode && !existing) {
         try {
           productCode = await generateEntityCode("products", prefix);
         } catch {
@@ -320,9 +341,9 @@ export default function ProductImport() {
         }
       }
 
-      // Auto-generate barcode if missing
+      // Auto-generate barcode only for new products
       let productBarcode: string | null = row.barcode || null;
-      if (!productBarcode) {
+      if (!productBarcode && !existing) {
         try {
           productBarcode = await generateProductBarcode();
         } catch {
@@ -330,24 +351,55 @@ export default function ProductImport() {
         }
       }
 
-      const product = {
-        code: productCode,
+      const productPayload: any = {
         name: row.name,
         description: row.description || null,
         category_id:
           (row.category && categoryNameMap.get(row.category)) || null,
         unit_id: (row.unit && units.get(row.unit)) || null,
-        brand_id: (row.brand && brands.get(row.brand)) || null,
-        model_number: row.model_number || null,
-        barcode: productBarcode,
+        brand_id: brandId,
+        model_number: modelNo,
         purchase_price: row.purchase_price || 0,
         selling_price: row.selling_price || 0,
-        quantity_on_hand: row.quantity_on_hand || 0,
         min_stock_level: row.min_stock_level || 0,
       };
 
-      const { error } = await supabase.from("products").insert(product);
       const idx = updatedRows.findIndex((r) => r === row);
+      let error: any = null;
+
+      if (existing) {
+        // UPDATE existing product (preserve code/barcode/quantity)
+        const { error: updErr } = await supabase
+          .from("products")
+          .update(productPayload)
+          .eq("id", existing.id);
+        error = updErr;
+        if (!error) {
+          updatedCount++;
+          if (idx !== -1) {
+            updatedRows[idx] = { ...updatedRows[idx], code: existing.code };
+          }
+        }
+      } else {
+        // INSERT new product
+        const insertPayload = {
+          ...productPayload,
+          code: productCode,
+          barcode: productBarcode,
+          quantity_on_hand: row.quantity_on_hand || 0,
+        };
+        const { error: insErr } = await supabase
+          .from("products")
+          .insert(insertPayload);
+        error = insErr;
+        if (!error) {
+          successCount++;
+          if (idx !== -1 && !row.code) {
+            updatedRows[idx] = { ...updatedRows[idx], code: productCode };
+          }
+        }
+      }
+
       if (error) {
         failCount++;
         if (idx !== -1) {
@@ -356,12 +408,6 @@ export default function ProductImport() {
             status: "error",
             error: error.message,
           };
-        }
-      } else {
-        successCount++;
-        // Update row code for display if it was auto-generated
-        if (idx !== -1 && !row.code) {
-          updatedRows[idx] = { ...updatedRows[idx], code: productCode };
         }
       }
     }
