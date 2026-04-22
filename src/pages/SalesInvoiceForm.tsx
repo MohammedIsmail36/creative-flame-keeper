@@ -66,6 +66,7 @@ import {
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import OutstandingCreditsSection from "@/components/OutstandingCreditsSection";
 import { recalculateEntityBalance } from "@/lib/entity-balance";
+import { QuickAddCustomerDialog } from "@/components/QuickAddCustomerDialog";
 import {
   ProductWithBrand,
   productsToLookupItems,
@@ -143,6 +144,8 @@ export default function SalesInvoiceForm() {
   const [editMode, setEditMode] = useState(true);
   const [invoiceDiscount, setInvoiceDiscount] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddInitialName, setQuickAddInitialName] = useState("");
 
   const navGuard = useNavigationGuard(isDirty);
 
@@ -234,11 +237,9 @@ export default function SalesInvoiceForm() {
   async function handleSave() {
     if (saving) return;
     const errors: Record<string, string> = {};
-    if (!customerId) errors.customer = "يرجى اختيار العميل";
-    if (items.length === 0) errors.items = "يرجى إضافة بند واحد على الأقل";
-    if (items.some((i) => !i.product_id))
-      errors.items = "يرجى اختيار المنتج لكل صنف";
-    if (items.some((i) => i.quantity <= 0))
+    // Draft is permissive: keep partial work even without a customer or items.
+    // Strict validation runs on Post (postInvoice / DB function).
+    if (items.some((i) => i.product_id && i.quantity <= 0))
       errors.items = "يجب أن تكون الكمية أكبر من صفر";
     if (items.some((i) => i.unit_price < 0))
       errors.items = "لا يمكن أن يكون السعر سالباً";
@@ -267,7 +268,7 @@ export default function SalesInvoiceForm() {
       }));
 
       const payload: any = {
-        customer_id: customerId,
+        customer_id: customerId || null,
         invoice_date: invoiceDate,
         subtotal,
         discount: invoiceDiscount,
@@ -340,6 +341,23 @@ export default function SalesInvoiceForm() {
 
   async function postInvoice() {
     if (saving) return;
+    if (!customerId) {
+      toast({
+        title: "تنبيه",
+        description: "يرجى اختيار العميل قبل الترحيل",
+        variant: "destructive",
+      });
+      setFieldErrors((e) => ({ ...e, customer: "يرجى اختيار العميل" }));
+      return;
+    }
+    if (items.length === 0 || items.some((i) => !i.product_id)) {
+      toast({
+        title: "تنبيه",
+        description: "يجب إضافة بنود الفاتورة واختيار منتج لكل بند قبل الترحيل",
+        variant: "destructive",
+      });
+      return;
+    }
     if (
       settings?.locked_until_date &&
       invoiceDate <= settings.locked_until_date
@@ -717,7 +735,14 @@ export default function SalesInvoiceForm() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">
-              اسم العميل <span className="text-red-500">*</span>
+              اسم العميل{" "}
+              {status === "draft" ? (
+                <span className="text-xs text-muted-foreground">
+                  (اختياري للمسودة — مطلوب عند الترحيل)
+                </span>
+              ) : (
+                <span className="text-red-500">*</span>
+              )}
             </Label>
             {isEditable ? (
               <LookupCombobox
@@ -725,6 +750,7 @@ export default function SalesInvoiceForm() {
                 value={customerId}
                 onValueChange={(v) => {
                   setCustomerId(v);
+                  setIsDirty(true);
                   setFieldErrors((e) => {
                     const { customer, ...rest } = e;
                     return rest;
@@ -732,6 +758,11 @@ export default function SalesInvoiceForm() {
                 }}
                 placeholder="اختر عميل أو أضف جديداً"
                 error={!!fieldErrors.customer}
+                onAddNew={(searchText) => {
+                  setQuickAddInitialName(searchText);
+                  setQuickAddOpen(true);
+                }}
+                addNewLabel="إضافة عميل جديد"
               />
             ) : (
               <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-medium">
@@ -1211,6 +1242,23 @@ export default function SalesInvoiceForm() {
         open={navGuard.isBlocked}
         onStay={navGuard.cancel}
         onLeave={navGuard.confirm}
+      />
+      <QuickAddCustomerDialog
+        open={quickAddOpen}
+        onOpenChange={setQuickAddOpen}
+        initialName={quickAddInitialName}
+        onCreated={(c) => {
+          setCustomers((prev) =>
+            [...prev, c].sort((a, b) => a.name.localeCompare(b.name, "ar")),
+          );
+          setCustomerId(c.id);
+          setCustomerName(c.name);
+          setIsDirty(true);
+          setFieldErrors((e) => {
+            const { customer, ...rest } = e;
+            return rest;
+          });
+        }}
       />
     </div>
   );

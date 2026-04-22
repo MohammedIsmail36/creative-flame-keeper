@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Check, ChevronsUpDown, Search, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +41,11 @@ export interface LookupComboboxProps {
   className?: string;
   disabled?: boolean;
   error?: boolean;
+  /** When provided, shows a footer button "+ Add new" inside the popover.
+   *  Receives the current search text so callers can prefill a quick-add dialog. */
+  onAddNew?: (currentSearch: string) => void;
+  /** Label for the "Add new" button (default: "إضافة جديد") */
+  addNewLabel?: string;
 }
 
 /**
@@ -99,8 +104,11 @@ export function LookupCombobox({
   className,
   disabled = false,
   error = false,
+  onAddNew,
+  addNewLabel = "إضافة جديد",
 }: LookupComboboxProps) {
   const [open, setOpen] = React.useState(false);
+  const [searchValue, setSearchValue] = React.useState("");
   const selected = items.find((i) => i.id === value);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
 
@@ -162,13 +170,31 @@ export function LookupCombobox({
             <CommandInput
               placeholder={searchPlaceholder}
               className="h-10 text-sm"
+              value={searchValue}
+              onValueChange={setSearchValue}
             />
           </div>
           <CommandList>
             <CommandEmpty>
-              <div className="flex flex-col items-center gap-1.5">
+              <div className="flex flex-col items-center gap-1.5 py-2">
                 <Search className="h-5 w-5 text-muted-foreground/40" />
                 <span>{emptyMessage}</span>
+                {onAddNew && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mt-1 h-8 text-primary hover:text-primary"
+                    onClick={() => {
+                      setOpen(false);
+                      onAddNew(searchValue);
+                    }}
+                  >
+                    <Plus className="ml-1 h-4 w-4" />
+                    {addNewLabel}
+                    {searchValue ? `: "${searchValue}"` : ""}
+                  </Button>
+                )}
               </div>
             </CommandEmpty>
             <CommandGroup>
@@ -200,6 +226,23 @@ export function LookupCombobox({
                 </CommandItem>
               ))}
             </CommandGroup>
+            {onAddNew && items.length > 0 && (
+              <div className="border-t p-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start h-8 text-primary hover:text-primary hover:bg-primary/5"
+                  onClick={() => {
+                    setOpen(false);
+                    onAddNew(searchValue);
+                  }}
+                >
+                  <Plus className="ml-1 h-4 w-4" />
+                  {addNewLabel}
+                </Button>
+              </div>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
