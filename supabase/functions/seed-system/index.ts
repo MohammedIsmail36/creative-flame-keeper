@@ -30,7 +30,14 @@ Deno.serve(async (req) => {
       const existingAdmin = existingUsers?.users?.find((u: any) => u.email === DEFAULT_ADMIN_EMAIL);
       if (existingAdmin) {
         adminId = existingAdmin.id;
-        results.push(`ℹ️ حساب المدير موجود مسبقاً`);
+        // إعادة ضبط كلمة المرور إلى الافتراضية لضمان إمكانية الدخول بعد التصفير
+        const { error: updateErr } = await supabase.auth.admin.updateUserById(existingAdmin.id, {
+          password: DEFAULT_ADMIN_PASSWORD,
+          email_confirm: true,
+        });
+        results.push(updateErr
+          ? `❌ خطأ في تحديث كلمة مرور المدير: ${updateErr.message}`
+          : `✅ تم تحديث كلمة مرور المدير إلى الافتراضية`);
       } else {
         const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
           email: DEFAULT_ADMIN_EMAIL,
