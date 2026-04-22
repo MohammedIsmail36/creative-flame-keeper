@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, User, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,7 @@ const roleLabels: Record<string, string> = {
 export function AppLayout({ children }: AppLayoutProps) {
   const { fullName, role, signOut } = useAuth();
   const navigate = useNavigate();
+  usePageTitle();
 
   return (
     <SidebarProvider>
