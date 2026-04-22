@@ -7,6 +7,8 @@ import {
   generateProductBarcode,
 } from "@/lib/code-generation";
 import { useSettings } from "@/contexts/SettingsContext";
+import { ACCOUNT_CODES } from "@/lib/constants";
+import { round2 } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
