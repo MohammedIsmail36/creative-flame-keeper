@@ -513,6 +513,8 @@ export default function PurchaseInvoiceForm() {
         title: "تم الإلغاء",
         description: "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات",
       });
+      setIsDirty(false);
+      navGuard.allowNext();
       loadData();
     } catch (error: any) {
       toast({
