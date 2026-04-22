@@ -1210,6 +1210,23 @@ export default function PurchaseInvoiceForm() {
         onStay={navGuard.cancel}
         onLeave={navGuard.confirm}
       />
+      <QuickAddSupplierDialog
+        open={quickAddOpen}
+        onOpenChange={setQuickAddOpen}
+        initialName={quickAddInitialName}
+        onCreated={(s) => {
+          setSuppliers((prev) =>
+            [...prev, s].sort((a, b) => a.name.localeCompare(b.name, "ar")),
+          );
+          setSupplierId(s.id);
+          setSupplierName(s.name);
+          setIsDirty(true);
+          setFieldErrors((e) => {
+            const { supplier, ...rest } = e;
+            return rest;
+          });
+        }}
+      />
     </div>
   );
 }
