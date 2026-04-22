@@ -44,6 +44,7 @@ import {
   Scale,
   PiggyBank,
   TrendingUpIcon,
+  PieChart,
 } from "lucide-react";
 import {
   BarChart,
