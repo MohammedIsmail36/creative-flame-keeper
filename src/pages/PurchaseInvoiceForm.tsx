@@ -722,7 +722,14 @@ export default function PurchaseInvoiceForm() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">
-              اسم المورد <span className="text-red-500">*</span>
+              اسم المورد{" "}
+              {status === "draft" ? (
+                <span className="text-xs text-muted-foreground">
+                  (اختياري للمسودة — مطلوب عند الترحيل)
+                </span>
+              ) : (
+                <span className="text-red-500">*</span>
+              )}
             </Label>
             {isEditable ? (
               <LookupCombobox
@@ -730,6 +737,7 @@ export default function PurchaseInvoiceForm() {
                 value={supplierId}
                 onValueChange={(v) => {
                   setSupplierId(v);
+                  setIsDirty(true);
                   setFieldErrors((e) => {
                     const { supplier, ...rest } = e;
                     return rest;
@@ -737,6 +745,11 @@ export default function PurchaseInvoiceForm() {
                 }}
                 placeholder="اختر مورد أو أضف جديداً"
                 error={!!fieldErrors.supplier}
+                onAddNew={(searchText) => {
+                  setQuickAddInitialName(searchText);
+                  setQuickAddOpen(true);
+                }}
+                addNewLabel="إضافة مورد جديد"
               />
             ) : (
               <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-medium">
