@@ -663,7 +663,13 @@ sudo reboot
 | 8000 | Supabase Kong (API) | ❌ (عبر Nginx فقط) |
 | 5432 | PostgreSQL | ❌ (داخلي فقط) |
 | 9999 | GoTrue (Auth) | ❌ (داخلي فقط) |
-| 54321 | Edge Functions | ❌ (داخلي فقط) |
+| 9000 | Edge Functions (Deno) | ❌ (داخلي فقط، عبر Kong) |
 | 3000 | Supabase Studio | ❌ (اختياري — يمكن فتحه عبر SSH tunnel) |
 
 > **للوصول إلى Studio من جهازك**: `ssh -L 3000:localhost:3000 deploy@YOUR_SERVER_IP` ثم افتح `http://localhost:3000`
+
+---
+
+## 🏢 لتشغيل أكثر من شركة على نفس السيرفر
+
+راجع الدليل المنفصل: **[`MULTI_COMPANY_DEPLOY.md`](./MULTI_COMPANY_DEPLOY.md)** لإضافة شركة ثانية (أو أكثر) بعزل كامل عبر Multi-Instance — كل شركة على Subdomain خاص بها مع قاعدة بيانات مستقلة.
