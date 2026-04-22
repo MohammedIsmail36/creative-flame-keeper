@@ -563,6 +563,8 @@ export default function PurchaseReturnForm() {
       await recalculateEntityBalance("supplier", supplierId);
 
       toast({ title: "تم الترحيل", description: "تم ترحيل مرتجع الشراء" });
+      setIsDirty(false);
+      navGuard.allowNext();
       loadData();
     } catch (error: any) {
       toast({
