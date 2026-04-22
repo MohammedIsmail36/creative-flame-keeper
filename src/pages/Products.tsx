@@ -622,6 +622,41 @@ export default function Products() {
                 </AlertDialogContent>
               </AlertDialog>
             )}
+            {role === "admin" &&
+              !row.original.is_active &&
+              Number(row.original.quantity_on_hand || 0) === 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="حذف نهائي"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent dir="rtl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>حذف المنتج نهائياً</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        سيتم حذف المنتج "{row.original.name}" نهائياً من قاعدة
+                        البيانات. هذا الإجراء لا يمكن التراجع عنه. يُسمح بالحذف
+                        فقط إذا لم يكن المنتج مرتبطاً بأي فاتورة أو حركة مخزون.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-row-reverse gap-2">
+                      <AlertDialogAction
+                        onClick={() => hardDeleteProduct(row.original)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        حذف نهائي
+                      </AlertDialogAction>
+                      <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
           </div>
         ),
       },
