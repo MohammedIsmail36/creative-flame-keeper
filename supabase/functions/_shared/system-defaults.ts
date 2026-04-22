@@ -251,6 +251,6 @@ export const DEFAULT_ADMIN_EMAIL = Deno.env.get("DEFAULT_ADMIN_EMAIL") ?? "admin
 // كلمة المرور الافتراضية الثابتة للمدير بعد التصفير.
 // يمكن تجاوزها بضبط secret اسمه DEFAULT_ADMIN_PASSWORD.
 export const DEFAULT_ADMIN_PASSWORD =
-  Deno.env.get("DEFAULT_ADMIN_PASSWORD") ?? "Admin@123456";
+  Deno.env.get("DEFAULT_ADMIN_PASSWORD") ?? "Sys@Admin#2025!Reset";
 export const DEFAULT_ADMIN_NAME = "مدير النظام";
 export const DEFAULT_COMPANY_NAME = "شركتي";
