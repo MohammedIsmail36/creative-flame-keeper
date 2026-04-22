@@ -309,6 +309,8 @@ export default function Dashboard() {
   const [totalSales, setTotalSales] = useState(0);
   const [totalPurchases, setTotalPurchases] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
+  const [operatingExpenses, setOperatingExpenses] = useState(0);
+  const [systemAdjustments, setSystemAdjustments] = useState(0);
   const [totalSalesReturns, setTotalSalesReturns] = useState(0);
   const [totalPurchaseReturns, setTotalPurchaseReturns] = useState(0);
   const [totalCOGS, setTotalCOGS] = useState(0);
