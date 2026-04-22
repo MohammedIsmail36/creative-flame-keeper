@@ -66,6 +66,7 @@ import {
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import OutstandingCreditsSection from "@/components/OutstandingCreditsSection";
 import { recalculateEntityBalance } from "@/lib/entity-balance";
+import { QuickAddSupplierDialog } from "@/components/QuickAddSupplierDialog";
 
 import {
   ProductWithBrand,
@@ -136,6 +137,8 @@ export default function PurchaseInvoiceForm() {
   const [invoiceDiscount, setInvoiceDiscount] = useState(0);
   const [editMode, setEditMode] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddInitialName, setQuickAddInitialName] = useState("");
 
   const navGuard = useNavigationGuard(isDirty);
 
@@ -228,11 +231,9 @@ export default function PurchaseInvoiceForm() {
   async function handleSave() {
     if (saving) return;
     const errors: Record<string, string> = {};
-    if (!supplierId) errors.supplier = "يرجى اختيار المورد";
-    if (items.length === 0) errors.items = "يرجى إضافة بند واحد على الأقل";
-    if (items.some((i) => !i.product_id))
-      errors.items = "يرجى اختيار المنتج لكل صنف";
-    if (items.some((i) => i.quantity <= 0))
+    // Draft is permissive: keep partial work even without a supplier or items.
+    // Strict validation runs on Post (postInvoice / DB function).
+    if (items.some((i) => i.product_id && i.quantity <= 0))
       errors.items = "يجب أن تكون الكمية أكبر من صفر";
     if (items.some((i) => i.unit_price < 0))
       errors.items = "لا يمكن أن يكون السعر سالباً";
@@ -261,7 +262,7 @@ export default function PurchaseInvoiceForm() {
       }));
 
       const payload: any = {
-        supplier_id: supplierId,
+        supplier_id: supplierId || null,
         invoice_date: invoiceDate,
         subtotal,
         discount: invoiceDiscount,
