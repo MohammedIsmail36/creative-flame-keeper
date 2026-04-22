@@ -69,7 +69,9 @@ function smartFilter(
     try {
       const fields = JSON.parse(keywords[0]) as Record<string, string>;
       const terms = search.toLowerCase().trim().split(/\s+/);
-      const entries = Object.entries(fields).filter(([, v]) => Boolean(v));
+      const entries = Object.entries(fields).filter(
+        ([k, v]) => Boolean(v) && !EXCLUDED_SEARCH_FIELDS.has(k),
+      );
 
       let matchCount = 0;
       for (const term of terms) {
