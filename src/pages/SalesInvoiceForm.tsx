@@ -519,6 +519,8 @@ export default function SalesInvoiceForm() {
         description:
           "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات للمخزون",
       });
+      setIsDirty(false);
+      navGuard.allowNext();
       loadData();
     } catch (error: any) {
       toast({
