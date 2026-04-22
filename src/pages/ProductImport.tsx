@@ -202,18 +202,20 @@ export default function ProductImport() {
       return obj;
     });
 
+    const toStr = (v: any) =>
+      v === null || v === undefined ? "" : String(v).trim();
     const parsed: ImportRow[] = json.map((row: any) => {
-      const code = String(row["الكود"] || row["code"] || "").trim();
-      const name = String(row["الاسم"] || row["name"] || "").trim();
+      const code = toStr(row["الكود"] ?? row["code"]);
+      const name = toStr(row["الاسم"] ?? row["name"]);
       const r: ImportRow = {
         code,
         name,
-        description: row["الوصف"] || row["description"] || "",
-        category: row["التصنيف"] || row["category"] || "",
-        unit: row["الوحدة"] || row["unit"] || "",
-        brand: row["الماركة"] || row["brand"] || "",
-        model_number: row["رقم الموديل"] || row["model_number"] || "",
-        barcode: row["الباركود"] || row["barcode"] || "",
+        description: toStr(row["الوصف"] ?? row["description"]),
+        category: toStr(row["التصنيف"] ?? row["category"]),
+        unit: toStr(row["الوحدة"] ?? row["unit"]),
+        brand: toStr(row["الماركة"] ?? row["brand"]),
+        model_number: toStr(row["رقم الموديل"] ?? row["model_number"]),
+        barcode: toStr(row["الباركود"] ?? row["barcode"]),
         purchase_price:
           parseFloat(row["سعر الشراء"] || row["purchase_price"]) || 0,
         selling_price:
@@ -268,6 +270,7 @@ export default function ProductImport() {
       return;
     }
     setImporting(true);
+    try {
 
     // Batch-create missing lookups (deduplicated to avoid race conditions)
     const uniqueCategories = [
@@ -564,7 +567,16 @@ export default function ProductImport() {
         variant: "destructive",
       });
     }
-    setImporting(false);
+    } catch (err: any) {
+      console.error("Import failed:", err);
+      toast({
+        title: "خطأ غير متوقع أثناء الاستيراد",
+        description: err?.message || String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+    }
   };
 
   const downloadTemplate = async () => {
