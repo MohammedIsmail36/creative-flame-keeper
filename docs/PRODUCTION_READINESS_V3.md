@@ -349,14 +349,14 @@ docker compose start kong rest realtime
 
 ## 8️⃣ Blockers النهائية (يجب إغلاقها)
 
-| # | المهمة | المسؤول | المدة |
-|---|--------|---------|-------|
-| B-01 | تفعيل Leaked Password Protection | Admin | 5 دقائق |
-| B-02 | Pagination لصفحة Accounts | Dev | 30 دقيقة |
-| B-03 | تأكيد/إضافة indexes | Dev | 10 دقائق |
-| B-04 | اختبار restore فعلي | Dev + Admin | 60 دقيقة |
+| # | المهمة | المسؤول | المدة | الحالة |
+|---|--------|---------|-------|--------|
+| B-01 | تفعيل Leaked Password Protection | Admin | 5 دقائق | ❌ مفتوح (إجراء لوحة Supabase) |
+| B-02 | Pagination لصفحة Accounts | Dev | — | ✅ **مُغلَق 2026-04-22** |
+| B-03 | تأكيد/إضافة indexes | Dev | — | ✅ **مُغلَق 2026-04-22** (15 فهرساً موجودة) |
+| B-04 | اختبار restore فعلي على staging | Dev + Admin | 60 دقيقة | ⚠️ موثّق — يحتاج تنفيذ |
 
-**إجمالي:** ~ 2 ساعة عمل
+**المتبقي:** ~ 65 دقيقة عمل (B-01 إعداد + B-04 تنفيذ يدوي).
 
 ---
 
@@ -376,9 +376,9 @@ docker compose start kong rest realtime
 كلها يجب أن تكون ✅ قبل النشر:
 
 - [ ] B-01 → Leaked password protection مفعّل
-- [ ] B-02 → Accounts page مُجزّأة
-- [ ] B-03 → Indexes موجودة (تحقق بـ `\d+ table_name`)
-- [ ] B-04 → backup/restore اختُبر بنجاح
+- [x] **B-02 → Accounts page مُعالَجة بـ `fetchAllPaged`** ✅
+- [x] **B-03 → Indexes موجودة (تم التحقق من 15 فهرساً)** ✅
+- [ ] B-04 → backup/restore اختُبر بنجاح وفق الإجراء في §7
 - [ ] ميزان المراجعة = 0 على بيانات اختبار كاملة
 - [ ] customer.balance = صافي الحركات لكل العملاء
 - [ ] supplier.balance = صافي الحركات لكل الموردين
