@@ -65,6 +65,7 @@ import {
 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import { fetchAllPaged } from "@/lib/paged-fetch";
 
 type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
 
@@ -130,27 +131,34 @@ export default function Accounts() {
 
   const fetchAccounts = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("accounts")
-      .select("*")
-      .eq("is_active", true)
-      .order("code");
-
-    if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في جلب الحسابات",
-        variant: "destructive",
-      });
-    } else {
-      setAccounts(data as Account[]);
+    try {
+      // شجرة الحسابات تتطلب جلب كل الحسابات لبناء العرض الهرمي بشكل صحيح.
+      // نستخدم fetchAllPaged لتجاوز حد 1000 صف الافتراضي في Supabase
+      // ولضمان عمل الصفحة حتى مع نمو دليل الحسابات لآلاف البنود.
+      const data = await fetchAllPaged<Account>(
+        () =>
+          supabase
+            .from("accounts")
+            .select("*", { count: "exact" })
+            .eq("is_active", true)
+            .order("code"),
+        { batchSize: 500, maxRows: 20000 },
+      );
+      setAccounts(data);
       // Expand top-level by default
       const topLevel = new Set(
-        (data as Account[]).filter((a) => !a.parent_id).map((a) => a.id),
+        data.filter((a) => !a.parent_id).map((a) => a.id),
       );
       setExpandedIds(topLevel);
+    } catch (err: any) {
+      toast({
+        title: "خطأ",
+        description: err?.message || "فشل في جلب الحسابات",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
