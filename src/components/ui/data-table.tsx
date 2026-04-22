@@ -151,9 +151,13 @@ export function DataTable<TData, TValue>({
   pagination: externalPagination,
   onPaginationChange,
   compactRows = false,
+  sorting: externalSorting,
+  onSortingChange: externalOnSortingChange,
 }: DataTableProps<TData, TValue>) {
   // ── Internal state (used when not controlled externally) ──
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [internalSorting, setInternalSorting] = React.useState<SortingState>([]);
+  const sorting = externalSorting ?? internalSorting;
+  const setSorting = externalOnSortingChange ?? setInternalSorting;
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("");
   const [internalColumnFilters, setInternalColumnFilters] =
     React.useState<ColumnFiltersState>([]);
