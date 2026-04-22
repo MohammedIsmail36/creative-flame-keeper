@@ -351,9 +351,7 @@ export default function Products() {
       p.name,
       p.description || "",
       (p.category_id && categoryPathById.get(p.category_id)) ||
-        getCategoryName(p) === "-"
-        ? ""
-        : getCategoryName(p),
+        (getCategoryName(p) === "-" ? "" : getCategoryName(p)),
       (p as any).product_units?.name || p.unit || "",
       getBrandName(p) === "-" ? "" : getBrandName(p),
       p.model_number || "",
