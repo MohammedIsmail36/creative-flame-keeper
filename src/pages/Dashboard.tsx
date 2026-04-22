@@ -44,6 +44,7 @@ import {
   Scale,
   PiggyBank,
   TrendingUpIcon,
+  PieChart,
 } from "lucide-react";
 import {
   BarChart,
@@ -308,6 +309,8 @@ export default function Dashboard() {
   const [totalSales, setTotalSales] = useState(0);
   const [totalPurchases, setTotalPurchases] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
+  const [operatingExpenses, setOperatingExpenses] = useState(0);
+  const [systemAdjustments, setSystemAdjustments] = useState(0);
   const [totalSalesReturns, setTotalSalesReturns] = useState(0);
   const [totalPurchaseReturns, setTotalPurchaseReturns] = useState(0);
   const [totalCOGS, setTotalCOGS] = useState(0);
@@ -445,13 +448,19 @@ export default function Dashboard() {
 
     setTotalSales(sumNet(salesItems));
     setTotalPurchases(sumNet(purchaseItems));
-    // Operating expenses = Σ(debit − credit) across all expense GL accounts except COGS
-    setTotalExpenses(
-      opExpLines.reduce(
-        (s: number, l: any) => s + Number(l.debit || 0) - Number(l.credit || 0),
-        0,
-      ),
-    );
+    // Split operating expenses into: regular operating (5102-5107, 5109+) and system adjustments (5108)
+    let opSum = 0;
+    let sysSum = 0;
+    opExpLines.forEach((l: any) => {
+      const code = l.accounts?.code;
+      const amt = Number(l.debit || 0) - Number(l.credit || 0);
+      if (code === "5108") sysSum += amt;
+      else opSum += amt;
+    });
+    setOperatingExpenses(opSum);
+    setSystemAdjustments(sysSum);
+    // Total expenses NOW includes COGS + operating + system adjustments
+    setTotalExpenses(opSum + sysSum);
     setTotalSalesReturns(sumTotal(salesReturnItems));
     setTotalPurchaseReturns(sumTotal(purchaseReturnItems));
     setTotalCOGS(
@@ -1140,7 +1149,7 @@ export default function Dashboard() {
     },
     {
       label: "إجمالي المصروفات",
-      value: totalExpenses,
+      value: totalExpenses + totalCOGS,
       change: expensesChange,
       icon: ReceiptText,
       iconBg: "bg-destructive/10",
@@ -1281,6 +1290,121 @@ export default function Dashboard() {
                   );
                 })}
           </div>
+
+          {/* Expense Distribution Card */}
+          {!loadingKPIs && (() => {
+            const totalAll = totalCOGS + operatingExpenses + systemAdjustments;
+            const pct = (v: number) =>
+              totalAll > 0 ? Math.round((v / totalAll) * 100) : 0;
+            const cogsPct = pct(totalCOGS);
+            const opPct = pct(operatingExpenses);
+            const sysPct = pct(systemAdjustments);
+            const rows = [
+              {
+                label: "تكلفة البضاعة المباعة",
+                value: totalCOGS,
+                pct: cogsPct,
+                dot: "bg-blue-500",
+                bar: "bg-blue-500",
+                hint: "من حركات المخزون (مبيعات − مرتجعات)",
+              },
+              {
+                label: "مصروفات تشغيلية",
+                value: operatingExpenses,
+                pct: opPct,
+                dot: "bg-amber-500",
+                bar: "bg-amber-500",
+                hint: "مصروفات مُدخلة من شاشة المصروفات والقيود",
+              },
+              {
+                label: "فروقات وتسويات النظام",
+                value: systemAdjustments,
+                pct: sysPct,
+                dot: "bg-muted-foreground",
+                bar: "bg-muted-foreground",
+                hint: "فروقات مرتجعات المشتريات والتسويات الآلية",
+              },
+            ];
+            return (
+              <Card className="border-border/60 shadow-sm">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shadow-inner">
+                        <PieChart className="w-4.5 h-4.5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm font-semibold">
+                          توزيع المصروفات
+                        </CardTitle>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          تفصيل مكونات إجمالي المصروفات حسب المصدر
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-end">
+                      <p className="text-[11px] text-muted-foreground">
+                        الإجمالي
+                      </p>
+                      <p className="text-base font-extrabold tabular-nums">
+                        {formatCurrency(totalAll)}
+                      </p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Rows */}
+                  <div className="space-y-2.5">
+                    {rows.map((r, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30 border border-border/40"
+                      >
+                        <span
+                          className={`w-2.5 h-2.5 rounded-full ${r.dot} shrink-0`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-foreground truncate">
+                            {r.label}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {r.hint}
+                          </p>
+                        </div>
+                        <div className="text-end shrink-0">
+                          <p className="text-sm font-bold tabular-nums">
+                            {formatCurrency(r.value)}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground tabular-nums">
+                            {r.pct}%
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Stacked progress bar */}
+                  {totalAll > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="bg-blue-500 transition-all"
+                          style={{ width: `${cogsPct}%` }}
+                        />
+                        <div
+                          className="bg-amber-500 transition-all"
+                          style={{ width: `${opPct}%` }}
+                        />
+                        <div
+                          className="bg-muted-foreground transition-all"
+                          style={{ width: `${sysPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Secondary KPIs — 4 cols */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
