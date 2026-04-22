@@ -7,6 +7,8 @@ import {
   generateProductBarcode,
 } from "@/lib/code-generation";
 import { useSettings } from "@/contexts/SettingsContext";
+import { ACCOUNT_CODES } from "@/lib/constants";
+import { round2 } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -326,6 +328,15 @@ export default function ProductImport() {
     const updatedRows = [...rows];
     const prefix = settings?.product_code_prefix || "PRD-";
 
+    // Track newly inserted products that have an opening balance to post collectively
+    const openingItems: {
+      productId: string;
+      name: string;
+      quantity: number;
+      unitCost: number;
+      totalCost: number;
+    }[] = [];
+
     for (const row of validRows) {
       const brandId = (row.brand && brands.get(row.brand)) || null;
       const modelNo = row.model_number?.trim() || null;
@@ -369,7 +380,7 @@ export default function ProductImport() {
       let error: any = null;
 
       if (existing) {
-        // UPDATE existing product (preserve code/barcode/quantity)
+        // UPDATE existing product (preserve code/barcode/quantity — never touch stock on update)
         const { error: updErr } = await supabase
           .from("products")
           .update(productPayload)
@@ -382,21 +393,36 @@ export default function ProductImport() {
           }
         }
       } else {
-        // INSERT new product
+        // INSERT new product WITHOUT setting quantity_on_hand directly.
+        // Stock will be created via opening_balance movement (which a DB trigger
+        // applies to products.quantity_on_hand) to ensure GL ↔ inventory parity.
+        const qty = Number(row.quantity_on_hand) || 0;
+        const cost = Number(row.purchase_price) || 0;
         const insertPayload = {
           ...productPayload,
           code: productCode,
           barcode: productBarcode,
-          quantity_on_hand: row.quantity_on_hand || 0,
+          quantity_on_hand: 0,
         };
-        const { error: insErr } = await supabase
+        const { data: insData, error: insErr } = await supabase
           .from("products")
-          .insert(insertPayload);
+          .insert(insertPayload)
+          .select("id")
+          .single();
         error = insErr;
-        if (!error) {
+        if (!error && insData) {
           successCount++;
           if (idx !== -1 && !row.code) {
             updatedRows[idx] = { ...updatedRows[idx], code: productCode };
+          }
+          if (qty > 0 && cost > 0) {
+            openingItems.push({
+              productId: insData.id,
+              name: row.name,
+              quantity: qty,
+              unitCost: cost,
+              totalCost: round2(qty * cost),
+            });
           }
         }
       }
@@ -410,6 +436,100 @@ export default function ProductImport() {
             error: error.message,
           };
         }
+      }
+    }
+
+    // ─── Post collective opening-balance journal entry + per-product movements ───
+    let openingTotal = 0;
+    let openingPosted = false;
+    if (openingItems.length > 0) {
+      try {
+        const { data: accounts } = await supabase
+          .from("accounts")
+          .select("id, code")
+          .in("code", [ACCOUNT_CODES.INVENTORY, ACCOUNT_CODES.EQUITY]);
+        const inventoryAcc = accounts?.find(
+          (a) => a.code === ACCOUNT_CODES.INVENTORY,
+        );
+        const capitalAcc = accounts?.find(
+          (a) => a.code === ACCOUNT_CODES.EQUITY,
+        );
+        if (!inventoryAcc || !capitalAcc) {
+          throw new Error(
+            "حسابات المخزون (1104) أو رأس المال (3101) غير موجودة في شجرة الحسابات",
+          );
+        }
+
+        openingTotal = round2(
+          openingItems.reduce((s, it) => s + it.totalCost, 0),
+        );
+        const today = new Date().toISOString().split("T")[0];
+
+        // 1) Inventory movements (one per product)
+        const movementRows = openingItems.map((it) => ({
+          product_id: it.productId,
+          movement_type: "opening_balance",
+          quantity: it.quantity,
+          unit_cost: it.unitCost,
+          total_cost: it.totalCost,
+          reference_type: "opening_balance",
+          movement_date: today,
+        }));
+        const { error: movErr } = await (
+          supabase.from("inventory_movements") as any
+        ).insert(movementRows);
+        if (movErr) throw movErr;
+
+        // 1b) Sync quantity_on_hand for each product (no trigger exists)
+        for (const it of openingItems) {
+          const { error: qErr } = await supabase
+            .from("products")
+            .update({ quantity_on_hand: it.quantity })
+            .eq("id", it.productId);
+          if (qErr) throw qErr;
+        }
+
+        // 2) Single aggregated journal entry: DR Inventory / CR Capital
+        const { data: je, error: jeErr } = await supabase
+          .from("journal_entries")
+          .insert({
+            description: `رصيد افتتاحي - استيراد منتجات (${openingItems.length} صنف)`,
+            entry_date: today,
+            total_debit: openingTotal,
+            total_credit: openingTotal,
+            status: "posted",
+          } as any)
+          .select("id")
+          .single();
+        if (jeErr) throw jeErr;
+
+        const { error: linesErr } = await supabase
+          .from("journal_entry_lines")
+          .insert([
+            {
+              journal_entry_id: je.id,
+              account_id: inventoryAcc.id,
+              debit: openingTotal,
+              credit: 0,
+              description: `رصيد افتتاحي مخزون - دفعة استيراد (${openingItems.length} صنف)`,
+            },
+            {
+              journal_entry_id: je.id,
+              account_id: capitalAcc.id,
+              debit: 0,
+              credit: openingTotal,
+              description: `رصيد افتتاحي مخزون - دفعة استيراد (${openingItems.length} صنف)`,
+            },
+          ] as any);
+        if (linesErr) throw linesErr;
+
+        openingPosted = true;
+      } catch (obErr: any) {
+        toast({
+          title: "تحذير: فشل ترحيل الرصيد الافتتاحي",
+          description: `تم إضافة المنتجات لكن لم يتم إنشاء قيد الرصيد الافتتاحي. ${obErr.message || ""}`,
+          variant: "destructive",
+        });
       }
     }
 
