@@ -97,7 +97,6 @@ const withSuspense = (node: React.ReactNode) => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
       <Sonner />
       <ErrorBoundary>
         <BrowserRouter>
