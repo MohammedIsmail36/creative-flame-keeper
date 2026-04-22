@@ -242,11 +242,13 @@ export function DataTable<TData, TValue>({
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: showPagination && !manualPagination ? getPaginationRowModel() : undefined,
-    getSortedRowModel: !manualPagination ? getSortedRowModel() : undefined,
+    getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: !manualPagination ? getFilteredRowModel() : undefined,
     manualPagination,
     manualFiltering: manualPagination,
-    manualSorting: manualPagination,
+    // Server-side sorting only when an external sorting handler is provided.
+    // Otherwise sort the currently-loaded page client-side so headers always work.
+    manualSorting: manualPagination && !!externalOnSortingChange,
     pageCount: manualPagination ? (pageCount ?? -1) : undefined,
     onSortingChange: setSorting,
     onColumnVisibilityChange: handleColumnVisibilityChange as any,
