@@ -661,7 +661,7 @@ export default function Products() {
         ),
       },
     ],
-    [canEdit, navigate],
+    [canEdit, navigate, role],
   );
 
   // KPI cards
