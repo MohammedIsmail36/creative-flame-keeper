@@ -1524,7 +1524,95 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              {/* Sales Target */}
+              {/* Expense Distribution — compact */}
+              {!loadingKPIs && (() => {
+                const totalAll =
+                  totalCOGS + operatingExpenses + systemAdjustments;
+                if (totalAll <= 0) return null;
+                const pct = (v: number) => Math.round((v / totalAll) * 100);
+                const cogsPct = pct(totalCOGS);
+                const opPct = pct(operatingExpenses);
+                const sysPct = pct(systemAdjustments);
+                const rows = [
+                  {
+                    label: "تكلفة البضاعة المباعة",
+                    value: totalCOGS,
+                    pct: cogsPct,
+                    color: "bg-blue-500",
+                    text: "text-blue-600 dark:text-blue-400",
+                  },
+                  {
+                    label: "مصروفات تشغيلية",
+                    value: operatingExpenses,
+                    pct: opPct,
+                    color: "bg-amber-500",
+                    text: "text-amber-600 dark:text-amber-400",
+                  },
+                  {
+                    label: "فروقات النظام",
+                    value: systemAdjustments,
+                    pct: sysPct,
+                    color: "bg-muted-foreground",
+                    text: "text-muted-foreground",
+                  },
+                ];
+                return (
+                  <Card className="border-border/60 shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <PieChart className="w-4 h-4 text-primary" /> توزيع
+                        المصروفات
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {/* Stacked bar */}
+                      <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="bg-blue-500"
+                          style={{ width: `${cogsPct}%` }}
+                        />
+                        <div
+                          className="bg-amber-500"
+                          style={{ width: `${opPct}%` }}
+                        />
+                        <div
+                          className="bg-muted-foreground"
+                          style={{ width: `${sysPct}%` }}
+                        />
+                      </div>
+                      {/* Rows */}
+                      <div className="space-y-1.5">
+                        {rows.map((r, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between gap-2"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span
+                                className={`w-2 h-2 rounded-full ${r.color} shrink-0`}
+                              />
+                              <span className="text-[11px] text-muted-foreground truncate">
+                                {r.label}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[11px] font-bold tabular-nums">
+                                {formatCurrency(r.value)}
+                              </span>
+                              <span
+                                className={`text-[10px] tabular-nums ${r.text}`}
+                              >
+                                {r.pct}%
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
               {(() => {
                 const target = Number(
                   (settings as any)?.monthly_sales_target || 0,
