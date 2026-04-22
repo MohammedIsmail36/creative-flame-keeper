@@ -223,11 +223,9 @@ export default function SalesReturnForm() {
   async function handleSave() {
     if (saving) return;
     const errors: Record<string, string> = {};
-    if (!customerId) errors.customer = "يرجى اختيار العميل";
-    if (items.length === 0) errors.items = "يرجى إضافة بند واحد على الأقل";
-    if (items.some((i) => !i.product_id))
-      errors.items = "يرجى اختيار المنتج لكل بند";
-    if (items.some((i) => i.quantity <= 0))
+    // Draft is permissive: allow saving partial work.
+    // Strict validation runs on Post.
+    if (items.some((i) => i.product_id && i.quantity <= 0))
       errors.items = "يجب أن تكون الكمية المرتجعة أكبر من صفر";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -241,7 +239,7 @@ export default function SalesReturnForm() {
     setSaving(true);
     try {
       const payload: any = {
-        customer_id: customerId,
+        customer_id: customerId || null,
         return_date: returnDate,
         subtotal,
         discount: 0,
