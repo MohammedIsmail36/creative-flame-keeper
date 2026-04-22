@@ -394,6 +394,8 @@ export default function PurchaseInvoiceForm() {
         description:
           "تم ترحيل فاتورة الشراء وتوليد القيد المحاسبي وتحديث المخزون",
       });
+      setIsDirty(false);
+      navGuard.allowNext();
       loadData();
     } catch (error: any) {
       toast({
