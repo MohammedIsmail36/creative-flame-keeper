@@ -1,4 +1,3 @@
-import { useTheme } from "next-themes";
 import { Toaster as Sonner } from "sonner";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
@@ -8,14 +7,13 @@ type ToasterProps = React.ComponentProps<typeof Sonner>;
  * - Position: top-center, RTL, system font (Tajawal)
  * - Auto-dismiss: 3s (errors 4s via use-toast shim)
  * - richColors: vibrant semantic colors with built-in icons
- * - Crisp typography, elegant shadow, themed via CSS vars
+ * - Light theme forced to match the app (no dark mode in this product)
+ * - Visual polish handled in index.css under [data-sonner-toaster]
  */
-const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
-
+const Toaster = (props: ToasterProps) => {
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme="light"
       className="toaster group"
       position="top-center"
       duration={3000}
@@ -25,21 +23,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
       visibleToasts={3}
       gap={10}
       offset={20}
-      toastOptions={{
-        classNames: {
-          toast: "toaster-toast",
-          title: "toaster-title",
-          description: "toaster-description",
-          closeButton: "toaster-close",
-        },
-      }}
       style={
         {
           fontFamily:
             "'Tajawal', 'IBM Plex Sans Arabic', system-ui, -apple-system, 'Segoe UI', sans-serif",
-          // Sonner CSS vars — override defaults for crisper look
           "--width": "380px",
-          "--border-radius": "12px",
         } as React.CSSProperties
       }
       {...props}
