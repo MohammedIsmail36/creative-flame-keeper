@@ -170,13 +170,31 @@ export function LookupCombobox({
             <CommandInput
               placeholder={searchPlaceholder}
               className="h-10 text-sm"
+              value={searchValue}
+              onValueChange={setSearchValue}
             />
           </div>
           <CommandList>
             <CommandEmpty>
-              <div className="flex flex-col items-center gap-1.5">
+              <div className="flex flex-col items-center gap-1.5 py-2">
                 <Search className="h-5 w-5 text-muted-foreground/40" />
                 <span>{emptyMessage}</span>
+                {onAddNew && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mt-1 h-8 text-primary hover:text-primary"
+                    onClick={() => {
+                      setOpen(false);
+                      onAddNew(searchValue);
+                    }}
+                  >
+                    <Plus className="ml-1 h-4 w-4" />
+                    {addNewLabel}
+                    {searchValue ? `: "${searchValue}"` : ""}
+                  </Button>
+                )}
               </div>
             </CommandEmpty>
             <CommandGroup>
@@ -208,6 +226,23 @@ export function LookupCombobox({
                 </CommandItem>
               ))}
             </CommandGroup>
+            {onAddNew && items.length > 0 && (
+              <div className="border-t p-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start h-8 text-primary hover:text-primary hover:bg-primary/5"
+                  onClick={() => {
+                    setOpen(false);
+                    onAddNew(searchValue);
+                  }}
+                >
+                  <Plus className="ml-1 h-4 w-4" />
+                  {addNewLabel}
+                </Button>
+              </div>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
