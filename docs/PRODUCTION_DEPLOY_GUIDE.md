@@ -449,26 +449,34 @@ sudo certbot renew --dry-run
 
 ## المرحلة 8: نشر Edge Functions
 
-### 8.1 نشر الدوال
+في إعداد Supabase Self-hosted (Docker)، الدوال تعمل عبر حاوية `functions` التي تقرأ الكود من volume مرتبط بمجلد `volumes/functions/`.
+
+### 8.1 نسخ الدوال إلى مجلد Supabase
 
 ```bash
-cd /opt/accounting-app
+# نسخ مجلد الدوال + الملفات المشتركة
+cp -r /opt/accounting-app/supabase/functions/* /opt/supabase/docker/volumes/functions/
 
-# تصدير متغيرات البيئة
-export SUPABASE_URL=http://localhost:8000
-export SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY>
-
-supabase functions deploy seed-system --project-ref local
-supabase functions deploy database-backup --project-ref local
+# إعادة تشغيل حاوية الـ Functions لتحميل الدوال الجديدة
+cd /opt/supabase/docker
+docker compose restart functions
 ```
 
-### 8.2 تهيئة النظام
+> الدوال متاحة الآن داخلياً على `http://localhost:8000/functions/v1/<function-name>` ومن الخارج عبر `https://your-domain.com/api/functions/v1/<function-name>`.
+
+### 8.2 تهيئة النظام (إنشاء المدير + شجرة الحسابات)
 
 ```bash
-curl -X POST http://localhost:54321/functions/v1/seed-system \
+curl -X POST http://localhost:8000/functions/v1/seed-system \
   -H "Authorization: Bearer <SERVICE_ROLE_KEY>" \
   -H "Content-Type: application/json"
 ```
+
+سجّل الدخول بعدها بـ:
+- البريد: `admin@system.com`
+- كلمة المرور: `Sys@Admin#2025!Reset` (أو ما تم ضبطه في `DEFAULT_ADMIN_PASSWORD`)
+
+**⚠️ غيّر كلمة المرور فوراً بعد أول تسجيل دخول.**
 
 ---
 
