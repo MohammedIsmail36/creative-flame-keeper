@@ -323,21 +323,45 @@ export default function Products() {
   React.useEffect(() => {
     setExportRows([]);
   }, [statusFilter, stockFilter, categoryFilter, debouncedSearch]);
+  // Build full category path (e.g. "ملابس / قمصان") for round-trip export/import
+  const categoryPathById = useMemo(() => {
+    const map = new Map<string, { name: string; parent_id: string | null }>();
+    categories.forEach((c) => map.set(c.id, c));
+    const getPath = (id: string): string => {
+      const parts: string[] = [];
+      let cur = map.get(id);
+      while (cur) {
+        parts.unshift(cur.name);
+        cur = cur.parent_id ? map.get(cur.parent_id) : undefined;
+      }
+      return parts.join(" / ");
+    };
+    const out = new Map<string, string>();
+    categories.forEach((c) => out.set(c.id, getPath(c.id)));
+    return out;
+  }, [categories]);
+
   const handlePrepareExport = async (
     onProgress?: (loaded: number, total: number) => void,
   ) => {
     const all = await fetchAllForExport(onProgress);
+    // Use the SAME column order/headers as the import template so the file is round-trippable
     const rows = all.map((p) => [
       p.code,
       p.name,
-      getBrandName(p),
+      p.description || "",
+      (p.category_id && categoryPathById.get(p.category_id)) ||
+        getCategoryName(p) === "-"
+        ? ""
+        : getCategoryName(p),
+      (p as any).product_units?.name || p.unit || "",
+      getBrandName(p) === "-" ? "" : getBrandName(p),
       p.model_number || "",
       p.barcode || "",
-      getCategoryName(p),
-      fmtNum(p.purchase_price),
-      fmtNum(p.selling_price),
-      fmtInt(Number(p.quantity_on_hand)),
-      fmtInt(Number(p.min_stock_level)),
+      Number(p.purchase_price || 0),
+      Number(p.selling_price || 0),
+      Number(p.quantity_on_hand || 0),
+      Number(p.min_stock_level || 0),
     ]);
     setExportRows(rows);
     return { rows };
@@ -350,10 +374,12 @@ export default function Products() {
     headers: [
       "الكود",
       "الاسم",
+      "الوصف",
+      "التصنيف",
+      "الوحدة",
       "الماركة",
       "رقم الموديل",
       "الباركود",
-      "التصنيف",
       "سعر الشراء",
       "سعر البيع",
       "الكمية",
