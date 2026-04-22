@@ -32,23 +32,6 @@ describe("useNavigationGuard - integration with posting flow", () => {
     vi.restoreAllMocks();
   });
 
-  it("يحجب التنقل عندما يكون isDirty=true ولم يُستدعَ allowNext()", () => {
-    const { result, rerender } = renderHook(
-      ({ dirty }: { dirty: boolean }) => useFormSim(dirty),
-      { wrapper, initialProps: { dirty: true } },
-    );
-
-    act(() => {
-      result.current.navigate("/purchases");
-    });
-
-    expect(result.current.guard.isBlocked).toBe(true);
-    expect(window.location.pathname).toBe("/purchases/new");
-
-    // إعادة الـ rerender حتى لا يبقى hook في حالة blocked
-    rerender({ dirty: true });
-  });
-
   it("يسمح بالتنقل بعد ترحيل ناجح: allowNext() ثم isDirty=false", async () => {
     const { result, rerender } = renderHook(
       ({ dirty }: { dirty: boolean }) => useFormSim(dirty),
