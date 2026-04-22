@@ -104,7 +104,7 @@ export function LookupImportDialog({ open, onOpenChange, type, onImportComplete 
       const errors: string[] = [];
 
       // Pre-fetch existing rows by lowercase name for upsert
-      const { data: existing } = await (supabase.from(config.table) as any).select("id, name");
+      const { data: existing } = await (supabase.from(config.table as any) as any).select("id, name");
       const nameToId = new Map<string, string>();
       const lowerToId = new Map<string, string>();
       (existing || []).forEach((c: any) => {
@@ -164,13 +164,13 @@ export function LookupImportDialog({ open, onOpenChange, type, onImportComplete 
           const existingId = lowerToId.get(name.toLowerCase());
 
           if (existingId) {
-            const { error } = await (supabase.from(config.table) as any)
+            const { error } = await (supabase.from(config.table as any) as any)
               .update(payload)
               .eq("id", existingId);
             if (error) errors.push(`فشل تحديث "${name}": ${error.message}`);
             else updated++;
           } else {
-            const { error } = await (supabase.from(config.table) as any)
+            const { error } = await (supabase.from(config.table as any) as any)
               .insert({ name, ...payload });
             if (error) errors.push(`فشل إضافة "${name}": ${error.message}`);
             else added++;
