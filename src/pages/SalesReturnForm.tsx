@@ -588,6 +588,8 @@ export default function SalesReturnForm() {
       await recalculateEntityBalance("customer", customerId);
 
       toast({ title: "تم الترحيل", description: "تم ترحيل مرتجع البيع" });
+      setIsDirty(false);
+      navGuard.allowNext();
       loadData();
     } catch (error: any) {
       toast({
@@ -681,6 +683,8 @@ export default function SalesReturnForm() {
         title: "تم الإلغاء",
         description: "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون",
       });
+      setIsDirty(false);
+      navGuard.allowNext();
       loadData();
     } catch (error: any) {
       toast({

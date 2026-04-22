@@ -563,6 +563,8 @@ export default function PurchaseReturnForm() {
       await recalculateEntityBalance("supplier", supplierId);
 
       toast({ title: "تم الترحيل", description: "تم ترحيل مرتجع الشراء" });
+      setIsDirty(false);
+      navGuard.allowNext();
       loadData();
     } catch (error: any) {
       toast({
@@ -656,6 +658,8 @@ export default function PurchaseReturnForm() {
         title: "تم الإلغاء",
         description: "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون",
       });
+      setIsDirty(false);
+      navGuard.allowNext();
       loadData();
     } catch (error: any) {
       toast({
