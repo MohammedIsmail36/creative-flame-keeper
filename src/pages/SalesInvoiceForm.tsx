@@ -393,6 +393,8 @@ export default function SalesInvoiceForm() {
         description:
           "تم ترحيل فاتورة البيع وتوليد القيد المحاسبي وتحديث المخزون",
       });
+      setIsDirty(false);
+      navGuard.allowNext();
       loadData();
     } catch (error: any) {
       toast({
