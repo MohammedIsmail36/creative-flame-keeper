@@ -303,33 +303,14 @@ git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git accounting-app
 cd accounting-app
 ```
 
-### 6.2 تعديلات الكود
+### 6.2 تثبيت الاعتماديات
 
 ```bash
-# إزالة lovable-tagger
-npm uninstall lovable-tagger
+cd /opt/accounting-app
+npm ci
 ```
 
-عدّل `vite.config.ts`:
-
-```typescript
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-
-export default defineConfig({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-});
-```
+> **ملاحظة**: لا حاجة لتعديل `vite.config.ts` أو إزالة أي حزم — المشروع نظيف وجاهز للبناء.
 
 ### 6.3 بناء الواجهة
 
