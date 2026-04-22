@@ -465,7 +465,7 @@ export default function ProductImport() {
         );
         const today = new Date().toISOString().split("T")[0];
 
-        // 1) Inventory movements (one per product) — DB trigger will sync quantity_on_hand
+        // 1) Inventory movements (one per product)
         const movementRows = openingItems.map((it) => ({
           product_id: it.productId,
           movement_type: "opening_balance",
@@ -479,6 +479,15 @@ export default function ProductImport() {
           supabase.from("inventory_movements") as any
         ).insert(movementRows);
         if (movErr) throw movErr;
+
+        // 1b) Sync quantity_on_hand for each product (no trigger exists)
+        for (const it of openingItems) {
+          const { error: qErr } = await supabase
+            .from("products")
+            .update({ quantity_on_hand: it.quantity })
+            .eq("id", it.productId);
+          if (qErr) throw qErr;
+        }
 
         // 2) Single aggregated journal entry: DR Inventory / CR Capital
         const { data: je, error: jeErr } = await supabase
