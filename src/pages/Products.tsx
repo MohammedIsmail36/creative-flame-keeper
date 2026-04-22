@@ -587,79 +587,66 @@ export default function Products() {
         id: "actions",
         header: "الإجراءات",
         enableHiding: false,
-        cell: ({ row }) => (
-          <div
-            className="flex items-center gap-1"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="عرض المنتج"
-              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
-              onClick={() => navigate(`/products/${row.original.id}`)}
+        cell: ({ row }) => {
+          const usage = usageMap[row.original.id] ?? 0;
+          const qty = Number(row.original.quantity_on_hand || 0);
+          const canHardDelete = canEdit && usage === 0 && qty === 0;
+          // التعطيل/التفعيل: يُسمح فقط إذا كان للمنتج حركات (لا يمكن حذفه) والمخزون = صفر،
+          // أو إذا كان المنتج معطّلاً بالفعل (للسماح بإعادة التفعيل)
+          const canToggle =
+            canEdit &&
+            ((!row.original.is_active) || (usage > 0 && qty === 0));
+          return (
+            <div
+              className="flex items-center gap-1"
+              onClick={(e) => e.stopPropagation()}
             >
-              <Eye className="h-4 w-4" />
-            </Button>
-            {canEdit && (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="تعديل المنتج"
-                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
-                onClick={() => navigate(`/products/${row.original.id}/edit`)}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-            )}
-            {canEdit && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={
-                      row.original.is_active ? "أرشفة المنتج" : "تفعيل المنتج"
-                    }
-                    className={`h-8 w-8 ${row.original.is_active ? "text-muted-foreground hover:text-destructive hover:bg-destructive/5" : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"}`}
-                  >
-                    {row.original.is_active ? (
-                      <Archive className="h-4 w-4" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4" />
-                    )}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent dir="rtl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {row.original.is_active ? "تعطيل المنتج" : "تفعيل المنتج"}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {row.original.is_active
-                        ? `هل تريد تعطيل منتج "${row.original.name}"؟`
-                        : `هل تريد تفعيل منتج "${row.original.name}"؟`}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row-reverse gap-2">
-                    <AlertDialogAction
-                      onClick={() => toggleProductStatus(row.original)}
-                      className={
-                        row.original.is_active
-                          ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          : "bg-emerald-600 text-white hover:bg-emerald-700"
+              {canToggle && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={
+                        row.original.is_active ? "أرشفة المنتج" : "تفعيل المنتج"
                       }
+                      className={`h-8 w-8 ${row.original.is_active ? "text-muted-foreground hover:text-destructive hover:bg-destructive/5" : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"}`}
                     >
-                      {row.original.is_active ? "تعطيل" : "تفعيل"}
-                    </AlertDialogAction>
-                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-            {role === "admin" &&
-              !row.original.is_active &&
-              Number(row.original.quantity_on_hand || 0) === 0 && (
+                      {row.original.is_active ? (
+                        <Archive className="h-4 w-4" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent dir="rtl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        {row.original.is_active ? "تعطيل المنتج" : "تفعيل المنتج"}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {row.original.is_active
+                          ? `هل تريد تعطيل منتج "${row.original.name}"؟`
+                          : `هل تريد تفعيل منتج "${row.original.name}"؟`}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-row-reverse gap-2">
+                      <AlertDialogAction
+                        onClick={() => toggleProductStatus(row.original)}
+                        className={
+                          row.original.is_active
+                            ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            : "bg-emerald-600 text-white hover:bg-emerald-700"
+                        }
+                      >
+                        {row.original.is_active ? "تعطيل" : "تفعيل"}
+                      </AlertDialogAction>
+                      <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              {canHardDelete && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -676,8 +663,7 @@ export default function Products() {
                       <AlertDialogTitle>حذف المنتج نهائياً</AlertDialogTitle>
                       <AlertDialogDescription>
                         سيتم حذف المنتج "{row.original.name}" نهائياً من قاعدة
-                        البيانات. هذا الإجراء لا يمكن التراجع عنه. يُسمح بالحذف
-                        فقط إذا لم يكن المنتج مرتبطاً بأي فاتورة أو حركة مخزون.
+                        البيانات. هذا الإجراء لا يمكن التراجع عنه.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="flex-row-reverse gap-2">
@@ -692,11 +678,15 @@ export default function Products() {
                   </AlertDialogContent>
                 </AlertDialog>
               )}
-          </div>
-        ),
+              {!canToggle && !canHardDelete && (
+                <span className="text-xs text-muted-foreground px-2">—</span>
+              )}
+            </div>
+          );
+        },
       },
     ],
-    [canEdit, navigate, role],
+    [canEdit, navigate, role, usageMap],
   );
 
   // KPI cards
