@@ -8,70 +8,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { ChevronLeft, Home } from "lucide-react";
-
-const routeLabels: Record<string, string> = {
-  "": "لوحة التحكم",
-  accounts: "شجرة الحسابات",
-  journal: "القيود المحاسبية",
-  ledger: "دفتر الأستاذ",
-  "trial-balance": "ميزان المراجعة",
-  "income-statement": "قائمة الدخل",
-  "balance-sheet": "الميزانية العمومية",
-  "cash-flow": "التدفقات النقدية",
-  "fiscal-year-closing": "إقفال السنة المالية",
-  sales: "فواتير البيع",
-  "sales-returns": "مرتجعات البيع",
-  "customer-payments": "مدفوعات العملاء",
-  customers: "العملاء",
-  "customer-statement": "كشف حساب عميل",
-  purchases: "فواتير الشراء",
-  "purchase-returns": "مرتجعات الشراء",
-  "supplier-payments": "مدفوعات الموردين",
-  suppliers: "الموردين",
-  "supplier-statement": "كشف حساب مورد",
-  products: "المنتجات",
-  "inventory-adjustments": "تسوية المخزون",
-  "inventory-movements": "حركة المخزون",
-  inventory: "المخزون",
-  categories: "التصنيفات",
-  units: "وحدات القياس",
-  brands: "الماركات",
-  expenses: "المصروفات",
-  "expense-types": "أنواع المصروفات",
-  reports: "التقارير",
-  health: "صحة المنتجات",
-  "sales-report": "تقرير المبيعات",
-  "purchases-report": "تقرير المشتريات",
-  growth: "تحليلات النمو",
-  "products-analytics": "تحليل المنتجات",
-  aging: "أعمار الديون",
-  balances: "أرصدة الحسابات",
-  "profit-loss": "الأرباح والخسائر",
-  "inventory-turnover": "دوران المخزون",
-  dashboard: "لوحة المؤشرات",
-  "urgent-actions": "إجراءات عاجلة",
-  "purchase-planning": "خطة الشراء",
-  dormant: "المخزون الراكد",
-  "supplier-returns": "إرجاع للمورد",
-  "new-products": "منتجات جديدة",
-  unlisted: "مراجعة مطلوبة",
-  analysis: "التحليل الشامل",
-  settings: "الإعدادات",
-  users: "إدارة المستخدمين",
-  profile: "الملف الشخصي",
-  "system-setup": "إعداد النظام",
-  auth: "تسجيل الدخول",
-  mfa: "التحقق الثنائي",
-  new: "إضافة جديد",
-  edit: "تعديل",
-  import: "استيراد",
-};
-
-function isUUID(s: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    s,
-  );
-}
+import { routeLabels, isUUID } from "@/lib/route-labels";
 
 export function AppBreadcrumb() {
   const location = useLocation();
