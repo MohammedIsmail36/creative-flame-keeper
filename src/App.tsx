@@ -9,6 +9,12 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { usePageTitle } from "@/hooks/use-page-title";
+
+const PageTitleUpdater = () => {
+  usePageTitle();
+  return null;
+};
 
 // Eager (small + first-paint critical)
 import Auth from "./pages/Auth";
@@ -102,6 +108,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <SettingsProvider>
+            <PageTitleUpdater />
             <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/mfa" element={<MfaVerify />} />
