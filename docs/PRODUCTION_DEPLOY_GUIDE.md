@@ -303,33 +303,14 @@ git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git accounting-app
 cd accounting-app
 ```
 
-### 6.2 تعديلات الكود
+### 6.2 تثبيت الاعتماديات
 
 ```bash
-# إزالة lovable-tagger
-npm uninstall lovable-tagger
+cd /opt/accounting-app
+npm ci
 ```
 
-عدّل `vite.config.ts`:
-
-```typescript
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-
-export default defineConfig({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-});
-```
+> **ملاحظة**: لا حاجة لتعديل `vite.config.ts` أو إزالة أي حزم — المشروع نظيف وجاهز للبناء.
 
 ### 6.3 بناء الواجهة
 
@@ -468,26 +449,34 @@ sudo certbot renew --dry-run
 
 ## المرحلة 8: نشر Edge Functions
 
-### 8.1 نشر الدوال
+في إعداد Supabase Self-hosted (Docker)، الدوال تعمل عبر حاوية `functions` التي تقرأ الكود من volume مرتبط بمجلد `volumes/functions/`.
+
+### 8.1 نسخ الدوال إلى مجلد Supabase
 
 ```bash
-cd /opt/accounting-app
+# نسخ مجلد الدوال + الملفات المشتركة
+cp -r /opt/accounting-app/supabase/functions/* /opt/supabase/docker/volumes/functions/
 
-# تصدير متغيرات البيئة
-export SUPABASE_URL=http://localhost:8000
-export SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY>
-
-supabase functions deploy seed-system --project-ref local
-supabase functions deploy database-backup --project-ref local
+# إعادة تشغيل حاوية الـ Functions لتحميل الدوال الجديدة
+cd /opt/supabase/docker
+docker compose restart functions
 ```
 
-### 8.2 تهيئة النظام
+> الدوال متاحة الآن داخلياً على `http://localhost:8000/functions/v1/<function-name>` ومن الخارج عبر `https://your-domain.com/api/functions/v1/<function-name>`.
+
+### 8.2 تهيئة النظام (إنشاء المدير + شجرة الحسابات)
 
 ```bash
-curl -X POST http://localhost:54321/functions/v1/seed-system \
+curl -X POST http://localhost:8000/functions/v1/seed-system \
   -H "Authorization: Bearer <SERVICE_ROLE_KEY>" \
   -H "Content-Type: application/json"
 ```
+
+سجّل الدخول بعدها بـ:
+- البريد: `admin@system.com`
+- كلمة المرور: `Sys@Admin#2025!Reset` (أو ما تم ضبطه في `DEFAULT_ADMIN_PASSWORD`)
+
+**⚠️ غيّر كلمة المرور فوراً بعد أول تسجيل دخول.**
 
 ---
 
@@ -674,7 +663,13 @@ sudo reboot
 | 8000 | Supabase Kong (API) | ❌ (عبر Nginx فقط) |
 | 5432 | PostgreSQL | ❌ (داخلي فقط) |
 | 9999 | GoTrue (Auth) | ❌ (داخلي فقط) |
-| 54321 | Edge Functions | ❌ (داخلي فقط) |
+| 9000 | Edge Functions (Deno) | ❌ (داخلي فقط، عبر Kong) |
 | 3000 | Supabase Studio | ❌ (اختياري — يمكن فتحه عبر SSH tunnel) |
 
 > **للوصول إلى Studio من جهازك**: `ssh -L 3000:localhost:3000 deploy@YOUR_SERVER_IP` ثم افتح `http://localhost:3000`
+
+---
+
+## 🏢 لتشغيل أكثر من شركة على نفس السيرفر
+
+راجع الدليل المنفصل: **[`MULTI_COMPANY_DEPLOY.md`](./MULTI_COMPANY_DEPLOY.md)** لإضافة شركة ثانية (أو أكثر) بعزل كامل عبر Multi-Instance — كل شركة على Subdomain خاص بها مع قاعدة بيانات مستقلة.
