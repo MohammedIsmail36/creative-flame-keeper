@@ -1291,121 +1291,6 @@ export default function Dashboard() {
                 })}
           </div>
 
-          {/* Expense Distribution Card */}
-          {!loadingKPIs && (() => {
-            const totalAll = totalCOGS + operatingExpenses + systemAdjustments;
-            const pct = (v: number) =>
-              totalAll > 0 ? Math.round((v / totalAll) * 100) : 0;
-            const cogsPct = pct(totalCOGS);
-            const opPct = pct(operatingExpenses);
-            const sysPct = pct(systemAdjustments);
-            const rows = [
-              {
-                label: "تكلفة البضاعة المباعة",
-                value: totalCOGS,
-                pct: cogsPct,
-                dot: "bg-blue-500",
-                bar: "bg-blue-500",
-                hint: "من حركات المخزون (مبيعات − مرتجعات)",
-              },
-              {
-                label: "مصروفات تشغيلية",
-                value: operatingExpenses,
-                pct: opPct,
-                dot: "bg-amber-500",
-                bar: "bg-amber-500",
-                hint: "مصروفات مُدخلة من شاشة المصروفات والقيود",
-              },
-              {
-                label: "فروقات وتسويات النظام",
-                value: systemAdjustments,
-                pct: sysPct,
-                dot: "bg-muted-foreground",
-                bar: "bg-muted-foreground",
-                hint: "فروقات مرتجعات المشتريات والتسويات الآلية",
-              },
-            ];
-            return (
-              <Card className="border-border/60 shadow-sm">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shadow-inner">
-                        <PieChart className="w-4.5 h-4.5 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-sm font-semibold">
-                          توزيع المصروفات
-                        </CardTitle>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          تفصيل مكونات إجمالي المصروفات حسب المصدر
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-end">
-                      <p className="text-[11px] text-muted-foreground">
-                        الإجمالي
-                      </p>
-                      <p className="text-base font-extrabold tabular-nums">
-                        {formatCurrency(totalAll)}
-                      </p>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Rows */}
-                  <div className="space-y-2.5">
-                    {rows.map((r, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30 border border-border/40"
-                      >
-                        <span
-                          className={`w-2.5 h-2.5 rounded-full ${r.dot} shrink-0`}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-foreground truncate">
-                            {r.label}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            {r.hint}
-                          </p>
-                        </div>
-                        <div className="text-end shrink-0">
-                          <p className="text-sm font-bold tabular-nums">
-                            {formatCurrency(r.value)}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground tabular-nums">
-                            {r.pct}%
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Stacked progress bar */}
-                  {totalAll > 0 && (
-                    <div className="space-y-1.5">
-                      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="bg-blue-500 transition-all"
-                          style={{ width: `${cogsPct}%` }}
-                        />
-                        <div
-                          className="bg-amber-500 transition-all"
-                          style={{ width: `${opPct}%` }}
-                        />
-                        <div
-                          className="bg-muted-foreground transition-all"
-                          style={{ width: `${sysPct}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })()}
-
           {/* Secondary KPIs — 4 cols */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {loadingSecondary
@@ -1639,7 +1524,95 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              {/* Sales Target */}
+              {/* Expense Distribution — compact */}
+              {!loadingKPIs && (() => {
+                const totalAll =
+                  totalCOGS + operatingExpenses + systemAdjustments;
+                if (totalAll <= 0) return null;
+                const pct = (v: number) => Math.round((v / totalAll) * 100);
+                const cogsPct = pct(totalCOGS);
+                const opPct = pct(operatingExpenses);
+                const sysPct = pct(systemAdjustments);
+                const rows = [
+                  {
+                    label: "تكلفة البضاعة المباعة",
+                    value: totalCOGS,
+                    pct: cogsPct,
+                    color: "bg-blue-500",
+                    text: "text-blue-600 dark:text-blue-400",
+                  },
+                  {
+                    label: "مصروفات تشغيلية",
+                    value: operatingExpenses,
+                    pct: opPct,
+                    color: "bg-amber-500",
+                    text: "text-amber-600 dark:text-amber-400",
+                  },
+                  {
+                    label: "فروقات النظام",
+                    value: systemAdjustments,
+                    pct: sysPct,
+                    color: "bg-muted-foreground",
+                    text: "text-muted-foreground",
+                  },
+                ];
+                return (
+                  <Card className="border-border/60 shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <PieChart className="w-4 h-4 text-primary" /> توزيع
+                        المصروفات
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {/* Stacked bar */}
+                      <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="bg-blue-500"
+                          style={{ width: `${cogsPct}%` }}
+                        />
+                        <div
+                          className="bg-amber-500"
+                          style={{ width: `${opPct}%` }}
+                        />
+                        <div
+                          className="bg-muted-foreground"
+                          style={{ width: `${sysPct}%` }}
+                        />
+                      </div>
+                      {/* Rows */}
+                      <div className="space-y-1.5">
+                        {rows.map((r, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between gap-2"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span
+                                className={`w-2 h-2 rounded-full ${r.color} shrink-0`}
+                              />
+                              <span className="text-[11px] text-muted-foreground truncate">
+                                {r.label}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[11px] font-bold tabular-nums">
+                                {formatCurrency(r.value)}
+                              </span>
+                              <span
+                                className={`text-[10px] tabular-nums ${r.text}`}
+                              >
+                                {r.pct}%
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
               {(() => {
                 const target = Number(
                   (settings as any)?.monthly_sales_target || 0,
