@@ -56,6 +56,8 @@ export interface LookupComboboxProps {
  */
 /** Fields where we match from the start (prefix) vs anywhere (substring) */
 const PREFIX_FIELDS = new Set(["code", "model"]);
+/** Fields excluded from search filtering (kept for display only) */
+const EXCLUDED_SEARCH_FIELDS = new Set(["code", "barcode"]);
 
 function smartFilter(
   itemValue: string,
@@ -67,7 +69,9 @@ function smartFilter(
     try {
       const fields = JSON.parse(keywords[0]) as Record<string, string>;
       const terms = search.toLowerCase().trim().split(/\s+/);
-      const entries = Object.entries(fields).filter(([, v]) => Boolean(v));
+      const entries = Object.entries(fields).filter(
+        ([k, v]) => Boolean(v) && !EXCLUDED_SEARCH_FIELDS.has(k),
+      );
 
       let matchCount = 0;
       for (const term of terms) {
