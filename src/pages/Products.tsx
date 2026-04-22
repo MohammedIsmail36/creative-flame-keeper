@@ -234,6 +234,41 @@ export default function Products() {
   const totalCount = pagedData?.totalCount ?? 0;
   const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
 
+  // Fetch usage counts for products on the current page (to decide delete vs disable visibility)
+  const productIds = useMemo(() => products.map((p) => p.id), [products]);
+  const { data: usageMap = {} as Record<string, number> } = useQuery({
+    queryKey: ["products-usage", productIds.join(",")],
+    enabled: productIds.length > 0,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const tables = [
+        "sales_invoice_items",
+        "purchase_invoice_items",
+        "sales_return_items",
+        "purchase_return_items",
+        "inventory_movements",
+        "inventory_adjustment_items",
+      ];
+      const results = await Promise.all(
+        tables.map((t) =>
+          (supabase.from(t as any) as any)
+            .select("product_id")
+            .in("product_id", productIds),
+        ),
+      );
+      const map: Record<string, number> = {};
+      productIds.forEach((id) => (map[id] = 0));
+      results.forEach(({ data }) => {
+        (data || []).forEach((row: any) => {
+          if (row.product_id && map[row.product_id] !== undefined) {
+            map[row.product_id] += 1;
+          }
+        });
+      });
+      return map;
+    },
+  });
+
   React.useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   }, [statusFilter, stockFilter, categoryFilter, debouncedSearch]);
