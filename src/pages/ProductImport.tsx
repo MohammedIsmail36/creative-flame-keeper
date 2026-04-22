@@ -52,6 +52,7 @@ export default function ProductImport() {
   const [imported, setImported] = useState(false);
   const [importResult, setImportResult] = useState<{
     success: number;
+    updated: number;
     failed: number;
     skipped: number;
   } | null>(null);
@@ -416,20 +417,23 @@ export default function ProductImport() {
     const skippedCount = rows.length - validRows.length;
     setImportResult({
       success: successCount,
+      updated: updatedCount,
       failed: failCount,
       skipped: skippedCount,
     });
 
-    if (failCount === 0 && successCount > 0) {
-      toast({
-        title: "تم الاستيراد",
-        description: `تم استيراد ${successCount} منتج بنجاح${skippedCount > 0 ? ` (تم تخطي ${skippedCount})` : ""}`,
-      });
+    const totalProcessed = successCount + updatedCount;
+    if (failCount === 0 && totalProcessed > 0) {
+      const parts: string[] = [];
+      if (successCount > 0) parts.push(`أُضيف ${successCount} منتج جديد`);
+      if (updatedCount > 0) parts.push(`تم تحديث ${updatedCount} منتج موجود`);
+      if (skippedCount > 0) parts.push(`تم تخطي ${skippedCount}`);
+      toast({ title: "تم الاستيراد", description: parts.join(" • ") });
       setImported(true);
-    } else if (successCount > 0) {
+    } else if (totalProcessed > 0) {
       toast({
         title: "استيراد جزئي",
-        description: `تم استيراد ${successCount}، فشل ${failCount}${skippedCount > 0 ? `، تخطي ${skippedCount}` : ""}`,
+        description: `جديد ${successCount} • محدّث ${updatedCount} • فشل ${failCount}${skippedCount > 0 ? ` • تخطي ${skippedCount}` : ""}`,
         variant: "destructive",
       });
       setImported(true);
@@ -481,9 +485,14 @@ export default function ProductImport() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            قم برفع ملف Excel يحتوي على بيانات المنتجات. يجب أن يحتوي على عمود
-            الاسم (إلزامي). الكود والباركود اختياريان — سيتم إنشاؤهما تلقائياً
-            إن لم يتوفرا. يمكنك كتابة مسار التصنيف الهرمي بالفاصل "/" مثل:{" "}
+            قم برفع ملف Excel يحتوي على بيانات المنتجات. <strong>الاسم</strong> إلزامي. الكود
+            والباركود اختياريان وسيتم إنشاؤهما تلقائياً عند عدم توفرهما.
+            <br />
+            <strong className="text-foreground">تحديث المنتجات الموجودة:</strong> إذا تطابقت
+            <strong> الماركة</strong> و<strong>رقم الموديل</strong> مع منتج موجود، سيتم
+            تحديث بياناته بدلاً من إنشاء منتج جديد.
+            <br />
+            يمكنك كتابة مسار التصنيف الهرمي بالفاصل "/" مثل:{" "}
             <strong>ملابس / قمصان</strong>
           </p>
           <div className="flex gap-3">
@@ -527,19 +536,26 @@ export default function ProductImport() {
           {importResult && (
             <Card className="border-primary/20 bg-primary/5">
               <CardContent className="py-3">
-                <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-4 text-sm flex-wrap">
                   <span className="font-medium">نتيجة الاستيراد:</span>
-                  <span className="text-green-600">
-                    {importResult.success} تم استيرادهم
-                  </span>
+                  {importResult.success > 0 && (
+                    <span className="text-green-600">
+                      جديد: {importResult.success}
+                    </span>
+                  )}
+                  {importResult.updated > 0 && (
+                    <span className="text-blue-600">
+                      محدّث: {importResult.updated}
+                    </span>
+                  )}
                   {importResult.failed > 0 && (
                     <span className="text-destructive">
-                      {importResult.failed} فشل
+                      فشل: {importResult.failed}
                     </span>
                   )}
                   {importResult.skipped > 0 && (
                     <span className="text-muted-foreground">
-                      {importResult.skipped} تخطي
+                      تخطي: {importResult.skipped}
                     </span>
                   )}
                 </div>
