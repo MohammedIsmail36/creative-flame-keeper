@@ -39,6 +39,7 @@ import {
   XCircle,
   DollarSign,
   X,
+  Trash2,
 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
