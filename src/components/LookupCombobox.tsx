@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Check, ChevronsUpDown, Search, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +41,11 @@ export interface LookupComboboxProps {
   className?: string;
   disabled?: boolean;
   error?: boolean;
+  /** When provided, shows a footer button "+ Add new" inside the popover.
+   *  Receives the current search text so callers can prefill a quick-add dialog. */
+  onAddNew?: (currentSearch: string) => void;
+  /** Label for the "Add new" button (default: "إضافة جديد") */
+  addNewLabel?: string;
 }
 
 /**
@@ -99,8 +104,11 @@ export function LookupCombobox({
   className,
   disabled = false,
   error = false,
+  onAddNew,
+  addNewLabel = "إضافة جديد",
 }: LookupComboboxProps) {
   const [open, setOpen] = React.useState(false);
+  const [searchValue, setSearchValue] = React.useState("");
   const selected = items.find((i) => i.id === value);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
 
