@@ -114,6 +114,10 @@ interface DataTableProps<TData, TValue> {
   onPaginationChange?: OnChangeFn<PaginationState>;
   /** Reduce row height for dense single-line tables (default: false) */
   compactRows?: boolean;
+  /** Sorting state (controlled externally, used with manualPagination for server-side sort) */
+  sorting?: SortingState;
+  /** Sorting change handler */
+  onSortingChange?: OnChangeFn<SortingState>;
 }
 
 // ── Main DataTable ─────────────────────────────────────────
