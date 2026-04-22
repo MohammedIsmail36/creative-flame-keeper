@@ -223,7 +223,7 @@ Deno.serve(async (req) => {
     results.push("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     results.push("✅ تم تصفير قاعدة البيانات وإعادة البناء بنجاح");
     results.push(`📧 بريد المدير: ${DEFAULT_ADMIN_EMAIL}`);
-    results.push(`🔐 كلمة المرور الافتراضية: Admin@123456 (يُرجى تغييرها فور الدخول)`);
+    results.push(`🔐 كلمة المرور الافتراضية: Sys@Admin#2025!Reset (يُرجى تغييرها فور الدخول)`);
 
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
