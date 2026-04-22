@@ -658,6 +658,8 @@ export default function PurchaseReturnForm() {
         title: "تم الإلغاء",
         description: "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون",
       });
+      setIsDirty(false);
+      navGuard.allowNext();
       loadData();
     } catch (error: any) {
       toast({
