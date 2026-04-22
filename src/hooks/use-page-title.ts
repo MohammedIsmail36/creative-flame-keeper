@@ -14,7 +14,7 @@ export function usePageTitle(): string {
   const { settings } = useSettings();
   const pageTitle = buildPageTitle(location.pathname);
   const companyName = settings?.company_name?.trim() || FALLBACK_NAME;
-  const fullTitle = `${pageTitle} • ${companyName}`;
+  const fullTitle = `${pageTitle} - ${companyName}`;
 
   useEffect(() => {
     document.title = fullTitle;
