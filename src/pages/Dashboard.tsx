@@ -448,13 +448,19 @@ export default function Dashboard() {
 
     setTotalSales(sumNet(salesItems));
     setTotalPurchases(sumNet(purchaseItems));
-    // Operating expenses = Σ(debit − credit) across all expense GL accounts except COGS
-    setTotalExpenses(
-      opExpLines.reduce(
-        (s: number, l: any) => s + Number(l.debit || 0) - Number(l.credit || 0),
-        0,
-      ),
-    );
+    // Split operating expenses into: regular operating (5102-5107, 5109+) and system adjustments (5108)
+    let opSum = 0;
+    let sysSum = 0;
+    opExpLines.forEach((l: any) => {
+      const code = l.accounts?.code;
+      const amt = Number(l.debit || 0) - Number(l.credit || 0);
+      if (code === "5108") sysSum += amt;
+      else opSum += amt;
+    });
+    setOperatingExpenses(opSum);
+    setSystemAdjustments(sysSum);
+    // Total expenses NOW includes COGS + operating + system adjustments
+    setTotalExpenses(opSum + sysSum);
     setTotalSalesReturns(sumTotal(salesReturnItems));
     setTotalPurchaseReturns(sumTotal(purchaseReturnItems));
     setTotalCOGS(
