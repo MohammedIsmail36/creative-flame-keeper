@@ -566,7 +566,16 @@ export default function ProductImport() {
         variant: "destructive",
       });
     }
-    setImporting(false);
+    } catch (err: any) {
+      console.error("Import failed:", err);
+      toast({
+        title: "خطأ غير متوقع أثناء الاستيراد",
+        description: err?.message || String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+    }
   };
 
   const downloadTemplate = async () => {
