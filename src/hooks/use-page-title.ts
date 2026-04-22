@@ -1,15 +1,20 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { APP_NAME, buildPageTitle } from "@/lib/route-labels";
+import { buildPageTitle } from "@/lib/route-labels";
+import { useSettings } from "@/contexts/SettingsContext";
+
+const FALLBACK_NAME = "نظام المحاسبة";
 
 /**
- * Updates document.title based on the current route so each browser tab
- * shows a distinct, meaningful name (e.g., "فواتير البيع • نظام الباقي").
+ * Updates document.title based on the current route + company name from settings,
+ * so each browser tab shows: "اسم الشاشة • اسم الشركة".
  */
 export function usePageTitle(): string {
   const location = useLocation();
+  const { settings } = useSettings();
   const pageTitle = buildPageTitle(location.pathname);
-  const fullTitle = `${pageTitle} • ${APP_NAME}`;
+  const companyName = settings?.company_name?.trim() || FALLBACK_NAME;
+  const fullTitle = `${pageTitle} • ${companyName}`;
 
   useEffect(() => {
     document.title = fullTitle;
