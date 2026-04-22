@@ -1149,7 +1149,7 @@ export default function Dashboard() {
     },
     {
       label: "إجمالي المصروفات",
-      value: totalExpenses,
+      value: totalExpenses + totalCOGS,
       change: expensesChange,
       icon: ReceiptText,
       iconBg: "bg-destructive/10",
