@@ -239,6 +239,15 @@ export default function Products() {
 
   const toggleProductStatus = async (product: ProductRow) => {
     const newStatus = !product.is_active;
+    // منع التعطيل إذا كانت الكمية المتاحة أكبر من صفر
+    if (!newStatus && Number(product.quantity_on_hand || 0) > 0) {
+      toast({
+        title: "لا يمكن التعطيل",
+        description: `لا يمكن تعطيل المنتج "${product.name}" لأن الكمية المتاحة (${fmtNum(product.quantity_on_hand)}) أكبر من صفر. قم بتصفير المخزون أولاً.`,
+        variant: "destructive",
+      });
+      return;
+    }
     const { error } = await supabase
       .from("products")
       .update({ is_active: newStatus })
@@ -258,6 +267,50 @@ export default function Products() {
       });
       refetchList();
       refetchSummary();
+    }
+  };
+
+  // حذف نهائي: يفحص أن المنتج لم يُستخدم في أي وثيقة أو حركة قبل الحذف
+  const hardDeleteProduct = async (product: ProductRow) => {
+    try {
+      const checks = await Promise.all([
+        supabase.from("sales_invoice_items").select("id", { count: "exact", head: true }).eq("product_id", product.id),
+        supabase.from("purchase_invoice_items").select("id", { count: "exact", head: true }).eq("product_id", product.id),
+        supabase.from("sales_return_items").select("id", { count: "exact", head: true }).eq("product_id", product.id),
+        supabase.from("purchase_return_items").select("id", { count: "exact", head: true }).eq("product_id", product.id),
+        supabase.from("inventory_movements").select("id", { count: "exact", head: true }).eq("product_id", product.id),
+        supabase.from("inventory_adjustment_items").select("id", { count: "exact", head: true }).eq("product_id", product.id),
+      ]);
+      const totalUsage = checks.reduce((sum, r) => sum + (r.count || 0), 0);
+      if (totalUsage > 0) {
+        toast({
+          title: "لا يمكن الحذف النهائي",
+          description: `المنتج "${product.name}" مستخدم في ${totalUsage} عملية/حركة. يمكن تعطيله بدلاً من حذفه.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (Number(product.quantity_on_hand || 0) !== 0) {
+        toast({
+          title: "لا يمكن الحذف النهائي",
+          description: "الكمية المتاحة للمنتج ليست صفراً.",
+          variant: "destructive",
+        });
+        return;
+      }
+      // حذف الصور المرتبطة أولاً ثم المنتج
+      await supabase.from("product_images").delete().eq("product_id", product.id);
+      const { error } = await supabase.from("products").delete().eq("id", product.id);
+      if (error) throw error;
+      toast({ title: "تم الحذف", description: `تم حذف المنتج "${product.name}" نهائياً` });
+      refetchList();
+      refetchSummary();
+    } catch (err: any) {
+      toast({
+        title: "خطأ في الحذف",
+        description: err.message || "تعذر حذف المنتج",
+        variant: "destructive",
+      });
     }
   };
 
