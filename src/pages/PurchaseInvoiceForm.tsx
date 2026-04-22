@@ -341,6 +341,24 @@ export default function PurchaseInvoiceForm() {
 
   async function postInvoice() {
     if (saving) return;
+    // Strict pre-post validation
+    if (!supplierId) {
+      toast({
+        title: "تنبيه",
+        description: "يرجى اختيار المورد قبل الترحيل",
+        variant: "destructive",
+      });
+      setFieldErrors((e) => ({ ...e, supplier: "يرجى اختيار المورد" }));
+      return;
+    }
+    if (items.length === 0 || items.some((i) => !i.product_id)) {
+      toast({
+        title: "تنبيه",
+        description: "يجب إضافة بنود الفاتورة واختيار منتج لكل بند قبل الترحيل",
+        variant: "destructive",
+      });
+      return;
+    }
     if (
       settings?.locked_until_date &&
       invoiceDate <= settings.locked_until_date
