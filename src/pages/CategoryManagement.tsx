@@ -427,12 +427,13 @@ export default function CategoryManagement() {
                 filenamePrefix: "التصنيفات",
                 sheetName: "التصنيفات",
                 pdfTitle: "قائمة التصنيفات",
-                headers: ["الاسم", "الوصف", "التصنيف الأب", "الحالة"],
+                headers: ["الاسم", "الوصف", "التصنيف الأب"],
                 rows: items.map((i) => [
                   i.name,
                   i.description || "",
-                  i.parent_id ? getFullPath(items, i.parent_id) : "رئيسي",
-                  i.is_active ? "نشط" : "معطل",
+                  i.parent_id
+                    ? items.find((p) => p.id === i.parent_id)?.name || ""
+                    : "",
                 ]),
                 settings,
               }}

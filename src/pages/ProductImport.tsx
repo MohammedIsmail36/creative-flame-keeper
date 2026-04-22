@@ -52,6 +52,7 @@ export default function ProductImport() {
   const [imported, setImported] = useState(false);
   const [importResult, setImportResult] = useState<{
     success: number;
+    updated: number;
     failed: number;
     skipped: number;
   } | null>(null);
@@ -303,16 +304,37 @@ export default function ProductImport() {
       }
     }
 
+    // Pre-fetch existing products keyed by (brand_id|model_number) for upsert matching
+    const { data: existingProds } = await (supabase.from("products") as any)
+      .select("id, code, brand_id, model_number");
+    const upsertKey = (brandId: string | null, model: string | null) =>
+      `${brandId || ""}::${(model || "").trim().toLowerCase()}`;
+    const existingByKey = new Map<string, { id: string; code: string }>();
+    (existingProds || []).forEach((p: any) => {
+      if (p.brand_id && p.model_number) {
+        existingByKey.set(upsertKey(p.brand_id, p.model_number), {
+          id: p.id,
+          code: p.code,
+        });
+      }
+    });
+
     // Import products one-by-one to track individual failures
     let successCount = 0;
+    let updatedCount = 0;
     let failCount = 0;
     const updatedRows = [...rows];
     const prefix = settings?.product_code_prefix || "PRD-";
 
     for (const row of validRows) {
-      // Auto-generate code if missing
+      const brandId = (row.brand && brands.get(row.brand)) || null;
+      const modelNo = row.model_number?.trim() || null;
+      const matchKey = brandId && modelNo ? upsertKey(brandId, modelNo) : null;
+      const existing = matchKey ? existingByKey.get(matchKey) : null;
+
+      // Auto-generate code only for new products
       let productCode = row.code;
-      if (!productCode) {
+      if (!productCode && !existing) {
         try {
           productCode = await generateEntityCode("products", prefix);
         } catch {
@@ -320,9 +342,9 @@ export default function ProductImport() {
         }
       }
 
-      // Auto-generate barcode if missing
+      // Auto-generate barcode only for new products
       let productBarcode: string | null = row.barcode || null;
-      if (!productBarcode) {
+      if (!productBarcode && !existing) {
         try {
           productBarcode = await generateProductBarcode();
         } catch {
@@ -330,24 +352,55 @@ export default function ProductImport() {
         }
       }
 
-      const product = {
-        code: productCode,
+      const productPayload: any = {
         name: row.name,
         description: row.description || null,
         category_id:
           (row.category && categoryNameMap.get(row.category)) || null,
         unit_id: (row.unit && units.get(row.unit)) || null,
-        brand_id: (row.brand && brands.get(row.brand)) || null,
-        model_number: row.model_number || null,
-        barcode: productBarcode,
+        brand_id: brandId,
+        model_number: modelNo,
         purchase_price: row.purchase_price || 0,
         selling_price: row.selling_price || 0,
-        quantity_on_hand: row.quantity_on_hand || 0,
         min_stock_level: row.min_stock_level || 0,
       };
 
-      const { error } = await supabase.from("products").insert(product);
       const idx = updatedRows.findIndex((r) => r === row);
+      let error: any = null;
+
+      if (existing) {
+        // UPDATE existing product (preserve code/barcode/quantity)
+        const { error: updErr } = await supabase
+          .from("products")
+          .update(productPayload)
+          .eq("id", existing.id);
+        error = updErr;
+        if (!error) {
+          updatedCount++;
+          if (idx !== -1) {
+            updatedRows[idx] = { ...updatedRows[idx], code: existing.code };
+          }
+        }
+      } else {
+        // INSERT new product
+        const insertPayload = {
+          ...productPayload,
+          code: productCode,
+          barcode: productBarcode,
+          quantity_on_hand: row.quantity_on_hand || 0,
+        };
+        const { error: insErr } = await supabase
+          .from("products")
+          .insert(insertPayload);
+        error = insErr;
+        if (!error) {
+          successCount++;
+          if (idx !== -1 && !row.code) {
+            updatedRows[idx] = { ...updatedRows[idx], code: productCode };
+          }
+        }
+      }
+
       if (error) {
         failCount++;
         if (idx !== -1) {
@@ -357,12 +410,6 @@ export default function ProductImport() {
             error: error.message,
           };
         }
-      } else {
-        successCount++;
-        // Update row code for display if it was auto-generated
-        if (idx !== -1 && !row.code) {
-          updatedRows[idx] = { ...updatedRows[idx], code: productCode };
-        }
       }
     }
 
@@ -370,20 +417,23 @@ export default function ProductImport() {
     const skippedCount = rows.length - validRows.length;
     setImportResult({
       success: successCount,
+      updated: updatedCount,
       failed: failCount,
       skipped: skippedCount,
     });
 
-    if (failCount === 0 && successCount > 0) {
-      toast({
-        title: "تم الاستيراد",
-        description: `تم استيراد ${successCount} منتج بنجاح${skippedCount > 0 ? ` (تم تخطي ${skippedCount})` : ""}`,
-      });
+    const totalProcessed = successCount + updatedCount;
+    if (failCount === 0 && totalProcessed > 0) {
+      const parts: string[] = [];
+      if (successCount > 0) parts.push(`أُضيف ${successCount} منتج جديد`);
+      if (updatedCount > 0) parts.push(`تم تحديث ${updatedCount} منتج موجود`);
+      if (skippedCount > 0) parts.push(`تم تخطي ${skippedCount}`);
+      toast({ title: "تم الاستيراد", description: parts.join(" • ") });
       setImported(true);
-    } else if (successCount > 0) {
+    } else if (totalProcessed > 0) {
       toast({
         title: "استيراد جزئي",
-        description: `تم استيراد ${successCount}، فشل ${failCount}${skippedCount > 0 ? `، تخطي ${skippedCount}` : ""}`,
+        description: `جديد ${successCount} • محدّث ${updatedCount} • فشل ${failCount}${skippedCount > 0 ? ` • تخطي ${skippedCount}` : ""}`,
         variant: "destructive",
       });
       setImported(true);
@@ -435,9 +485,14 @@ export default function ProductImport() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            قم برفع ملف Excel يحتوي على بيانات المنتجات. يجب أن يحتوي على عمود
-            الاسم (إلزامي). الكود والباركود اختياريان — سيتم إنشاؤهما تلقائياً
-            إن لم يتوفرا. يمكنك كتابة مسار التصنيف الهرمي بالفاصل "/" مثل:{" "}
+            قم برفع ملف Excel يحتوي على بيانات المنتجات. <strong>الاسم</strong> إلزامي. الكود
+            والباركود اختياريان وسيتم إنشاؤهما تلقائياً عند عدم توفرهما.
+            <br />
+            <strong className="text-foreground">تحديث المنتجات الموجودة:</strong> إذا تطابقت
+            <strong> الماركة</strong> و<strong>رقم الموديل</strong> مع منتج موجود، سيتم
+            تحديث بياناته بدلاً من إنشاء منتج جديد.
+            <br />
+            يمكنك كتابة مسار التصنيف الهرمي بالفاصل "/" مثل:{" "}
             <strong>ملابس / قمصان</strong>
           </p>
           <div className="flex gap-3">
@@ -481,19 +536,26 @@ export default function ProductImport() {
           {importResult && (
             <Card className="border-primary/20 bg-primary/5">
               <CardContent className="py-3">
-                <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-4 text-sm flex-wrap">
                   <span className="font-medium">نتيجة الاستيراد:</span>
-                  <span className="text-green-600">
-                    {importResult.success} تم استيرادهم
-                  </span>
+                  {importResult.success > 0 && (
+                    <span className="text-green-600">
+                      جديد: {importResult.success}
+                    </span>
+                  )}
+                  {importResult.updated > 0 && (
+                    <span className="text-blue-600">
+                      محدّث: {importResult.updated}
+                    </span>
+                  )}
                   {importResult.failed > 0 && (
                     <span className="text-destructive">
-                      {importResult.failed} فشل
+                      فشل: {importResult.failed}
                     </span>
                   )}
                   {importResult.skipped > 0 && (
                     <span className="text-muted-foreground">
-                      {importResult.skipped} تخطي
+                      تخطي: {importResult.skipped}
                     </span>
                   )}
                 </div>
