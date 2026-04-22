@@ -248,10 +248,9 @@ export const DEFAULT_ACCOUNTS: DefaultAccount[] = [
 ];
 
 export const DEFAULT_ADMIN_EMAIL = Deno.env.get("DEFAULT_ADMIN_EMAIL") ?? "admin@system.com";
-// Password must be supplied via the DEFAULT_ADMIN_PASSWORD secret. A random
-// fallback is generated per cold start so no predictable credential exists.
+// كلمة المرور الافتراضية الثابتة للمدير بعد التصفير.
+// يمكن تجاوزها بضبط secret اسمه DEFAULT_ADMIN_PASSWORD.
 export const DEFAULT_ADMIN_PASSWORD =
-  Deno.env.get("DEFAULT_ADMIN_PASSWORD") ??
-  `Tmp-${crypto.randomUUID()}`;
+  Deno.env.get("DEFAULT_ADMIN_PASSWORD") ?? "Admin@123456";
 export const DEFAULT_ADMIN_NAME = "مدير النظام";
 export const DEFAULT_COMPANY_NAME = "شركتي";
