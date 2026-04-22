@@ -1243,6 +1243,23 @@ export default function SalesInvoiceForm() {
         onStay={navGuard.cancel}
         onLeave={navGuard.confirm}
       />
+      <QuickAddCustomerDialog
+        open={quickAddOpen}
+        onOpenChange={setQuickAddOpen}
+        initialName={quickAddInitialName}
+        onCreated={(c) => {
+          setCustomers((prev) =>
+            [...prev, c].sort((a, b) => a.name.localeCompare(b.name, "ar")),
+          );
+          setCustomerId(c.id);
+          setCustomerName(c.name);
+          setIsDirty(true);
+          setFieldErrors((e) => {
+            const { customer, ...rest } = e;
+            return rest;
+          });
+        }}
+      />
     </div>
   );
 }
