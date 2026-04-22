@@ -270,6 +270,7 @@ export default function ProductImport() {
       return;
     }
     setImporting(true);
+    try {
 
     // Batch-create missing lookups (deduplicated to avoid race conditions)
     const uniqueCategories = [
