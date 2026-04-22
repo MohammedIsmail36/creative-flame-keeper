@@ -493,6 +493,16 @@ export default function ProductImport() {
         }
 
         // 2) Single aggregated journal entry: DR Inventory / CR Capital
+        // Compute next posted_number so the entry shows with prefix (e.g. JV-160) instead of #160
+        const { data: lastPosted } = await supabase
+          .from("journal_entries")
+          .select("posted_number")
+          .not("posted_number", "is", null)
+          .order("posted_number", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const nextPostedNumber = ((lastPosted?.posted_number as number) || 0) + 1;
+
         const { data: je, error: jeErr } = await supabase
           .from("journal_entries")
           .insert({
@@ -501,6 +511,7 @@ export default function ProductImport() {
             total_debit: openingTotal,
             total_credit: openingTotal,
             status: "posted",
+            posted_number: nextPostedNumber,
           } as any)
           .select("id")
           .single();
