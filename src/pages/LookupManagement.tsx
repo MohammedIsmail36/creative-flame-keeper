@@ -38,6 +38,8 @@ import {
   LucideIcon,
 } from "lucide-react";
 import { LookupImportDialog } from "@/components/LookupImportDialog";
+import { ExportMenu } from "@/components/ExportMenu";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface LookupConfig {
   table: string;
@@ -92,6 +94,7 @@ const configs: Record<string, LookupConfig> = {
 export default function LookupManagement() {
   const { type } = useParams<{ type: string }>();
   const navigate = useNavigate();
+  const { settings } = useSettings();
   const config = configs[type || ""];
 
   const [items, setItems] = useState<any[]>([]);
@@ -406,16 +409,33 @@ export default function LookupManagement() {
         description={config.description}
         actions={
           <>
-            {(type === "categories" || type === "brands") && (
-              <Button
-                variant="outline"
-                className="gap-2 shadow-sm"
-                onClick={() => setImportOpen(true)}
-              >
-                <Upload className="h-4 w-4" />
-                استيراد Excel
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              className="gap-2 shadow-sm"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload className="h-4 w-4" />
+              استيراد Excel
+            </Button>
+            <ExportMenu
+              config={{
+                filenamePrefix: config.title,
+                sheetName: config.title,
+                pdfTitle: config.title,
+                headers: [
+                  "الاسم",
+                  ...((config.extraFields?.map((f) => f.label)) || []),
+                  "الحالة",
+                ],
+                rows: items.map((i) => [
+                  i.name,
+                  ...((config.extraFields?.map((f) => i[f.key] || "")) || []),
+                  i.is_active ? "نشط" : "معطل",
+                ]),
+                settings,
+              }}
+              disabled={loading}
+            />
             <Button
               onClick={openAdd}
               className="gap-2 shadow-md shadow-primary/20 font-bold"
@@ -579,11 +599,11 @@ export default function LookupManagement() {
       </Dialog>
 
       {/* Import Dialog */}
-      {(type === "categories" || type === "brands") && (
+      {(type === "categories" || type === "brands" || type === "units") && (
         <LookupImportDialog
           open={importOpen}
           onOpenChange={setImportOpen}
-          type={type as "categories" | "brands"}
+          type={type as "categories" | "brands" | "units"}
           onImportComplete={fetchItems}
         />
       )}
