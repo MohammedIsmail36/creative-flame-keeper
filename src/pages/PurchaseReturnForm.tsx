@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/NumberInput";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -1049,13 +1050,10 @@ export default function PurchaseReturnForm() {
                     </td>
                     <td className="py-2 px-3">
                       {isEditable ? (
-                        <Input
-                          type="number"
-                          min="1"
+                        <NumberInput
+                          min={1}
                           value={item.quantity}
-                          onChange={(e) =>
-                            updateItem(i, "quantity", +e.target.value)
-                          }
+                          onValueChange={(v) => updateItem(i, "quantity", v)}
                           className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
@@ -1066,14 +1064,10 @@ export default function PurchaseReturnForm() {
                     </td>
                     <td className="py-2 px-3">
                       {isEditable ? (
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
+                        <NumberInput
+                          min={0}
                           value={item.unit_price}
-                          onChange={(e) =>
-                            updateItem(i, "unit_price", +e.target.value)
-                          }
+                          onValueChange={(v) => updateItem(i, "unit_price", v)}
                           onKeyDown={
                             !showDiscount
                               ? (e) => handleLastFieldKeyDown(e, i)
@@ -1092,14 +1086,10 @@ export default function PurchaseReturnForm() {
                     {showDiscount && (
                       <td className="py-2 px-3">
                         {isEditable ? (
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
+                          <NumberInput
+                            min={0}
                             value={item.discount}
-                            onChange={(e) =>
-                              updateItem(i, "discount", +e.target.value)
-                            }
+                            onValueChange={(v) => updateItem(i, "discount", v)}
                             onKeyDown={(e) => handleLastFieldKeyDown(e, i)}
                             className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                           />
