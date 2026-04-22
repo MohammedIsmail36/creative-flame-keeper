@@ -13,6 +13,7 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/NumberInput";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -1032,13 +1033,10 @@ export default function InventoryAdjustmentForm() {
 
                     <td className="py-2 px-3">
                       {isEditable ? (
-                        <Input
-                          type="number"
+                        <NumberInput
                           min={0}
                           value={item.actual_quantity}
-                          onChange={(e) =>
-                            handleActualQtyChange(i, Number(e.target.value))
-                          }
+                          onValueChange={(v) => handleActualQtyChange(i, v)}
                           className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
