@@ -238,6 +238,12 @@ export default function SalesReturnForm() {
     }
     setSaving(true);
     try {
+      // Drop empty placeholder rows (no product) — keep user data intact
+      const validItems = items.filter((i) => i.product_id);
+      const droppedEmpty = items.length - validItems.length;
+      if (droppedEmpty > 0) {
+        setItems(validItems as any);
+      }
       const payload: any = {
         customer_id: customerId || null,
         return_date: returnDate,
@@ -250,6 +256,11 @@ export default function SalesReturnForm() {
         status: "draft",
       };
 
+      const draftSavedMsg =
+        droppedEmpty > 0
+          ? `تم الحفظ مع تجاهل ${droppedEmpty} سطر فارغ`
+          : undefined;
+
       if (isNew) {
         const { data: ret, error } = await (
           supabase.from("sales_returns") as any
@@ -258,9 +269,9 @@ export default function SalesReturnForm() {
           .select("id")
           .single();
         if (error) throw error;
-        const sumTotals = items.reduce((s, x) => s + x.total, 0);
+        const sumTotals = validItems.reduce((s, x) => s + x.total, 0);
         const headerDiscount = payload.discount || 0;
-        const rows = items.map((i, idx) => ({
+        const rows = validItems.map((i, idx) => ({
           return_id: ret.id,
           product_id: i.product_id,
           description: i.product_name,
@@ -275,10 +286,12 @@ export default function SalesReturnForm() {
           ),
           sort_order: idx,
         }));
-        await (supabase.from("sales_return_items") as any).insert(rows);
+        if (rows.length > 0) {
+          await (supabase.from("sales_return_items") as any).insert(rows);
+        }
         toast({
           title: "تمت الإضافة",
-          description: "تم إنشاء مرتجع البيع كمسودة",
+          description: draftSavedMsg || "تم إنشاء مرتجع البيع كمسودة",
         });
         setIsDirty(false); navGuard.allowNext();
         navigate(`/sales-returns/${ret.id}`);
@@ -289,9 +302,9 @@ export default function SalesReturnForm() {
         await (supabase.from("sales_return_items") as any)
           .delete()
           .eq("return_id", id);
-        const sumTotals = items.reduce((s, x) => s + x.total, 0);
+        const sumTotals = validItems.reduce((s, x) => s + x.total, 0);
         const headerDiscount = payload.discount || 0;
-        const rows = items.map((i, idx) => ({
+        const rows = validItems.map((i, idx) => ({
           return_id: id,
           product_id: i.product_id,
           description: i.product_name,
@@ -306,8 +319,13 @@ export default function SalesReturnForm() {
           ),
           sort_order: idx,
         }));
-        await (supabase.from("sales_return_items") as any).insert(rows);
-        toast({ title: "تم التحديث", description: "تم تحديث مرتجع البيع" });
+        if (rows.length > 0) {
+          await (supabase.from("sales_return_items") as any).insert(rows);
+        }
+        toast({
+          title: "تم التحديث",
+          description: draftSavedMsg || "تم تحديث مرتجع البيع",
+        });
         setIsDirty(false); navGuard.allowNext();
         loadData();
       }
