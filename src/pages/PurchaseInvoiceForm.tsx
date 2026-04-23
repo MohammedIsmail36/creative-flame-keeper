@@ -248,12 +248,18 @@ export default function PurchaseInvoiceForm() {
     }
     setSaving(true);
     try {
+      // Drop empty placeholder rows (no product) — keep user data intact
+      const validItems = items.filter((i) => i.product_id);
+      const droppedEmpty = items.length - validItems.length;
+      if (droppedEmpty > 0) {
+        setItems(validItems as any);
+      }
       // Calculate net_total for each item
       const discountPercent =
         discountMode === "invoice" && subtotal > 0
           ? invoiceDiscount / subtotal
           : 0;
-      const itemsWithNet = items.map((i) => ({
+      const itemsWithNet = validItems.map((i) => ({
         ...i,
         net_total:
           discountMode === "invoice"
@@ -272,6 +278,11 @@ export default function PurchaseInvoiceForm() {
         reference: reference.trim() || null,
         status: "draft",
       };
+
+      const draftSavedMsg =
+        droppedEmpty > 0
+          ? `تم الحفظ مع تجاهل ${droppedEmpty} سطر فارغ`
+          : undefined;
 
       if (isNew) {
         const { data: inv, error } = await (
@@ -292,12 +303,14 @@ export default function PurchaseInvoiceForm() {
           net_total: i.net_total,
           sort_order: idx,
         }));
-        await (supabase.from("purchase_invoice_items" as any) as any).insert(
-          rows,
-        );
+        if (rows.length > 0) {
+          await (supabase.from("purchase_invoice_items" as any) as any).insert(
+            rows,
+          );
+        }
         toast({
           title: "تمت الإضافة",
-          description: "تم إنشاء فاتورة الشراء كمسودة",
+          description: draftSavedMsg || "تم إنشاء فاتورة الشراء كمسودة",
         });
         setIsDirty(false); navGuard.allowNext();
         navigate(`/purchases/${inv.id}`);
@@ -322,10 +335,15 @@ export default function PurchaseInvoiceForm() {
           net_total: i.net_total,
           sort_order: idx,
         }));
-        await (supabase.from("purchase_invoice_items" as any) as any).insert(
-          rows,
-        );
-        toast({ title: "تم التحديث", description: "تم تحديث فاتورة الشراء" });
+        if (rows.length > 0) {
+          await (supabase.from("purchase_invoice_items" as any) as any).insert(
+            rows,
+          );
+        }
+        toast({
+          title: "تم التحديث",
+          description: draftSavedMsg || "تم تحديث فاتورة الشراء",
+        });
         setIsDirty(false); navGuard.allowNext();
         loadData();
       }
