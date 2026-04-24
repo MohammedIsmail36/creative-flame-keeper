@@ -313,6 +313,7 @@ export default function CustomerPayments() {
   }
 
   // Core post logic - creates journal entry + updates balance
+  // When `reusePostedNum` is provided, no new posted_number is generated (used for editing posted payments).
   async function postPaymentLogic(
     custId: string,
     date: string,
@@ -321,6 +322,8 @@ export default function CustomerPayments() {
     ref: string | null,
     note: string | null,
     existingPaymentId?: string,
+    reusePostedNum?: number | null,
+    reuseJournalPostedNum?: number | null,
   ) {
     if (settings?.locked_until_date && date <= settings.locked_until_date) {
       throw new Error(
@@ -340,15 +343,17 @@ export default function CustomerPayments() {
     if (!customersAcc || !cashBankAcc)
       throw new Error("تأكد من وجود حسابات العملاء والصندوق/البنك");
 
-    const paymentPostedNum = existingPaymentId
-      ? await getNextPostedNumber("customer_payments")
+    const paymentPostedNum = reusePostedNum
+      ? reusePostedNum
       : await getNextPostedNumber("customer_payments");
     const payPrefix = settings?.customer_payment_prefix || "CPY-";
     const displayPayNum = `${payPrefix}${String(paymentPostedNum).padStart(4, "0")}`;
     const customerName = customers.find((c) => c.id === custId)?.name || "";
     const desc = `سند قبض رقم ${displayPayNum} - تحصيل من عميل ${customerName}`;
 
-    const jePostedNum = await getNextPostedNumber("journal_entries");
+    const jePostedNum = reuseJournalPostedNum
+      ? reuseJournalPostedNum
+      : await getNextPostedNumber("journal_entries");
     const { data: je, error: jeError } = await supabase
       .from("journal_entries")
       .insert({
