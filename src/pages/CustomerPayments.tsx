@@ -118,13 +118,21 @@ export default function CustomerPayments() {
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // Edit mode
+  // Edit mode (draft) — keeps no preserved posted numbers
   const [editTarget, setEditTarget] = useState<Payment | null>(null);
+  // Edit-posted mode — preserves the original posted numbers when re-posting
+  const [editPostedNums, setEditPostedNums] = useState<{
+    paymentPostedNum: number | null;
+    jePostedNum: number | null;
+  } | null>(null);
 
   // Confirmation dialogs
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
   const [postTarget, setPostTarget] = useState<Payment | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Payment | null>(null);
+  const [editPostedTarget, setEditPostedTarget] = useState<Payment | null>(
+    null,
+  );
 
   useEffect(() => {
     fetchAll();
