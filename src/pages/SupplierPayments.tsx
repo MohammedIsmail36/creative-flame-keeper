@@ -541,8 +541,107 @@ export default function SupplierPayments() {
     setSaving(false);
   }
 
+  async function handleConfirmEditPosted() {
+    if (!editPostedTarget || saving) return;
+    const target = editPostedTarget;
+    if (
+      settings?.locked_until_date &&
+      target.payment_date <= settings.locked_until_date
+    ) {
+      toast({
+        title: "غير مسموح",
+        description: `لا يمكن تعديل سند بتاريخ ${target.payment_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (target.isRefund) {
+      toast({
+        title: "غير مسموح",
+        description:
+          "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSaving(true);
+    try {
+      const preservedPaymentNum = target.posted_number;
+      let preservedJeNum: number | null = null;
+      if (target.journal_entry_id) {
+        const { data: je } = await supabase
+          .from("journal_entries")
+          .select("posted_number")
+          .eq("id", target.journal_entry_id)
+          .single();
+        preservedJeNum = (je as any)?.posted_number ?? null;
+      }
+
+      const { data: allocs } = await (
+        supabase.from("supplier_payment_allocations" as any) as any
+      )
+        .select("invoice_id")
+        .eq("payment_id", target.id);
+      const affectedInvoiceIds = ((allocs as any[]) || [])
+        .map((a) => String(a.invoice_id))
+        .filter((v, i, arr) => arr.indexOf(v) === i);
+
+      await (supabase.from("supplier_payment_allocations" as any) as any)
+        .delete()
+        .eq("payment_id", target.id);
+
+      if (target.journal_entry_id) {
+        await supabase
+          .from("journal_entry_lines")
+          .delete()
+          .eq("journal_entry_id", target.journal_entry_id);
+        await supabase
+          .from("journal_entries")
+          .delete()
+          .eq("id", target.journal_entry_id);
+      }
+
+      await (supabase.from("supplier_payments" as any) as any)
+        .update({ status: "draft", journal_entry_id: null })
+        .eq("id", target.id);
+
+      for (const invoiceId of affectedInvoiceIds) {
+        await recalculateInvoicePaidAmount("purchase", invoiceId);
+      }
+      await recalculateEntityBalance("supplier", target.supplier_id);
+
+      setEditPostedNums({
+        paymentPostedNum: preservedPaymentNum,
+        jePostedNum: preservedJeNum,
+      });
+      const reloaded: Payment = { ...target, status: "draft" };
+      setEditTarget(reloaded);
+      setSupplierId(reloaded.supplier_id);
+      setAmount(reloaded.amount);
+      setPaymentDate(reloaded.payment_date);
+      setPaymentMethod(reloaded.payment_method);
+      setReference(reloaded.reference || "");
+      setNotes(reloaded.notes || "");
+      setEditPostedTarget(null);
+      setDialogOpen(true);
+      fetchAll();
+      toast({
+        title: "جاهز للتعديل",
+        description: `سيتم إعادة الترحيل بنفس الرقم ${prefix}${String(preservedPaymentNum ?? 0).padStart(4, "0")}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+    setSaving(false);
+  }
+
   function resetForm() {
     setEditTarget(null);
+    setEditPostedNums(null);
     setSupplierId("");
     setAmount(0);
     setPaymentDate(new Date().toISOString().split("T")[0]);
@@ -693,15 +792,29 @@ export default function SupplierPayments() {
               </>
             )}
             {p.status === "posted" && role === "admin" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCancelTarget(p)}
-                className="gap-1 text-xs h-7 px-2 text-destructive hover:text-destructive"
-              >
-                <XCircle className="h-3.5 w-3.5" />
-                إلغاء
-              </Button>
+              <>
+                {!p.isRefund && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditPostedTarget(p)}
+                    className="gap-1 text-xs h-7 px-2"
+                    title="تعديل مع الحفاظ على نفس رقم السند والقيد"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    تعديل
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCancelTarget(p)}
+                  className="gap-1 text-xs h-7 px-2 text-destructive hover:text-destructive"
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  إلغاء
+                </Button>
+              </>
             )}
           </div>
         );
@@ -1026,6 +1139,33 @@ export default function SupplierPayments() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               تأكيد الإلغاء
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit posted payment confirmation */}
+      <AlertDialog
+        open={!!editPostedTarget}
+        onOpenChange={() => setEditPostedTarget(null)}
+      >
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              تعديل سند مُرحّل #{editPostedTarget?.posted_number ?? editPostedTarget?.payment_number}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم حذف القيد المحاسبي القديم وإعادة السند إلى حالة "مسودة" لتعديله،
+              مع <strong>الحفاظ على نفس رقم السند ورقم القيد</strong> ({prefix}
+              {String(editPostedTarget?.posted_number ?? 0).padStart(4, "0")}).
+              <br />
+              عند الحفظ والترحيل سيتم إنشاء قيد جديد بنفس الرقم. هل تريد المتابعة؟
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmEditPosted}>
+              متابعة
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
