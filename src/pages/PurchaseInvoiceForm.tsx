@@ -596,7 +596,7 @@ export default function PurchaseInvoiceForm() {
     <div
       className="space-y-6 max-w-7xl mx-auto"
       dir="rtl"
-      onInput={() => !isDirty && setIsDirty(true)}
+      onInput={() => isEditable && !isDirty && setIsDirty(true)}
     >
       <PageHeader
         icon={ShoppingCart}
