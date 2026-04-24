@@ -459,28 +459,24 @@ export default function SupplierPayments() {
     if (!cancelTarget || saving) return;
     setSaving(true);
     try {
-      // 1. Get all allocations for this payment to update related invoices
+      // 1. Get all invoice allocations for this payment
       const { data: allocations } = await (
         supabase.from("supplier_payment_allocations" as any) as any
       )
         .select("id, invoice_id, allocated_amount")
         .eq("payment_id", cancelTarget.id);
 
-      // 2. Delete all allocations for this payment
+      // 2. Delete invoice allocations
       if (allocations && allocations.length > 0) {
         await (supabase.from("supplier_payment_allocations" as any) as any)
           .delete()
           .eq("payment_id", cancelTarget.id);
-
-        const affectedInvoiceIds = (allocations || [])
-          .map((a: any) => String(a.invoice_id))
-          .filter(
-            (v: string, i: number, arr: string[]) => arr.indexOf(v) === i,
-          );
-        for (const invoiceId of affectedInvoiceIds) {
-          await recalculateInvoicePaidAmount("purchase", invoiceId);
-        }
       }
+
+      // 3. Delete return payment allocations (refund linkages)
+      await (supabase.from("purchase_return_payment_allocations" as any) as any)
+        .delete()
+        .eq("payment_id", cancelTarget.id);
 
       // 4. Reverse journal entry status to cancelled
       if (cancelTarget.journal_entry_id) {
@@ -495,12 +491,26 @@ export default function SupplierPayments() {
           );
       }
 
-      await recalculateEntityBalance("supplier", cancelTarget.supplier_id);
-
-      // 6. Update payment status
+      // 5. CRITICAL: Update payment status to cancelled BEFORE recalculating
+      // (recalculateEntityBalance only counts 'posted' payments)
       await (supabase.from("supplier_payments" as any) as any)
         .update({ status: "cancelled" })
         .eq("id", cancelTarget.id);
+
+      // 6. Recalculate affected invoices' paid_amount
+      if (allocations && allocations.length > 0) {
+        const affectedInvoiceIds = (allocations || [])
+          .map((a: any) => String(a.invoice_id))
+          .filter(
+            (v: string, i: number, arr: string[]) => arr.indexOf(v) === i,
+          );
+        for (const invoiceId of affectedInvoiceIds) {
+          await recalculateInvoicePaidAmount("purchase", invoiceId);
+        }
+      }
+
+      // 7. Recalculate supplier balance now that status is cancelled
+      await recalculateEntityBalance("supplier", cancelTarget.supplier_id);
 
       toast({
         title: "تم الإلغاء",
