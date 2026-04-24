@@ -1148,6 +1148,33 @@ export default function CustomerPayments() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit posted payment confirmation */}
+      <AlertDialog
+        open={!!editPostedTarget}
+        onOpenChange={() => setEditPostedTarget(null)}
+      >
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              تعديل سند مُرحّل #{editPostedTarget?.posted_number ?? editPostedTarget?.payment_number}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم حذف القيد المحاسبي القديم وإعادة السند إلى حالة "مسودة" لتعديله،
+              مع <strong>الحفاظ على نفس رقم السند ورقم القيد</strong> ({prefix}
+              {String(editPostedTarget?.posted_number ?? 0).padStart(4, "0")}).
+              <br />
+              عند الحفظ والترحيل سيتم إنشاء قيد جديد بنفس الرقم. هل تريد المتابعة؟
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmEditPosted}>
+              متابعة
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
