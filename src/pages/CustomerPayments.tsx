@@ -295,6 +295,8 @@ export default function CustomerPayments() {
           reference.trim() || null,
           notes.trim() || null,
           editTarget.id,
+          editPostedNums?.paymentPostedNum ?? null,
+          editPostedNums?.jePostedNum ?? null,
         );
       } else {
         await postPaymentLogic(
