@@ -119,10 +119,17 @@ export default function SupplierPayments() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [editTarget, setEditTarget] = useState<Payment | null>(null);
+  const [editPostedNums, setEditPostedNums] = useState<{
+    paymentPostedNum: number | null;
+    jePostedNum: number | null;
+  } | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
   const [postTarget, setPostTarget] = useState<Payment | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Payment | null>(null);
+  const [editPostedTarget, setEditPostedTarget] = useState<Payment | null>(
+    null,
+  );
 
   const canEdit = role === "admin" || role === "accountant";
 
@@ -285,6 +292,8 @@ export default function SupplierPayments() {
           reference.trim() || null,
           notes.trim() || null,
           editTarget.id,
+          editPostedNums?.paymentPostedNum ?? null,
+          editPostedNums?.jePostedNum ?? null,
         );
       } else {
         await postPaymentLogic(
@@ -318,6 +327,8 @@ export default function SupplierPayments() {
     ref: string | null,
     note: string | null,
     existingPaymentId?: string,
+    reusePostedNum?: number | null,
+    reuseJournalPostedNum?: number | null,
   ) {
     if (settings?.locked_until_date && date <= settings.locked_until_date) {
       throw new Error(
@@ -337,15 +348,17 @@ export default function SupplierPayments() {
     if (!suppliersAcc || !cashBankAcc)
       throw new Error("تأكد من وجود حسابات الموردين والصندوق/البنك");
 
-    const paymentPostedNum = existingPaymentId
-      ? await getNextPostedNumber("supplier_payments")
+    const paymentPostedNum = reusePostedNum
+      ? reusePostedNum
       : await getNextPostedNumber("supplier_payments");
     const payPrefix = settings?.supplier_payment_prefix || "SPY-";
     const displayPayNum = `${payPrefix}${String(paymentPostedNum).padStart(4, "0")}`;
     const supplierName = suppliers.find((s) => s.id === supId)?.name || "";
     const desc = `سند صرف رقم ${displayPayNum} - سداد لمورد ${supplierName}`;
 
-    const jePostedNum = await getNextPostedNumber("journal_entries");
+    const jePostedNum = reuseJournalPostedNum
+      ? reuseJournalPostedNum
+      : await getNextPostedNumber("journal_entries");
     const { data: je, error: jeError } = await supabase
       .from("journal_entries")
       .insert({
