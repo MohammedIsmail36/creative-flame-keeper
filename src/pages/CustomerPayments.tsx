@@ -549,8 +549,116 @@ export default function CustomerPayments() {
     setSaving(false);
   }
 
+  // Convert a posted payment back to draft so the user can edit it,
+  // while preserving the original posted_number and journal posted_number.
+  async function handleConfirmEditPosted() {
+    if (!editPostedTarget || saving) return;
+    const target = editPostedTarget;
+    if (
+      settings?.locked_until_date &&
+      target.payment_date <= settings.locked_until_date
+    ) {
+      toast({
+        title: "غير مسموح",
+        description: `لا يمكن تعديل سند بتاريخ ${target.payment_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (target.isRefund) {
+      toast({
+        title: "غير مسموح",
+        description:
+          "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSaving(true);
+    try {
+      // Capture preserved numbers
+      const preservedPaymentNum = target.posted_number;
+      let preservedJeNum: number | null = null;
+      if (target.journal_entry_id) {
+        const { data: je } = await supabase
+          .from("journal_entries")
+          .select("posted_number")
+          .eq("id", target.journal_entry_id)
+          .single();
+        preservedJeNum = (je as any)?.posted_number ?? null;
+      }
+
+      // Capture invoice IDs to refresh paid_amount after re-posting
+      const { data: allocs } = await (
+        supabase.from("customer_payment_allocations" as any) as any
+      )
+        .select("invoice_id")
+        .eq("payment_id", target.id);
+      const affectedInvoiceIds = ((allocs as any[]) || [])
+        .map((a) => String(a.invoice_id))
+        .filter((v, i, arr) => arr.indexOf(v) === i);
+
+      // Delete invoice allocations
+      await (supabase.from("customer_payment_allocations" as any) as any)
+        .delete()
+        .eq("payment_id", target.id);
+
+      // Delete the journal entry (lines first, then header)
+      if (target.journal_entry_id) {
+        await supabase
+          .from("journal_entry_lines")
+          .delete()
+          .eq("journal_entry_id", target.journal_entry_id);
+        await supabase
+          .from("journal_entries")
+          .delete()
+          .eq("id", target.journal_entry_id);
+      }
+
+      // Revert payment to draft (KEEP posted_number for re-use)
+      await (supabase.from("customer_payments" as any) as any)
+        .update({ status: "draft", journal_entry_id: null })
+        .eq("id", target.id);
+
+      // Refresh paid_amount on previously-allocated invoices
+      for (const invoiceId of affectedInvoiceIds) {
+        await recalculateInvoicePaidAmount("sales", invoiceId);
+      }
+      await recalculateEntityBalance("customer", target.customer_id);
+
+      // Open edit dialog with preserved numbers
+      setEditPostedNums({
+        paymentPostedNum: preservedPaymentNum,
+        jePostedNum: preservedJeNum,
+      });
+      const reloaded: Payment = { ...target, status: "draft" };
+      setEditTarget(reloaded);
+      setCustomerId(reloaded.customer_id);
+      setAmount(reloaded.amount);
+      setPaymentDate(reloaded.payment_date);
+      setPaymentMethod(reloaded.payment_method);
+      setReference(reloaded.reference || "");
+      setNotes(reloaded.notes || "");
+      setEditPostedTarget(null);
+      setDialogOpen(true);
+      fetchAll();
+      toast({
+        title: "جاهز للتعديل",
+        description: `سيتم إعادة الترحيل بنفس الرقم ${prefix}${String(preservedPaymentNum ?? 0).padStart(4, "0")}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "خطأ",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+    setSaving(false);
+  }
+
   function resetForm() {
     setEditTarget(null);
+    setEditPostedNums(null);
     setCustomerId("");
     setAmount(0);
     setPaymentDate(new Date().toISOString().split("T")[0]);
