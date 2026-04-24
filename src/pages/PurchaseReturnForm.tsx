@@ -768,7 +768,7 @@ export default function PurchaseReturnForm() {
     <div
       className="space-y-6"
       dir="rtl"
-      onInput={() => !isDirty && setIsDirty(true)}
+      onInput={() => isEditable && !isDirty && setIsDirty(true)}
     >
       <PageHeader
         icon={RotateCcw}
