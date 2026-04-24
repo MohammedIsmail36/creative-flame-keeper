@@ -808,15 +808,29 @@ export default function CustomerPayments() {
               </>
             )}
             {p.status === "posted" && role === "admin" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCancelTarget(p)}
-                className="gap-1 text-xs h-7 px-2 text-destructive hover:text-destructive"
-              >
-                <XCircle className="h-3.5 w-3.5" />
-                إلغاء
-              </Button>
+              <>
+                {!p.isRefund && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditPostedTarget(p)}
+                    className="gap-1 text-xs h-7 px-2"
+                    title="تعديل مع الحفاظ على نفس رقم السند والقيد"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    تعديل
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCancelTarget(p)}
+                  className="gap-1 text-xs h-7 px-2 text-destructive hover:text-destructive"
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  إلغاء
+                </Button>
+              </>
             )}
           </div>
         );
