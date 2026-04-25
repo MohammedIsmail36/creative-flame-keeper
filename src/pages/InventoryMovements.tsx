@@ -173,7 +173,7 @@ export default function InventoryMovements() {
       if (debouncedSearch.trim()) {
         const s = debouncedSearch.trim();
         query = query.or(
-          `notes.ilike.%${s}%,products.name.ilike.%${s}%,products.code.ilike.%${s}%`,
+          `notes.ilike.%${s}%,products.name.ilike.%${s}%,products.code.ilike.%${s}%,products.model_number.ilike.%${s}%,products.product_brands.name.ilike.%${s}%`,
         );
       }
 
