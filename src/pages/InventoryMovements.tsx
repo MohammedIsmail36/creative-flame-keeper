@@ -96,16 +96,22 @@ export default function InventoryMovements() {
     pageSize: PAGE_SIZE,
   });
 
-  // Products lookup (small)
+  // Products lookup (with brand + model for full display & search)
   const { data: products = [] } = useQuery({
-    queryKey: ["products-list-tiny"],
+    queryKey: ["products-list-with-brand"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, code, name")
+        .select("id, code, name, model_number, product_brands(name)")
         .order("code");
       if (error) throw error;
-      return data;
+      return data as Array<{
+        id: string;
+        code: string;
+        name: string;
+        model_number: string | null;
+        product_brands: { name: string } | null;
+      }>;
     },
     staleTime: 60_000,
   });
@@ -167,7 +173,7 @@ export default function InventoryMovements() {
       if (debouncedSearch.trim()) {
         const s = debouncedSearch.trim();
         query = query.or(
-          `notes.ilike.%${s}%,products.name.ilike.%${s}%,products.code.ilike.%${s}%`,
+          `notes.ilike.%${s}%,products.name.ilike.%${s}%,products.code.ilike.%${s}%,products.model_number.ilike.%${s}%,products.product_brands.name.ilike.%${s}%`,
         );
       }
 
@@ -553,7 +559,7 @@ export default function InventoryMovements() {
       <DataTable
         columns={columns}
         data={movements}
-        searchPlaceholder="بحث بالمنتج أو الملاحظات..."
+        searchPlaceholder="بحث بالكود، الاسم، الماركة، الموديل أو الملاحظات..."
         isLoading={isLoading}
         emptyMessage="لا توجد حركات مخزون"
         globalFilter={search}
@@ -573,7 +579,7 @@ export default function InventoryMovements() {
                   role="combobox"
                   aria-expanded={productComboOpen}
                   className={cn(
-                    "w-56 justify-between h-9 font-normal text-sm",
+                    "w-80 justify-between h-9 font-normal text-sm",
                     selectedProduct === "all" && "text-muted-foreground",
                   )}
                 >
@@ -583,7 +589,9 @@ export default function InventoryMovements() {
                           const p = products.find(
                             (p) => p.id === selectedProduct,
                           );
-                          return p ? `${p.code} - ${p.name}` : "جميع المنتجات";
+                          return p
+                            ? `${p.code} - ${formatProductDisplay(p.name, p.product_brands?.name, p.model_number)}`
+                            : "جميع المنتجات";
                         })()
                       : "جميع المنتجات"}
                   </span>
@@ -597,7 +605,7 @@ export default function InventoryMovements() {
               >
                 <Command dir="rtl">
                   <CommandInput
-                    placeholder="ابحث بالكود أو الاسم..."
+                    placeholder="ابحث بالكود أو الاسم أو الماركة أو الموديل..."
                     className="h-10 text-sm"
                   />
                   <CommandList>
@@ -626,30 +634,37 @@ export default function InventoryMovements() {
                           )}
                         />
                       </CommandItem>
-                      {products.map((p) => (
-                        <CommandItem
-                          key={p.id}
-                          value={`${p.code} ${p.name}`}
-                          onSelect={() => {
-                            setSelectedProduct(p.id);
-                            setProductComboOpen(false);
-                          }}
-                          className="gap-2.5"
-                        >
-                          <span className="inline-flex items-center justify-center min-w-[3rem] rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
-                            {p.code}
-                          </span>
-                          <span className="flex-1 truncate">{p.name}</span>
-                          <Check
-                            className={cn(
-                              "mr-auto h-4 w-4 shrink-0 text-primary transition-opacity",
-                              selectedProduct === p.id
-                                ? "opacity-100"
-                                : "opacity-0",
-                            )}
-                          />
-                        </CommandItem>
-                      ))}
+                      {products.map((p) => {
+                        const display = formatProductDisplay(
+                          p.name,
+                          p.product_brands?.name,
+                          p.model_number,
+                        );
+                        return (
+                          <CommandItem
+                            key={p.id}
+                            value={`${p.code} ${p.name} ${p.product_brands?.name ?? ""} ${p.model_number ?? ""}`}
+                            onSelect={() => {
+                              setSelectedProduct(p.id);
+                              setProductComboOpen(false);
+                            }}
+                            className="gap-2.5"
+                          >
+                            <span className="inline-flex items-center justify-center min-w-[3rem] rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+                              {p.code}
+                            </span>
+                            <span className="flex-1 truncate">{display}</span>
+                            <Check
+                              className={cn(
+                                "mr-auto h-4 w-4 shrink-0 text-primary transition-opacity",
+                                selectedProduct === p.id
+                                  ? "opacity-100"
+                                  : "opacity-0",
+                              )}
+                            />
+                          </CommandItem>
+                        );
+                      })}
                     </CommandGroup>
                   </CommandList>
                 </Command>
