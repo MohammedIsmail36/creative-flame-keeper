@@ -559,7 +559,7 @@ export default function InventoryMovements() {
       <DataTable
         columns={columns}
         data={movements}
-        searchPlaceholder="بحث بالمنتج أو الملاحظات..."
+        searchPlaceholder="بحث بالكود، الاسم، الماركة، الموديل أو الملاحظات..."
         isLoading={isLoading}
         emptyMessage="لا توجد حركات مخزون"
         globalFilter={search}
