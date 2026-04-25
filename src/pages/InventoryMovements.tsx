@@ -96,16 +96,22 @@ export default function InventoryMovements() {
     pageSize: PAGE_SIZE,
   });
 
-  // Products lookup (small)
+  // Products lookup (with brand + model for full display & search)
   const { data: products = [] } = useQuery({
-    queryKey: ["products-list-tiny"],
+    queryKey: ["products-list-with-brand"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, code, name")
+        .select("id, code, name, model_number, product_brands(name)")
         .order("code");
       if (error) throw error;
-      return data;
+      return data as Array<{
+        id: string;
+        code: string;
+        name: string;
+        model_number: string | null;
+        product_brands: { name: string } | null;
+      }>;
     },
     staleTime: 60_000,
   });
