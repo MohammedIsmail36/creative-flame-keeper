@@ -906,7 +906,7 @@ export default function Dashboard() {
           totalSales: d.sales,
           totalProfit: d.profit,
         }))
-        .sort((a, b) => b.totalSales - a.totalSales)
+        .sort((a, b) => b.totalProfit - a.totalProfit)
         .slice(0, 8),
     );
   };
