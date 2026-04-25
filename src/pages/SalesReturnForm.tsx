@@ -1317,25 +1317,29 @@ export default function SalesReturnForm() {
           <div className="mb-5">
             <SectionHeader icon={ArrowLeftRight} title="العمليات المرتبطة" />
           </div>
-          <div className="space-y-4">
-            <ReturnSettlementsView
-              type="sales"
-              returnId={id}
-              returnTotal={grandTotal}
-            />
-            <InvoicePaymentSection
-              type="sales_return"
-              invoiceId={id}
-              entityId={customerId}
-              entityName={
-                customerName ||
-                customers.find((c) => c.id === customerId)?.name ||
-                ""
-              }
-              invoiceTotal={grandTotal}
-              invoiceNumber={returnNumber}
-              onPaymentAdded={loadData}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <InvoicePaymentSection
+                type="sales_return"
+                invoiceId={id}
+                entityId={customerId}
+                entityName={
+                  customerName ||
+                  customers.find((c) => c.id === customerId)?.name ||
+                  ""
+                }
+                invoiceTotal={grandTotal}
+                invoiceNumber={returnNumber}
+                onPaymentAdded={loadData}
+              />
+            </div>
+            <div className="space-y-4">
+              <ReturnSettlementsView
+                type="sales"
+                returnId={id}
+                returnTotal={grandTotal}
+              />
+            </div>
           </div>
         </div>
       )}
