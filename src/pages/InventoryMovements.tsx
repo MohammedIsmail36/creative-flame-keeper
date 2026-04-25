@@ -172,9 +172,33 @@ export default function InventoryMovements() {
       if (dateTo) query = query.lte("movement_date", dateTo);
       if (debouncedSearch.trim()) {
         const s = debouncedSearch.trim();
-        query = query.or(
-          `notes.ilike.%${s}%,products.name.ilike.%${s}%,products.code.ilike.%${s}%,products.model_number.ilike.%${s}%,products.product_brands.name.ilike.%${s}%`,
-        );
+        // Pre-resolve product IDs matching name/code/model/brand (PostgREST .or doesn't filter embedded relations)
+        const { data: brandMatches } = await supabase
+          .from("product_brands")
+          .select("id")
+          .ilike("name", `%${s}%`);
+        const brandIds = (brandMatches || []).map((b: any) => b.id);
+
+        let prodQuery = supabase.from("products").select("id");
+        const orParts = [
+          `name.ilike.%${s}%`,
+          `code.ilike.%${s}%`,
+          `model_number.ilike.%${s}%`,
+          `barcode.ilike.%${s}%`,
+        ];
+        if (brandIds.length > 0) {
+          orParts.push(`brand_id.in.(${brandIds.join(",")})`);
+        }
+        const { data: prodMatches } = await prodQuery.or(orParts.join(","));
+        const productIds = (prodMatches || []).map((p: any) => p.id);
+
+        if (productIds.length > 0) {
+          query = query.or(
+            `notes.ilike.%${s}%,product_id.in.(${productIds.join(",")})`,
+          );
+        } else {
+          query = query.ilike("notes", `%${s}%`);
+        }
       }
 
       const { data, error, count } = await query;
