@@ -614,6 +614,30 @@ export default function Expenses() {
       ),
     },
     {
+      id: "journal_entry",
+      meta: { hideOnMobile: true },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="رقم القيد" />
+      ),
+      cell: ({ row }) => {
+        const e = row.original;
+        if (!e.journal_entry_id)
+          return <span className="text-muted-foreground text-xs">-</span>;
+        return (
+          <button
+            onClick={(ev) => {
+              ev.stopPropagation();
+              navigate(`/journal/${e.journal_entry_id}`);
+            }}
+            className="text-xs text-primary hover:underline inline-flex items-center gap-1 font-mono"
+          >
+            <FileText className="h-3 w-3" />
+            عرض القيد
+          </button>
+        );
+      },
+    },
+    {
       accessorKey: "status",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="الحالة" />
