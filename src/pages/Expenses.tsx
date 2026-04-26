@@ -1006,6 +1006,41 @@ export default function Expenses() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Revert to Draft Alert */}
+      <AlertDialog
+        open={!!revertTarget}
+        onOpenChange={() => !saving && setRevertTarget(null)}
+      >
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>إعادة المصروف لمسودة</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم تحويل المصروف إلى مسودة وحذف القيد المحاسبي المرتبط به مع
+              الاحتفاظ بنفس الرقم التسلسلي. ستفتح نافذة التعديل تلقائياً بعد
+              التأكيد. هل تريد المتابعة؟
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>تراجع</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRevertToDraft}
+              disabled={saving}
+            >
+              تأكيد
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Form Dialog (Add / Edit) */}
+      <ExpenseFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        expenseId={editId}
+        reusePostedNum={reusePostedNum}
+        onSuccess={refetchAll}
+      />
     </div>
   );
 }
