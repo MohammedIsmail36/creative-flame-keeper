@@ -653,62 +653,105 @@ export default function Expenses() {
       cell: ({ row }) => {
         const e = row.original;
         return (
-          <div className="flex gap-1">
-            {e.status === "draft" && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="تعديل المصروف"
-                  className="h-8 w-8"
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    navigate(`/expenses/${e.id}`);
-                  }}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="ترحيل المصروف"
-                  className="h-8 w-8 text-green-600"
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    setPostTarget(e);
-                  }}
-                >
-                  <CheckCircle className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="حذف المصروف"
-                  className="h-8 w-8 text-destructive"
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    setDeleteTarget(e);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-            {e.status === "posted" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="إلغاء المصروف"
-                className="h-8 w-8 text-orange-600"
-                onClick={(ev) => {
-                  ev.stopPropagation();
-                  setCancelTarget(e);
-                }}
-              >
-                <XCircle className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
+          <TooltipProvider>
+            <div className="flex gap-1">
+              {e.status === "draft" && (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="تعديل المصروف"
+                        className="h-8 w-8"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          openEditDialog(e);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>تعديل</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="ترحيل المصروف"
+                        className="h-8 w-8 text-green-600"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setPostTarget(e);
+                        }}
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>ترحيل</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="حذف المصروف"
+                        className="h-8 w-8 text-destructive"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setDeleteTarget(e);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>حذف</TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+              {e.status === "posted" && (
+                <>
+                  {role === "admin" && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="إعادة لمسودة"
+                          className="h-8 w-8 text-blue-600"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setRevertTarget(e);
+                          }}
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>إعادة لمسودة للتعديل</TooltipContent>
+                    </Tooltip>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="إلغاء المصروف"
+                        className="h-8 w-8 text-orange-600"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setCancelTarget(e);
+                        }}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>إلغاء (عكس القيد)</TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+            </div>
+          </TooltipProvider>
         );
       },
     },
