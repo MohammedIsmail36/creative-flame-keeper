@@ -47,6 +47,14 @@ import { ACCOUNT_CODES, INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatSupabaseError } from "@/lib/format-error";
+import { ExpenseFormDialog } from "@/components/ExpenseFormDialog";
+import { Undo2, FileText } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Expense {
   id: string;
@@ -84,18 +92,25 @@ export default function Expenses() {
   const debouncedSearch = useDebouncedValue(search, 300);
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [methodFilter, setMethodFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [postTarget, setPostTarget] = useState<Expense | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Expense | null>(null);
+  const [revertTarget, setRevertTarget] = useState<Expense | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Dialog form
+  const [formOpen, setFormOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [reusePostedNum, setReusePostedNum] = useState<number | null>(null);
 
   // Reset pagination on filter/search change
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [debouncedSearch, statusFilter, typeFilter, dateFrom, dateTo]);
+  }, [debouncedSearch, statusFilter, typeFilter, methodFilter, dateFrom, dateTo]);
 
   // Expense types lookup (small) - fetched once
   const { data: expenseTypes = [] } = useQuery({
@@ -118,12 +133,27 @@ export default function Expenses() {
   function applyFilters(q: any) {
     if (statusFilter !== "all") q = q.eq("status", statusFilter);
     if (typeFilter !== "all") q = q.eq("expense_type_id", typeFilter);
+    if (methodFilter !== "all") q = q.eq("payment_method", methodFilter);
     if (dateFrom) q = q.gte("expense_date", dateFrom);
     if (dateTo) q = q.lte("expense_date", dateTo);
     if (debouncedSearch.trim()) {
-      const term = `%${debouncedSearch.trim()}%`;
-      // search on description; numeric expense_number cast not trivial via supabase
-      q = q.ilike("description", term);
+      const raw = debouncedSearch.trim();
+      const term = `%${raw}%`;
+      // Search description + matching expense type ids by name
+      const matchingTypeIds = expenseTypes
+        .filter((t) => t.name.toLowerCase().includes(raw.toLowerCase()))
+        .map((t) => t.id);
+      const orParts = [`description.ilike.${term}`];
+      // numeric search on posted_number / expense_number if input is digits
+      const num = Number(raw.replace(/\D/g, ""));
+      if (!Number.isNaN(num) && num > 0) {
+        orParts.push(`posted_number.eq.${num}`);
+        orParts.push(`expense_number.eq.${num}`);
+      }
+      if (matchingTypeIds.length > 0) {
+        orParts.push(`expense_type_id.in.(${matchingTypeIds.join(",")})`);
+      }
+      q = q.or(orParts.join(","));
     }
     return q;
   }
@@ -135,6 +165,7 @@ export default function Expenses() {
     debouncedSearch,
     statusFilter,
     typeFilter,
+    methodFilter,
     dateFrom,
     dateTo,
   ] as const;
@@ -210,6 +241,7 @@ export default function Expenses() {
   const clearFilters = () => {
     setStatusFilter("all");
     setTypeFilter("all");
+    setMethodFilter("all");
     setDateFrom("");
     setDateTo("");
     setSearch("");
@@ -217,9 +249,84 @@ export default function Expenses() {
   const hasFilters =
     statusFilter !== "all" ||
     typeFilter !== "all" ||
+    methodFilter !== "all" ||
     !!dateFrom ||
     !!dateTo ||
     !!search;
+
+  function openNewDialog() {
+    setEditId(null);
+    setReusePostedNum(null);
+    setFormOpen(true);
+  }
+
+  function openEditDialog(e: Expense, reuseNum: number | null = null) {
+    setEditId(e.id);
+    setReusePostedNum(reuseNum);
+    setFormOpen(true);
+  }
+
+  async function handleRevertToDraft() {
+    if (!revertTarget) return;
+    if (
+      settings?.locked_until_date &&
+      revertTarget.expense_date <= settings.locked_until_date
+    ) {
+      toast({
+        title: "خطأ",
+        description: `لا يمكن تعديل مصروف بتاريخ ${revertTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
+        variant: "destructive",
+      });
+      setRevertTarget(null);
+      return;
+    }
+    setSaving(true);
+    try {
+      const target = revertTarget;
+      const oldPostedNum = target.posted_number;
+      const oldJeId = target.journal_entry_id;
+
+      if (oldJeId) {
+        await supabase
+          .from("journal_entry_lines")
+          .delete()
+          .eq("journal_entry_id", oldJeId);
+        await supabase.from("journal_entries").delete().eq("id", oldJeId);
+      }
+
+      const { error } = await (supabase.from("expenses") as any)
+        .update({ status: "draft", journal_entry_id: null })
+        .eq("id", target.id);
+      if (error) throw error;
+
+      await (supabase.from("audit_log" as any) as any).insert({
+        action: "expense_revert_to_draft",
+        table_name: "expenses",
+        record_id: target.id,
+        old_data: {
+          status: "posted",
+          journal_entry_id: oldJeId,
+          posted_number: oldPostedNum,
+        },
+        new_data: { status: "draft", journal_entry_id: null },
+      });
+
+      toast({
+        title: "تم التحويل لمسودة",
+        description: "يمكنك الآن تعديل المصروف ثم إعادة ترحيله بنفس الرقم",
+      });
+      setRevertTarget(null);
+      refetchAll();
+      openEditDialog(target, oldPostedNum);
+    } catch (error: any) {
+      toast({
+        title: "خطأ",
+        description: formatSupabaseError(error),
+        variant: "destructive",
+      });
+    }
+    setSaving(false);
+  }
 
   async function handlePost() {
     if (!postTarget) return;
@@ -507,6 +614,30 @@ export default function Expenses() {
       ),
     },
     {
+      id: "journal_entry",
+      meta: { hideOnMobile: true },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="رقم القيد" />
+      ),
+      cell: ({ row }) => {
+        const e = row.original;
+        if (!e.journal_entry_id)
+          return <span className="text-muted-foreground text-xs">-</span>;
+        return (
+          <button
+            onClick={(ev) => {
+              ev.stopPropagation();
+              navigate(`/journal/${e.journal_entry_id}`);
+            }}
+            className="text-xs text-primary hover:underline inline-flex items-center gap-1 font-mono"
+          >
+            <FileText className="h-3 w-3" />
+            عرض القيد
+          </button>
+        );
+      },
+    },
+    {
       accessorKey: "status",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="الحالة" />
@@ -546,62 +677,105 @@ export default function Expenses() {
       cell: ({ row }) => {
         const e = row.original;
         return (
-          <div className="flex gap-1">
-            {e.status === "draft" && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="تعديل المصروف"
-                  className="h-8 w-8"
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    navigate(`/expenses/${e.id}`);
-                  }}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="ترحيل المصروف"
-                  className="h-8 w-8 text-green-600"
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    setPostTarget(e);
-                  }}
-                >
-                  <CheckCircle className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="حذف المصروف"
-                  className="h-8 w-8 text-destructive"
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    setDeleteTarget(e);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-            {e.status === "posted" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="إلغاء المصروف"
-                className="h-8 w-8 text-orange-600"
-                onClick={(ev) => {
-                  ev.stopPropagation();
-                  setCancelTarget(e);
-                }}
-              >
-                <XCircle className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
+          <TooltipProvider>
+            <div className="flex gap-1">
+              {e.status === "draft" && (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="تعديل المصروف"
+                        className="h-8 w-8"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          openEditDialog(e);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>تعديل</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="ترحيل المصروف"
+                        className="h-8 w-8 text-green-600"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setPostTarget(e);
+                        }}
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>ترحيل</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="حذف المصروف"
+                        className="h-8 w-8 text-destructive"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setDeleteTarget(e);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>حذف</TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+              {e.status === "posted" && (
+                <>
+                  {role === "admin" && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="إعادة لمسودة"
+                          className="h-8 w-8 text-blue-600"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setRevertTarget(e);
+                          }}
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>إعادة لمسودة للتعديل</TooltipContent>
+                    </Tooltip>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="إلغاء المصروف"
+                        className="h-8 w-8 text-orange-600"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setCancelTarget(e);
+                        }}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>إلغاء (عكس القيد)</TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+            </div>
+          </TooltipProvider>
         );
       },
     },
@@ -679,7 +853,7 @@ export default function Expenses() {
             />
             <Button
               className="gap-2 shadow-md shadow-primary/20 font-bold"
-              onClick={() => navigate("/expenses/new")}
+              onClick={openNewDialog}
             >
               <Plus className="h-4 w-4" />
               مصروف جديد
@@ -717,7 +891,7 @@ export default function Expenses() {
       <DataTable
         columns={columns}
         data={rows}
-        searchPlaceholder="البحث في البيان..."
+        searchPlaceholder="بحث برقم المصروف، النوع، أو البيان..."
         isLoading={isLoading}
         emptyMessage="لا توجد مصروفات"
         manualPagination
@@ -751,6 +925,16 @@ export default function Expenses() {
                     {t.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={methodFilter} onValueChange={setMethodFilter}>
+              <SelectTrigger className="w-36 h-9 text-sm bg-card border-border">
+                <SelectValue placeholder="طريقة الدفع" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الطرق</SelectItem>
+                <SelectItem value="cash">نقدي</SelectItem>
+                <SelectItem value="bank">تحويل بنكي</SelectItem>
               </SelectContent>
             </Select>
             <DatePickerInput
@@ -846,6 +1030,41 @@ export default function Expenses() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Revert to Draft Alert */}
+      <AlertDialog
+        open={!!revertTarget}
+        onOpenChange={() => !saving && setRevertTarget(null)}
+      >
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>إعادة المصروف لمسودة</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم تحويل المصروف إلى مسودة وحذف القيد المحاسبي المرتبط به مع
+              الاحتفاظ بنفس الرقم التسلسلي. ستفتح نافذة التعديل تلقائياً بعد
+              التأكيد. هل تريد المتابعة؟
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>تراجع</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRevertToDraft}
+              disabled={saving}
+            >
+              تأكيد
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Form Dialog (Add / Edit) */}
+      <ExpenseFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        expenseId={editId}
+        reusePostedNum={reusePostedNum}
+        onSuccess={refetchAll}
+      />
     </div>
   );
 }

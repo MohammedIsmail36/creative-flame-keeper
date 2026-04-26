@@ -63,7 +63,7 @@ const SupplierStatement = lazy(() => import("./pages/SupplierStatement"));
 const FiscalYearClosing = lazy(() => import("./pages/FiscalYearClosing"));
 const ExpenseTypes = lazy(() => import("./pages/ExpenseTypes"));
 const Expenses = lazy(() => import("./pages/Expenses"));
-const ExpenseForm = lazy(() => import("./pages/ExpenseForm"));
+
 
 // Lazy — reports (heavy: recharts/jspdf/xlsx)
 const SalesReportPage = lazy(() => import("./pages/reports/SalesReportPage"));
@@ -180,8 +180,6 @@ const App = () => (
             <Route path="/fiscal-year-closing" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<FiscalYearClosing />)}</AppLayout></ProtectedRoute>} />
             <Route path="/expense-types" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ExpenseTypes />)}</AppLayout></ProtectedRoute>} />
             <Route path="/expenses" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<Expenses />)}</AppLayout></ProtectedRoute>} />
-            <Route path="/expenses/new" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<ExpenseForm />)}</AppLayout></ProtectedRoute>} />
-            <Route path="/expenses/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<ExpenseForm />)}</AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </SettingsProvider>
