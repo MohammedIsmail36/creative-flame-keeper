@@ -47,6 +47,14 @@ import { ACCOUNT_CODES, INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatSupabaseError } from "@/lib/format-error";
+import { ExpenseFormDialog } from "@/components/ExpenseFormDialog";
+import { Undo2, FileText } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Expense {
   id: string;
