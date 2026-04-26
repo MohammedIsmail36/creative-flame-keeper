@@ -867,7 +867,7 @@ export default function Expenses() {
       <DataTable
         columns={columns}
         data={rows}
-        searchPlaceholder="البحث في البيان..."
+        searchPlaceholder="بحث برقم المصروف، النوع، أو البيان..."
         isLoading={isLoading}
         emptyMessage="لا توجد مصروفات"
         manualPagination
