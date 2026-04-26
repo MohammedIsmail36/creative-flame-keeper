@@ -63,7 +63,7 @@ const SupplierStatement = lazy(() => import("./pages/SupplierStatement"));
 const FiscalYearClosing = lazy(() => import("./pages/FiscalYearClosing"));
 const ExpenseTypes = lazy(() => import("./pages/ExpenseTypes"));
 const Expenses = lazy(() => import("./pages/Expenses"));
-const ExpenseForm = lazy(() => import("./pages/ExpenseForm"));
+
 
 // Lazy — reports (heavy: recharts/jspdf/xlsx)
 const SalesReportPage = lazy(() => import("./pages/reports/SalesReportPage"));
