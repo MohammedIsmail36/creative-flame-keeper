@@ -241,6 +241,7 @@ export default function Expenses() {
   const clearFilters = () => {
     setStatusFilter("all");
     setTypeFilter("all");
+    setMethodFilter("all");
     setDateFrom("");
     setDateTo("");
     setSearch("");
@@ -248,9 +249,84 @@ export default function Expenses() {
   const hasFilters =
     statusFilter !== "all" ||
     typeFilter !== "all" ||
+    methodFilter !== "all" ||
     !!dateFrom ||
     !!dateTo ||
     !!search;
+
+  function openNewDialog() {
+    setEditId(null);
+    setReusePostedNum(null);
+    setFormOpen(true);
+  }
+
+  function openEditDialog(e: Expense, reuseNum: number | null = null) {
+    setEditId(e.id);
+    setReusePostedNum(reuseNum);
+    setFormOpen(true);
+  }
+
+  async function handleRevertToDraft() {
+    if (!revertTarget) return;
+    if (
+      settings?.locked_until_date &&
+      revertTarget.expense_date <= settings.locked_until_date
+    ) {
+      toast({
+        title: "خطأ",
+        description: `لا يمكن تعديل مصروف بتاريخ ${revertTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
+        variant: "destructive",
+      });
+      setRevertTarget(null);
+      return;
+    }
+    setSaving(true);
+    try {
+      const target = revertTarget;
+      const oldPostedNum = target.posted_number;
+      const oldJeId = target.journal_entry_id;
+
+      if (oldJeId) {
+        await supabase
+          .from("journal_entry_lines")
+          .delete()
+          .eq("journal_entry_id", oldJeId);
+        await supabase.from("journal_entries").delete().eq("id", oldJeId);
+      }
+
+      const { error } = await (supabase.from("expenses") as any)
+        .update({ status: "draft", journal_entry_id: null })
+        .eq("id", target.id);
+      if (error) throw error;
+
+      await (supabase.from("audit_log" as any) as any).insert({
+        action: "expense_revert_to_draft",
+        table_name: "expenses",
+        record_id: target.id,
+        old_data: {
+          status: "posted",
+          journal_entry_id: oldJeId,
+          posted_number: oldPostedNum,
+        },
+        new_data: { status: "draft", journal_entry_id: null },
+      });
+
+      toast({
+        title: "تم التحويل لمسودة",
+        description: "يمكنك الآن تعديل المصروف ثم إعادة ترحيله بنفس الرقم",
+      });
+      setRevertTarget(null);
+      refetchAll();
+      openEditDialog(target, oldPostedNum);
+    } catch (error: any) {
+      toast({
+        title: "خطأ",
+        description: formatSupabaseError(error),
+        variant: "destructive",
+      });
+    }
+    setSaving(false);
+  }
 
   async function handlePost() {
     if (!postTarget) return;
