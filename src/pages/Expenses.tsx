@@ -903,6 +903,16 @@ export default function Expenses() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={methodFilter} onValueChange={setMethodFilter}>
+              <SelectTrigger className="w-36 h-9 text-sm bg-card border-border">
+                <SelectValue placeholder="طريقة الدفع" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الطرق</SelectItem>
+                <SelectItem value="cash">نقدي</SelectItem>
+                <SelectItem value="bank">تحويل بنكي</SelectItem>
+              </SelectContent>
+            </Select>
             <DatePickerInput
               value={dateFrom}
               onChange={setDateFrom}
