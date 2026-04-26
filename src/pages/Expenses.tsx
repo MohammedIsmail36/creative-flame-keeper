@@ -92,18 +92,25 @@ export default function Expenses() {
   const debouncedSearch = useDebouncedValue(search, 300);
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [methodFilter, setMethodFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [postTarget, setPostTarget] = useState<Expense | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Expense | null>(null);
+  const [revertTarget, setRevertTarget] = useState<Expense | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Dialog form
+  const [formOpen, setFormOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [reusePostedNum, setReusePostedNum] = useState<number | null>(null);
 
   // Reset pagination on filter/search change
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [debouncedSearch, statusFilter, typeFilter, dateFrom, dateTo]);
+  }, [debouncedSearch, statusFilter, typeFilter, methodFilter, dateFrom, dateTo]);
 
   // Expense types lookup (small) - fetched once
   const { data: expenseTypes = [] } = useQuery({
