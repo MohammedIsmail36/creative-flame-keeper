@@ -829,7 +829,7 @@ export default function Expenses() {
             />
             <Button
               className="gap-2 shadow-md shadow-primary/20 font-bold"
-              onClick={() => navigate("/expenses/new")}
+              onClick={openNewDialog}
             >
               <Plus className="h-4 w-4" />
               مصروف جديد
