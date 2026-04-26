@@ -133,12 +133,27 @@ export default function Expenses() {
   function applyFilters(q: any) {
     if (statusFilter !== "all") q = q.eq("status", statusFilter);
     if (typeFilter !== "all") q = q.eq("expense_type_id", typeFilter);
+    if (methodFilter !== "all") q = q.eq("payment_method", methodFilter);
     if (dateFrom) q = q.gte("expense_date", dateFrom);
     if (dateTo) q = q.lte("expense_date", dateTo);
     if (debouncedSearch.trim()) {
-      const term = `%${debouncedSearch.trim()}%`;
-      // search on description; numeric expense_number cast not trivial via supabase
-      q = q.ilike("description", term);
+      const raw = debouncedSearch.trim();
+      const term = `%${raw}%`;
+      // Search description + matching expense type ids by name
+      const matchingTypeIds = expenseTypes
+        .filter((t) => t.name.toLowerCase().includes(raw.toLowerCase()))
+        .map((t) => t.id);
+      const orParts = [`description.ilike.${term}`];
+      // numeric search on posted_number / expense_number if input is digits
+      const num = Number(raw.replace(/\D/g, ""));
+      if (!Number.isNaN(num) && num > 0) {
+        orParts.push(`posted_number.eq.${num}`);
+        orParts.push(`expense_number.eq.${num}`);
+      }
+      if (matchingTypeIds.length > 0) {
+        orParts.push(`expense_type_id.in.(${matchingTypeIds.join(",")})`);
+      }
+      q = q.or(orParts.join(","));
     }
     return q;
   }
@@ -150,6 +165,7 @@ export default function Expenses() {
     debouncedSearch,
     statusFilter,
     typeFilter,
+    methodFilter,
     dateFrom,
     dateTo,
   ] as const;
