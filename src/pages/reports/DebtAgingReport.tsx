@@ -718,6 +718,122 @@ export default function DebtAgingReport() {
           </Card>
         </div>
 
+        {/* ── Decision Strip: Net Liquidity + Concentration + Critical Alerts ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          {/* Net liquidity */}
+          <Card className="border shadow-sm">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Wallet className="h-4 w-4 text-primary" />
+                <h4 className="text-sm font-semibold">صافي تدفق الديون</h4>
+                <MetricHelp text="إجمالي ديون العملاء (المتوقع تحصيلها) ناقص ديون الموردين (الواجب سدادها). موجب = فائض متوقع، سالب = عجز." />
+              </div>
+              <p
+                className={cn(
+                  "text-xl font-bold tabular-nums",
+                  kpis.netLiquidity >= 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-destructive",
+                )}
+              >
+                {kpis.netLiquidity >= 0 ? "+" : "−"}
+                {fmt(Math.abs(kpis.netLiquidity))}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {kpis.netLiquidity >= 0
+                  ? "فائض متوقع بعد التحصيل والسداد"
+                  : "تحتاج توفير سيولة إضافية للسداد"}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Risk concentration */}
+          <Card className="border shadow-sm">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="h-4 w-4 text-primary" />
+                <h4 className="text-sm font-semibold">تركيز المخاطر</h4>
+                <MetricHelp text="حصة أعلى 5 جهات من إجمالي الديون. كلما زادت النسبة، زاد اعتمادك على عدد قليل من الجهات." />
+              </div>
+              {(() => {
+                const conc =
+                  activeTab === "customers"
+                    ? kpis.customerConcentration
+                    : kpis.supplierConcentration;
+                const tone =
+                  conc > 70
+                    ? "text-destructive"
+                    : conc > 50
+                      ? "text-orange-600"
+                      : "text-emerald-600";
+                return (
+                  <>
+                    <p
+                      className={cn(
+                        "text-xl font-bold tabular-nums",
+                        tone,
+                      )}
+                    >
+                      {conc.toFixed(1)}%
+                    </p>
+                    <Progress
+                      value={Math.min(100, conc)}
+                      className="h-1.5 mt-2"
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      أعلى 5 {activeTab === "customers" ? "عملاء" : "موردين"}{" "}
+                      من الإجمالي
+                    </p>
+                  </>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
+          {/* Top critical alerts */}
+          <Card className="border shadow-sm">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="h-4 w-4 text-destructive" />
+                <h4 className="text-sm font-semibold">أعلى 3 جهات حرجة</h4>
+              </div>
+              {(() => {
+                const critical = activeData.entities
+                  .filter((e) => e.severity === "critical")
+                  .slice(0, 3);
+                if (critical.length === 0)
+                  return (
+                    <p className="text-xs text-muted-foreground py-2">
+                      ✓ لا توجد جهات حرجة (90+ يوم)
+                    </p>
+                  );
+                return (
+                  <div className="space-y-1.5">
+                    {critical.map((e) => {
+                      const path =
+                        activeTab === "customers"
+                          ? `/customer-statement/${e.id}`
+                          : `/supplier-statement/${e.id}`;
+                      return (
+                        <Link
+                          key={e.id}
+                          to={path}
+                          className="flex items-center justify-between gap-2 text-xs hover:bg-muted/50 px-2 py-1 -mx-1 rounded transition-colors"
+                        >
+                          <span className="truncate font-medium">{e.name}</span>
+                          <span className="font-mono tabular-nums text-destructive font-semibold shrink-0">
+                            {fmt(e.days90)}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        </div>
+
         {/* ── Tabs ────────────────────────────────────────────────────── */}
         <Tabs
           value={activeTab}
