@@ -252,7 +252,33 @@ export default function DebtAgingReport() {
       0,
     );
 
-    // Concentration: top-5 share of total
+    const overdueCustomer90 = customerData.entities.reduce(
+      (s, e) => s + e.days90,
+      0,
+    );
+    const overdueSupplier90 = supplierData.entities.reduce(
+      (s, e) => s + e.days90,
+      0,
+    );
+
+    const criticalCustomerCount = customerData.entities.filter(
+      (e) => e.severity === "critical",
+    ).length;
+    const criticalSupplierCount = supplierData.entities.filter(
+      (e) => e.severity === "critical",
+    ).length;
+
+    const calcWeightedAvg = (entities: AgingEntity[]) => {
+      const totalDebt = entities.reduce((s, e) => s + e.total, 0);
+      if (totalDebt === 0) return 0;
+      const weighted = entities.reduce((s, e) => {
+        const avgBucket =
+          e.current * 15 + e.days30 * 45 + e.days60 * 75 + e.days90 * 120;
+        return s + avgBucket;
+      }, 0);
+      return Math.round(weighted / totalDebt);
+    };
+
     const top5Share = (entities: AgingEntity[], total: number) => {
       if (total <= 0) return 0;
       const top5 = entities.slice(0, 5).reduce((s, e) => s + e.total, 0);
