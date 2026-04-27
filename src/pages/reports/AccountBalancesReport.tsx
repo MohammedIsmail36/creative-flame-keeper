@@ -1353,18 +1353,16 @@ function KpiCard({ label, value, currency, icon: Icon, tone, hint, valueClass }:
   };
 
   return (
-    //----- New Card ----------------------------
-    <Card className="border shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+    <Card className="border shadow-sm">
       <CardContent className="pt-3 pb-3 px-3">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2">
+        {/* Row 1: label + icon */}
+        <div className="flex items-start justify-between gap-1 mb-2">
           <div className="flex items-center gap-1 min-w-0">
-            <p className="text-xs text-muted-foreground line-clamp-1">{label}</p>
-
+            <p className="text-[11px] leading-snug text-muted-foreground line-clamp-2">{label}</p>
             {hint && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info className="h-3 w-3 text-muted-foreground/40 cursor-help" />
+                  <Info className="h-2.5 w-2.5 text-muted-foreground/40 cursor-help shrink-0 mt-px" />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs text-xs text-right">
                   {hint}
@@ -1372,26 +1370,21 @@ function KpiCard({ label, value, currency, icon: Icon, tone, hint, valueClass }:
               </Tooltip>
             )}
           </div>
-
-          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", iconBg[tone])}>
-            <Icon className="h-4 w-4" />
+          <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0", iconBg[tone])}>
+            <Icon className="h-3 w-3" />
           </div>
         </div>
 
-        {/* Value */}
-        <div className="flex items-baseline gap-1">
-          <p className={cn("text-xl md:text-2xl font-bold tabular-nums font-mono tracking-tight", valueClass)}>
-            {Number(value).toLocaleString()}
-          </p>
-          {currency && <span className="text-xs text-muted-foreground">{currency}</span>}
-        </div>
+        {/* Row 2: number — occupies its own line, never truncated or crowded */}
+        <p
+          className={cn("text-base font-bold tabular-nums font-mono leading-tight", valueClass)}
+          style={{ wordBreak: "break-all" }}
+        >
+          {value}
+        </p>
 
-        {/* Change */}
-        {change !== undefined && (
-          <p className={cn("text-xs mt-1 flex items-center gap-1", change > 0 ? "text-green-600" : "text-red-600")}>
-            {change > 0 ? "▲" : "▼"} {Math.abs(change)}%
-          </p>
-        )}
+        {/* Row 3: currency label on its own line — never overlaps the number */}
+        {currency && <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">{currency}</p>}
       </CardContent>
     </Card>
   );
