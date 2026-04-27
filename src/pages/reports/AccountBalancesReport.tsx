@@ -1390,6 +1390,48 @@ function KpiCard({ label, value, currency, icon: Icon, tone, hint, valueClass }:
   );
 }
 
+//----- NewCard ----------------------------
+<Card className="border shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+  <CardContent className="pt-3 pb-3 px-3">
+    {/* Header */}
+    <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center gap-1 min-w-0">
+        <p className="text-xs text-muted-foreground line-clamp-1">{label}</p>
+
+        {hint && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="h-3 w-3 text-muted-foreground/40 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs text-xs text-right">
+              {hint}
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+
+      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", iconBg[tone])}>
+        <Icon className="h-4 w-4" />
+      </div>
+    </div>
+
+    {/* Value */}
+    <div className="flex items-baseline gap-1">
+      <p className={cn("text-xl md:text-2xl font-bold tabular-nums font-mono tracking-tight", valueClass)}>
+        {Number(value).toLocaleString()}
+      </p>
+      {currency && <span className="text-xs text-muted-foreground">{currency}</span>}
+    </div>
+
+    {/* Change */}
+    {change !== undefined && (
+      <p className={cn("text-xs mt-1 flex items-center gap-1", change > 0 ? "text-green-600" : "text-red-600")}>
+        {change > 0 ? "▲" : "▼"} {Math.abs(change)}%
+      </p>
+    )}
+  </CardContent>
+</Card>;
+
 // ─── StackedBar ───────────────────────────────────────────
 
 interface StackedBarProps {
