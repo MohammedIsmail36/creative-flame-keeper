@@ -690,7 +690,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 // Prefix codes for cash/bank accounts — adjust to your chart of accounts
-const CASH_CODE_PREFIXES = ["10", "11"];
+const CASH_CODE_PREFIXES = ["1101", "1102"];
 
 // ─── Formatters ───────────────────────────────────────────
 
