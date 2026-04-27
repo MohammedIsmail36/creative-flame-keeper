@@ -8,19 +8,8 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "@/components/ui/data-table";
 import { ExportMenu } from "@/components/ExportMenu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ColumnDef } from "@tanstack/react-table";
 import {
   Wallet,
@@ -58,12 +47,9 @@ const TYPE_LABELS: Record<string, string> = {
 
 const TYPE_COLORS: Record<string, string> = {
   asset: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400",
-  liability:
-    "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400",
-  equity:
-    "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400",
-  revenue:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
+  liability: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400",
+  equity: "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400",
+  revenue: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
   expense: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400",
 };
 
@@ -96,10 +82,7 @@ export default function AccountBalancesReport() {
         (supabase.rpc as any)("get_account_balances", {
           p_only_with_activity: false,
         }),
-        supabase
-          .from("accounts")
-          .select("id, code, name, account_type, parent_id, is_parent")
-          .order("code"),
+        supabase.from("accounts").select("id, code, name, account_type, parent_id, is_parent").order("code"),
       ]);
       if (cancelled) return;
       const rows = ((balRes.data?.rows ?? []) as any[]).map((r) => ({
@@ -166,18 +149,14 @@ export default function AccountBalancesReport() {
     const totalEquity = typeTotals.equity || 0;
     const totalRevenue = typeTotals.revenue || 0;
     const totalExpense = typeTotals.expense || 0;
-    const netProfit = totalRevenue - totalExpense;
+    // const netProfit = totalRevenue - totalExpense;
+    const netProfit = totalRevenue - Math.abs(totalExpense);
     // Liquidity = cash + bank accounts (codes 11xx category usually)
     // We approximate by summing assets whose name includes نقد/خزنة/بنك/صندوق
     const liquidity = balances
-      .filter(
-        (b) =>
-          b.account_type === "asset" &&
-          /(نقد|خزنة|بنك|صندوق|cash|bank)/i.test(b.name),
-      )
+      .filter((b) => b.account_type === "asset" && /(نقد|خزنة|بنك|صندوق|cash|bank)/i.test(b.name))
       .reduce((s, b) => s + b.balance, 0);
-    const debtRatio =
-      totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
+    const debtRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
     // Equation: Assets = Liabilities + Equity + (Revenue - Expense)
     const equationDiff = totalAssets - (totalLiabilities + totalEquity + netProfit);
     return {
@@ -199,8 +178,7 @@ export default function AccountBalancesReport() {
     return balances
       .filter((acc) => {
         if (acc.is_parent) return false;
-        if (typeFilter !== "all" && acc.account_type !== typeFilter)
-          return false;
+        if (typeFilter !== "all" && acc.account_type !== typeFilter) return false;
         if (!showZero && Math.abs(acc.balance) < 0.01) return false;
         return true;
       })
@@ -209,31 +187,21 @@ export default function AccountBalancesReport() {
 
   // Top 10 accounts by absolute balance
   const top10 = useMemo(() => filtered.slice(0, 10), [filtered]);
-  const top10Max = useMemo(
-    () => Math.max(1, ...top10.map((a) => Math.abs(a.balance))),
-    [top10],
-  );
+  const top10Max = useMemo(() => Math.max(1, ...top10.map((a) => Math.abs(a.balance))), [top10]);
 
   // ── Table columns ────────────────────────────────────
   const columns = useMemo<ColumnDef<AccountBalance, any>[]>(() => {
-    const typeTotal = (t: string) =>
-      Math.abs(typeTotals[t] || 0) || 1;
+    const typeTotal = (t: string) => Math.abs(typeTotals[t] || 0) || 1;
     return [
       {
         accessorKey: "code",
         header: "الرمز",
-        cell: ({ getValue }) => (
-          <span className="font-mono text-xs text-muted-foreground">
-            {getValue() as string}
-          </span>
-        ),
+        cell: ({ getValue }) => <span className="font-mono text-xs text-muted-foreground">{getValue() as string}</span>,
       },
       {
         accessorKey: "name",
         header: "اسم الحساب",
-        cell: ({ row }) => (
-          <span className="text-sm font-medium">{row.original.name}</span>
-        ),
+        cell: ({ row }) => <span className="text-sm font-medium">{row.original.name}</span>,
       },
       {
         accessorKey: "account_type",
@@ -241,10 +209,7 @@ export default function AccountBalancesReport() {
         cell: ({ getValue }) => {
           const t = getValue() as string;
           return (
-            <Badge
-              variant="secondary"
-              className={cn("text-[11px] font-normal", TYPE_COLORS[t])}
-            >
+            <Badge variant="secondary" className={cn("text-[11px] font-normal", TYPE_COLORS[t])}>
               {TYPE_LABELS[t] || t}
             </Badge>
           );
@@ -257,10 +222,7 @@ export default function AccountBalancesReport() {
           const v = getValue() as number;
           return (
             <span
-              className={cn(
-                "tabular-nums text-sm font-mono",
-                v > 0 ? "text-foreground" : "text-muted-foreground/40",
-              )}
+              className={cn("tabular-nums text-sm font-mono", v > 0 ? "text-foreground" : "text-muted-foreground/40")}
             >
               {v > 0 ? fmt(v) : "—"}
             </span>
@@ -274,10 +236,7 @@ export default function AccountBalancesReport() {
           const v = getValue() as number;
           return (
             <span
-              className={cn(
-                "tabular-nums text-sm font-mono",
-                v > 0 ? "text-foreground" : "text-muted-foreground/40",
-              )}
+              className={cn("tabular-nums text-sm font-mono", v > 0 ? "text-foreground" : "text-muted-foreground/40")}
             >
               {v > 0 ? fmt(v) : "—"}
             </span>
@@ -297,9 +256,7 @@ export default function AccountBalancesReport() {
               )}
             >
               {fmt(Math.abs(v))}
-              <span className="text-[10px] font-normal text-muted-foreground mr-1">
-                {v >= 0 ? "مدين" : "دائن"}
-              </span>
+              <span className="text-[10px] font-normal text-muted-foreground mr-1">{v >= 0 ? "مدين" : "دائن"}</span>
             </span>
           );
         },
@@ -314,9 +271,7 @@ export default function AccountBalancesReport() {
           return (
             <div className="flex items-center gap-2 min-w-[100px]">
               <Progress value={Math.min(100, pct)} className="h-1.5 w-16" />
-              <span className="text-[11px] tabular-nums text-muted-foreground w-10">
-                {pct.toFixed(1)}%
-              </span>
+              <span className="text-[11px] tabular-nums text-muted-foreground w-10">{pct.toFixed(1)}%</span>
             </div>
           );
         },
@@ -405,11 +360,7 @@ export default function AccountBalancesReport() {
             icon={kpis.netProfit >= 0 ? TrendingUp : TrendingDown}
             tone={kpis.netProfit >= 0 ? "emerald" : "red"}
             hint="الإيرادات − المصروفات للفترة الحالية"
-            valueClass={
-              kpis.netProfit >= 0
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-destructive"
-            }
+            valueClass={kpis.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}
           />
           <KpiCard
             label="السيولة المتاحة"
@@ -424,20 +375,10 @@ export default function AccountBalancesReport() {
             value={kpis.debtRatio.toFixed(1) + "%"}
             currency=""
             icon={Scale}
-            tone={
-              kpis.debtRatio > 70
-                ? "red"
-                : kpis.debtRatio > 40
-                  ? "orange"
-                  : "emerald"
-            }
+            tone={kpis.debtRatio > 70 ? "red" : kpis.debtRatio > 40 ? "orange" : "emerald"}
             hint="كلما زادت النسبة عن 50% زادت مخاطر المديونية"
             valueClass={
-              kpis.debtRatio > 70
-                ? "text-destructive"
-                : kpis.debtRatio > 40
-                  ? "text-orange-600"
-                  : "text-emerald-600"
+              kpis.debtRatio > 70 ? "text-destructive" : kpis.debtRatio > 40 ? "text-orange-600" : "text-emerald-600"
             }
           />
         </div>
@@ -461,26 +402,19 @@ export default function AccountBalancesReport() {
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                الأصول = الخصوم + حقوق الملكية + صافي الدخل
-              </p>
+              <p className="text-xs text-muted-foreground">الأصول = الخصوم + حقوق الملكية + صافي الدخل</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
               {/* Left: Assets */}
               <div className="rounded-lg border bg-blue-50/50 dark:bg-blue-500/5 p-3">
                 <p className="text-[11px] text-muted-foreground mb-1">الأصول</p>
                 <p className="text-lg font-bold text-blue-700 dark:text-blue-400 tabular-nums">
-                  {fmt(kpis.totalAssets)}{" "}
-                  <span className="text-xs font-normal text-muted-foreground">
-                    {currency}
-                  </span>
+                  {fmt(kpis.totalAssets)} <span className="text-xs font-normal text-muted-foreground">{currency}</span>
                 </p>
               </div>
               {/* Right: stacked bar */}
               <div className="rounded-lg border p-3">
-                <p className="text-[11px] text-muted-foreground mb-2">
-                  المصادر
-                </p>
+                <p className="text-[11px] text-muted-foreground mb-2">المصادر</p>
                 <StackedBar
                   segments={[
                     {
@@ -496,8 +430,7 @@ export default function AccountBalancesReport() {
                     {
                       label: kpis.netProfit >= 0 ? "ربح" : "خسارة",
                       value: Math.abs(kpis.netProfit),
-                      color:
-                        kpis.netProfit >= 0 ? "bg-emerald-400" : "bg-red-400",
+                      color: kpis.netProfit >= 0 ? "bg-emerald-400" : "bg-red-400",
                     },
                   ]}
                 />
@@ -512,39 +445,25 @@ export default function AccountBalancesReport() {
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold">
-                  أعلى 10 حسابات بالرصيد
-                </h3>
+                <h3 className="text-sm font-semibold">أعلى 10 حسابات بالرصيد</h3>
               </div>
             </div>
             {top10.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                لا توجد بيانات
-              </p>
+              <p className="text-sm text-muted-foreground text-center py-4">لا توجد بيانات</p>
             ) : (
               <div className="space-y-1.5">
                 {top10.map((a) => {
                   const v = Math.abs(a.balance);
                   const pct = (v / top10Max) * 100;
                   return (
-                    <div
-                      key={a.id}
-                      className="grid grid-cols-[1fr_auto] gap-3 items-center"
-                    >
+                    <div key={a.id} className="grid grid-cols-[1fr_auto] gap-3 items-center">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium truncate">
-                            {a.name}
-                          </span>
-                          <span className="text-[10px] font-mono text-muted-foreground shrink-0">
-                            {a.code}
-                          </span>
+                          <span className="text-xs font-medium truncate">{a.name}</span>
+                          <span className="text-[10px] font-mono text-muted-foreground shrink-0">{a.code}</span>
                           <Badge
                             variant="secondary"
-                            className={cn(
-                              "text-[9px] px-1.5 py-0 h-4 shrink-0",
-                              TYPE_COLORS[a.account_type],
-                            )}
+                            className={cn("text-[9px] px-1.5 py-0 h-4 shrink-0", TYPE_COLORS[a.account_type])}
                           >
                             {TYPE_LABELS[a.account_type]}
                           </Badge>
@@ -553,9 +472,7 @@ export default function AccountBalancesReport() {
                           <div
                             className={cn(
                               "h-full rounded-full transition-all",
-                              a.balance >= 0
-                                ? "bg-primary"
-                                : "bg-destructive/70",
+                              a.balance >= 0 ? "bg-primary" : "bg-destructive/70",
                             )}
                             style={{ width: `${pct}%` }}
                           />
@@ -640,12 +557,9 @@ function KpiCard({
 }) {
   const tones: Record<string, string> = {
     blue: "bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400",
-    orange:
-      "bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400",
-    purple:
-      "bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400",
-    emerald:
-      "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    orange: "bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400",
+    purple: "bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400",
+    emerald: "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
     red: "bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400",
   };
   return (
@@ -660,35 +574,18 @@ function KpiCard({
                   <TooltipTrigger asChild>
                     <Info className="h-2.5 w-2.5 text-muted-foreground/50 cursor-help shrink-0" />
                   </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    className="max-w-xs text-xs text-right"
-                  >
+                  <TooltipContent side="top" className="max-w-xs text-xs text-right">
                     {hint}
                   </TooltipContent>
                 </Tooltip>
               )}
             </div>
-            <p
-              className={cn(
-                "text-base lg:text-lg font-bold tabular-nums truncate",
-                valueClass,
-              )}
-            >
+            <p className={cn("text-base lg:text-lg font-bold tabular-nums truncate", valueClass)}>
               {value}
-              {currency && (
-                <span className="text-[10px] font-normal text-muted-foreground mr-1">
-                  {currency}
-                </span>
-              )}
+              {currency && <span className="text-[10px] font-normal text-muted-foreground mr-1">{currency}</span>}
             </p>
           </div>
-          <div
-            className={cn(
-              "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
-              tones[tone],
-            )}
-          >
+          <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0", tones[tone])}>
             <Icon className="h-3.5 w-3.5" />
           </div>
         </div>
@@ -697,11 +594,7 @@ function KpiCard({
   );
 }
 
-function StackedBar({
-  segments,
-}: {
-  segments: { label: string; value: number; color: string }[];
-}) {
+function StackedBar({ segments }: { segments: { label: string; value: number; color: string }[] }) {
   const total = segments.reduce((s, x) => s + Math.abs(x.value), 0) || 1;
   return (
     <div>
@@ -726,12 +619,8 @@ function StackedBar({
             <div key={i} className="flex items-center gap-1.5 text-[11px]">
               <span className={cn("w-2 h-2 rounded-sm", s.color)} />
               <span className="text-muted-foreground">{s.label}:</span>
-              <span className="font-mono font-medium tabular-nums">
-                {fmt(s.value)}
-              </span>
-              <span className="text-muted-foreground">
-                ({pct.toFixed(1)}%)
-              </span>
+              <span className="font-mono font-medium tabular-nums">{fmt(s.value)}</span>
+              <span className="text-muted-foreground">({pct.toFixed(1)}%)</span>
             </div>
           );
         })}
