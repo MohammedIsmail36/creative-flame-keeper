@@ -1,17 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DataTable } from "@/components/ui/data-table";
+import { ExportMenu } from "@/components/ExportMenu";
 import {
   Select,
   SelectContent,
@@ -19,23 +15,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ColumnDef } from "@tanstack/react-table";
+import {
+  Wallet,
+  Scale,
+  TrendingUp,
+  TrendingDown,
+  Building2,
+  Banknote,
+  Info,
+  CheckCircle2,
+  AlertTriangle,
+  Layers,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface AccountBalance {
   id: string;
   code: string;
   name: string;
   account_type: string;
+  parent_id?: string | null;
+  is_parent?: boolean;
   debit: number;
   credit: number;
   balance: number;
 }
 
-const typeLabels: Record<string, string> = {
+const TYPE_LABELS: Record<string, string> = {
   asset: "الأصول",
   liability: "الخصوم",
   equity: "حقوق الملكية",
   revenue: "الإيرادات",
   expense: "المصروفات",
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  asset: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400",
+  liability:
+    "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400",
+  equity:
+    "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400",
+  revenue:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
+  expense: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400",
 };
 
 const fmt = (v: number) =>
@@ -44,36 +73,68 @@ const fmt = (v: number) =>
     maximumFractionDigits: 2,
   });
 
+const compactFmt = (v: number) => {
+  const abs = Math.abs(v);
+  if (abs >= 1_000_000) return (v / 1_000_000).toFixed(1) + "M";
+  if (abs >= 1_000) return (v / 1_000).toFixed(1) + "K";
+  return fmt(v);
+};
+
 export default function AccountBalancesReport() {
-  const { currency } = useSettings();
+  const { currency, settings } = useSettings();
   const [loading, setLoading] = useState(true);
   const [balances, setBalances] = useState<AccountBalance[]>([]);
-  const [search, setSearch] = useState("");
+  const [allAccounts, setAllAccounts] = useState<AccountBalance[]>([]);
   const [typeFilter, setTypeFilter] = useState("all");
+  const [showZero, setShowZero] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data, error } = await (supabase.rpc as any)(
-        "get_account_balances",
-        { p_only_with_activity: true },
-      );
+      const [balRes, accRes] = await Promise.all([
+        (supabase.rpc as any)("get_account_balances", {
+          p_only_with_activity: false,
+        }),
+        supabase
+          .from("accounts")
+          .select("id, code, name, account_type, parent_id, is_parent")
+          .order("code"),
+      ]);
       if (cancelled) return;
-      if (error || !data) {
-        setBalances([]);
-        setLoading(false);
-        return;
-      }
-      const rows = (data.rows ?? []) as AccountBalance[];
-      setBalances(
-        rows.map((r) => ({
-          ...r,
-          debit: Number(r.debit),
-          credit: Number(r.credit),
-          balance: Number(r.balance),
-        })),
-      );
+      const rows = ((balRes.data?.rows ?? []) as any[]).map((r) => ({
+        ...r,
+        debit: Number(r.debit),
+        credit: Number(r.credit),
+        balance: Number(r.balance),
+      }));
+      // merge parent_id from accounts
+      const accMap = new Map<string, any>();
+      (accRes.data ?? []).forEach((a) => accMap.set(a.id, a));
+      const merged: AccountBalance[] = rows.map((r) => ({
+        ...r,
+        parent_id: accMap.get(r.id)?.parent_id ?? null,
+        is_parent: accMap.get(r.id)?.is_parent ?? false,
+      }));
+      // include zero-balance leaf accounts that exist but had no activity
+      const existingIds = new Set(merged.map((m) => m.id));
+      (accRes.data ?? []).forEach((a) => {
+        if (!existingIds.has(a.id) && !a.is_parent) {
+          merged.push({
+            id: a.id,
+            code: a.code,
+            name: a.name,
+            account_type: a.account_type,
+            parent_id: a.parent_id,
+            is_parent: a.is_parent,
+            debit: 0,
+            credit: 0,
+            balance: 0,
+          });
+        }
+      });
+      setBalances(merged);
+      setAllAccounts(merged);
       setLoading(false);
     })();
     return () => {
@@ -81,140 +142,600 @@ export default function AccountBalancesReport() {
     };
   }, []);
 
-  const filtered = balances
-    .filter((acc) => {
-      const matchSearch =
-        !search || acc.name.includes(search) || acc.code.includes(search);
-      const matchType = typeFilter === "all" || acc.account_type === typeFilter;
-      return matchSearch && matchType;
-    })
-    .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
+  // ── Aggregate by type (using sign convention)
+  const typeTotals = useMemo(() => {
+    const t: Record<string, number> = {
+      asset: 0,
+      liability: 0,
+      equity: 0,
+      revenue: 0,
+      expense: 0,
+    };
+    balances.forEach((b) => {
+      // For revenue/equity/liability: balance is "credit-natural" (positive when normal)
+      // get_account_balances returns balance per account_type sign convention already
+      t[b.account_type] = (t[b.account_type] || 0) + b.balance;
+    });
+    return t;
+  }, [balances]);
 
-  const totalDebit = filtered.reduce((s, a) => s + a.debit, 0);
-  const totalCredit = filtered.reduce((s, a) => s + a.credit, 0);
+  // ── KPIs ─────────────────────────────────────────────
+  const kpis = useMemo(() => {
+    const totalAssets = typeTotals.asset || 0;
+    const totalLiabilities = typeTotals.liability || 0;
+    const totalEquity = typeTotals.equity || 0;
+    const totalRevenue = typeTotals.revenue || 0;
+    const totalExpense = typeTotals.expense || 0;
+    const netProfit = totalRevenue - totalExpense;
+    // Liquidity = cash + bank accounts (codes 11xx category usually)
+    // We approximate by summing assets whose name includes نقد/خزنة/بنك/صندوق
+    const liquidity = balances
+      .filter(
+        (b) =>
+          b.account_type === "asset" &&
+          /(نقد|خزنة|بنك|صندوق|cash|bank)/i.test(b.name),
+      )
+      .reduce((s, b) => s + b.balance, 0);
+    const debtRatio =
+      totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
+    // Equation: Assets = Liabilities + Equity + (Revenue - Expense)
+    const equationDiff = totalAssets - (totalLiabilities + totalEquity + netProfit);
+    return {
+      totalAssets,
+      totalLiabilities,
+      totalEquity,
+      totalRevenue,
+      totalExpense,
+      netProfit,
+      liquidity,
+      debtRatio,
+      equationDiff,
+      isBalanced: Math.abs(equationDiff) < 1,
+    };
+  }, [typeTotals, balances]);
 
-  const typeGroups: Record<string, number> = {};
-  balances.forEach((acc) => {
-    typeGroups[acc.account_type] =
-      (typeGroups[acc.account_type] || 0) + acc.balance;
-  });
+  // ── Filtered list (leaf accounts only for the table)
+  const filtered = useMemo(() => {
+    return balances
+      .filter((acc) => {
+        if (acc.is_parent) return false;
+        if (typeFilter !== "all" && acc.account_type !== typeFilter)
+          return false;
+        if (!showZero && Math.abs(acc.balance) < 0.01) return false;
+        return true;
+      })
+      .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
+  }, [balances, typeFilter, showZero]);
+
+  // Top 10 accounts by absolute balance
+  const top10 = useMemo(() => filtered.slice(0, 10), [filtered]);
+  const top10Max = useMemo(
+    () => Math.max(1, ...top10.map((a) => Math.abs(a.balance))),
+    [top10],
+  );
+
+  // ── Table columns ────────────────────────────────────
+  const columns = useMemo<ColumnDef<AccountBalance, any>[]>(() => {
+    const typeTotal = (t: string) =>
+      Math.abs(typeTotals[t] || 0) || 1;
+    return [
+      {
+        accessorKey: "code",
+        header: "الرمز",
+        cell: ({ getValue }) => (
+          <span className="font-mono text-xs text-muted-foreground">
+            {getValue() as string}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "name",
+        header: "اسم الحساب",
+        cell: ({ row }) => (
+          <span className="text-sm font-medium">{row.original.name}</span>
+        ),
+      },
+      {
+        accessorKey: "account_type",
+        header: "النوع",
+        cell: ({ getValue }) => {
+          const t = getValue() as string;
+          return (
+            <Badge
+              variant="secondary"
+              className={cn("text-[11px] font-normal", TYPE_COLORS[t])}
+            >
+              {TYPE_LABELS[t] || t}
+            </Badge>
+          );
+        },
+      },
+      {
+        accessorKey: "debit",
+        header: "مدين",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          return (
+            <span
+              className={cn(
+                "tabular-nums text-sm font-mono",
+                v > 0 ? "text-foreground" : "text-muted-foreground/40",
+              )}
+            >
+              {v > 0 ? fmt(v) : "—"}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "credit",
+        header: "دائن",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          return (
+            <span
+              className={cn(
+                "tabular-nums text-sm font-mono",
+                v > 0 ? "text-foreground" : "text-muted-foreground/40",
+              )}
+            >
+              {v > 0 ? fmt(v) : "—"}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "balance",
+        header: "الرصيد",
+        cell: ({ row }) => {
+          const v = row.original.balance;
+          return (
+            <span
+              className={cn(
+                "tabular-nums font-bold text-sm font-mono",
+                v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
+              )}
+            >
+              {fmt(Math.abs(v))}
+              <span className="text-[10px] font-normal text-muted-foreground mr-1">
+                {v >= 0 ? "مدين" : "دائن"}
+              </span>
+            </span>
+          );
+        },
+      },
+      {
+        id: "share",
+        header: "% من النوع",
+        cell: ({ row }) => {
+          const v = Math.abs(row.original.balance);
+          const total = typeTotal(row.original.account_type);
+          const pct = (v / total) * 100;
+          return (
+            <div className="flex items-center gap-2 min-w-[100px]">
+              <Progress value={Math.min(100, pct)} className="h-1.5 w-16" />
+              <span className="text-[11px] tabular-nums text-muted-foreground w-10">
+                {pct.toFixed(1)}%
+              </span>
+            </div>
+          );
+        },
+      },
+    ];
+  }, [typeTotals]);
+
+  // ── Export ────────────────────────────────────────────
+  const exportConfig = useMemo(
+    () => ({
+      filenamePrefix: "أرصدة-الحسابات",
+      sheetName: "أرصدة الحسابات",
+      pdfTitle: "تقرير أرصدة الحسابات",
+      headers: ["الرمز", "اسم الحساب", "النوع", "مدين", "دائن", "الرصيد", "الجانب"],
+      rows: filtered.map((a) => [
+        a.code,
+        a.name,
+        TYPE_LABELS[a.account_type] || a.account_type,
+        a.debit,
+        a.credit,
+        Math.abs(a.balance),
+        a.balance >= 0 ? "مدين" : "دائن",
+      ]),
+      summaryCards: [
+        { label: "إجمالي الأصول", value: fmt(kpis.totalAssets) },
+        { label: "إجمالي الخصوم", value: fmt(kpis.totalLiabilities) },
+        { label: "حقوق الملكية", value: fmt(kpis.totalEquity) },
+        { label: "صافي الربح", value: fmt(kpis.netProfit) },
+      ],
+      settings,
+      pdfOrientation: "landscape" as const,
+    }),
+    [filtered, kpis, settings],
+  );
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="pt-4 pb-3">
+                <Skeleton className="h-16 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {Object.entries(typeGroups).map(([key, total]) => (
-          <Card key={key} className="border-border/60 shadow-none">
-            <CardContent className="p-4 text-center">
-              <p className="text-xs text-muted-foreground mb-1">
-                {typeLabels[key] || key}
-              </p>
-              <p
-                className={`text-lg font-bold ${total >= 0 ? "text-foreground" : "text-destructive"}`}
-              >
-                {fmt(Math.abs(total))} {currency}
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                {total >= 0 ? "مدين" : "دائن"}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="بحث بالاسم أو الرمز..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pr-9 h-9"
+    <TooltipProvider>
+      <div className="space-y-5">
+        {/* ── KPI Cards ─────────────────────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <KpiCard
+            label="إجمالي الأصول"
+            value={fmt(kpis.totalAssets)}
+            currency={currency}
+            icon={Building2}
+            tone="blue"
+            hint="مجموع كل ما تملكه الشركة من نقد ومخزون وعملاء وأصول ثابتة"
+          />
+          <KpiCard
+            label="إجمالي الخصوم"
+            value={fmt(kpis.totalLiabilities)}
+            currency={currency}
+            icon={TrendingDown}
+            tone="orange"
+            hint="مجموع التزامات الشركة (موردين، قروض)"
+          />
+          <KpiCard
+            label="حقوق الملكية"
+            value={fmt(kpis.totalEquity)}
+            currency={currency}
+            icon={Layers}
+            tone="purple"
+            hint="رأس المال + الأرباح المحتجزة"
+          />
+          <KpiCard
+            label="صافي الربح"
+            value={fmt(kpis.netProfit)}
+            currency={currency}
+            icon={kpis.netProfit >= 0 ? TrendingUp : TrendingDown}
+            tone={kpis.netProfit >= 0 ? "emerald" : "red"}
+            hint="الإيرادات − المصروفات للفترة الحالية"
+            valueClass={
+              kpis.netProfit >= 0
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-destructive"
+            }
+          />
+          <KpiCard
+            label="السيولة المتاحة"
+            value={fmt(kpis.liquidity)}
+            currency={currency}
+            icon={Banknote}
+            tone="emerald"
+            hint="مجموع أرصدة النقدية والبنوك حالياً"
+          />
+          <KpiCard
+            label="نسبة الدين / الأصول"
+            value={kpis.debtRatio.toFixed(1) + "%"}
+            currency=""
+            icon={Scale}
+            tone={
+              kpis.debtRatio > 70
+                ? "red"
+                : kpis.debtRatio > 40
+                  ? "orange"
+                  : "emerald"
+            }
+            hint="كلما زادت النسبة عن 50% زادت مخاطر المديونية"
+            valueClass={
+              kpis.debtRatio > 70
+                ? "text-destructive"
+                : kpis.debtRatio > 40
+                  ? "text-orange-600"
+                  : "text-emerald-600"
+            }
           />
         </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-44 h-9">
-            <SelectValue placeholder="نوع الحساب" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">جميع الأنواع</SelectItem>
-            {Object.entries(typeLabels).map(([k, v]) => (
-              <SelectItem key={k} value={k}>
-                {v}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
-      <Card className="border-border/60 shadow-none">
-        <CardContent className="p-0">
-          {loading ? (
-            <p className="text-sm text-muted-foreground text-center py-10">
-              جاري التحميل...
-            </p>
-          ) : filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-10">
-              لا توجد بيانات
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="text-xs">الرمز</TableHead>
-                  <TableHead className="text-xs">اسم الحساب</TableHead>
-                  <TableHead className="text-xs">النوع</TableHead>
-                  <TableHead className="text-xs">إجمالي المدين</TableHead>
-                  <TableHead className="text-xs">إجمالي الدائن</TableHead>
-                  <TableHead className="text-xs">الرصيد</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((acc) => (
-                  <TableRow key={acc.id}>
-                    <TableCell className="font-mono text-xs">
-                      {acc.code}
-                    </TableCell>
-                    <TableCell className="text-sm font-medium">
-                      {acc.name}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {typeLabels[acc.account_type] || acc.account_type}
-                    </TableCell>
-                    <TableCell className="text-sm font-mono">
-                      {fmt(acc.debit)} {currency}
-                    </TableCell>
-                    <TableCell className="text-sm font-mono">
-                      {fmt(acc.credit)} {currency}
-                    </TableCell>
-                    <TableCell
-                      className={`text-sm font-bold font-mono ${acc.balance >= 0 ? "text-success" : "text-destructive"}`}
+        {/* ── Accounting Equation Bar ───────────────────── */}
+        <Card className="border shadow-sm">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Scale className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">معادلة الميزانية</h3>
+                {kpis.isBalanced ? (
+                  <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 text-[10px] gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    متوازنة
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive" className="text-[10px] gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    فرق {fmt(Math.abs(kpis.equationDiff))}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                الأصول = الخصوم + حقوق الملكية + صافي الدخل
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
+              {/* Left: Assets */}
+              <div className="rounded-lg border bg-blue-50/50 dark:bg-blue-500/5 p-3">
+                <p className="text-[11px] text-muted-foreground mb-1">الأصول</p>
+                <p className="text-lg font-bold text-blue-700 dark:text-blue-400 tabular-nums">
+                  {fmt(kpis.totalAssets)}{" "}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {currency}
+                  </span>
+                </p>
+              </div>
+              {/* Right: stacked bar */}
+              <div className="rounded-lg border p-3">
+                <p className="text-[11px] text-muted-foreground mb-2">
+                  المصادر
+                </p>
+                <StackedBar
+                  segments={[
+                    {
+                      label: "خصوم",
+                      value: kpis.totalLiabilities,
+                      color: "bg-orange-400",
+                    },
+                    {
+                      label: "حقوق ملكية",
+                      value: kpis.totalEquity,
+                      color: "bg-purple-400",
+                    },
+                    {
+                      label: kpis.netProfit >= 0 ? "ربح" : "خسارة",
+                      value: Math.abs(kpis.netProfit),
+                      color:
+                        kpis.netProfit >= 0 ? "bg-emerald-400" : "bg-red-400",
+                    },
+                  ]}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── Top 10 Chart + Filters ───────────────────── */}
+        <Card className="border shadow-sm">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">
+                  أعلى 10 حسابات بالرصيد
+                </h3>
+              </div>
+            </div>
+            {top10.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                لا توجد بيانات
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {top10.map((a) => {
+                  const v = Math.abs(a.balance);
+                  const pct = (v / top10Max) * 100;
+                  return (
+                    <div
+                      key={a.id}
+                      className="grid grid-cols-[1fr_auto] gap-3 items-center"
                     >
-                      {fmt(Math.abs(acc.balance))} {currency}{" "}
-                      {acc.balance >= 0 ? "مدين" : "دائن"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                <TableRow className="bg-muted/40 font-bold">
-                  <TableCell colSpan={3} className="text-sm">
-                    الإجمالي
-                  </TableCell>
-                  <TableCell className="text-sm font-mono">
-                    {fmt(totalDebit)} {currency}
-                  </TableCell>
-                  <TableCell className="text-sm font-mono">
-                    {fmt(totalCredit)} {currency}
-                  </TableCell>
-                  <TableCell
-                    className={`text-sm font-bold font-mono ${totalDebit - totalCredit >= 0 ? "text-success" : "text-destructive"}`}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-medium truncate">
+                            {a.name}
+                          </span>
+                          <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                            {a.code}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "text-[9px] px-1.5 py-0 h-4 shrink-0",
+                              TYPE_COLORS[a.account_type],
+                            )}
+                          >
+                            {TYPE_LABELS[a.account_type]}
+                          </Badge>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all",
+                              a.balance >= 0
+                                ? "bg-primary"
+                                : "bg-destructive/70",
+                            )}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="tabular-nums font-mono font-semibold text-sm shrink-0 w-24 text-end">
+                        {compactFmt(v)} {currency}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Filters + Table ─────────────────────────── */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-44 h-8 text-xs">
+                  <SelectValue placeholder="نوع الحساب" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">جميع الأنواع</SelectItem>
+                  {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>
+                      {v}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant={showZero ? "default" : "outline"}
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => setShowZero(!showZero)}
+              >
+                {showZero ? "إخفاء الأصفار" : "إظهار حسابات صفرية"}
+              </Button>
+              <Badge variant="secondary" className="text-[11px] gap-1">
+                <Info className="h-3 w-3" />
+                {filtered.length} حساب
+              </Badge>
+            </div>
+            <ExportMenu config={exportConfig} />
+          </div>
+
+          <DataTable
+            columns={columns}
+            data={filtered}
+            showSearch
+            searchPlaceholder="بحث بالاسم أو الرمز..."
+            emptyMessage="لا توجد حسابات مطابقة"
+            pageSize={20}
+          />
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+}
+
+// ─── Helper components ───────────────────────────────────
+
+function KpiCard({
+  label,
+  value,
+  currency,
+  icon: Icon,
+  tone,
+  hint,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  currency: string;
+  icon: any;
+  tone: "blue" | "orange" | "purple" | "emerald" | "red";
+  hint?: string;
+  valueClass?: string;
+}) {
+  const tones: Record<string, string> = {
+    blue: "bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    orange:
+      "bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400",
+    purple:
+      "bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400",
+    emerald:
+      "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    red: "bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400",
+  };
+  return (
+    <Card className="border shadow-sm">
+      <CardContent className="pt-4 pb-3">
+        <div className="flex items-start justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 mb-1">
+              <p className="text-[11px] text-muted-foreground">{label}</p>
+              {hint && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-2.5 w-2.5 text-muted-foreground/50 cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-w-xs text-xs text-right"
                   >
-                    {fmt(Math.abs(totalDebit - totalCredit))} {currency}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                    {hint}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+            <p
+              className={cn(
+                "text-base lg:text-lg font-bold tabular-nums truncate",
+                valueClass,
+              )}
+            >
+              {value}
+              {currency && (
+                <span className="text-[10px] font-normal text-muted-foreground mr-1">
+                  {currency}
+                </span>
+              )}
+            </p>
+          </div>
+          <div
+            className={cn(
+              "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
+              tones[tone],
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StackedBar({
+  segments,
+}: {
+  segments: { label: string; value: number; color: string }[];
+}) {
+  const total = segments.reduce((s, x) => s + Math.abs(x.value), 0) || 1;
+  return (
+    <div>
+      <div className="h-3 w-full rounded-full overflow-hidden flex bg-muted">
+        {segments.map((s, i) => {
+          const pct = (Math.abs(s.value) / total) * 100;
+          if (pct < 0.5) return null;
+          return (
+            <div
+              key={i}
+              className={cn("h-full transition-all", s.color)}
+              style={{ width: `${pct}%` }}
+              title={`${s.label}: ${fmt(s.value)} (${pct.toFixed(1)}%)`}
+            />
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+        {segments.map((s, i) => {
+          const pct = (Math.abs(s.value) / total) * 100;
+          return (
+            <div key={i} className="flex items-center gap-1.5 text-[11px]">
+              <span className={cn("w-2 h-2 rounded-sm", s.color)} />
+              <span className="text-muted-foreground">{s.label}:</span>
+              <span className="font-mono font-medium tabular-nums">
+                {fmt(s.value)}
+              </span>
+              <span className="text-muted-foreground">
+                ({pct.toFixed(1)}%)
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
