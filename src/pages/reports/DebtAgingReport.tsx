@@ -1,9 +1,12 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { DataTable } from "@/components/ui/data-table";
 import { ExportMenu } from "@/components/ExportMenu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ColumnDef } from "@tanstack/react-table";
+import { FileText, CreditCard, Wallet, Activity, Target } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -264,7 +268,6 @@ export default function DebtAgingReport() {
       (e) => e.severity === "critical",
     ).length;
 
-    // Average aging days weighted by remaining amount
     const calcWeightedAvg = (entities: AgingEntity[]) => {
       const totalDebt = entities.reduce((s, e) => s + e.total, 0);
       if (totalDebt === 0) return 0;
@@ -274,6 +277,12 @@ export default function DebtAgingReport() {
         return s + avgBucket;
       }, 0);
       return Math.round(weighted / totalDebt);
+    };
+
+    const top5Share = (entities: AgingEntity[], total: number) => {
+      if (total <= 0) return 0;
+      const top5 = entities.slice(0, 5).reduce((s, e) => s + e.total, 0);
+      return (top5 / total) * 100;
     };
 
     return {
@@ -287,6 +296,15 @@ export default function DebtAgingReport() {
       avgSupplierDays: calcWeightedAvg(supplierData.entities),
       customerEntityCount: customerData.entities.length,
       supplierEntityCount: supplierData.entities.length,
+      netLiquidity: totalCustomerDebt - totalSupplierDebt,
+      customerConcentration: top5Share(
+        customerData.entities,
+        totalCustomerDebt,
+      ),
+      supplierConcentration: top5Share(
+        supplierData.entities,
+        totalSupplierDebt,
+      ),
     };
   }, [customerData, supplierData]);
 
@@ -447,6 +465,57 @@ export default function DebtAgingReport() {
             <Badge variant="secondary" className={cn("text-xs", cls)}>
               {label}
             </Badge>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "إجراء",
+        cell: ({ row }) => {
+          const isCustomer = activeTab === "customers";
+          const statementPath = isCustomer
+            ? `/customer-statement/${row.original.id}`
+            : `/supplier-statement/${row.original.id}`;
+          const paymentPath = isCustomer
+            ? `/customer-payments?customer_id=${row.original.id}`
+            : `/supplier-payments?supplier_id=${row.original.id}`;
+          return (
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                  >
+                    <Link to={statementPath}>
+                      <FileText className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  كشف حساب
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                  >
+                    <Link to={paymentPath}>
+                      <CreditCard className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  {isCustomer ? "تحصيل دفعة" : "سداد دفعة"}
+                </TooltipContent>
+              </Tooltip>
+            </div>
           );
         },
       },
@@ -645,6 +714,122 @@ export default function DebtAgingReport() {
                   <Clock className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ── Decision Strip: Net Liquidity + Concentration + Critical Alerts ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          {/* Net liquidity */}
+          <Card className="border shadow-sm">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Wallet className="h-4 w-4 text-primary" />
+                <h4 className="text-sm font-semibold">صافي تدفق الديون</h4>
+                <MetricHelp text="إجمالي ديون العملاء (المتوقع تحصيلها) ناقص ديون الموردين (الواجب سدادها). موجب = فائض متوقع، سالب = عجز." />
+              </div>
+              <p
+                className={cn(
+                  "text-xl font-bold tabular-nums",
+                  kpis.netLiquidity >= 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-destructive",
+                )}
+              >
+                {kpis.netLiquidity >= 0 ? "+" : "−"}
+                {fmt(Math.abs(kpis.netLiquidity))}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {kpis.netLiquidity >= 0
+                  ? "فائض متوقع بعد التحصيل والسداد"
+                  : "تحتاج توفير سيولة إضافية للسداد"}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Risk concentration */}
+          <Card className="border shadow-sm">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="h-4 w-4 text-primary" />
+                <h4 className="text-sm font-semibold">تركيز المخاطر</h4>
+                <MetricHelp text="حصة أعلى 5 جهات من إجمالي الديون. كلما زادت النسبة، زاد اعتمادك على عدد قليل من الجهات." />
+              </div>
+              {(() => {
+                const conc =
+                  activeTab === "customers"
+                    ? kpis.customerConcentration
+                    : kpis.supplierConcentration;
+                const tone =
+                  conc > 70
+                    ? "text-destructive"
+                    : conc > 50
+                      ? "text-orange-600"
+                      : "text-emerald-600";
+                return (
+                  <>
+                    <p
+                      className={cn(
+                        "text-xl font-bold tabular-nums",
+                        tone,
+                      )}
+                    >
+                      {conc.toFixed(1)}%
+                    </p>
+                    <Progress
+                      value={Math.min(100, conc)}
+                      className="h-1.5 mt-2"
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      أعلى 5 {activeTab === "customers" ? "عملاء" : "موردين"}{" "}
+                      من الإجمالي
+                    </p>
+                  </>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
+          {/* Top critical alerts */}
+          <Card className="border shadow-sm">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="h-4 w-4 text-destructive" />
+                <h4 className="text-sm font-semibold">أعلى 3 جهات حرجة</h4>
+              </div>
+              {(() => {
+                const critical = activeData.entities
+                  .filter((e) => e.severity === "critical")
+                  .slice(0, 3);
+                if (critical.length === 0)
+                  return (
+                    <p className="text-xs text-muted-foreground py-2">
+                      ✓ لا توجد جهات حرجة (90+ يوم)
+                    </p>
+                  );
+                return (
+                  <div className="space-y-1.5">
+                    {critical.map((e) => {
+                      const path =
+                        activeTab === "customers"
+                          ? `/customer-statement/${e.id}`
+                          : `/supplier-statement/${e.id}`;
+                      return (
+                        <Link
+                          key={e.id}
+                          to={path}
+                          className="flex items-center justify-between gap-2 text-xs hover:bg-muted/50 px-2 py-1 -mx-1 rounded transition-colors"
+                        >
+                          <span className="truncate font-medium">{e.name}</span>
+                          <span className="font-mono tabular-nums text-destructive font-semibold shrink-0">
+                            {fmt(e.days90)}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>
