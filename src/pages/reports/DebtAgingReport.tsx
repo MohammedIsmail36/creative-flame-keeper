@@ -454,6 +454,57 @@ export default function DebtAgingReport() {
           );
         },
       },
+      {
+        id: "actions",
+        header: "إجراء",
+        cell: ({ row }) => {
+          const isCustomer = activeTab === "customers";
+          const statementPath = isCustomer
+            ? `/customer-statement/${row.original.id}`
+            : `/supplier-statement/${row.original.id}`;
+          const paymentPath = isCustomer
+            ? `/customer-payments?customer_id=${row.original.id}`
+            : `/supplier-payments?supplier_id=${row.original.id}`;
+          return (
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                  >
+                    <Link to={statementPath}>
+                      <FileText className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  كشف حساب
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                  >
+                    <Link to={paymentPath}>
+                      <CreditCard className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  {isCustomer ? "تحصيل دفعة" : "سداد دفعة"}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          );
+        },
+      },
     ],
     [activeTab],
   );
