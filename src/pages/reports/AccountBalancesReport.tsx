@@ -643,7 +643,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ColumnDef } from "@tanstack/react-table";
 import {
-  Wallet,
   Scale,
   TrendingUp,
   TrendingDown,
@@ -658,7 +657,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ─── Types ───────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────
 
 interface AccountBalance {
   id: string;
@@ -672,7 +671,7 @@ interface AccountBalance {
   balance: number;
 }
 
-// ─── Constants ───────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────
 
 const TYPE_LABELS: Record<string, string> = {
   asset: "الأصول",
@@ -683,14 +682,17 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  asset: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400",
-  liability: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400",
-  equity: "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400",
+  asset: "bg-blue-100    text-blue-700    dark:bg-blue-500/15    dark:text-blue-400",
+  liability: "bg-orange-100  text-orange-700  dark:bg-orange-500/15  dark:text-orange-400",
+  equity: "bg-purple-100  text-purple-700  dark:bg-purple-500/15  dark:text-purple-400",
   revenue: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
-  expense: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400",
+  expense: "bg-red-100     text-red-700     dark:bg-red-500/15     dark:text-red-400",
 };
 
-// ─── Formatters ──────────────────────────────────────────
+// Prefix codes for cash/bank accounts — adjust to your chart of accounts
+const CASH_CODE_PREFIXES = ["10", "11"];
+
+// ─── Formatters ───────────────────────────────────────────
 
 const fmt = (v: number) =>
   Number(v).toLocaleString("en-US", {
@@ -705,8 +707,9 @@ const compactFmt = (v: number) => {
   return fmt(v);
 };
 
-// ─── Local-storage key for persisting filters ─────────────
-const LS_KEY = "account_balances_filters";
+// ─── Filter persistence ───────────────────────────────────
+
+const LS_KEY = "account_balances_filters_v2";
 
 function loadFilters(): { typeFilter: string; showZero: boolean } {
   try {
@@ -726,18 +729,15 @@ function saveFilters(typeFilter: string, showZero: boolean) {
   }
 }
 
-// ─── Main Component ───────────────────────────────────────
+// ─── Main component ───────────────────────────────────────
 
 export default function AccountBalancesReport() {
   const { currency, settings } = useSettings();
+
   const [loading, setLoading] = useState(true);
-
-  // FIX 1: Proper error state
   const [error, setError] = useState<string | null>(null);
-
   const [balances, setBalances] = useState<AccountBalance[]>([]);
 
-  // FIX 5: Persist filters in localStorage
   const savedFilters = useMemo(() => loadFilters(), []);
   const [typeFilter, setTypeFilter] = useState(savedFilters.typeFilter);
   const [showZero, setShowZero] = useState(savedFilters.showZero);
@@ -746,7 +746,6 @@ export default function AccountBalancesReport() {
     setTypeFilter(v);
     saveFilters(v, showZero);
   };
-
   const handleShowZero = () => {
     const next = !showZero;
     setShowZero(next);
@@ -759,22 +758,14 @@ export default function AccountBalancesReport() {
     setLoading(true);
     setError(null);
 
-    // FIX 2: Full error handling for both Supabase calls
     const [balRes, accRes] = await Promise.all([
-      (supabase.rpc as any)("get_account_balances", {
-        p_only_with_activity: false,
-      }),
+      (supabase.rpc as any)("get_account_balances", { p_only_with_activity: false }),
       supabase.from("accounts").select("id, code, name, account_type, parent_id, is_parent").order("code"),
     ]);
 
-    if (balRes.error) {
-      setError(`خطأ في تحميل أرصدة الحسابات: ${balRes.error.message}`);
-      setLoading(false);
-      return;
-    }
-
-    if (accRes.error) {
-      setError(`خطأ في تحميل بيانات الحسابات: ${accRes.error.message}`);
+    if (balRes.error || accRes.error) {
+      const msg = balRes.error?.message ?? accRes.error?.message ?? "خطأ غير معروف";
+      setError(`فشل تحميل البيانات: ${msg}`);
       setLoading(false);
       return;
     }
@@ -795,7 +786,6 @@ export default function AccountBalancesReport() {
       is_parent: accMap.get(r.id)?.is_parent ?? false,
     }));
 
-    // Include zero-balance leaf accounts
     const existingIds = new Set(merged.map((m) => m.id));
     (accRes.data ?? []).forEach((a) => {
       if (!existingIds.has(a.id) && !a.is_parent) {
@@ -825,15 +815,12 @@ export default function AccountBalancesReport() {
       setError(null);
 
       const [balRes, accRes] = await Promise.all([
-        (supabase.rpc as any)("get_account_balances", {
-          p_only_with_activity: false,
-        }),
+        (supabase.rpc as any)("get_account_balances", { p_only_with_activity: false }),
         supabase.from("accounts").select("id, code, name, account_type, parent_id, is_parent").order("code"),
       ]);
 
       if (cancelled) return;
 
-      // FIX 2: Check for errors before processing
       if (balRes.error || accRes.error) {
         const msg = balRes.error?.message ?? accRes.error?.message ?? "خطأ غير معروف";
         setError(`فشل تحميل البيانات: ${msg}`);
@@ -894,7 +881,7 @@ export default function AccountBalancesReport() {
       expense: 0,
     };
     balances.forEach((b) => {
-      t[b.account_type] = (t[b.account_type] || 0) + b.balance;
+      t[b.account_type] = (t[b.account_type] ?? 0) + b.balance;
     });
     return t;
   }, [balances]);
@@ -902,51 +889,51 @@ export default function AccountBalancesReport() {
   // ── KPIs ──────────────────────────────────────────────
 
   const kpis = useMemo(() => {
-    const totalAssets = typeTotals.asset ?? 0;
-    const totalLiabilities = typeTotals.liability ?? 0;
-    const totalEquity = typeTotals.equity ?? 0;
-    const totalRevenue = typeTotals.revenue ?? 0;
-
-    /**
-     * FIX 1 — netProfit:
+    /*
+     * ══════════════════════════════════════════════════════
+     * الإصلاح الجذري لحساب صافي الربح
+     * ══════════════════════════════════════════════════════
      *
-     * get_account_balances يُعيد الأرصدة بإشارتها الطبيعية:
-     *   - المصروفات: مدينة الطبيعة → رصيدها موجب عند وجود نشاط
-     *   - لكن بعض قواعد البيانات تُعيدها سالبة (دائن المرجع)
+     * get_account_balances قد يُعيد الإيرادات والمصروفات
+     * كأرقام سالبة (طبيعة دائنة في DB).
      *
-     * الحل الآمن: دائماً اطرح القيمة المطلقة للمصروفات
-     * حتى لا يتحول الطرح إلى جمع عندما تكون الإشارة سالبة.
+     * مثال على البيانات الفعلية:
+     *   typeTotals.revenue  = -63,560   ← سالب
+     *   typeTotals.expense  = -48,879   ← سالب
      *
-     *   ❌ totalRevenue - totalExpense
-     *      (إذا totalExpense = -5000 → النتيجة = revenue + 5000) ← خطأ!
+     * ❌ الخطأ الأول:
+     *    totalRevenue - totalExpense
+     *    = -63,560 - (-48,879) = -14,681  ← علامة خاطئة
      *
-     *   ✅ totalRevenue - Math.abs(totalExpense)
-     *      (دائماً نطرح مقدار المصروف بغض النظر عن إشارته)
+     * ❌ الخطأ الثاني (النسخة السابقة من الكود):
+     *    totalRevenue - Math.abs(expense)
+     *    = -63,560 - 48,879 = -112,439   ← يجمع!
+     *
+     * ✅ الصحيح: Math.abs على الاثنين معاً ثم الطرح
+     *    Math.abs(revenue) - Math.abs(expense)
+     *    = 63,560 - 48,879 = +14,681     ✓
      */
+    const revenueAmount = Math.abs(typeTotals.revenue ?? 0);
     const expenseAmount = Math.abs(typeTotals.expense ?? 0);
-    const netProfit = totalRevenue - expenseAmount;
+    const netProfit = revenueAmount - expenseAmount;
 
-    /**
-     * FIX 3 — السيولة:
-     * نستخدم نطاق كود الحساب بدلاً من البحث في الاسم
-     * يُفترض أن حسابات النقدية والبنوك تبدأ بـ 11
-     * عدّل النطاق بحسب دليل الحسابات الفعلي لديك
-     */
-    const CASH_CODE_PREFIX = ["10", "11"]; // نقدية وبنوك
+    const totalAssets = Math.abs(typeTotals.asset ?? 0);
+    const totalLiabilities = Math.abs(typeTotals.liability ?? 0);
+    const totalEquity = Math.abs(typeTotals.equity ?? 0);
+
+    // السيولة: بالكود لا بالاسم (أدق وأأمن)
     const liquidity = balances
-      .filter((b) => b.account_type === "asset" && CASH_CODE_PREFIX.some((prefix) => b.code.startsWith(prefix)))
-      .reduce((s, b) => s + b.balance, 0);
+      .filter((b) => b.account_type === "asset" && CASH_CODE_PREFIXES.some((p) => b.code.startsWith(p)))
+      .reduce((s, b) => s + Math.abs(b.balance), 0);
 
     const debtRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
-
-    // Assets = Liabilities + Equity + Net Income (الجانبان يجب أن يتساويا)
     const equationDiff = totalAssets - (totalLiabilities + totalEquity + netProfit);
 
     return {
       totalAssets,
       totalLiabilities,
       totalEquity,
-      totalRevenue,
+      revenueAmount,
       expenseAmount,
       netProfit,
       liquidity,
@@ -956,38 +943,34 @@ export default function AccountBalancesReport() {
     };
   }, [typeTotals, balances]);
 
-  // ── Filtered list (leaf accounts only) ───────────────
+  // ── Filtered list ─────────────────────────────────────
 
-  const filtered = useMemo(() => {
-    return balances
-      .filter((acc) => {
-        if (acc.is_parent) return false;
-        if (typeFilter !== "all" && acc.account_type !== typeFilter) return false;
-        if (!showZero && Math.abs(acc.balance) < 0.01) return false;
-        return true;
-      })
-      .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
-  }, [balances, typeFilter, showZero]);
+  const filtered = useMemo(
+    () =>
+      balances
+        .filter((acc) => {
+          if (acc.is_parent) return false;
+          if (typeFilter !== "all" && acc.account_type !== typeFilter) return false;
+          if (!showZero && Math.abs(acc.balance) < 0.01) return false;
+          return true;
+        })
+        .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance)),
+    [balances, typeFilter, showZero],
+  );
 
-  // FIX 6: top10 uses ALL non-parent accounts for a stable scale reference
-  const allLeafAccounts = useMemo(
+  // Top 10 always from ALL leaf accounts (stable scale regardless of filter)
+  const allLeafSorted = useMemo(
     () => balances.filter((b) => !b.is_parent).sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance)),
     [balances],
   );
 
-  const top10 = useMemo(() => allLeafAccounts.slice(0, 10), [allLeafAccounts]);
-
-  // Max is always based on all accounts → consistent visual scale
-  const top10Max = useMemo(
-    () => Math.max(1, ...allLeafAccounts.slice(0, 10).map((a) => Math.abs(a.balance))),
-    [allLeafAccounts],
-  );
+  const top10 = useMemo(() => allLeafSorted.slice(0, 10), [allLeafSorted]);
+  const top10Max = useMemo(() => Math.max(1, ...top10.map((a) => Math.abs(a.balance))), [top10]);
 
   // ── Table columns ─────────────────────────────────────
 
-  // FIX 4: Replace `any` with proper ColumnDef typing
   const columns = useMemo<ColumnDef<AccountBalance>[]>(() => {
-    const typeTotal = (t: string) => Math.abs(typeTotals[t] || 0) || 1;
+    const typeTotal = (t: string) => Math.abs(typeTotals[t] ?? 0) || 1;
     return [
       {
         accessorKey: "code",
@@ -1006,7 +989,7 @@ export default function AccountBalancesReport() {
           const t = getValue() as string;
           return (
             <Badge variant="secondary" className={cn("text-[11px] font-normal", TYPE_COLORS[t])}>
-              {TYPE_LABELS[t] || t}
+              {TYPE_LABELS[t] ?? t}
             </Badge>
           );
         },
@@ -1062,8 +1045,8 @@ export default function AccountBalancesReport() {
         header: "% من النوع",
         cell: ({ row }) => {
           const v = Math.abs(row.original.balance);
-          const total = typeTotal(row.original.account_type);
-          const pct = (v / total) * 100;
+          const tot = typeTotal(row.original.account_type);
+          const pct = (v / tot) * 100;
           return (
             <div className="flex items-center gap-2 min-w-[100px]">
               <Progress value={Math.min(100, pct)} className="h-1.5 w-16" />
@@ -1086,7 +1069,7 @@ export default function AccountBalancesReport() {
       rows: filtered.map((a) => [
         a.code,
         a.name,
-        TYPE_LABELS[a.account_type] || a.account_type,
+        TYPE_LABELS[a.account_type] ?? a.account_type,
         a.debit,
         a.credit,
         Math.abs(a.balance),
@@ -1096,6 +1079,8 @@ export default function AccountBalancesReport() {
         { label: "إجمالي الأصول", value: fmt(kpis.totalAssets) },
         { label: "إجمالي الخصوم", value: fmt(kpis.totalLiabilities) },
         { label: "حقوق الملكية", value: fmt(kpis.totalEquity) },
+        { label: "إجمالي الإيرادات", value: fmt(kpis.revenueAmount) },
+        { label: "إجمالي المصروفات", value: fmt(kpis.expenseAmount) },
         { label: "صافي الربح", value: fmt(kpis.netProfit) },
       ],
       settings,
@@ -1104,16 +1089,16 @@ export default function AccountBalancesReport() {
     [filtered, kpis, settings],
   );
 
-  // ── Loading ───────────────────────────────────────────
+  // ── Loading state ─────────────────────────────────────
 
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
-              <CardContent className="pt-4 pb-3">
-                <Skeleton className="h-16 w-full" />
+              <CardContent className="pt-3 pb-3 px-3">
+                <Skeleton className="h-14 w-full" />
               </CardContent>
             </Card>
           ))}
@@ -1123,11 +1108,12 @@ export default function AccountBalancesReport() {
     );
   }
 
-  // FIX 2: Error state UI with retry button
+  // ── Error state ───────────────────────────────────────
+
   if (error) {
     return (
       <Card className="border-destructive/40">
-        <CardContent className="pt-6 pb-6 flex flex-col items-center gap-3 text-center">
+        <CardContent className="pt-8 pb-8 flex flex-col items-center gap-3 text-center">
           <AlertCircle className="h-10 w-10 text-destructive" />
           <p className="text-sm font-medium text-destructive">{error}</p>
           <Button variant="outline" size="sm" className="gap-2" onClick={fetchData}>
@@ -1144,8 +1130,7 @@ export default function AccountBalancesReport() {
   return (
     <TooltipProvider>
       <div className="space-y-5">
-        {/* ── KPI Cards ─────────────────────────────────── */}
-        {/* FIX 7: 2 rows on mobile instead of squeezing 6 into one */}
+        {/* ── KPI Cards ───────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
           <KpiCard
             label="إجمالي الأصول"
@@ -1177,7 +1162,7 @@ export default function AccountBalancesReport() {
             currency={currency}
             icon={kpis.netProfit >= 0 ? TrendingUp : TrendingDown}
             tone={kpis.netProfit >= 0 ? "emerald" : "red"}
-            hint="الإيرادات − مجموع المصروفات للفترة الحالية"
+            hint={`إيرادات ${fmt(kpis.revenueAmount)} − مصروفات ${fmt(kpis.expenseAmount)}`}
             valueClass={kpis.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}
           />
           <KpiCard
@@ -1186,22 +1171,22 @@ export default function AccountBalancesReport() {
             currency={currency}
             icon={Banknote}
             tone="emerald"
-            hint="مجموع أرصدة حسابات النقدية والبنوك (الحسابات 10xx – 11xx)"
+            hint="مجموع أرصدة حسابات النقدية والبنوك (10xx – 11xx)"
           />
           <KpiCard
-            label="نسبة الدين / الأصول"
+            label="نسبة الدين"
             value={kpis.debtRatio.toFixed(1) + "%"}
             currency=""
             icon={Scale}
             tone={kpis.debtRatio > 70 ? "red" : kpis.debtRatio > 40 ? "orange" : "emerald"}
-            hint="كلما زادت النسبة عن 50% زادت مخاطر المديونية"
+            hint="نسبة الخصوم إلى الأصول — فوق 50% يعني مخاطر مرتفعة"
             valueClass={
               kpis.debtRatio > 70 ? "text-destructive" : kpis.debtRatio > 40 ? "text-orange-600" : "text-emerald-600"
             }
           />
         </div>
 
-        {/* ── Accounting Equation Bar ───────────────────── */}
+        {/* ── Accounting Equation ─────────────────────── */}
         <Card className="border shadow-sm">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -1223,28 +1208,19 @@ export default function AccountBalancesReport() {
               <p className="text-xs text-muted-foreground">الأصول = الخصوم + حقوق الملكية + صافي الدخل</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
-              {/* Assets */}
               <div className="rounded-lg border bg-blue-50/50 dark:bg-blue-500/5 p-3">
                 <p className="text-[11px] text-muted-foreground mb-1">الأصول</p>
                 <p className="text-lg font-bold text-blue-700 dark:text-blue-400 tabular-nums">
-                  {fmt(kpis.totalAssets)} <span className="text-xs font-normal text-muted-foreground">{currency}</span>
+                  {fmt(kpis.totalAssets)}
+                  <span className="text-xs font-normal text-muted-foreground mr-1">{currency}</span>
                 </p>
               </div>
-              {/* Stacked sources bar */}
               <div className="rounded-lg border p-3">
                 <p className="text-[11px] text-muted-foreground mb-2">المصادر</p>
                 <StackedBar
                   segments={[
-                    {
-                      label: "خصوم",
-                      value: kpis.totalLiabilities,
-                      color: "bg-orange-400",
-                    },
-                    {
-                      label: "حقوق ملكية",
-                      value: kpis.totalEquity,
-                      color: "bg-purple-400",
-                    },
+                    { label: "خصوم", value: kpis.totalLiabilities, color: "bg-orange-400" },
+                    { label: "حقوق ملكية", value: kpis.totalEquity, color: "bg-purple-400" },
                     {
                       label: kpis.netProfit >= 0 ? "ربح" : "خسارة",
                       value: Math.abs(kpis.netProfit),
@@ -1263,7 +1239,7 @@ export default function AccountBalancesReport() {
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold">أعلى 10 حسابات بالرصيد</h3>
-              <span className="text-[11px] text-muted-foreground">(مقياس ثابت – لا يتأثر بالفلتر)</span>
+              <span className="text-[10px] text-muted-foreground">(المقياس ثابت — مستقل عن الفلتر)</span>
             </div>
             {top10.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">لا توجد بيانات</p>
@@ -1295,7 +1271,7 @@ export default function AccountBalancesReport() {
                           />
                         </div>
                       </div>
-                      <span className="tabular-nums font-mono font-semibold text-sm shrink-0 w-24 text-end">
+                      <span className="tabular-nums font-mono font-semibold text-sm shrink-0 w-28 text-end">
                         {compactFmt(v)} {currency}
                       </span>
                     </div>
@@ -1355,7 +1331,7 @@ export default function AccountBalancesReport() {
   );
 }
 
-// ─── Helper Components ────────────────────────────────────
+// ─── KpiCard ──────────────────────────────────────────────
 
 interface KpiCardProps {
   label: string;
@@ -1368,45 +1344,53 @@ interface KpiCardProps {
 }
 
 function KpiCard({ label, value, currency, icon: Icon, tone, hint, valueClass }: KpiCardProps) {
-  const tones: Record<string, string> = {
-    blue: "bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400",
-    orange: "bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400",
-    purple: "bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400",
+  const iconBg: Record<string, string> = {
+    blue: "bg-blue-100    dark:bg-blue-500/10    text-blue-600    dark:text-blue-400",
+    orange: "bg-orange-100  dark:bg-orange-500/10  text-orange-600  dark:text-orange-400",
+    purple: "bg-purple-100  dark:bg-purple-500/10  text-purple-600  dark:text-purple-400",
     emerald: "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    red: "bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400",
+    red: "bg-red-100     dark:bg-red-500/10     text-red-600     dark:text-red-400",
   };
+
   return (
     <Card className="border shadow-sm">
-      <CardContent className="pt-4 pb-3">
-        <div className="flex items-start justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 mb-1">
-              <p className="text-[11px] text-muted-foreground">{label}</p>
-              {hint && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-2.5 w-2.5 text-muted-foreground/50 cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs text-xs text-right">
-                    {hint}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-            {/* FIX 7: Responsive text size, no truncate on numbers */}
-            <p className={cn("text-sm sm:text-base lg:text-lg font-bold tabular-nums break-all", valueClass)}>
-              {value}
-              {currency && <span className="text-[10px] font-normal text-muted-foreground mr-1">{currency}</span>}
-            </p>
+      <CardContent className="pt-3 pb-3 px-3">
+        {/* Row 1: label + icon */}
+        <div className="flex items-start justify-between gap-1 mb-2">
+          <div className="flex items-center gap-1 min-w-0">
+            <p className="text-[11px] leading-snug text-muted-foreground line-clamp-2">{label}</p>
+            {hint && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-2.5 w-2.5 text-muted-foreground/40 cursor-help shrink-0 mt-px" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs text-right">
+                  {hint}
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
-          <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0", tones[tone])}>
-            <Icon className="h-3.5 w-3.5" />
+          <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0", iconBg[tone])}>
+            <Icon className="h-3 w-3" />
           </div>
         </div>
+
+        {/* Row 2: number — occupies its own line, never truncated or crowded */}
+        <p
+          className={cn("text-base font-bold tabular-nums font-mono leading-tight", valueClass)}
+          style={{ wordBreak: "break-all" }}
+        >
+          {value}
+        </p>
+
+        {/* Row 3: currency label on its own line — never overlaps the number */}
+        {currency && <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">{currency}</p>}
       </CardContent>
     </Card>
   );
 }
+
+// ─── StackedBar ───────────────────────────────────────────
 
 interface StackedBarProps {
   segments: { label: string; value: number; color: string }[];
@@ -1425,7 +1409,7 @@ function StackedBar({ segments }: StackedBarProps) {
               key={i}
               className={cn("h-full transition-all", s.color)}
               style={{ width: `${pct}%` }}
-              title={`${s.label}: ${fmt(s.value)} (${pct.toFixed(1)}%)`}
+              title={`${s.label}: ${fmt(Math.abs(s.value))} (${pct.toFixed(1)}%)`}
             />
           );
         })}
@@ -1435,9 +1419,9 @@ function StackedBar({ segments }: StackedBarProps) {
           const pct = (Math.abs(s.value) / total) * 100;
           return (
             <div key={i} className="flex items-center gap-1.5 text-[11px]">
-              <span className={cn("w-2 h-2 rounded-sm", s.color)} />
+              <span className={cn("w-2 h-2 rounded-sm shrink-0", s.color)} />
               <span className="text-muted-foreground">{s.label}:</span>
-              <span className="font-mono font-medium tabular-nums">{fmt(s.value)}</span>
+              <span className="font-mono font-medium tabular-nums">{fmt(Math.abs(s.value))}</span>
               <span className="text-muted-foreground">({pct.toFixed(1)}%)</span>
             </div>
           );
