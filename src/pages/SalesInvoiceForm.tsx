@@ -547,7 +547,7 @@ export default function SalesInvoiceForm() {
         actions={
           <>
             {!isNew && isDraft && canEdit && (
-              <AlertDialog>
+              <AlertDialog dir="rtl">
                 <AlertDialogTrigger asChild>
                   <Button
                     variant="outline"
@@ -558,7 +558,7 @@ export default function SalesInvoiceForm() {
                     حذف
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent dir="rtl">
+                <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>حذف الفاتورة المسودة</AlertDialogTitle>
                     <AlertDialogDescription>
