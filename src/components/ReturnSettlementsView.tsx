@@ -189,6 +189,39 @@ export default function ReturnSettlementsView({
               </Button>
             </div>
           </div>
+
+
+
+
+
+      {/* Progress */}
+        <div className="space-y-1.5">
+          <Progress value={percentage} className="h-1.5" />
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>
+              تسويات:{" "}
+              <span className="font-mono text-primary font-medium">
+                {fmt(totalSettled)}
+              </span>
+              {paymentAllocTotal > 0 && (
+                <>
+                  {" "}
+                  + مدفوعات:{" "}
+                  <span className="font-mono text-primary font-medium">
+                    {fmt(paymentAllocTotal)}
+                  </span>
+                </>
+              )}
+            </span>
+            <span>
+              من{" "}
+              <span className="font-mono text-foreground font-medium">
+                {fmt(returnTotal)}
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
         ))}
       </div>
     </div>
