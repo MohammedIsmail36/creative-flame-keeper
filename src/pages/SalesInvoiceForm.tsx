@@ -840,7 +840,7 @@ export default function SalesInvoiceForm() {
                             className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full disabled:opacity-40"
                           />
                         ) : item.discount > 0 ? (
-                          <span className="inline-flex items-center text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-800 font-mono tabular-nums">
+                          <span className="inline-flex items-center text-xs text-center font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-800 font-mono tabular-nums">
                             -
                             {item.discount.toLocaleString("en-US", {
                               minimumFractionDigits: 2,
@@ -972,7 +972,7 @@ export default function SalesInvoiceForm() {
           </div>
           <div className="space-y-1 mt-2">
             <div className="flex justify-between items-center py-2.5 border-b border-border/50">
-              <span className="font-mono tabular-nums text-sm font-medium">{formatCurrency(subtotal)}</span>
+              <span className="font-mono tabular-nums text-sm text-center font-medium">{formatCurrency(subtotal)}</span>
               <span className="text-sm text-muted-foreground">المجموع الفرعي</span>
             </div>
             {/* Line discounts display */}
