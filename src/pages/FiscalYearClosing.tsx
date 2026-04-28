@@ -104,7 +104,7 @@ export default function FiscalYearClosing() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedYear]);
 
   const fetchData = async () => {
     setLoading(true);
