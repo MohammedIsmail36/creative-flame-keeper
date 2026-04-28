@@ -292,10 +292,11 @@ export default function Suppliers() {
         if (error) throw error;
         toast({ title: "تم التحديث", description: "تم تعديل بيانات المورد" });
       } else {
+        const insertPayload = { ...payload, opening_balance: openingBalance };
         const { data: newSupplier, error } = await (
           supabase.from("suppliers" as any) as any
         )
-          .insert(payload)
+          .insert(insertPayload)
           .select("id")
           .single();
         if (error) throw error;
