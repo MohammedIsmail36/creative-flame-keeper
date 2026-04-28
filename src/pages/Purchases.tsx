@@ -72,13 +72,10 @@ export default function Purchases() {
   const { data: summary } = useQuery({
     queryKey: ["purchases-summary", dateFrom, dateTo],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc(
-        "get_purchases_summary" as any,
-        {
-          p_date_from: dateFrom || null,
-          p_date_to: dateTo || null,
-        },
-      );
+      const { data, error } = await supabase.rpc("get_purchases_summary" as any, {
+        p_date_from: dateFrom || null,
+        p_date_to: dateTo || null,
+      });
       if (error) throw error;
       return data as any;
     },
@@ -143,9 +140,7 @@ export default function Purchases() {
   const totalCount = pagedData?.totalCount ?? 0;
   const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
 
-  const fetchAllForExport = async (
-    onProgress?: (loaded: number, total: number) => void,
-  ): Promise<Invoice[]> => {
+  const fetchAllForExport = async (onProgress?: (loaded: number, total: number) => void): Promise<Invoice[]> => {
     const { fetchAllPaged } = await import("@/lib/paged-fetch");
     const rows = await fetchAllPaged<any>(
       () => {
@@ -172,9 +167,7 @@ export default function Purchases() {
   React.useEffect(() => {
     setExportRows([]);
   }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
-  const handlePrepareExport = async (
-    onProgress?: (loaded: number, total: number) => void,
-  ) => {
+  const handlePrepareExport = async (onProgress?: (loaded: number, total: number) => void) => {
     const all = await fetchAllForExport(onProgress);
     const rows = all.map((i) => [
       formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status),
@@ -190,8 +183,7 @@ export default function Purchases() {
     return { rows };
   };
 
-  const hasFilters =
-    statusFilter !== "all" || dateFrom || dateTo || search.trim();
+  const hasFilters = statusFilter !== "all" || dateFrom || dateTo || search.trim();
   const clearFilters = () => {
     setStatusFilter("all");
     setDateFrom("");
@@ -208,113 +200,52 @@ export default function Purchases() {
     () => [
       {
         accessorKey: "invoice_number",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="رقم الفاتورة" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="رقم الفاتورة" />,
         cell: ({ row }) => (
           <span className="font-mono">
-            {formatDisplayNumber(
-              prefix,
-              row.original.posted_number,
-              row.original.invoice_number,
-              row.original.status,
-            )}
+            {formatDisplayNumber(prefix, row.original.posted_number, row.original.invoice_number, row.original.status)}
           </span>
         ),
       },
       {
         accessorKey: "supplier_name",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="المورد" />
-        ),
-        cell: ({ row }) => (
-          <span className="font-medium">
-            {row.original.supplier_name || "—"}
-          </span>
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="المورد" />,
+        cell: ({ row }) => <span className="font-medium">{row.original.supplier_name || "—"}</span>,
       },
       {
         accessorKey: "invoice_date",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="التاريخ" />
-        ),
-        cell: ({ row }) => (
-          <span className="text-muted-foreground font-mono">
-            {row.original.invoice_date}
-          </span>
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+        cell: ({ row }) => <span className="text-muted-foreground font-mono">{row.original.invoice_date}</span>,
       },
       {
         accessorKey: "total",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="الإجمالي" />
-        ),
-        cell: ({ row }) => (
-          <span className="font-mono">{formatCurrency(row.original.total)}</span>
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="الإجمالي" />,
+        cell: ({ row }) => <span className="font-mono">{formatCurrency(row.original.total)}</span>,
       },
       {
         accessorKey: "paid_amount",
         meta: { hideOnMobile: true },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="المدفوع" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="المدفوع" />,
         cell: ({ row }) => {
-          if (row.original.status === "draft")
-            return <span className="text-muted-foreground">—</span>;
-          return (
-            <span className="font-mono">
-              {formatCurrency(row.original.paid_amount)}
-            </span>
-          );
+          if (row.original.status === "draft") return <span className="text-muted-foreground">—</span>;
+          return <span className="font-mono">{formatCurrency(row.original.paid_amount)}</span>;
         },
       },
       {
         id: "remaining",
         meta: { hideOnMobile: true },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="المتبقي" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="المتبقي" />,
         cell: ({ row }) => {
-          if (row.original.status === "draft")
-            return <span className="text-muted-foreground">—</span>;
+          if (row.original.status === "draft") return <span className="text-muted-foreground">—</span>;
           const rem = row.original.total - row.original.paid_amount;
           return (
-            <span
-              className={`font-mono font-bold ${
-                rem > 0 ? "text-destructive" : "text-emerald-600"
-              }`}
-            >
+            <span className={`font-mono font-bold ${rem > 0 ? "text-destructive" : "text-emerald-600"}`}>
               {formatCurrency(rem)}
             </span>
           );
         },
       },
-      {
-        accessorKey: "due_date",
-        meta: { hideOnMobile: true },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="الاستحقاق" />
-        ),
-        cell: ({ row }) => {
-          const d = row.original.due_date;
-          if (!d) return <span className="text-muted-foreground">—</span>;
-          const overdue =
-            new Date(d) < new Date() &&
-            row.original.status === "posted" &&
-            row.original.total - row.original.paid_amount > 0;
-          return (
-            <span className="flex items-center gap-1">
-              <span className="font-mono">{d}</span>
-              {overdue && (
-                <Badge variant="destructive" className="text-[10px] px-1 py-0">
-                  متأخرة
-                </Badge>
-              )}
-            </span>
-          );
-        },
-      },
+
       {
         accessorKey: "status",
         header: "الحالة",
@@ -322,24 +253,6 @@ export default function Purchases() {
           <Badge variant={INVOICE_STATUS_COLORS[row.original.status] as any}>
             {INVOICE_STATUS_LABELS[row.original.status]}
           </Badge>
-        ),
-      },
-      {
-        id: "actions",
-        header: "عرض",
-        enableHiding: false,
-        cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="عرض الفاتورة"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/purchases/${row.original.id}`);
-            }}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
         ),
       },
     ],
@@ -381,10 +294,7 @@ export default function Purchases() {
       label: "المتبقي",
       value: formatCurrency(totalOutstanding),
       icon: AlertTriangle,
-      color:
-        totalOutstanding > 0
-          ? "bg-destructive/10 text-destructive"
-          : "bg-emerald-500/10 text-emerald-600",
+      color: totalOutstanding > 0 ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-600",
     },
   ];
 
@@ -432,16 +342,7 @@ export default function Purchases() {
                 filenamePrefix: "فواتير-الشراء",
                 sheetName: "فواتير الشراء",
                 pdfTitle: "فواتير الشراء",
-                headers: [
-                  "رقم الفاتورة",
-                  "المورد",
-                  "التاريخ",
-                  "الإجمالي",
-                  "المدفوع",
-                  "المتبقي",
-                  "الاستحقاق",
-                  "الحالة",
-                ],
+                headers: ["رقم الفاتورة", "المورد", "التاريخ", "الإجمالي", "المدفوع", "المتبقي", "الاستحقاق", "الحالة"],
                 rows: exportRows,
                 settings: null,
                 pdfOrientation: "landscape",
@@ -464,30 +365,19 @@ export default function Purchases() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {kpiCards.map(({ label, value, icon: Icon, color }) => (
-          <div
-            key={label}
-            className="rounded-xl border p-4 bg-card transition-all hover:shadow-md"
-          >
+          <div key={label} className="rounded-xl border p-4 bg-card transition-all hover:shadow-md">
             <div className="flex items-center justify-between mb-2">
-              <div
-                className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}
-              >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xl font-black text-foreground font-mono">
-                {value}
-              </span>
+              <span className="text-xl font-black text-foreground font-mono">{value}</span>
             </div>
             <p className="text-xs text-muted-foreground">{label}</p>
           </div>
         ))}
       </div>
 
-      <StatusChips
-        chips={statusChips}
-        active={statusFilter}
-        onSelect={setStatusFilter}
-      />
+      <StatusChips chips={statusChips} active={statusFilter} onSelect={setStatusFilter} />
 
       <DataTable
         compactRows
