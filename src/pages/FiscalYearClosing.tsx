@@ -416,6 +416,25 @@ export default function FiscalYearClosing() {
         description={`السنة المالية: ${fiscalYear.label} (${fiscalYear.startDate} إلى ${fiscalYear.endDate})`}
       />
 
+      {/* Year selector */}
+      <div className="bg-card border rounded-xl p-4 flex items-center gap-3">
+        <label className="text-sm font-semibold">اختر السنة المالية للإقفال:</label>
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(Number(e.target.value))}
+          className="border rounded-lg px-3 py-2 bg-background text-sm"
+        >
+          {availableYears.map((y) => (
+            <option key={y} value={y}>
+              {y} / {y + 1}
+            </option>
+          ))}
+        </select>
+        <span className="text-xs text-muted-foreground">
+          (عادةً تُقفل السنة المنتهية قبل بدء إدخال بيانات السنة الجديدة)
+        </span>
+      </div>
+
       {/* Warning if already closed */}
       {existingClosing && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start justify-between gap-3">
