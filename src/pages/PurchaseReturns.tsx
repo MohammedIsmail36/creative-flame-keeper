@@ -10,7 +10,7 @@ import { DatePickerInput } from "@/components/DatePickerInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
-import { Plus, RotateCcw, Eye, X, Clock, CheckCircle, Ban, DollarSign } from "lucide-react";
+import { Plus, RotateCcw, Eye, X, Trash2, Clock, CheckCircle, Ban, DollarSign } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
@@ -355,7 +355,7 @@ export default function PurchaseReturns() {
                 onClick={clearFilters}
                 className="h-9 gap-1 text-muted-foreground hover:text-foreground"
               >
-                <X className="h-3.5 w-3.5" />
+                <Trash2 className="h-3.5 w-3.5" />
                 مسح الفلاتر
               </Button>
             )}
