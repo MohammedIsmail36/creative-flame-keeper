@@ -1107,9 +1107,6 @@ export default function PurchaseReturnForm() {
           </div>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
-              <ReturnSettlementsView type="purchase" returnId={id} returnTotal={grandTotal} />
-            </div>
-            <div className="flex-1">
               <InvoicePaymentSection
                 type="purchase_return"
                 invoiceId={id}
@@ -1119,6 +1116,9 @@ export default function PurchaseReturnForm() {
                 invoiceNumber={returnNumber}
                 onPaymentAdded={loadData}
               />
+            </div>
+            <div className="flex-1">
+              <ReturnSettlementsView type="purchase" returnId={id} returnTotal={grandTotal} />
             </div>
           </div>
         </div>
