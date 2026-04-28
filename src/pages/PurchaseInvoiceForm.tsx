@@ -254,6 +254,16 @@ export default function PurchaseInvoiceForm() {
       if (droppedEmpty > 0) {
         setItems(validItems as any);
       }
+      // Block creating brand-new empty invoices (no supplier AND no items)
+      if (isNew && !supplierId && validItems.length === 0) {
+        toast({
+          title: "تنبيه",
+          description: "لا يمكن حفظ فاتورة فارغة - أضف موردًا أو بنودًا أولاً",
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
       // Calculate net_total for each item
       const discountPercent =
         discountMode === "invoice" && subtotal > 0
