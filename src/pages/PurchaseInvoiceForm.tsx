@@ -828,7 +828,7 @@ export default function PurchaseInvoiceForm() {
                       </td>
                     )}
                     <td className="py-1 px-3 text-center w-full">
-                      <span className="font-mono tabular-nums font-semibold text-sm text-foreground bg-muted/30 block rounded-md py-1.5 border border-border">
+                      <span className="font-mono tabular-nums font-semibold text-sm text-foreground">
                         {formatCurrency(item.total)}
                       </span>
                     </td>
