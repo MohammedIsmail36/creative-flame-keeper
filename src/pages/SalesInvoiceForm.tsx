@@ -750,7 +750,7 @@ export default function SalesInvoiceForm() {
                   <th className="py-1 px-3 font-medium text-muted-foreground text-xs text-center">الخصم</th>
                 )}
                 <th className="py-1 px-3 font-medium text-muted-foreground text-xs text-center">المجموع</th>
-                {isEditable && <th className="py-2 px-2" />}
+                {isEditable && <th className="py-1 px-2" />}
               </tr>
             </thead>
             <tbody>
@@ -795,7 +795,7 @@ export default function SalesInvoiceForm() {
                     </td>
 
                     {/* Quantity */}
-                    <td className="py-1 px-3">
+                    <td className="py-1 px-3 text-center">
                       {isEditable ? (
                         <NumberInput
                           min={1}
@@ -809,7 +809,7 @@ export default function SalesInvoiceForm() {
                     </td>
 
                     {/* Unit Price */}
-                    <td className="py-1 px-3">
+                    <td className="py-1 px-3 text-center">
                       {isEditable ? (
                         <NumberInput
                           min={0}
@@ -829,7 +829,7 @@ export default function SalesInvoiceForm() {
 
                     {/* Discount */}
                     {showDiscount && (
-                      <td className="py-2 px-3">
+                      <td className="py-1 px-3 text-center">
                         {isEditable ? (
                           <NumberInput
                             min={0}
@@ -855,15 +855,15 @@ export default function SalesInvoiceForm() {
                     {/* Tax — removed from rows, shown only in summary */}
 
                     {/* Total */}
-                    <td className="py-2 px-3 text-center w-full">
-                      <span className="font-mono tabular-nums font-semibold text-sm text-foreground bg-muted/30 block rounded-md py-1.5 border border-border">
+                    <td className="py-1 px-3 text-center w-full">
+                      <span className="font-mono tabular-nums font-semibold text-sm text-foreground bg-muted/30 block rounded-md">
                         {formatCurrency(item.total)}
                       </span>
                     </td>
 
                     {/* Delete button */}
                     {isEditable && (
-                      <td className="py-2 px-2">
+                      <td className="py-1 px-2">
                         <button
                           onClick={() => removeItem(i)}
                           className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100"
