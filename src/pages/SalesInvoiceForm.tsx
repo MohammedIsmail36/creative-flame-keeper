@@ -547,7 +547,7 @@ export default function SalesInvoiceForm() {
         actions={
           <>
             {!isNew && isDraft && canEdit && (
-              <AlertDialog dir="rtl">
+              <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
                     variant="outline"
@@ -577,6 +577,7 @@ export default function SalesInvoiceForm() {
                 </AlertDialogContent>
               </AlertDialog>
             )}
+
             {!isNew && status === "posted" && canEdit && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
