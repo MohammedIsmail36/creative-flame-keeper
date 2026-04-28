@@ -237,27 +237,7 @@ export default function Sales() {
           );
         },
       },
-      {
-        accessorKey: "due_date",
-        meta: { hideOnMobile: true },
-        header: ({ column }) => <DataTableColumnHeader column={column} title="الاستحقاق" />,
-        cell: ({ row }) => {
-          const { due_date, status, total, paid_amount } = row.original;
-          if (!due_date) return <span className="text-muted-foreground">—</span>;
-          const isOverdue =
-            status === "posted" && total - paid_amount > 0 && due_date < new Date().toISOString().slice(0, 10);
-          return (
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground text-sm font-mono">{due_date}</span>
-              {isOverdue && (
-                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                  متأخرة
-                </Badge>
-              )}
-            </div>
-          );
-        },
-      },
+
       {
         accessorKey: "status",
         header: "الحالة",
