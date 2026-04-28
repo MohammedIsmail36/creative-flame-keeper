@@ -300,9 +300,9 @@ export default function PurchaseReturns() {
               <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-2xl font-black text-foreground font-mono">{value}</span>
+              <span className="text-xs font-black text-foreground font-mono">{label}</span>
             </div>
-            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="text-2xl text-muted-foreground">{value}</p>
           </button>
         ))}
       </div>
