@@ -82,15 +82,7 @@ export default function Sales() {
 
   // Paged invoices
   const { data: pagedData, isLoading } = usePagedQuery<Invoice>(
-    [
-      "sales-list",
-      pagination.pageIndex,
-      pagination.pageSize,
-      statusFilter,
-      dateFrom,
-      dateTo,
-      debouncedSearch,
-    ] as const,
+    ["sales-list", pagination.pageIndex, pagination.pageSize, statusFilter, dateFrom, dateTo, debouncedSearch] as const,
     async () => {
       const from = pagination.pageIndex * pagination.pageSize;
       const to = from + pagination.pageSize - 1;
@@ -139,9 +131,7 @@ export default function Sales() {
   const totalCount = pagedData?.totalCount ?? 0;
   const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
 
-  const fetchAllForExport = async (
-    onProgress?: (loaded: number, total: number) => void,
-  ): Promise<Invoice[]> => {
+  const fetchAllForExport = async (onProgress?: (loaded: number, total: number) => void): Promise<Invoice[]> => {
     const { fetchAllPaged } = await import("@/lib/paged-fetch");
     const rows = await fetchAllPaged<any>(
       () => {
@@ -168,9 +158,7 @@ export default function Sales() {
   React.useEffect(() => {
     setExportRows([]);
   }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
-  const handlePrepareExport = async (
-    onProgress?: (loaded: number, total: number) => void,
-  ) => {
+  const handlePrepareExport = async (onProgress?: (loaded: number, total: number) => void) => {
     const all = await fetchAllForExport(onProgress);
     const rows = all.map((i) => [
       formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status),
@@ -186,8 +174,7 @@ export default function Sales() {
     return { rows };
   };
 
-  const hasFilters =
-    statusFilter !== "all" || dateFrom || dateTo || search.trim();
+  const hasFilters = statusFilter !== "all" || dateFrom || dateTo || search.trim();
   const clearFilters = () => {
     setStatusFilter("all");
     setDateFrom("");
@@ -204,85 +191,47 @@ export default function Sales() {
     () => [
       {
         accessorKey: "invoice_number",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="رقم الفاتورة" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="رقم الفاتورة" />,
         cell: ({ row }) => (
           <span className="font-mono">
-            {formatDisplayNumber(
-              prefix,
-              row.original.posted_number,
-              row.original.invoice_number,
-              row.original.status,
-            )}
+            {formatDisplayNumber(prefix, row.original.posted_number, row.original.invoice_number, row.original.status)}
           </span>
         ),
       },
       {
         accessorKey: "customer_name",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="العميل" />
-        ),
-        cell: ({ row }) => (
-          <span className="font-medium">
-            {row.original.customer_name || "—"}
-          </span>
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="العميل" />,
+        cell: ({ row }) => <span className="font-medium">{row.original.customer_name || "—"}</span>,
       },
       {
         accessorKey: "invoice_date",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="التاريخ" />
-        ),
-        cell: ({ row }) => (
-          <span className="text-muted-foreground font-mono">
-            {row.original.invoice_date}
-          </span>
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+        cell: ({ row }) => <span className="text-muted-foreground font-mono">{row.original.invoice_date}</span>,
       },
       {
         accessorKey: "total",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="الإجمالي" />
-        ),
-        cell: ({ row }) => (
-          <span className="font-mono">{formatCurrency(row.original.total)}</span>
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="الإجمالي" />,
+        cell: ({ row }) => <span className="font-mono">{formatCurrency(row.original.total)}</span>,
       },
       {
         accessorKey: "paid_amount",
         meta: { hideOnMobile: true },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="المدفوع" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="المدفوع" />,
         cell: ({ row }) => {
-          if (row.original.status !== "posted")
-            return <span className="text-muted-foreground">—</span>;
-          return (
-            <span className="font-mono">
-              {formatCurrency(row.original.paid_amount)}
-            </span>
-          );
+          if (row.original.status !== "posted") return <span className="text-muted-foreground">—</span>;
+          return <span className="font-mono">{formatCurrency(row.original.paid_amount)}</span>;
         },
       },
       {
         id: "remaining",
         meta: { hideOnMobile: true },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="المتبقي" />
-        ),
-        accessorFn: (row) =>
-          row.status === "posted" ? row.total - row.paid_amount : null,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="المتبقي" />,
+        accessorFn: (row) => (row.status === "posted" ? row.total - row.paid_amount : null),
         cell: ({ row }) => {
-          if (row.original.status !== "posted")
-            return <span className="text-muted-foreground">—</span>;
+          if (row.original.status !== "posted") return <span className="text-muted-foreground">—</span>;
           const remaining = row.original.total - row.original.paid_amount;
           return (
-            <span
-              className={`font-mono font-semibold ${
-                remaining > 0 ? "text-destructive" : "text-emerald-600"
-              }`}
-            >
+            <span className={`font-mono font-semibold ${remaining > 0 ? "text-destructive" : "text-emerald-600"}`}>
               {formatCurrency(remaining)}
             </span>
           );
@@ -291,27 +240,17 @@ export default function Sales() {
       {
         accessorKey: "due_date",
         meta: { hideOnMobile: true },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="الاستحقاق" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="الاستحقاق" />,
         cell: ({ row }) => {
           const { due_date, status, total, paid_amount } = row.original;
-          if (!due_date)
-            return <span className="text-muted-foreground">—</span>;
+          if (!due_date) return <span className="text-muted-foreground">—</span>;
           const isOverdue =
-            status === "posted" &&
-            total - paid_amount > 0 &&
-            due_date < new Date().toISOString().slice(0, 10);
+            status === "posted" && total - paid_amount > 0 && due_date < new Date().toISOString().slice(0, 10);
           return (
             <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground text-sm font-mono">
-                {due_date}
-              </span>
+              <span className="text-muted-foreground text-sm font-mono">{due_date}</span>
               {isOverdue && (
-                <Badge
-                  variant="destructive"
-                  className="text-[10px] px-1.5 py-0"
-                >
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
                   متأخرة
                 </Badge>
               )}
@@ -326,24 +265,6 @@ export default function Sales() {
           <Badge variant={INVOICE_STATUS_COLORS[row.original.status] as any}>
             {INVOICE_STATUS_LABELS[row.original.status]}
           </Badge>
-        ),
-      },
-      {
-        id: "actions",
-        header: "عرض",
-        enableHiding: false,
-        cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="عرض الفاتورة"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/sales/${row.original.id}`);
-            }}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
         ),
       },
     ],
@@ -386,10 +307,7 @@ export default function Sales() {
       label: "المتبقي",
       value: formatCurrency(totalOutstanding),
       icon: AlertTriangle,
-      color:
-        totalOutstanding > 0
-          ? "bg-destructive/10 text-destructive"
-          : "bg-emerald-500/10 text-emerald-600",
+      color: totalOutstanding > 0 ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-600",
     },
   ];
 
@@ -437,16 +355,7 @@ export default function Sales() {
                 filenamePrefix: "فواتير-البيع",
                 sheetName: "فواتير البيع",
                 pdfTitle: "فواتير البيع",
-                headers: [
-                  "رقم الفاتورة",
-                  "العميل",
-                  "التاريخ",
-                  "الإجمالي",
-                  "المدفوع",
-                  "المتبقي",
-                  "الاستحقاق",
-                  "الحالة",
-                ],
+                headers: ["رقم الفاتورة", "العميل", "التاريخ", "الإجمالي", "المدفوع", "المتبقي", "الاستحقاق", "الحالة"],
                 rows: exportRows,
                 settings: null,
                 pdfOrientation: "landscape",
@@ -454,10 +363,7 @@ export default function Sales() {
               disabled={isLoading}
               onOpen={handlePrepareExport}
             />
-            <Button
-              onClick={() => navigate("/sales/new")}
-              className="gap-2 shadow-md shadow-primary/20 font-bold"
-            >
+            <Button onClick={() => navigate("/sales/new")} className="gap-2 shadow-md shadow-primary/20 font-bold">
               <Plus className="h-4 w-4" />
               فاتورة جديدة
             </Button>
@@ -468,19 +374,12 @@ export default function Sales() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {kpiCards.map(({ label, value, icon: Icon, color }) => (
-          <div
-            key={label}
-            className="rounded-xl border p-4 bg-card transition-all hover:shadow-md"
-          >
+          <div key={label} className="rounded-xl border p-4 bg-card transition-all hover:shadow-md">
             <div className="flex items-center justify-between mb-2">
-              <div
-                className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}
-              >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xl font-black text-foreground font-mono">
-                {value}
-              </span>
+              <span className="text-xl font-black text-foreground font-mono">{value}</span>
             </div>
             <p className="text-xs text-muted-foreground">{label}</p>
           </div>
@@ -488,11 +387,7 @@ export default function Sales() {
       </div>
 
       {/* Status chips */}
-      <StatusChips
-        chips={statusChips}
-        active={statusFilter}
-        onSelect={setStatusFilter}
-      />
+      <StatusChips chips={statusChips} active={statusFilter} onSelect={setStatusFilter} />
 
       <DataTable
         compactRows
