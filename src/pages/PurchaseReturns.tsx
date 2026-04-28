@@ -353,9 +353,9 @@ export default function PurchaseReturns() {
                 variant="ghost"
                 size="sm"
                 onClick={clearFilters}
-                className="h-9 gap-1 text-muted-foreground hover:text-foreground"
+                className="h-9 gap-1 bg-destructive text-destructive-foreground hover:text-destructive"
               >
-                <Trash2 className="h-3.5 w-3.5 bg-destructive text-destructive-foreground" />
+                <Trash2 className="h-3.5 w-3.5" />
                 مسح الفلاتر
               </Button>
             )}
