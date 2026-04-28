@@ -8,25 +8,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DatePickerInput } from "@/components/DatePickerInput";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
-import {
-  Plus,
-  RotateCcw,
-  Eye,
-  X,
-  Clock,
-  CheckCircle,
-  Ban,
-  DollarSign,
-} from "lucide-react";
+import { Plus, RotateCcw, Eye, X, Clock, CheckCircle, Ban, DollarSign } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useQuery } from "@tanstack/react-query";
@@ -64,9 +49,7 @@ export default function SalesReturns() {
   const { data: stats } = useQuery({
     queryKey: ["sales-returns-summary", dateFrom, dateTo],
     queryFn: async () => {
-      let q = (supabase.from("sales_returns") as any).select(
-        "status, total",
-      );
+      let q = (supabase.from("sales_returns") as any).select("status, total");
       if (dateFrom) q = q.gte("return_date", dateFrom);
       if (dateTo) q = q.lte("return_date", dateTo);
       const { data, error } = await q;
@@ -147,9 +130,7 @@ export default function SalesReturns() {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
 
-  const fetchAllForExport = async (
-    onProgress?: (loaded: number, total: number) => void,
-  ): Promise<Return[]> => {
+  const fetchAllForExport = async (onProgress?: (loaded: number, total: number) => void): Promise<Return[]> => {
     const { fetchAllPaged } = await import("@/lib/paged-fetch");
     const rows = await fetchAllPaged<any>(
       () => {
@@ -170,9 +151,7 @@ export default function SalesReturns() {
   React.useEffect(() => {
     setExportRows([]);
   }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
-  const handlePrepareExport = async (
-    onProgress?: (loaded: number, total: number) => void,
-  ) => {
+  const handlePrepareExport = async (onProgress?: (loaded: number, total: number) => void) => {
     const all = await fetchAllForExport(onProgress);
     const rows = all.map((r) => [
       formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status),
@@ -185,8 +164,7 @@ export default function SalesReturns() {
     return { rows };
   };
 
-  const hasFilters =
-    statusFilter !== "all" || dateFrom || dateTo || search.trim();
+  const hasFilters = statusFilter !== "all" || dateFrom || dateTo || search.trim();
   const clearFilters = () => {
     setStatusFilter("all");
     setDateFrom("");
@@ -211,45 +189,26 @@ export default function SalesReturns() {
   const columns: ColumnDef<Return, any>[] = [
     {
       accessorKey: "return_number",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="رقم المرتجع" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="رقم المرتجع" />,
       cell: ({ row }) => (
         <span className="font-mono">
-          {formatDisplayNumber(
-            prefix,
-            row.original.posted_number,
-            row.original.return_number,
-            row.original.status,
-          )}
+          {formatDisplayNumber(prefix, row.original.posted_number, row.original.return_number, row.original.status)}
         </span>
       ),
     },
     {
       accessorKey: "customer_name",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="العميل" />
-      ),
-      cell: ({ row }) => (
-        <span className="font-medium">{row.original.customer_name || "—"}</span>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="العميل" />,
+      cell: ({ row }) => <span className="font-medium">{row.original.customer_name || "—"}</span>,
     },
     {
       accessorKey: "return_date",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="التاريخ" />
-      ),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.return_date}
-        </span>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.return_date}</span>,
     },
     {
       accessorKey: "total",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="الإجمالي" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الإجمالي" />,
       cell: ({ row }) => (
         <span className="font-mono">
           {row.original.total.toLocaleString("en-US", {
@@ -267,24 +226,6 @@ export default function SalesReturns() {
         </Badge>
       ),
     },
-    {
-      id: "actions",
-      header: "عرض",
-      enableHiding: false,
-      cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="عرض المرتجع"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/sales-returns/${row.original.id}`);
-          }}
-        >
-          <Eye className="h-4 w-4" />
-        </Button>
-      ),
-    },
   ];
 
   return (
@@ -295,11 +236,7 @@ export default function SalesReturns() {
         description={`${fmtNum(stats?.total ?? 0)} مرتجع`}
         actions={
           <>
-            <ExportMenu
-              config={exportConfig}
-              disabled={isLoading}
-              onOpen={handlePrepareExport}
-            />
+            <ExportMenu config={exportConfig} disabled={isLoading} onOpen={handlePrepareExport} />
             <Button
               onClick={() => navigate("/sales-returns/new")}
               className="gap-2 shadow-md shadow-primary/20 font-bold"
@@ -356,14 +293,10 @@ export default function SalesReturns() {
             className={`rounded-xl border p-4 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}
           >
             <div className="flex items-center justify-between mb-2">
-              <div
-                className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}
-              >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-2xl font-black text-foreground font-mono">
-                {value}
-              </span>
+              <span className="text-2xl font-black text-foreground font-mono">{value}</span>
             </div>
             <p className="text-xs text-muted-foreground">{label}</p>
           </button>

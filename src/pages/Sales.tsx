@@ -198,21 +198,25 @@ export default function Sales() {
           </span>
         ),
       },
+
       {
         accessorKey: "customer_name",
         header: ({ column }) => <DataTableColumnHeader column={column} title="العميل" />,
         cell: ({ row }) => <span className="font-medium">{row.original.customer_name || "—"}</span>,
       },
+
       {
         accessorKey: "invoice_date",
         header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
         cell: ({ row }) => <span className="text-muted-foreground font-mono">{row.original.invoice_date}</span>,
       },
+
       {
         accessorKey: "total",
         header: ({ column }) => <DataTableColumnHeader column={column} title="الإجمالي" />,
         cell: ({ row }) => <span className="font-mono">{formatCurrency(row.original.total)}</span>,
       },
+
       {
         accessorKey: "paid_amount",
         meta: { hideOnMobile: true },
