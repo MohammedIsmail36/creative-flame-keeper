@@ -260,10 +260,11 @@ export default function Customers() {
         if (error) throw error;
         toast({ title: "تم التحديث", description: "تم تعديل بيانات العميل" });
       } else {
+        const insertPayload = { ...payload, opening_balance: openingBalance };
         const { data: newCustomer, error } = await (
           supabase.from("customers" as any) as any
         )
-          .insert(payload)
+          .insert(insertPayload)
           .select("id")
           .single();
         if (error) throw error;

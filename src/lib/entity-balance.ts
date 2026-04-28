@@ -28,21 +28,31 @@ export async function recalculateEntityBalance(
     : "suppliers";
   const entityIdCol = isCustomer ? "customer_id" : "supplier_id";
 
-  const [{ data: invoices }, { data: returns }, { data: payments }] =
-    await Promise.all([
-      (supabase.from(invoiceTable) as any)
-        .select("total")
-        .eq(entityIdCol, entityId)
-        .eq("status", "posted"),
-      (supabase.from(returnTable) as any)
-        .select("total")
-        .eq(entityIdCol, entityId)
-        .eq("status", "posted"),
-      (supabase.from(paymentTable) as any)
-        .select("id, amount")
-        .eq(entityIdCol, entityId)
-        .eq("status", "posted"),
-    ]);
+  const [
+    { data: invoices },
+    { data: returns },
+    { data: payments },
+    { data: entityRow },
+  ] = await Promise.all([
+    (supabase.from(invoiceTable) as any)
+      .select("total")
+      .eq(entityIdCol, entityId)
+      .eq("status", "posted"),
+    (supabase.from(returnTable) as any)
+      .select("total")
+      .eq(entityIdCol, entityId)
+      .eq("status", "posted"),
+    (supabase.from(paymentTable) as any)
+      .select("id, amount")
+      .eq(entityIdCol, entityId)
+      .eq("status", "posted"),
+    (supabase.from(entityTable) as any)
+      .select("opening_balance")
+      .eq("id", entityId)
+      .maybeSingle(),
+  ]);
+
+  const openingBalance = toNumber((entityRow as any)?.opening_balance);
 
   const postedInvoiceTotal = (invoices || []).reduce(
     (sum: number, row: any) => sum + toNumber(row.total),
@@ -85,7 +95,11 @@ export async function recalculateEntityBalance(
   }
 
   const calculatedBalance = round2(
-    postedInvoiceTotal - postedReturnTotal - normalPayments + refundPayments,
+    openingBalance +
+      postedInvoiceTotal -
+      postedReturnTotal -
+      normalPayments +
+      refundPayments,
   );
 
   await supabase
