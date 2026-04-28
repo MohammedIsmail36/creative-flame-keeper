@@ -351,7 +351,7 @@ export default function SalesReturns() {
                 onClick={clearFilters}
                 className="h-9 gap-1 text-muted-foreground hover:text-foreground"
               >
-                <X className="h-3.5 w-3.5" />
+                <Trash2 className="h-3.5 w-3.5" />
                 مسح الفلاتر
               </Button>
             )}
