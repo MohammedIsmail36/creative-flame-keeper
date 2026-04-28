@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import {
-  getNextPostedNumber,
-  formatDisplayNumber,
-} from "@/lib/posted-number-utils";
+import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,14 +14,7 @@ import { calcInvoiceTotals } from "@/lib/invoice-totals";
 import { useLineItems } from "@/hooks/use-line-items";
 import { cn, round2 } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/NumberInput";
@@ -72,11 +62,7 @@ import {
   formatProductDisplay,
   PRODUCT_SELECT_FIELDS_BASIC,
 } from "@/lib/product-utils";
-import {
-  ACCOUNT_CODES,
-  INVOICE_STATUS_LABELS,
-  INVOICE_STATUS_COLORS,
-} from "@/lib/constants";
+import { ACCOUNT_CODES, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
 
 interface Supplier {
   id: string;
@@ -121,20 +107,14 @@ export default function PurchaseReturnForm() {
   const [postedNumber, setPostedNumber] = useState<number | null>(null);
   const [supplierId, setSupplierId] = useState("");
   const [supplierName, setSupplierName] = useState("");
-  const [returnDate, setReturnDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [returnDate, setReturnDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
   const [reference, setReference] = useState("");
   const [status, setStatus] = useState("draft");
-  const {
-    items,
-    setItems,
-    addItem,
-    removeItem,
-    updateItem,
-    handleLastFieldKeyDown,
-  } = useLineItems<ReturnItem>({ priceField: "purchase_price" }, products);
+  const { items, setItems, addItem, removeItem, updateItem, handleLastFieldKeyDown } = useLineItems<ReturnItem>(
+    { priceField: "purchase_price" },
+    products,
+  );
   const [editMode, setEditMode] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -146,15 +126,10 @@ export default function PurchaseReturnForm() {
 
   async function loadData() {
     const [supRes, prodRes] = await Promise.all([
-      (supabase.from("suppliers") as any)
-        .select("id, code, name, balance")
-        .eq("is_active", true)
-        .order("name"),
+      (supabase.from("suppliers") as any).select("id, code, name, balance").eq("is_active", true).order("name"),
       supabase
         .from("products")
-        .select(
-          "id, code, name, purchase_price, quantity_on_hand, model_number, brand_id, product_brands(name)",
-        )
+        .select("id, code, name, purchase_price, quantity_on_hand, model_number, brand_id, product_brands(name)")
         .eq("is_active", true)
         .order("name"),
     ]);
@@ -177,12 +152,8 @@ export default function PurchaseReturnForm() {
         setStatus(ret.status);
         setEditMode(ret.status === "draft");
 
-        const { data: itemsData } = await (
-          supabase.from("purchase_return_items") as any
-        )
-          .select(
-            "*, products:product_id(name, code, model_number, product_brands(name))",
-          )
+        const { data: itemsData } = await (supabase.from("purchase_return_items") as any)
+          .select("*, products:product_id(name, code, model_number, product_brands(name))")
           .eq("return_id", id)
           .order("sort_order", { ascending: true });
         setItems(
@@ -190,11 +161,7 @@ export default function PurchaseReturnForm() {
             id: it.id,
             product_id: it.product_id || "",
             product_name: it.products
-              ? formatProductDisplay(
-                  it.products.name,
-                  it.products.product_brands?.name,
-                  it.products.model_number,
-                )
+              ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number)
               : it.description || "",
             quantity: it.quantity,
             unit_price: it.unit_price,
@@ -221,8 +188,7 @@ export default function PurchaseReturnForm() {
     const errors: Record<string, string> = {};
     // Draft is permissive: allow saving partial work.
     // Strict validation runs on Post.
-    if (items.some((i) => i.product_id && i.quantity <= 0))
-      errors.items = "يجب أن تكون الكمية أكبر من صفر لكل بند";
+    if (items.some((i) => i.product_id && i.quantity <= 0)) errors.items = "يجب أن تكون الكمية أكبر من صفر لكل بند";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       toast({
@@ -252,15 +218,10 @@ export default function PurchaseReturnForm() {
         status: "draft",
       };
 
-      const draftSavedMsg =
-        droppedEmpty > 0
-          ? `تم الحفظ مع تجاهل ${droppedEmpty} سطر فارغ`
-          : undefined;
+      const draftSavedMsg = droppedEmpty > 0 ? `تم الحفظ مع تجاهل ${droppedEmpty} سطر فارغ` : undefined;
 
       if (isNew) {
-        const { data: ret, error } = await (
-          supabase.from("purchase_returns") as any
-        )
+        const { data: ret, error } = await (supabase.from("purchase_returns") as any)
           .insert(payload)
           .select("id")
           .single();
@@ -276,9 +237,7 @@ export default function PurchaseReturnForm() {
           discount: i.discount,
           total: i.total,
           net_total: round2(
-            sumTotals > 0 && headerDiscount > 0
-              ? i.total - (i.total / sumTotals) * headerDiscount
-              : i.total
+            sumTotals > 0 && headerDiscount > 0 ? i.total - (i.total / sumTotals) * headerDiscount : i.total,
           ),
           sort_order: idx,
         }));
@@ -289,15 +248,12 @@ export default function PurchaseReturnForm() {
           title: "تمت الإضافة",
           description: draftSavedMsg || "تم إنشاء مرتجع الشراء كمسودة",
         });
-        setIsDirty(false); navGuard.allowNext();
+        setIsDirty(false);
+        navGuard.allowNext();
         navigate(`/purchase-returns/${ret.id}`);
       } else {
-        await (supabase.from("purchase_returns") as any)
-          .update(payload)
-          .eq("id", id);
-        await (supabase.from("purchase_return_items") as any)
-          .delete()
-          .eq("return_id", id);
+        await (supabase.from("purchase_returns") as any).update(payload).eq("id", id);
+        await (supabase.from("purchase_return_items") as any).delete().eq("return_id", id);
         const sumTotals = validItems.reduce((s, x) => s + x.total, 0);
         const headerDiscount = payload.discount || 0;
         const rows = validItems.map((i, idx) => ({
@@ -309,9 +265,7 @@ export default function PurchaseReturnForm() {
           discount: i.discount,
           total: i.total,
           net_total: round2(
-            sumTotals > 0 && headerDiscount > 0
-              ? i.total - (i.total / sumTotals) * headerDiscount
-              : i.total
+            sumTotals > 0 && headerDiscount > 0 ? i.total - (i.total / sumTotals) * headerDiscount : i.total,
           ),
           sort_order: idx,
         }));
@@ -322,7 +276,8 @@ export default function PurchaseReturnForm() {
           title: "تم التحديث",
           description: draftSavedMsg || "تم تحديث مرتجع الشراء",
         });
-        setIsDirty(false); navGuard.allowNext();
+        setIsDirty(false);
+        navGuard.allowNext();
         loadData();
       }
     } catch (error: any) {
@@ -336,10 +291,7 @@ export default function PurchaseReturnForm() {
   }
 
   async function postReturn() {
-    if (
-      settings?.locked_until_date &&
-      returnDate <= settings.locked_until_date
-    ) {
+    if (settings?.locked_until_date && returnDate <= settings.locked_until_date) {
       toast({
         title: "خطأ",
         description: `لا يمكن ترحيل مرتجع بتاريخ ${returnDate} — الفترة مقفلة حتى ${settings.locked_until_date}`,
@@ -366,15 +318,11 @@ export default function PurchaseReturnForm() {
           return;
         }
         // Validate against total purchased quantity from this supplier
-        const { data: purchasedItems } = await (
-          supabase.from("purchase_invoice_items") as any
-        )
+        const { data: purchasedItems } = await (supabase.from("purchase_invoice_items") as any)
           .select("quantity, invoice_id")
           .eq("product_id", item.product_id);
         if (purchasedItems) {
-          const invoiceIds = [
-            ...new Set(purchasedItems.map((pi: any) => pi.invoice_id)),
-          ] as string[];
+          const invoiceIds = [...new Set(purchasedItems.map((pi: any) => pi.invoice_id))] as string[];
           const { data: postedInvs } = invoiceIds.length
             ? await (supabase.from("purchase_invoices") as any)
                 .select("id")
@@ -387,26 +335,18 @@ export default function PurchaseReturnForm() {
             .filter((pi: any) => postedIds.has(pi.invoice_id))
             .reduce((s: number, pi: any) => s + Number(pi.quantity), 0);
           // Also check already returned quantity
-          const { data: returnedItems } = await (
-            supabase.from("purchase_return_items") as any
-          )
+          const { data: returnedItems } = await (supabase.from("purchase_return_items") as any)
             .select("quantity, return_id")
             .eq("product_id", item.product_id);
           let totalReturned = 0;
           if (returnedItems?.length) {
-            const retIds = [
-              ...new Set(returnedItems.map((ri: any) => ri.return_id)),
-            ] as string[];
-            const { data: postedRets } = await (
-              supabase.from("purchase_returns") as any
-            )
+            const retIds = [...new Set(returnedItems.map((ri: any) => ri.return_id))] as string[];
+            const { data: postedRets } = await (supabase.from("purchase_returns") as any)
               .select("id")
               .in("id", retIds)
               .eq("status", "posted")
               .eq("supplier_id", supplierId);
-            const postedRetIds = new Set(
-              (postedRets || []).map((r: any) => r.id),
-            );
+            const postedRetIds = new Set((postedRets || []).map((r: any) => r.id));
             totalReturned = returnedItems
               .filter((ri: any) => postedRetIds.has(ri.return_id))
               .reduce((s: number, ri: any) => s + Number(ri.quantity), 0);
@@ -432,18 +372,10 @@ export default function PurchaseReturnForm() {
           ACCOUNT_CODES.INPUT_VAT,
           ACCOUNT_CODES.PURCHASE_RETURN_PRICE_VARIANCE,
         ]);
-      const inventoryAcc = accounts?.find(
-        (a) => a.code === ACCOUNT_CODES.INVENTORY,
-      );
-      const supplierAcc = accounts?.find(
-        (a) => a.code === ACCOUNT_CODES.SUPPLIERS,
-      );
-      const inputVatAcc = accounts?.find(
-        (a) => a.code === ACCOUNT_CODES.INPUT_VAT,
-      );
-      const ppvAcc = accounts?.find(
-        (a) => a.code === ACCOUNT_CODES.PURCHASE_RETURN_PRICE_VARIANCE,
-      );
+      const inventoryAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.INVENTORY);
+      const supplierAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.SUPPLIERS);
+      const inputVatAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.INPUT_VAT);
+      const ppvAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.PURCHASE_RETURN_PRICE_VARIANCE);
       if (!inventoryAcc || !supplierAcc) {
         toast({
           title: "خطأ",
@@ -460,10 +392,9 @@ export default function PurchaseReturnForm() {
       const itemWacList: { product_id: string; wac: number; qty: number }[] = [];
       for (const item of items) {
         if (!item.product_id) continue;
-        const { data: wacData } = await (supabase as any).rpc(
-          "get_avg_purchase_price",
-          { _product_id: item.product_id },
-        );
+        const { data: wacData } = await (supabase as any).rpc("get_avg_purchase_price", {
+          _product_id: item.product_id,
+        });
         const wac = Number(wacData) || 0;
         inventoryCreditWac += wac * item.quantity;
         itemWacList.push({ product_id: item.product_id, wac, qty: item.quantity });
@@ -634,14 +565,8 @@ export default function PurchaseReturnForm() {
           .from("journal_entry_lines")
           .select("*")
           .eq("journal_entry_id", ret.journal_entry_id);
-        const totalDebit = (origLines || []).reduce(
-          (s: number, l: any) => s + Number(l.debit),
-          0,
-        );
-        const totalCredit = (origLines || []).reduce(
-          (s: number, l: any) => s + Number(l.credit),
-          0,
-        );
+        const totalDebit = (origLines || []).reduce((s: number, l: any) => s + Number(l.debit), 0);
+        const totalCredit = (origLines || []).reduce((s: number, l: any) => s + Number(l.credit), 0);
         const postedNumber = await getNextPostedNumber("journal_entries");
         const { data: reverseJe } = await supabase
           .from("journal_entries")
@@ -663,15 +588,11 @@ export default function PurchaseReturnForm() {
             credit: line.debit,
             description: `عكس - ${line.description}`,
           }));
-          await supabase
-            .from("journal_entry_lines")
-            .insert(reverseLines as any);
+          await supabase.from("journal_entry_lines").insert(reverseLines as any);
         }
       }
 
-      await (supabase.from("purchase_returns") as any)
-        .update({ status: "cancelled" })
-        .eq("id", id);
+      await (supabase.from("purchase_returns") as any).update({ status: "cancelled" }).eq("id", id);
       toast({
         title: "تم الإلغاء",
         description: "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون",
@@ -694,12 +615,11 @@ export default function PurchaseReturnForm() {
     if (saving) return;
     setSaving(true);
     try {
-      await (supabase.from("purchase_return_items") as any)
-        .delete()
-        .eq("return_id", id);
+      await (supabase.from("purchase_return_items") as any).delete().eq("return_id", id);
       await (supabase.from("purchase_returns") as any).delete().eq("id", id);
       toast({ title: "تم الحذف", description: "تم حذف المرتجع" });
-      setIsDirty(false); navGuard.allowNext();
+      setIsDirty(false);
+      navGuard.allowNext();
       navigate("/purchase-returns");
     } catch (error: any) {
       toast({
@@ -716,16 +636,10 @@ export default function PurchaseReturnForm() {
     await exportInvoicePdf({
       type: "purchase_return",
       number: postedNumber
-        ? formatDisplayNumber(
-            settings?.purchase_return_prefix || "PRN-",
-            postedNumber,
-            returnNumber || 0,
-            status,
-          )
+        ? formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", postedNumber, returnNumber || 0, status)
         : returnNumber || "جديد",
       date: returnDate,
-      partyName:
-        supplierName || suppliers.find((s) => s.id === supplierId)?.name || "—",
+      partyName: supplierName || suppliers.find((s) => s.id === supplierId)?.name || "—",
       partyLabel: "المورد",
       reference: reference || undefined,
       notes: notes || undefined,
@@ -754,144 +668,118 @@ export default function PurchaseReturnForm() {
   const colCount = 4 + (showDiscount ? 1 : 0) + (isEditable ? 1 : 0);
 
   const displayNumber = !isNew
-    ? formatDisplayNumber(
-        settings?.purchase_return_prefix || "PRN-",
-        postedNumber,
-        returnNumber || 0,
-        status,
-      )
+    ? formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", postedNumber, returnNumber || 0, status)
     : null;
 
   const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
 
   return (
-    <div
-      className="space-y-6"
-      dir="rtl"
-      onInput={() => isEditable && !isDirty && setIsDirty(true)}
-    >
+    <div className="space-y-6" dir="rtl" onInput={() => isEditable && !isDirty && setIsDirty(true)}>
       <PageHeader
         icon={RotateCcw}
         title={isNew ? "مرتجع شراء جديد" : "مرتجع شراء"}
         description="إدارة وتوثيق مرتجعات المشتريات بدقة وسهولة"
-        badge={<>
-          {displayNumber && (
-            <span className="text-sm font-semibold text-muted-foreground border border-border px-3 py-1 rounded-lg bg-muted/50 font-mono tabular-nums">
-              {displayNumber}
-            </span>
-          )}
-          {!isNew && (
-            <Badge
-              variant={INVOICE_STATUS_COLORS[status] as any}
-              className="text-xs px-3 py-1"
-            >
-              {INVOICE_STATUS_LABELS[status]}
-            </Badge>
-          )}
-        </>}
-        actions={<>
-          {!isNew && isDraft && canEdit && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  حذف
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>حذف المرتجع</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    هل أنت متأكد من حذف هذا المرتجع؟
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteDraft}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+        badge={
+          <>
+            {displayNumber && (
+              <span className="text-sm font-semibold text-muted-foreground border border-border px-3 py-1 rounded-lg bg-muted/50 font-mono tabular-nums">
+                {displayNumber}
+              </span>
+            )}
+            {!isNew && (
+              <Badge variant={INVOICE_STATUS_COLORS[status] as any} className="text-xs px-3 py-1">
+                {INVOICE_STATUS_LABELS[status]}
+              </Badge>
+            )}
+          </>
+        }
+        actions={
+          <>
+            {!isNew && isDraft && canEdit && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
                   >
+                    <Trash2 className="h-4 w-4" />
                     حذف
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-          {!isNew && status === "posted" && canEdit && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
-                >
-                  <Ban className="h-4 w-4" />
-                  إلغاء
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>إلغاء المرتجع المرحّل</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد
-                    المورد.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogCancel>تراجع</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleCancelPosted}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent dir="rtl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>حذف المرتجع</AlertDialogTitle>
+                    <AlertDialogDescription>هل أنت متأكد من حذف هذا المرتجع؟</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="flex-row-reverse gap-2">
+                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteDraft}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      حذف
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            {!isNew && status === "posted" && canEdit && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
                   >
-                    إلغاء المرتجع
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-          {!isNew && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrint}
-              className="gap-1.5"
-            >
-              <Printer className="h-4 w-4" />
-              طباعة
-            </Button>
-          )}
-          {isEditable && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSave}
-              disabled={saving}
-              className="gap-1.5"
-            >
-              <Save className="h-4 w-4" />
-              {saving ? "جاري الحفظ..." : "حفظ مسودة"}
-            </Button>
-          )}
-          {!isNew && isDraft && canEdit && (
-            <Button
-              size="sm"
-              onClick={postReturn}
-              disabled={saving}
-              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5"
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle className="h-4 w-4" />
-              )}
-              {saving ? "جاري الترحيل..." : "ترحيل المرتجع"}
-            </Button>
-          )}
-        </>}
+                    <Ban className="h-4 w-4" />
+                    إلغاء
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent dir="rtl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>إلغاء المرتجع المرحّل</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد المورد.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="flex-row-reverse gap-2">
+                    <AlertDialogCancel>تراجع</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleCancelPosted}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      إلغاء المرتجع
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            {!isNew && (
+              <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5">
+                <Printer className="h-4 w-4" />
+                طباعة
+              </Button>
+            )}
+            {isEditable && (
+              <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+                <Save className="h-4 w-4" />
+                {saving ? "جاري الحفظ..." : "حفظ مسودة"}
+              </Button>
+            )}
+            {!isNew && isDraft && canEdit && (
+              <Button
+                size="sm"
+                onClick={postReturn}
+                disabled={saving}
+                className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                {saving ? "جاري الترحيل..." : "ترحيل المرتجع"}
+              </Button>
+            )}
+          </>
+        }
       />
 
       {/* ── Entity Details Card ── */}
@@ -920,23 +808,15 @@ export default function PurchaseReturnForm() {
               />
             ) : (
               <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-medium">
-                {supplierName ||
-                  suppliers.find((s) => s.id === supplierId)?.name ||
-                  "—"}
+                {supplierName || suppliers.find((s) => s.id === supplierId)?.name || "—"}
               </div>
             )}
             <FormFieldError message={fieldErrors.supplier} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium text-muted-foreground">
-              تاريخ المرتجع
-            </Label>
+            <Label className="text-sm font-medium text-muted-foreground">تاريخ المرتجع</Label>
             {isEditable ? (
-              <DatePickerInput
-                value={returnDate}
-                onChange={setReturnDate}
-                placeholder="اختر التاريخ"
-              />
+              <DatePickerInput value={returnDate} onChange={setReturnDate} placeholder="اختر التاريخ" />
             ) : (
               <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-mono tabular-nums">
                 {returnDate}
@@ -944,9 +824,7 @@ export default function PurchaseReturnForm() {
             )}
           </div>
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium text-muted-foreground">
-              رقم المرجع
-            </Label>
+            <Label className="text-sm font-medium text-muted-foreground">رقم المرجع</Label>
             {isEditable ? (
               <Input
                 value={reference}
@@ -965,10 +843,7 @@ export default function PurchaseReturnForm() {
 
       {/* ── Items Table Card ── */}
       <div
-        className={cn(
-          "bg-card rounded-2xl border shadow-sm overflow-hidden",
-          fieldErrors.items && "border-red-500",
-        )}
+        className={cn("bg-card rounded-2xl border shadow-sm overflow-hidden", fieldErrors.items && "border-red-500")}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -982,10 +857,7 @@ export default function PurchaseReturnForm() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table
-            className="w-full text-right border-collapse"
-            style={{ tableLayout: "fixed" }}
-          >
+          <table className="w-full text-right border-collapse" style={{ tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: "4%" }} />
               <col style={{ width: showDiscount ? "38%" : "48%" }} />
@@ -997,27 +869,15 @@ export default function PurchaseReturnForm() {
             </colgroup>
             <thead>
               <tr className="border-b border-border bg-muted/20">
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
-                  #
-                </th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs">
-                  البند
-                </th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
-                  الكمية
-                </th>
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
-                  سعر الوحدة
-                </th>
+                <th className="py-1 px-3 font-medium text-muted-foreground text-xs text-center">#</th>
+                <th className="py-1 px-3 font-medium text-muted-foreground text-xs">البند</th>
+                <th className="py-1 px-3 font-medium text-muted-foreground text-xs text-center">الكمية</th>
+                <th className="py-1 px-3 font-medium text-muted-foreground text-xs text-center">سعر الوحدة</th>
                 {showDiscount && (
-                  <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
-                    الخصم
-                  </th>
+                  <th className="py-1 px-3 font-medium text-muted-foreground text-xs text-center">الخصم</th>
                 )}
-                <th className="py-2 px-3 font-medium text-muted-foreground text-xs text-center">
-                  المجموع
-                </th>
-                {isEditable && <th className="py-2 px-2" />}
+                <th className="py-1 px-3 font-medium text-muted-foreground text-xs text-center">المجموع</th>
+                {isEditable && <th className="py-1 px-2" />}
               </tr>
             </thead>
             <tbody>
@@ -1028,14 +888,8 @@ export default function PurchaseReturnForm() {
                       <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                         <ListChecks className="h-5 w-5 text-muted-foreground/40" />
                       </div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        لا توجد بنود بعد
-                      </p>
-                      {isEditable && (
-                        <p className="text-xs text-muted-foreground/50">
-                          اضغط «إضافة بند جديد» للبدء
-                        </p>
-                      )}
+                      <p className="text-sm font-medium text-muted-foreground">لا توجد بنود بعد</p>
+                      {isEditable && <p className="text-xs text-muted-foreground/50">اضغط «إضافة بند جديد» للبدء</p>}
                     </div>
                   </td>
                 </tr>
@@ -1046,12 +900,10 @@ export default function PurchaseReturnForm() {
                     data-invoice-row={i}
                     className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100"
                   >
-                    <td className="py-2 px-3 text-center">
-                      <span className="text-xs font-medium text-muted-foreground/40 tabular-nums">
-                        {i + 1}
-                      </span>
+                    <td className="py-1 px-3 text-center">
+                      <span className="text-xs font-medium text-muted-foreground/40 tabular-nums">{i + 1}</span>
                     </td>
-                    <td className="py-2 px-3 min-w-0">
+                    <td className="py-1 px-3 min-w-0">
                       {isEditable ? (
                         <LookupCombobox
                           items={productsToLookupItems(products)}
@@ -1060,15 +912,12 @@ export default function PurchaseReturnForm() {
                           placeholder="اختر المنتج"
                         />
                       ) : (
-                        <span
-                          className="font-medium text-sm block truncate"
-                          title={item.product_name}
-                        >
+                        <span className="font-medium text-sm block truncate" title={item.product_name}>
                           {item.product_name}
                         </span>
                       )}
                     </td>
-                    <td className="py-2 px-3">
+                    <td className="py-1 px-3 text-center">
                       {isEditable ? (
                         <NumberInput
                           min={1}
@@ -1077,22 +926,16 @@ export default function PurchaseReturnForm() {
                           className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
-                        <span className="font-mono tabular-nums text-sm block text-center">
-                          {item.quantity}
-                        </span>
+                        <span className="font-mono tabular-nums text-sm block text-center">{item.quantity}</span>
                       )}
                     </td>
-                    <td className="py-2 px-3">
+                    <td className="py-1 px-3 text-center">
                       {isEditable ? (
                         <NumberInput
                           min={0}
                           value={item.unit_price}
                           onValueChange={(v) => updateItem(i, "unit_price", v)}
-                          onKeyDown={
-                            !showDiscount
-                              ? (e) => handleLastFieldKeyDown(e, i)
-                              : undefined
-                          }
+                          onKeyDown={!showDiscount ? (e) => handleLastFieldKeyDown(e, i) : undefined}
                           className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
@@ -1104,7 +947,7 @@ export default function PurchaseReturnForm() {
                       )}
                     </td>
                     {showDiscount && (
-                      <td className="py-2 px-3">
+                      <td className="py-1 px-3 text-center">
                         {isEditable ? (
                           <NumberInput
                             min={0}
@@ -1121,25 +964,23 @@ export default function PurchaseReturnForm() {
                             })}
                           </span>
                         ) : (
-                          <span className="text-muted-foreground/30 text-sm">
-                            —
-                          </span>
+                          <span className="text-muted-foreground/30 text-sm">—</span>
                         )}
                       </td>
                     )}
-                    <td className="py-2 px-3 text-center w-full">
+                    <td className="py-1 px-3 text-center w-full">
                       <span className="font-mono tabular-nums font-semibold text-sm text-foreground bg-muted/30 block rounded-md py-1.5 border border-border">
                         {formatCurrency(item.total)}
                       </span>
                     </td>
                     {isEditable && (
-                      <td className="py-2 px-2">
+                      <td className="py-1 px-2">
                         <button
                           onClick={() => removeItem(i)}
                           className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100"
                           aria-label="حذف البند"
                         >
-                          <X className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </td>
                     )}
@@ -1178,9 +1019,7 @@ export default function PurchaseReturnForm() {
               <div className="w-px h-4 bg-border/60" />
               {showDiscount && totalDiscount > 0 && (
                 <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
-                  <span className="text-xs text-muted-foreground">
-                    إجمالي الخصم
-                  </span>
+                  <span className="text-xs text-muted-foreground">إجمالي الخصم</span>
                   <span className="text-xs font-mono font-semibold tabular-nums text-green-600 dark:text-green-400">
                     -{formatCurrency(totalDiscount)}
                   </span>
@@ -1188,18 +1027,14 @@ export default function PurchaseReturnForm() {
               )}
               {showTax && (
                 <div className="flex items-center gap-1.5 bg-muted border border-border/60 px-3 py-1.5 rounded-lg">
-                  <span className="text-xs text-muted-foreground">
-                    الضريبة {taxRate}%
-                  </span>
+                  <span className="text-xs text-muted-foreground">الضريبة {taxRate}%</span>
                   <span className="text-xs font-mono font-semibold tabular-nums text-foreground">
                     {formatCurrency(taxAmount)}
                   </span>
                 </div>
               )}
               <div className="flex items-center gap-1.5 bg-primary/5 border border-primary/20 px-3 py-1.5 rounded-lg">
-                <span className="text-xs text-primary/70 font-medium">
-                  الإجمالي
-                </span>
+                <span className="text-xs text-primary/70 font-medium">الإجمالي</span>
                 <span className="text-xs font-mono font-bold tabular-nums text-primary">
                   {formatCurrency(grandTotal)}
                 </span>
@@ -1216,9 +1051,7 @@ export default function PurchaseReturnForm() {
             <SectionHeader icon={StickyNote} title="ملاحظات داخلية" />
           </div>
           <div className="flex-1 space-y-2">
-            <Label className="text-sm font-medium text-muted-foreground">
-              ملاحظات داخلية (لا تظهر في الطباعة)
-            </Label>
+            <Label className="text-sm font-medium text-muted-foreground">ملاحظات داخلية (لا تظهر في الطباعة)</Label>
             {isEditable ? (
               <textarea
                 value={notes}
@@ -1239,40 +1072,28 @@ export default function PurchaseReturnForm() {
           </div>
           <div className="space-y-1 mt-2">
             <div className="flex justify-between items-center py-2.5 border-b border-border/50">
-              <span className="font-mono tabular-nums text-sm font-medium">
-                {formatCurrency(subtotal)}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                المجموع قبل الضريبة
-              </span>
+              <span className="font-mono tabular-nums text-sm font-medium">{formatCurrency(subtotal)}</span>
+              <span className="text-sm text-muted-foreground">المجموع قبل الضريبة</span>
             </div>
             {showDiscount && totalDiscount > 0 && (
               <div className="flex justify-between items-center py-2.5 border-b border-border/50">
                 <span className="font-mono tabular-nums text-sm font-medium text-green-600 dark:text-green-400">
                   -{formatCurrency(totalDiscount)}
                 </span>
-                <span className="text-sm text-muted-foreground">
-                  إجمالي الخصومات
-                </span>
+                <span className="text-sm text-muted-foreground">إجمالي الخصومات</span>
               </div>
             )}
             {showTax && (
               <div className="flex justify-between items-center py-2.5 border-b border-border/50">
-                <span className="font-mono tabular-nums text-sm font-medium">
-                  {formatCurrency(taxAmount)}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  ضريبة القيمة المضافة ({taxRate}%)
-                </span>
+                <span className="font-mono tabular-nums text-sm font-medium">{formatCurrency(taxAmount)}</span>
+                <span className="text-sm text-muted-foreground">ضريبة القيمة المضافة ({taxRate}%)</span>
               </div>
             )}
             <div className="flex justify-between items-center pt-4">
               <span className="text-2xl font-black text-primary font-mono tabular-nums">
                 {formatCurrency(grandTotal)}
               </span>
-              <span className="text-base font-bold text-foreground">
-                الإجمالي الكلي
-              </span>
+              <span className="text-base font-bold text-foreground">الإجمالي الكلي</span>
             </div>
           </div>
         </div>
@@ -1285,20 +1106,12 @@ export default function PurchaseReturnForm() {
             <SectionHeader icon={ArrowLeftRight} title="العمليات المرتبطة" />
           </div>
           <div className="space-y-4">
-            <ReturnSettlementsView
-              type="purchase"
-              returnId={id}
-              returnTotal={grandTotal}
-            />
+            <ReturnSettlementsView type="purchase" returnId={id} returnTotal={grandTotal} />
             <InvoicePaymentSection
               type="purchase_return"
               invoiceId={id}
               entityId={supplierId}
-              entityName={
-                supplierName ||
-                suppliers.find((s) => s.id === supplierId)?.name ||
-                ""
-              }
+              entityName={supplierName || suppliers.find((s) => s.id === supplierId)?.name || ""}
               invoiceTotal={grandTotal}
               invoiceNumber={returnNumber}
               onPaymentAdded={loadData}
@@ -1306,11 +1119,7 @@ export default function PurchaseReturnForm() {
           </div>
         </div>
       )}
-      <UnsavedChangesDialog
-        open={navGuard.isBlocked}
-        onStay={navGuard.cancel}
-        onLeave={navGuard.confirm}
-      />
+      <UnsavedChangesDialog open={navGuard.isBlocked} onStay={navGuard.cancel} onLeave={navGuard.confirm} />
     </div>
   );
 }
