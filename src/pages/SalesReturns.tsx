@@ -11,7 +11,7 @@ import { DatePickerInput } from "@/components/DatePickerInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
-import { Plus, RotateCcw, Eye, X, Clock, CheckCircle, Ban, DollarSign } from "lucide-react";
+import { Plus, RotateCcw, Eye, X, Clock, Trash2, CheckCircle, Ban, DollarSign } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useQuery } from "@tanstack/react-query";
