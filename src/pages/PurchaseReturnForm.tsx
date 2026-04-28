@@ -1066,7 +1066,7 @@ export default function PurchaseReturnForm() {
             )}
           </div>
         </div>
-        <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col justify-between">
+        <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col">
           <div className="mb-4">
             <SectionHeader icon={CreditCard} title="ملخص المرتجع" />
           </div>
