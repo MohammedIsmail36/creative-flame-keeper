@@ -68,23 +68,39 @@ export default function FiscalYearClosing() {
   const [closingStep, setClosingStep] = useState<0 | 1 | 2>(0);
   const [showClosingDialog, setShowClosingDialog] = useState(false);
 
-  // Calculate fiscal year dates
-  const fiscalYear = useMemo(() => {
+  // Year selection: user can pick a previous fiscal year to close
+  const currentCalYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<number>(() => {
     const startMonth = settings?.fiscal_year_start || "01-01";
     const [mm, dd] = startMonth.split("-").map(Number);
     const now = new Date();
     let startYear = now.getFullYear();
     const fiscalStartThisYear = new Date(startYear, mm - 1, dd);
     if (now < fiscalStartThisYear) startYear--;
-    const start = new Date(startYear, mm - 1, dd);
-    const end = new Date(startYear + 1, mm - 1, dd - 1);
+    // Default to PREVIOUS fiscal year (most common case: closing the year that just ended)
+    return startYear - 1;
+  });
+
+  // Calculate fiscal year dates from selectedYear
+  const fiscalYear = useMemo(() => {
+    const startMonth = settings?.fiscal_year_start || "01-01";
+    const [mm, dd] = startMonth.split("-").map(Number);
+    const start = new Date(selectedYear, mm - 1, dd);
+    const end = new Date(selectedYear + 1, mm - 1, dd - 1);
     return {
       startDate: start.toISOString().split("T")[0],
       endDate: end.toISOString().split("T")[0],
-      label: `${startYear}/${startYear + 1}`,
-      year: startYear,
+      label: `${selectedYear}/${selectedYear + 1}`,
+      year: selectedYear,
     };
-  }, [settings]);
+  }, [settings, selectedYear]);
+
+  // Available years to choose from (last 5 years through current)
+  const availableYears = useMemo(() => {
+    const years: number[] = [];
+    for (let y = currentCalYear; y >= currentCalYear - 5; y--) years.push(y);
+    return years;
+  }, [currentCalYear]);
 
   useEffect(() => {
     fetchData();
