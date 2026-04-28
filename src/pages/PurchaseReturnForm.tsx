@@ -1119,6 +1119,32 @@ export default function PurchaseReturnForm() {
           </div>
         </div>
       )}
+
+      {/* ── Related Operations ── */}
+      {!isNew && status === "posted" && id && (
+        <div className="bg-card p-6 rounded-2xl border shadow-sm">
+          <div className="mb-5">
+            <SectionHeader icon={ArrowLeftRight} title="العمليات المرتبطة" />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <ReturnSettlementsView type="purchase" returnId={id} returnTotal={grandTotal} />
+            </div>
+            <div className="flex-1">
+              <InvoicePaymentSection
+                type="purchase_return"
+                invoiceId={id}
+                entityId={supplierId}
+                entityName={supplierName || suppliers.find((s) => s.id === supplierId)?.name || ""}
+                invoiceTotal={grandTotal}
+                invoiceNumber={returnNumber}
+                onPaymentAdded={loadData}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <UnsavedChangesDialog open={navGuard.isBlocked} onStay={navGuard.cancel} onLeave={navGuard.confirm} />
     </div>
   );
