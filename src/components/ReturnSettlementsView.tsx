@@ -22,24 +22,16 @@ interface Props {
   returnTotal: number;
 }
 
-export default function ReturnSettlementsView({
-  type,
-  returnId,
-  returnTotal,
-}: Props) {
+export default function ReturnSettlementsView({ type, returnId, returnTotal }: Props) {
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [paymentAllocTotal, setPaymentAllocTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   const isSales = type === "sales";
-  const settlementTable = isSales
-    ? "sales_invoice_return_settlements"
-    : "purchase_invoice_return_settlements";
+  const settlementTable = isSales ? "sales_invoice_return_settlements" : "purchase_invoice_return_settlements";
   const invoiceTable = isSales ? "sales_invoices" : "purchase_invoices";
-  const payAllocTable = isSales
-    ? "sales_return_payment_allocations"
-    : "purchase_return_payment_allocations";
+  const payAllocTable = isSales ? "sales_return_payment_allocations" : "purchase_return_payment_allocations";
   const invoicePrefix = isSales ? "INV-" : "PINV-";
   const invoiceRoute = isSales ? "/sales" : "/purchases";
 
@@ -60,10 +52,7 @@ export default function ReturnSettlementsView({
         .eq("return_id", returnId),
     ]);
 
-    const payTotal = (payAllocs || []).reduce(
-      (s: number, a: any) => s + Number(a.allocated_amount),
-      0,
-    );
+    const payTotal = (payAllocs || []).reduce((s: number, a: any) => s + Number(a.allocated_amount), 0);
     setPaymentAllocTotal(payTotal);
 
     if (!settlementsData || settlementsData.length === 0) {
@@ -78,9 +67,7 @@ export default function ReturnSettlementsView({
       .select("id, invoice_number, posted_number, invoice_date, total")
       .in("id", invoiceIds);
 
-    const invoiceMap = new Map(
-      (invoices || []).map((inv: any) => [inv.id, inv]),
-    );
+    const invoiceMap = new Map((invoices || []).map((inv: any) => [inv.id, inv]));
     const enriched: Settlement[] = settlementsData.map((s: any) => {
       const inv = invoiceMap.get(s.invoice_id) || ({} as any);
       return {
@@ -103,8 +90,7 @@ export default function ReturnSettlementsView({
   const totalSettled = settlements.reduce((s, r) => s + r.settled_amount, 0);
   const totalCovered = totalSettled + paymentAllocTotal;
   const remaining = returnTotal - totalCovered;
-  const percentage =
-    returnTotal > 0 ? Math.min((totalCovered / returnTotal) * 100, 100) : 0;
+  const percentage = returnTotal > 0 ? Math.min((totalCovered / returnTotal) * 100, 100) : 0;
   const isFullySettled = remaining <= 0.01;
   const fmt = (v: number) =>
     v.toLocaleString("en-US", {
@@ -136,25 +122,16 @@ export default function ReturnSettlementsView({
           <Progress value={percentage} className="h-1.5" />
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>
-              تسويات:{" "}
-              <span className="font-mono text-primary font-medium">
-                {fmt(totalSettled)}
-              </span>
+              تسويات: <span className="font-mono text-primary font-medium">{fmt(totalSettled)}</span>
               {paymentAllocTotal > 0 && (
                 <>
                   {" "}
-                  + مدفوعات:{" "}
-                  <span className="font-mono text-primary font-medium">
-                    {fmt(paymentAllocTotal)}
-                  </span>
+                  + مدفوعات: <span className="font-mono text-primary font-medium">{fmt(paymentAllocTotal)}</span>
                 </>
               )}
             </span>
             <span>
-              من{" "}
-              <span className="font-mono text-foreground font-medium">
-                {fmt(returnTotal)}
-              </span>
+              من <span className="font-mono text-foreground font-medium">{fmt(returnTotal)}</span>
             </span>
           </div>
         </div>
@@ -175,9 +152,7 @@ export default function ReturnSettlementsView({
               <span className="text-muted-foreground">{s.invoice_date}</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="font-mono font-semibold text-primary">
-                {fmt(s.settled_amount)}
-              </span>
+              <span className="font-mono font-semibold text-primary">{fmt(s.settled_amount)}</span>
               <Button
                 size="sm"
                 variant="ghost"
@@ -189,39 +164,6 @@ export default function ReturnSettlementsView({
               </Button>
             </div>
           </div>
-
-
-
-
-
-      {/* Progress */}
-        <div className="space-y-1.5">
-          <Progress value={percentage} className="h-1.5" />
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>
-              تسويات:{" "}
-              <span className="font-mono text-primary font-medium">
-                {fmt(totalSettled)}
-              </span>
-              {paymentAllocTotal > 0 && (
-                <>
-                  {" "}
-                  + مدفوعات:{" "}
-                  <span className="font-mono text-primary font-medium">
-                    {fmt(paymentAllocTotal)}
-                  </span>
-                </>
-              )}
-            </span>
-            <span>
-              من{" "}
-              <span className="font-mono text-foreground font-medium">
-                {fmt(returnTotal)}
-              </span>
-            </span>
-          </div>
-        </div>
-      </div>
         ))}
       </div>
     </div>
