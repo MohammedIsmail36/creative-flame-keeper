@@ -365,6 +365,7 @@ export type Database = {
           is_active: boolean
           name: string
           notes: string | null
+          opening_balance: number
           phone: string | null
           tax_number: string | null
           updated_at: string
@@ -380,6 +381,7 @@ export type Database = {
           is_active?: boolean
           name: string
           notes?: string | null
+          opening_balance?: number
           phone?: string | null
           tax_number?: string | null
           updated_at?: string
@@ -395,6 +397,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           notes?: string | null
+          opening_balance?: number
           phone?: string | null
           tax_number?: string | null
           updated_at?: string
@@ -1792,6 +1795,7 @@ export type Database = {
           is_active: boolean
           name: string
           notes: string | null
+          opening_balance: number
           phone: string | null
           tax_number: string | null
           updated_at: string
@@ -1807,6 +1811,7 @@ export type Database = {
           is_active?: boolean
           name: string
           notes?: string | null
+          opening_balance?: number
           phone?: string | null
           tax_number?: string | null
           updated_at?: string
@@ -1822,6 +1827,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           notes?: string | null
+          opening_balance?: number
           phone?: string | null
           tax_number?: string | null
           updated_at?: string
