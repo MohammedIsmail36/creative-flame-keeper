@@ -62,6 +62,10 @@ export function ExpenseFormDialog({
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // Track loaded expense status/JE so we can clean up on edit-then-repost
+  const [existingStatus, setExistingStatus] = useState<string>("draft");
+  const [existingJeId, setExistingJeId] = useState<string | null>(null);
+  const [existingPostedNum, setExistingPostedNum] = useState<number | null>(null);
 
   // Reset / load when dialog opens
   useEffect(() => {
