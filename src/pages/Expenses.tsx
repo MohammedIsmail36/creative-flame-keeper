@@ -3,20 +3,11 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import {
-  getNextPostedNumber,
-  formatDisplayNumber,
-} from "@/lib/posted-number-utils";
+import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DatePickerInput } from "@/components/DatePickerInput";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,17 +21,7 @@ import {
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import {
-  Plus,
-  Receipt,
-  CheckCircle,
-  XCircle,
-  Trash2,
-  Pencil,
-  X,
-  Clock,
-  Wallet,
-} from "lucide-react";
+import { Plus, Receipt, CheckCircle, XCircle, Trash2, Pencil, X, Clock, Wallet } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useNavigate } from "react-router-dom";
 import { ACCOUNT_CODES, INVOICE_STATUS_LABELS } from "@/lib/constants";
@@ -49,12 +30,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatSupabaseError } from "@/lib/format-error";
 import { ExpenseFormDialog } from "@/components/ExpenseFormDialog";
 import { Undo2, FileText } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Expense {
   id: string;
@@ -124,10 +100,7 @@ export default function Expenses() {
       return (data as { id: string; name: string; account_id: string }[]) || [];
     },
   });
-  const typesMap = useMemo(
-    () => new Map(expenseTypes.map((t) => [t.id, t])),
-    [expenseTypes],
-  );
+  const typesMap = useMemo(() => new Map(expenseTypes.map((t) => [t.id, t])), [expenseTypes]);
 
   // Build server query (paged)
   function applyFilters(q: any) {
@@ -170,27 +143,22 @@ export default function Expenses() {
     dateTo,
   ] as const;
 
-  const { data: pageData, isLoading } = usePagedQuery<Expense>(
-    queryKey,
-    async () => {
-      const from = pagination.pageIndex * pagination.pageSize;
-      const to = from + pagination.pageSize - 1;
-      let q = (supabase.from("expenses" as any) as any).select("*", {
-        count: "exact",
-      });
-      q = applyFilters(q);
-      const { data, error, count } = await q
-        .order("expense_number", { ascending: false })
-        .range(from, to);
-      if (error) throw error;
-      const mapped = ((data as any[]) || []).map((e: any) => ({
-        ...e,
-        expense_type_name: typesMap.get(e.expense_type_id)?.name,
-        account_id: typesMap.get(e.expense_type_id)?.account_id,
-      })) as Expense[];
-      return { rows: mapped, totalCount: count || 0 };
-    },
-  );
+  const { data: pageData, isLoading } = usePagedQuery<Expense>(queryKey, async () => {
+    const from = pagination.pageIndex * pagination.pageSize;
+    const to = from + pagination.pageSize - 1;
+    let q = (supabase.from("expenses" as any) as any).select("*", {
+      count: "exact",
+    });
+    q = applyFilters(q);
+    const { data, error, count } = await q.order("expense_number", { ascending: false }).range(from, to);
+    if (error) throw error;
+    const mapped = ((data as any[]) || []).map((e: any) => ({
+      ...e,
+      expense_type_name: typesMap.get(e.expense_type_id)?.name,
+      account_id: typesMap.get(e.expense_type_id)?.account_id,
+    })) as Expense[];
+    return { rows: mapped, totalCount: count || 0 };
+  });
 
   const rows = pageData?.rows ?? [];
   const totalCount = pageData?.totalCount ?? 0;
@@ -201,28 +169,16 @@ export default function Expenses() {
     queryKey: ["expenses_stats"],
     staleTime: 60_000,
     queryFn: async () => {
-      const [allRes, draftRes, postedRes, cancelledRes, sumRes] =
-        await Promise.all([
-          (supabase.from("expenses" as any) as any)
-            .select("id", { count: "exact", head: true }),
-          (supabase.from("expenses" as any) as any)
-            .select("id", { count: "exact", head: true })
-            .eq("status", "draft"),
-          (supabase.from("expenses" as any) as any)
-            .select("id", { count: "exact", head: true })
-            .eq("status", "posted"),
-          (supabase.from("expenses" as any) as any)
-            .select("id", { count: "exact", head: true })
-            .eq("status", "cancelled"),
-          (supabase.from("expenses" as any) as any)
-            .select("amount")
-            .eq("status", "posted")
-            .range(0, 9999),
-        ]);
-      const totalPosted = ((sumRes.data as any[]) || []).reduce(
-        (s, r) => s + Number(r.amount || 0),
-        0,
-      );
+      const [allRes, draftRes, postedRes, cancelledRes, sumRes] = await Promise.all([
+        (supabase.from("expenses" as any) as any).select("id", { count: "exact", head: true }),
+        (supabase.from("expenses" as any) as any).select("id", { count: "exact", head: true }).eq("status", "draft"),
+        (supabase.from("expenses" as any) as any).select("id", { count: "exact", head: true }).eq("status", "posted"),
+        (supabase.from("expenses" as any) as any)
+          .select("id", { count: "exact", head: true })
+          .eq("status", "cancelled"),
+        (supabase.from("expenses" as any) as any).select("amount").eq("status", "posted").range(0, 9999),
+      ]);
+      const totalPosted = ((sumRes.data as any[]) || []).reduce((s, r) => s + Number(r.amount || 0), 0);
       return {
         all: allRes.count || 0,
         draft: draftRes.count || 0,
@@ -247,12 +203,7 @@ export default function Expenses() {
     setSearch("");
   };
   const hasFilters =
-    statusFilter !== "all" ||
-    typeFilter !== "all" ||
-    methodFilter !== "all" ||
-    !!dateFrom ||
-    !!dateTo ||
-    !!search;
+    statusFilter !== "all" || typeFilter !== "all" || methodFilter !== "all" || !!dateFrom || !!dateTo || !!search;
 
   function openNewDialog() {
     setEditId(null);
@@ -268,10 +219,7 @@ export default function Expenses() {
 
   async function handleRevertToDraft() {
     if (!revertTarget) return;
-    if (
-      settings?.locked_until_date &&
-      revertTarget.expense_date <= settings.locked_until_date
-    ) {
+    if (settings?.locked_until_date && revertTarget.expense_date <= settings.locked_until_date) {
       toast({
         title: "خطأ",
         description: `لا يمكن تعديل مصروف بتاريخ ${revertTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
@@ -287,10 +235,7 @@ export default function Expenses() {
       const oldJeId = target.journal_entry_id;
 
       if (oldJeId) {
-        await supabase
-          .from("journal_entry_lines")
-          .delete()
-          .eq("journal_entry_id", oldJeId);
+        await supabase.from("journal_entry_lines").delete().eq("journal_entry_id", oldJeId);
         await supabase.from("journal_entries").delete().eq("id", oldJeId);
       }
 
@@ -332,22 +277,13 @@ export default function Expenses() {
     if (!postTarget) return;
     setSaving(true);
     try {
-      const expType = expenseTypes.find(
-        (t) => t.id === postTarget.expense_type_id,
-      );
+      const expType = expenseTypes.find((t) => t.id === postTarget.expense_type_id);
       if (!expType) throw new Error("نوع المصروف غير موجود");
 
-      const accountCode =
-        postTarget.payment_method === "cash"
-          ? ACCOUNT_CODES.CASH
-          : ACCOUNT_CODES.BANK;
-      const { data: accounts } = await supabase
-        .from("accounts")
-        .select("id, code")
-        .in("code", [accountCode]);
+      const accountCode = postTarget.payment_method === "cash" ? ACCOUNT_CODES.CASH : ACCOUNT_CODES.BANK;
+      const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [accountCode]);
       const cashBankAcc = accounts?.find((a) => a.code === accountCode);
-      if (!cashBankAcc)
-        throw new Error("تأكد من وجود حساب الصندوق/البنك في شجرة الحسابات");
+      if (!cashBankAcc) throw new Error("تأكد من وجود حساب الصندوق/البنك في شجرة الحسابات");
 
       const expPostedNum = await getNextPostedNumber("expenses" as any);
       const jePostedNum = await getNextPostedNumber("journal_entries");
@@ -459,9 +395,7 @@ export default function Expenses() {
         .update({ status: "cancelled" } as any)
         .eq("id", cancelTarget.journal_entry_id);
 
-      await (supabase.from("expenses" as any) as any)
-        .update({ status: "cancelled" })
-        .eq("id", cancelTarget.id);
+      await (supabase.from("expenses" as any) as any).update({ status: "cancelled" }).eq("id", cancelTarget.id);
 
       toast({
         title: "تم الإلغاء",
@@ -482,9 +416,7 @@ export default function Expenses() {
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
-      const { error } = await (supabase.from("expenses" as any) as any)
-        .delete()
-        .eq("id", deleteTarget.id);
+      const { error } = await (supabase.from("expenses" as any) as any).delete().eq("id", deleteTarget.id);
       if (error) throw error;
       toast({ title: "تم الحذف", description: "تم حذف المصروف" });
       setDeleteTarget(null);
@@ -538,75 +470,47 @@ export default function Expenses() {
   const columns: ColumnDef<Expense>[] = [
     {
       accessorKey: "expense_number",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="الرقم" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الرقم" />,
       cell: ({ row }) => {
         const e = row.original;
         return (
           <span className="font-mono text-sm text-foreground">
-            {formatDisplayNumber(
-              prefix,
-              e.posted_number,
-              e.expense_number,
-              e.status,
-            )}
+            {formatDisplayNumber(prefix, e.posted_number, e.expense_number, e.status)}
           </span>
         );
       },
     },
     {
       accessorKey: "expense_date",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="التاريخ" />
-      ),
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {row.original.expense_date}
-        </span>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.expense_date}</span>,
     },
     {
       accessorKey: "expense_type_name",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="نوع المصروف" />
-      ),
-      cell: ({ row }) => (
-        <span className="text-sm font-bold text-foreground">
-          {row.original.expense_type_name}
-        </span>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="نوع المصروف" />,
+      cell: ({ row }) => <span className="text-sm font-bold text-foreground">{row.original.expense_type_name}</span>,
     },
     {
       accessorKey: "amount",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="المبلغ" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="المبلغ" />,
       cell: ({ row }) => (
-        <span className="text-sm font-bold text-foreground font-mono">
-          {formatCurrency(row.original.amount)}
-        </span>
+        <span className="text-sm font-bold text-foreground font-mono">{formatCurrency(row.original.amount)}</span>
       ),
     },
     {
       accessorKey: "payment_method",
       meta: { hideOnMobile: true },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="طريقة الدفع" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="طريقة الدفع" />,
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
-          {methodLabels[row.original.payment_method] ||
-            row.original.payment_method}
+          {methodLabels[row.original.payment_method] || row.original.payment_method}
         </span>
       ),
     },
     {
       accessorKey: "description",
       meta: { hideOnMobile: true },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="البيان" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="البيان" />,
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
           {row.original.description || "-"}
@@ -616,13 +520,10 @@ export default function Expenses() {
     {
       id: "journal_entry",
       meta: { hideOnMobile: true },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="رقم القيد" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="رقم القيد" />,
       cell: ({ row }) => {
         const e = row.original;
-        if (!e.journal_entry_id)
-          return <span className="text-muted-foreground text-xs">-</span>;
+        if (!e.journal_entry_id) return <span className="text-muted-foreground text-xs">-</span>;
         return (
           <button
             onClick={(ev) => {
@@ -639,15 +540,10 @@ export default function Expenses() {
     },
     {
       accessorKey: "status",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="الحالة" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الحالة" />,
       cell: ({ row }) => {
         const s = row.original.status;
-        const statusConfig: Record<
-          string,
-          { label: string; className: string }
-        > = {
+        const statusConfig: Record<string, { label: string; className: string }> = {
           posted: {
             label: "مرحّل",
             className: "bg-green-500/10 text-green-600 border-green-500/20",
@@ -658,8 +554,7 @@ export default function Expenses() {
           },
           cancelled: {
             label: "ملغي",
-            className:
-              "bg-destructive/10 text-destructive border-destructive/20",
+            className: "bg-destructive/10 text-destructive border-destructive/20",
           },
         };
         const cfg = statusConfig[s] || statusConfig.draft;
@@ -782,9 +677,7 @@ export default function Expenses() {
   ];
 
   // Export: fetch ALL matching rows on demand (respects current filters/search)
-  async function fetchAllForExport(
-    onProgress?: (loaded: number, total: number) => void
-  ): Promise<Expense[]> {
+  async function fetchAllForExport(onProgress?: (loaded: number, total: number) => void): Promise<Expense[]> {
     const { fetchAllPaged } = await import("@/lib/paged-fetch");
     const data = await fetchAllPaged<any>(
       () => {
@@ -794,7 +687,7 @@ export default function Expenses() {
         q = applyFilters(q);
         return q.order("expense_number", { ascending: false });
       },
-      { batchSize: 500, maxRows: 9999, onProgress }
+      { batchSize: 500, maxRows: 9999, onProgress },
     );
     return data.map((e: any) => ({
       ...e,
@@ -809,15 +702,7 @@ export default function Expenses() {
   }, [debouncedSearch, statusFilter, typeFilter, dateFrom, dateTo]);
   const exportRowsResolved = exportRows ?? rows;
 
-  const exportHeaders = [
-    "الرقم",
-    "التاريخ",
-    "نوع المصروف",
-    "المبلغ",
-    "طريقة الدفع",
-    "البيان",
-    "الحالة",
-  ];
+  const exportHeaders = ["الرقم", "التاريخ", "نوع المصروف", "المبلغ", "طريقة الدفع", "البيان", "الحالة"];
   const exportConfig = {
     filenamePrefix: "expenses",
     sheetName: "المصروفات",
@@ -851,10 +736,7 @@ export default function Expenses() {
               config={exportConfig}
               disabled={isLoading}
             />
-            <Button
-              className="gap-2 shadow-md shadow-primary/20 font-bold"
-              onClick={openNewDialog}
-            >
+            <Button className="gap-2 shadow-md shadow-primary/20 font-bold" onClick={openNewDialog}>
               <Plus className="h-4 w-4" />
               مصروف جديد
             </Button>
@@ -864,31 +746,28 @@ export default function Expenses() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        {statCards.map(
-          ({ label, value, icon: Icon, iconBg, iconColor, filter }) => (
-            <button
-              key={label}
-              onClick={() => filter && setStatusFilter(filter)}
-              className={`bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4 text-right transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}
-            >
-              <div className={`p-3 rounded-full ${iconBg}`}>
-                <Icon className={`h-5 w-5 ${iconColor}`} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <p className="text-xl font-black text-foreground">
-                  {typeof value === "number"
-                    ? value.toLocaleString("en-US")
-                    : value}
-                </p>
-              </div>
-            </button>
-          ),
-        )}
+        {statCards.map(({ label, value, icon: Icon, iconBg, iconColor, filter }) => (
+          <button
+            key={label}
+            onClick={() => filter && setStatusFilter(filter)}
+            className={`bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4 text-right transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}
+          >
+            <div className={`p-3 rounded-full ${iconBg}`}>
+              <Icon className={`h-5 w-5 ${iconColor}`} />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-xl font-black text-foreground">
+                {typeof value === "number" ? value.toLocaleString("en-US") : value}
+              </p>
+            </div>
+          </button>
+        ))}
       </div>
 
       {/* Data Table */}
       <DataTable
+        compactRows
         columns={columns}
         data={rows}
         searchPlaceholder="بحث برقم المصروف، النوع، أو البيان..."
@@ -969,9 +848,7 @@ export default function Expenses() {
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
             <AlertDialogTitle>ترحيل المصروف</AlertDialogTitle>
-            <AlertDialogDescription>
-              سيتم إنشاء قيد محاسبي تلقائي. هل تريد المتابعة؟
-            </AlertDialogDescription>
+            <AlertDialogDescription>سيتم إنشاء قيد محاسبي تلقائي. هل تريد المتابعة؟</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
@@ -983,16 +860,11 @@ export default function Expenses() {
       </AlertDialog>
 
       {/* Cancel Alert */}
-      <AlertDialog
-        open={!!cancelTarget}
-        onOpenChange={() => setCancelTarget(null)}
-      >
+      <AlertDialog open={!!cancelTarget} onOpenChange={() => setCancelTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
             <AlertDialogTitle>إلغاء المصروف</AlertDialogTitle>
-            <AlertDialogDescription>
-              سيتم عكس القيد المحاسبي. هل أنت متأكد؟
-            </AlertDialogDescription>
+            <AlertDialogDescription>سيتم عكس القيد المحاسبي. هل أنت متأكد؟</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>تراجع</AlertDialogCancel>
@@ -1008,23 +880,15 @@ export default function Expenses() {
       </AlertDialog>
 
       {/* Delete Alert */}
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={() => setDeleteTarget(null)}
-      >
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
             <AlertDialogTitle>حذف المصروف</AlertDialogTitle>
-            <AlertDialogDescription>
-              هل أنت متأكد من حذف هذا المصروف؟
-            </AlertDialogDescription>
+            <AlertDialogDescription>هل أنت متأكد من حذف هذا المصروف؟</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground"
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
               حذف
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1032,25 +896,18 @@ export default function Expenses() {
       </AlertDialog>
 
       {/* Revert to Draft Alert */}
-      <AlertDialog
-        open={!!revertTarget}
-        onOpenChange={() => !saving && setRevertTarget(null)}
-      >
+      <AlertDialog open={!!revertTarget} onOpenChange={() => !saving && setRevertTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
             <AlertDialogTitle>إعادة المصروف لمسودة</AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم تحويل المصروف إلى مسودة وحذف القيد المحاسبي المرتبط به مع
-              الاحتفاظ بنفس الرقم التسلسلي. ستفتح نافذة التعديل تلقائياً بعد
-              التأكيد. هل تريد المتابعة؟
+              سيتم تحويل المصروف إلى مسودة وحذف القيد المحاسبي المرتبط به مع الاحتفاظ بنفس الرقم التسلسلي. ستفتح نافذة
+              التعديل تلقائياً بعد التأكيد. هل تريد المتابعة؟
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={saving}>تراجع</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRevertToDraft}
-              disabled={saving}
-            >
+            <AlertDialogAction onClick={handleRevertToDraft} disabled={saving}>
               تأكيد
             </AlertDialogAction>
           </AlertDialogFooter>
