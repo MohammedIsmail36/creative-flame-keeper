@@ -360,7 +360,7 @@ export default function ExpenseTypes() {
             <AlertDialogTitle>حذف نوع المصروف</AlertDialogTitle>
             <AlertDialogDescription>هل أنت متأكد من حذف "{deleteTarget?.name}"؟</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter dir="rtl">
+          <AlertDialogFooter dir="rtl" className="">
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
               حذف
             </AlertDialogAction>
