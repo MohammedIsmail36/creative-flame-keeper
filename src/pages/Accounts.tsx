@@ -3,21 +3,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -136,19 +123,12 @@ export default function Accounts() {
       // نستخدم fetchAllPaged لتجاوز حد 1000 صف الافتراضي في Supabase
       // ولضمان عمل الصفحة حتى مع نمو دليل الحسابات لآلاف البنود.
       const data = await fetchAllPaged<Account>(
-        () =>
-          supabase
-            .from("accounts")
-            .select("*", { count: "exact" })
-            .eq("is_active", true)
-            .order("code"),
+        () => supabase.from("accounts").select("*", { count: "exact" }).eq("is_active", true).order("code"),
         { batchSize: 500, maxRows: 20000 },
       );
       setAccounts(data);
       // Expand top-level by default
-      const topLevel = new Set(
-        data.filter((a) => !a.parent_id).map((a) => a.id),
-      );
+      const topLevel = new Set(data.filter((a) => !a.parent_id).map((a) => a.id));
       setExpandedIds(topLevel);
     } catch (err: any) {
       toast({
@@ -176,10 +156,7 @@ export default function Accounts() {
     return map;
   }, [accounts]);
 
-  const parentAccounts = useMemo(
-    () => accounts.filter((a) => a.is_parent),
-    [accounts],
-  );
+  const parentAccounts = useMemo(() => accounts.filter((a) => a.is_parent), [accounts]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -206,10 +183,7 @@ export default function Accounts() {
   const filteredAccounts = useMemo(() => {
     if (!searchQuery && typeFilter === "all") return null; // use tree view
     return accounts.filter((a) => {
-      const matchesSearch =
-        !searchQuery ||
-        a.name.includes(searchQuery) ||
-        a.code.includes(searchQuery);
+      const matchesSearch = !searchQuery || a.name.includes(searchQuery) || a.code.includes(searchQuery);
       const matchesType = typeFilter === "all" || a.account_type === typeFilter;
       return matchesSearch && matchesType;
     });
@@ -219,11 +193,7 @@ export default function Accounts() {
     setEditingAccount(null);
     setFormCode("");
     setFormName("");
-    setFormType(
-      parentId
-        ? accounts.find((a) => a.id === parentId)?.account_type || "asset"
-        : "asset",
-    );
+    setFormType(parentId ? accounts.find((a) => a.id === parentId)?.account_type || "asset" : "asset");
     setFormParentId(parentId || "none");
     setFormDescription("");
     setFormIsParent(false);
@@ -255,16 +225,11 @@ export default function Accounts() {
     };
 
     if (editingAccount) {
-      const { error } = await supabase
-        .from("accounts")
-        .update(payload)
-        .eq("id", editingAccount.id);
+      const { error } = await supabase.from("accounts").update(payload).eq("id", editingAccount.id);
       if (error) {
         toast({
           title: "خطأ",
-          description: error.message.includes("duplicate")
-            ? "رمز الحساب مستخدم بالفعل"
-            : "فشل في تحديث الحساب",
+          description: error.message.includes("duplicate") ? "رمز الحساب مستخدم بالفعل" : "فشل في تحديث الحساب",
           variant: "destructive",
         });
       } else {
@@ -277,9 +242,7 @@ export default function Accounts() {
       if (error) {
         toast({
           title: "خطأ",
-          description: error.message.includes("duplicate")
-            ? "رمز الحساب مستخدم بالفعل"
-            : "فشل في إضافة الحساب",
+          description: error.message.includes("duplicate") ? "رمز الحساب مستخدم بالفعل" : "فشل في إضافة الحساب",
           variant: "destructive",
         });
       } else {
@@ -311,8 +274,7 @@ export default function Accounts() {
       if (childEntriesCount && childEntriesCount > 0) {
         toast({
           title: "تنبيه",
-          description:
-            "لا يمكن حذف حساب رئيسي مرتبط بحسابات فرعية لها قيود محاسبية",
+          description: "لا يمكن حذف حساب رئيسي مرتبط بحسابات فرعية لها قيود محاسبية",
           variant: "destructive",
         });
         return;
@@ -339,10 +301,7 @@ export default function Accounts() {
       return;
     }
 
-    const { error } = await supabase
-      .from("accounts")
-      .delete()
-      .eq("id", account.id);
+    const { error } = await supabase.from("accounts").delete().eq("id", account.id);
     if (error) {
       toast({
         title: "خطأ",
@@ -373,10 +332,7 @@ export default function Accounts() {
     [filteredAccounts, accounts, settings],
   );
 
-  const renderTreeRow = (
-    account: Account,
-    depth: number = 0,
-  ): React.ReactNode => {
+  const renderTreeRow = (account: Account, depth: number = 0): React.ReactNode => {
     const children = accountTree.get(account.id) || [];
     const isExpanded = expandedIds.has(account.id);
     const hasChildren = children.length > 0;
@@ -386,25 +342,16 @@ export default function Accounts() {
       <React.Fragment key={account.id}>
         <TableRow className="group hover:bg-muted/30 transition-colors">
           <TableCell>
-            <div
-              className="flex items-center gap-2"
-              style={{ paddingRight: `${depth * 24}px` }}
-            >
+            <div className="flex items-center gap-2" style={{ paddingRight: `${depth * 24}px` }}>
               {hasChildren || account.is_parent ? (
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 shrink-0"
-                  aria-label={
-                    isExpanded ? "طي الحسابات الفرعية" : "عرض الحسابات الفرعية"
-                  }
+                  aria-label={isExpanded ? "طي الحسابات الفرعية" : "عرض الحسابات الفرعية"}
                   onClick={() => toggleExpand(account.id)}
                 >
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronLeft className="h-4 w-4" />
-                  )}
+                  {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                 </Button>
               ) : (
                 <span className="w-6 shrink-0" />
@@ -414,23 +361,16 @@ export default function Accounts() {
               ) : (
                 <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
               )}
-              <span className="font-mono text-sm text-muted-foreground">
-                {account.code}
-              </span>
+              <span className="font-mono text-sm text-muted-foreground">{account.code}</span>
             </div>
           </TableCell>
           <TableCell>
             <div className="flex items-center gap-2">
-              <span
-                className={`font-medium ${account.is_parent ? "text-foreground" : "text-foreground/80"}`}
-              >
+              <span className={`font-medium ${account.is_parent ? "text-foreground" : "text-foreground/80"}`}>
                 {account.name}
               </span>
               {account.is_system && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] px-1.5 py-0 h-5 border-primary/30 text-primary gap-1"
-                >
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-primary/30 text-primary gap-1">
                   <Shield className="h-3 w-3" />
                   نظام
                 </Badge>
@@ -445,9 +385,7 @@ export default function Accounts() {
               {typeLabels[account.account_type]}
             </span>
           </TableCell>
-          <TableCell className="text-muted-foreground text-sm">
-            {account.description || "—"}
-          </TableCell>
+          <TableCell className="text-muted-foreground text-sm">{account.description || "—"}</TableCell>
           <TableCell className="text-center">
             <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {canEdit && (
@@ -488,8 +426,7 @@ export default function Accounts() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
                       <AlertDialogDescription>
-                        هل أنت متأكد من حذف الحساب "{account.name}" (
-                        {account.code})؟
+                        هل أنت متأكد من حذف الحساب "{account.name}" ({account.code})؟
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="flex-row-reverse gap-2">
@@ -574,20 +511,14 @@ export default function Accounts() {
             key={key}
             onClick={() => setTypeFilter(key === "all" ? "all" : key)}
             className={`rounded-xl border p-3 text-right transition-all hover:shadow-md ${
-              typeFilter === key
-                ? "ring-2 ring-primary border-primary"
-                : "border-border"
+              typeFilter === key ? "ring-2 ring-primary border-primary" : "border-border"
             } bg-card`}
           >
             <div className="flex items-center justify-between mb-1">
-              <div
-                className={`h-7 w-7 rounded-lg flex items-center justify-center ${color}`}
-              >
+              <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${color}`}>
                 <Icon className="h-3.5 w-3.5" />
               </div>
-              <span className="text-xl font-bold text-foreground">
-                {typeCounts[key]}
-              </span>
+              <span className="text-xl font-bold text-foreground">{typeCounts[key]}</span>
             </div>
             <p className="text-xs text-muted-foreground">{label}</p>
           </button>
@@ -614,28 +545,17 @@ export default function Accounts() {
             </button>
           )}
         </div>
-        <Select
-          value={typeFilter}
-          onValueChange={(v) => setTypeFilter(v as AccountType | "all")}
-        >
+        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as AccountType | "all")}>
           <SelectTrigger className="w-40 h-9 text-sm">
             <SelectValue placeholder="تصفية بالنوع" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">جميع الأنواع</SelectItem>
             <SelectItem value="asset">أصول ({typeCounts.asset})</SelectItem>
-            <SelectItem value="liability">
-              خصوم ({typeCounts.liability})
-            </SelectItem>
-            <SelectItem value="equity">
-              حقوق ملكية ({typeCounts.equity})
-            </SelectItem>
-            <SelectItem value="revenue">
-              إيرادات ({typeCounts.revenue})
-            </SelectItem>
-            <SelectItem value="expense">
-              مصروفات ({typeCounts.expense})
-            </SelectItem>
+            <SelectItem value="liability">خصوم ({typeCounts.liability})</SelectItem>
+            <SelectItem value="equity">حقوق ملكية ({typeCounts.equity})</SelectItem>
+            <SelectItem value="revenue">إيرادات ({typeCounts.revenue})</SelectItem>
+            <SelectItem value="expense">مصروفات ({typeCounts.expense})</SelectItem>
           </SelectContent>
         </Select>
         {(searchQuery || typeFilter !== "all") && (
@@ -663,8 +583,7 @@ export default function Accounts() {
           <CardTitle className="text-base font-semibold flex items-center justify-between">
             <span>دليل الحسابات</span>
             <Badge variant="secondary" className="font-normal">
-              {filteredAccounts ? filteredAccounts.length : accounts.length}{" "}
-              حساب
+              {filteredAccounts ? filteredAccounts.length : accounts.length} حساب
             </Badge>
           </CardTitle>
         </CardHeader>
@@ -673,9 +592,7 @@ export default function Accounts() {
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
-          ) : (filteredAccounts
-              ? filteredAccounts.length
-              : rootAccounts.length) === 0 ? (
+          ) : (filteredAccounts ? filteredAccounts.length : rootAccounts.length) === 0 ? (
             <div className="text-center py-12 space-y-2">
               <BookOpen className="h-10 w-10 text-muted-foreground/40 mx-auto" />
               <p className="text-muted-foreground">لا توجد حسابات مطابقة</p>
@@ -685,21 +602,11 @@ export default function Accounts() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/20 hover:bg-muted/20">
-                    <TableHead className="text-right font-semibold w-48">
-                      الرمز
-                    </TableHead>
-                    <TableHead className="text-right font-semibold">
-                      اسم الحساب
-                    </TableHead>
-                    <TableHead className="text-right font-semibold w-32">
-                      النوع
-                    </TableHead>
-                    <TableHead className="text-right font-semibold">
-                      الوصف
-                    </TableHead>
-                    <TableHead className="text-center font-semibold w-32">
-                      إجراءات
-                    </TableHead>
+                    <TableHead className="text-right font-semibold w-48">الرمز</TableHead>
+                    <TableHead className="text-right font-semibold">اسم الحساب</TableHead>
+                    <TableHead className="text-right font-semibold w-48">النوع</TableHead>
+                    <TableHead className="text-right font-semibold">الوصف</TableHead>
+                    <TableHead className="text-center font-semibold w-32">إجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -707,10 +614,7 @@ export default function Accounts() {
                     ? filteredAccounts.map((a) => {
                         const TypeIcon = typeIcons[a.account_type];
                         return (
-                          <TableRow
-                            key={a.id}
-                            className="group hover:bg-muted/30 transition-colors"
-                          >
+                          <TableRow key={a.id} className="group hover:bg-muted/30 transition-colors">
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 {a.is_parent ? (
@@ -718,14 +622,10 @@ export default function Accounts() {
                                 ) : (
                                   <FileText className="h-4 w-4 text-muted-foreground" />
                                 )}
-                                <span className="font-mono text-sm text-muted-foreground">
-                                  {a.code}
-                                </span>
+                                <span className="font-mono text-sm text-muted-foreground">{a.code}</span>
                               </div>
                             </TableCell>
-                            <TableCell className="font-medium">
-                              {a.name}
-                            </TableCell>
+                            <TableCell className="font-medium">{a.name}</TableCell>
                             <TableCell>
                               <span
                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${typeColors[a.account_type]}`}
@@ -734,9 +634,7 @@ export default function Accounts() {
                                 {typeLabels[a.account_type]}
                               </span>
                             </TableCell>
-                            <TableCell className="text-muted-foreground text-sm">
-                              {a.description || "—"}
-                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">{a.description || "—"}</TableCell>
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 {canEdit && (
@@ -750,43 +648,37 @@ export default function Accounts() {
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                 )}
-                                {canDelete &&
-                                  !accountTree.get(a.id)?.length && (
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          aria-label="حذف الحساب الفرعي"
-                                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                {canDelete && !accountTree.get(a.id)?.length && (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label="حذف الحساب الفرعي"
+                                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent dir="rtl">
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          هل أنت متأكد من حذف "{a.name}" ({a.code})؟
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter className="flex-row-reverse gap-2">
+                                        <AlertDialogAction
+                                          onClick={() => handleDelete(a)}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                         >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent dir="rtl">
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>
-                                            تأكيد الحذف
-                                          </AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            هل أنت متأكد من حذف "{a.name}" (
-                                            {a.code})؟
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter className="flex-row-reverse gap-2">
-                                          <AlertDialogAction
-                                            onClick={() => handleDelete(a)}
-                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                          >
-                                            حذف
-                                          </AlertDialogAction>
-                                          <AlertDialogCancel>
-                                            إلغاء
-                                          </AlertDialogCancel>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  )}
+                                          حذف
+                                        </AlertDialogAction>
+                                        <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -804,13 +696,9 @@ export default function Accounts() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent dir="rtl" className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>
-              {editingAccount ? "تعديل الحساب" : "إضافة حساب جديد"}
-            </DialogTitle>
+            <DialogTitle>{editingAccount ? "تعديل الحساب" : "إضافة حساب جديد"}</DialogTitle>
             <DialogDescription>
-              {editingAccount
-                ? "قم بتعديل بيانات الحساب"
-                : "أدخل بيانات الحساب الجديد"}
+              {editingAccount ? "قم بتعديل بيانات الحساب" : "أدخل بيانات الحساب الجديد"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -840,10 +728,7 @@ export default function Accounts() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>نوع الحساب</Label>
-                <Select
-                  value={formType}
-                  onValueChange={(v) => setFormType(v as AccountType)}
-                >
+                <Select value={formType} onValueChange={(v) => setFormType(v as AccountType)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -865,9 +750,7 @@ export default function Accounts() {
                   <SelectContent>
                     <SelectItem value="none">بدون (حساب رئيسي)</SelectItem>
                     {parentAccounts
-                      .filter(
-                        (a) => !editingAccount || a.id !== editingAccount.id,
-                      )
+                      .filter((a) => !editingAccount || a.id !== editingAccount.id)
                       .map((a) => (
                         <SelectItem key={a.id} value={a.id}>
                           {a.code} - {a.name}
@@ -900,16 +783,8 @@ export default function Accounts() {
               />
             </div>
             <DialogFooter className="flex-row-reverse gap-2 pt-2">
-              <Button
-                onClick={handleSave}
-                disabled={saving || !formCode.trim() || !formName.trim()}
-                className="gap-2"
-              >
-                {saving
-                  ? "جارٍ الحفظ..."
-                  : editingAccount
-                    ? "حفظ التعديل"
-                    : "إضافة الحساب"}
+              <Button onClick={handleSave} disabled={saving || !formCode.trim() || !formName.trim()} className="gap-2">
+                {saving ? "جارٍ الحفظ..." : editingAccount ? "حفظ التعديل" : "إضافة الحساب"}
               </Button>
             </DialogFooter>
           </div>
