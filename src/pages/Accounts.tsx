@@ -618,7 +618,7 @@ export default function Accounts() {
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 {a.is_parent ? (
-                                  <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                                  <FolderOpen className="h-4 w-4 text-primary" />
                                 ) : (
                                   <FileText className="h-4 w-4 text-muted-foreground" />
                                 )}
