@@ -80,6 +80,9 @@ export function ExpenseFormDialog({
       setPaymentMethod("cash");
       setExpenseDate(new Date().toISOString().split("T")[0]);
       setDescription("");
+      setExistingStatus("draft");
+      setExistingJeId(null);
+      setExistingPostedNum(null);
     }
   }, [open, expenseId]);
 
@@ -103,6 +106,9 @@ export function ExpenseFormDialog({
       setPaymentMethod(data.payment_method);
       setExpenseDate(data.expense_date);
       setDescription(data.description || "");
+      setExistingStatus(data.status || "draft");
+      setExistingJeId(data.journal_entry_id || null);
+      setExistingPostedNum(data.posted_number ?? null);
     }
     setLoading(false);
   }
