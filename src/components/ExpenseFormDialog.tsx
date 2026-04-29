@@ -62,6 +62,10 @@ export function ExpenseFormDialog({
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // Track loaded expense status/JE so we can clean up on edit-then-repost
+  const [existingStatus, setExistingStatus] = useState<string>("draft");
+  const [existingJeId, setExistingJeId] = useState<string | null>(null);
+  const [existingPostedNum, setExistingPostedNum] = useState<number | null>(null);
 
   // Reset / load when dialog opens
   useEffect(() => {
@@ -76,6 +80,9 @@ export function ExpenseFormDialog({
       setPaymentMethod("cash");
       setExpenseDate(new Date().toISOString().split("T")[0]);
       setDescription("");
+      setExistingStatus("draft");
+      setExistingJeId(null);
+      setExistingPostedNum(null);
     }
   }, [open, expenseId]);
 
@@ -99,6 +106,9 @@ export function ExpenseFormDialog({
       setPaymentMethod(data.payment_method);
       setExpenseDate(data.expense_date);
       setDescription(data.description || "");
+      setExistingStatus(data.status || "draft");
+      setExistingJeId(data.journal_entry_id || null);
+      setExistingPostedNum(data.posted_number ?? null);
     }
     setLoading(false);
   }
@@ -185,8 +195,21 @@ export function ExpenseFormDialog({
       const cashBankAcc = accounts?.find((a) => a.code === accountCode);
       if (!cashBankAcc) throw new Error("تأكد من وجود حساب الصندوق/البنك");
 
+      // If editing a previously posted expense, delete the old journal entry+lines
+      // and reuse the same expense posted_number so audit numbering stays stable.
+      const wasPosted = isEdit && existingStatus === "posted" && !!existingJeId;
+      if (wasPosted && existingJeId) {
+        await supabase
+          .from("journal_entry_lines")
+          .delete()
+          .eq("journal_entry_id", existingJeId);
+        await supabase.from("journal_entries").delete().eq("id", existingJeId);
+      }
+
       const expPostedNum =
-        reusePostedNum ?? (await getNextPostedNumber("expenses" as any));
+        reusePostedNum ??
+        existingPostedNum ??
+        (await getNextPostedNumber("expenses" as any));
       const jePostedNum = await getNextPostedNumber("journal_entries");
       const expPrefix = (settings as any)?.expense_prefix || "EXP-";
       const displayNum = `${expPrefix}${String(expPostedNum).padStart(4, "0")}`;
