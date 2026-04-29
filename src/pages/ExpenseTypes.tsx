@@ -7,12 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { AccountCombobox } from "@/components/AccountCombobox";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,15 +21,7 @@ import {
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  Receipt,
-  CheckCircle2,
-  XCircle,
-  Tags,
-} from "lucide-react";
+import { Plus, Pencil, Trash2, Receipt, CheckCircle2, XCircle, Tags } from "lucide-react";
 
 interface Account {
   id: string;
@@ -125,18 +112,14 @@ export default function ExpenseTypes() {
         is_active: isActive,
       };
       if (editTarget) {
-        const { error } = await (supabase.from("expense_types" as any) as any)
-          .update(payload)
-          .eq("id", editTarget.id);
+        const { error } = await (supabase.from("expense_types" as any) as any).update(payload).eq("id", editTarget.id);
         if (error) throw error;
         toast({
           title: "تم التحديث",
           description: "تم تحديث نوع المصروف بنجاح",
         });
       } else {
-        const { error } = await (
-          supabase.from("expense_types" as any) as any
-        ).insert(payload);
+        const { error } = await (supabase.from("expense_types" as any) as any).insert(payload);
         if (error) throw error;
         toast({ title: "تم الحفظ", description: "تم إضافة نوع المصروف بنجاح" });
       }
@@ -168,9 +151,7 @@ export default function ExpenseTypes() {
         setDeleteTarget(null);
         return;
       }
-      const { error } = await (supabase.from("expense_types" as any) as any)
-        .delete()
-        .eq("id", deleteTarget.id);
+      const { error } = await (supabase.from("expense_types" as any) as any).delete().eq("id", deleteTarget.id);
       if (error) throw error;
       toast({ title: "تم الحذف", description: "تم حذف نوع المصروف" });
       setDeleteTarget(null);
@@ -213,20 +194,12 @@ export default function ExpenseTypes() {
   const columns: ColumnDef<ExpenseType>[] = [
     {
       accessorKey: "name",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="نوع المصروف" />
-      ),
-      cell: ({ row }) => (
-        <span className="text-sm font-bold text-foreground">
-          {row.original.name}
-        </span>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="نوع المصروف" />,
+      cell: ({ row }) => <span className="text-sm font-bold text-foreground">{row.original.name}</span>,
     },
     {
       accessorKey: "account_code",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="الحساب المرتبط" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الحساب المرتبط" />,
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground font-mono">
           {row.original.account_code} - {row.original.account_name}
@@ -235,19 +208,13 @@ export default function ExpenseTypes() {
     },
     {
       accessorKey: "is_active",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="الحالة" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الحالة" />,
       cell: ({ row }) => {
         const active = row.original.is_active;
         return (
           <Badge
             variant="secondary"
-            className={
-              active
-                ? "bg-green-500/10 text-green-600 border-green-500/20"
-                : "bg-muted text-muted-foreground"
-            }
+            className={active ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-muted text-muted-foreground"}
           >
             {active ? "نشط" : "غير نشط"}
           </Badge>
@@ -306,18 +273,13 @@ export default function ExpenseTypes() {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {statCards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
-          <div
-            key={label}
-            className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4"
-          >
+          <div key={label} className="bg-card p-4 rounded-xl border border-border shadow-sm flex items-center gap-4">
             <div className={`p-3 rounded-full ${iconBg}`}>
               <Icon className={`h-5 w-5 ${iconColor}`} />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="text-xl font-black text-foreground">
-                {value.toLocaleString("en-US")}
-              </p>
+              <p className="text-xl font-black text-foreground">{value.toLocaleString("en-US")}</p>
             </div>
           </div>
         ))}
@@ -325,6 +287,7 @@ export default function ExpenseTypes() {
 
       {/* Data Table */}
       <DataTable
+        compactRows
         columns={columns}
         data={types}
         searchPlaceholder="بحث بنوع المصروف..."
@@ -342,9 +305,7 @@ export default function ExpenseTypes() {
       >
         <DialogContent className="sm:max-w-md" dir="rtl">
           <DialogHeader>
-            <DialogTitle>
-              {editTarget ? "تعديل نوع المصروف" : "إضافة نوع مصروف"}
-            </DialogTitle>
+            <DialogTitle>{editTarget ? "تعديل نوع المصروف" : "إضافة نوع مصروف"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -393,23 +354,15 @@ export default function ExpenseTypes() {
       </Dialog>
 
       {/* Delete Alert */}
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={() => setDeleteTarget(null)}
-      >
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
             <AlertDialogTitle>حذف نوع المصروف</AlertDialogTitle>
-            <AlertDialogDescription>
-              هل أنت متأكد من حذف "{deleteTarget?.name}"؟
-            </AlertDialogDescription>
+            <AlertDialogDescription>هل أنت متأكد من حذف "{deleteTarget?.name}"؟</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground"
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
               حذف
             </AlertDialogAction>
           </AlertDialogFooter>

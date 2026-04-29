@@ -334,7 +334,7 @@ export function DataTable<TData, TValue>({
                     <TableHead
                       key={header.id}
                       // ↓ h-9 بدل h-11 — header أكثر إحكاماً
-                      className="text-right font-semibold text-xs text-muted-foreground h-8 px-3 whitespace-nowrap uppercase tracking-wide"
+                      className="text-right font-semibold text-xs text-muted-foreground h-9 px-3 whitespace-nowrap uppercase tracking-wide"
                     >
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
