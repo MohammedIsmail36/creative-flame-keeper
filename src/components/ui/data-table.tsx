@@ -365,7 +365,7 @@ export function DataTable<TData, TValue>({
                         ? "h-9 border-b border-border/50 transition-colors"
                         : "h-11 border-b border-border/50 transition-colors",
                       idx % 2 === 1 && "bg-muted/25",
-                      onRowClick ? "cursor-pointer",
+                      onRowClick ? "cursor-pointer" : "cursor-default",
                       "hover:bg-primary/5",
                     )}
                     onClick={() => onRowClick?.(row.original)}
