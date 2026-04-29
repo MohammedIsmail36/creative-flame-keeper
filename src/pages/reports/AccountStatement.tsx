@@ -3,25 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { LookupCombobox } from "@/components/LookupCombobox";
-import {
-  Users,
-  Truck,
-  TrendingUp,
-  TrendingDown,
-  Coins,
-  ArrowUpDown,
-} from "lucide-react";
+import { Users, Truck, TrendingUp, TrendingDown, Coins, ArrowUpDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
@@ -67,9 +54,7 @@ export default function AccountStatement({
   lockEntityType = false,
 }: AccountStatementProps = {}) {
   const { settings } = useSettings();
-  const [entityType, setEntityType] = useState<EntityType>(
-    defaultEntityType || "customer",
-  );
+  const [entityType, setEntityType] = useState<EntityType>(defaultEntityType || "customer");
   const [selectedEntity, setSelectedEntity] = useState(defaultEntityId || "");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -170,17 +155,13 @@ export default function AccountStatement({
       accessorKey: "line_date",
       header: "التاريخ",
       cell: ({ row }) => (
-        <span className="text-sm font-mono text-muted-foreground whitespace-nowrap">
-          {row.original.line_date}
-        </span>
+        <span className="text-sm font-mono text-muted-foreground whitespace-nowrap">{row.original.line_date}</span>
       ),
     },
     {
       accessorKey: "line_type",
       header: "النوع",
-      cell: ({ row }) => (
-        <span className="text-sm">{row.original.line_type}</span>
-      ),
+      cell: ({ row }) => <span className="text-sm">{row.original.line_type}</span>,
     },
     {
       id: "reference",
@@ -199,9 +180,7 @@ export default function AccountStatement({
     {
       accessorKey: "description",
       header: "البيان",
-      cell: ({ row }) => (
-        <span className="text-sm">{row.original.description}</span>
-      ),
+      cell: ({ row }) => <span className="text-sm">{row.original.description}</span>,
     },
     {
       accessorKey: "debit",
@@ -231,9 +210,7 @@ export default function AccountStatement({
       cell: ({ row }) => {
         const bal = Number(row.original.running_balance ?? 0);
         return (
-          <span
-            className={`font-mono text-sm font-black ${bal >= 0 ? "text-emerald-600" : "text-rose-600"}`}
-          >
+          <span className={`font-mono text-sm font-black ${bal >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
             {bal >= 0 ? fmt(bal) : `(${fmt(Math.abs(bal))})`}
           </span>
         );
@@ -246,15 +223,7 @@ export default function AccountStatement({
     filenamePrefix: `كشف-حساب-${entityName || ""}`,
     sheetName: "كشف حساب",
     pdfTitle: `كشف حساب: ${entityName}`,
-    headers: [
-      "التاريخ",
-      "النوع",
-      "المرجع",
-      "البيان",
-      "مدين",
-      "دائن",
-      "الرصيد",
-    ],
+    headers: ["التاريخ", "النوع", "المرجع", "البيان", "مدين", "دائن", "الرصيد"],
     rows: [] as any[][],
     settings,
     pdfOrientation: "landscape" as const,
@@ -270,16 +239,11 @@ export default function AccountStatement({
       p_limit: 100000,
       p_offset: 0,
     });
-    const all = (((data as any)?.lines) ?? []) as StatementLine[];
+    const all = ((data as any)?.lines ?? []) as StatementLine[];
     exportConfig.rows = all.map((l) => [
       l.line_date,
       l.line_type,
-      formatDisplayNumber(
-        refPrefix(l.doc_kind),
-        l.doc_posted_number,
-        l.doc_number,
-        l.doc_status,
-      ),
+      formatDisplayNumber(refPrefix(l.doc_kind), l.doc_posted_number, l.doc_number, l.doc_status),
       l.description,
       l.debit > 0 ? l.debit : "",
       l.credit > 0 ? l.credit : "",
@@ -292,14 +256,13 @@ export default function AccountStatement({
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className={`grid grid-cols-1 sm:grid-cols-2 ${lockEntityType ? "lg:grid-cols-4" : "lg:grid-cols-5"} gap-3 items-end`}>
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-2 ${lockEntityType ? "lg:grid-cols-4" : "lg:grid-cols-5"} gap-3 items-end`}
+          >
             {!lockEntityType && (
               <div>
                 <Label className="text-xs">نوع الحساب</Label>
-                <Select
-                  value={entityType}
-                  onValueChange={(v) => setEntityType(v as EntityType)}
-                >
+                <Select value={entityType} onValueChange={(v) => setEntityType(v as EntityType)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -321,9 +284,7 @@ export default function AccountStatement({
               </div>
             )}
             <div>
-              <Label className="text-xs">
-                {entityType === "customer" ? "العميل" : "المورد"}
-              </Label>
+              <Label className="text-xs">{entityType === "customer" ? "العميل" : "المورد"}</Label>
               <LookupCombobox
                 items={entities.map((e) => ({
                   id: e.id,
@@ -339,19 +300,11 @@ export default function AccountStatement({
             </div>
             <div>
               <Label className="text-xs">من تاريخ</Label>
-              <DatePickerInput
-                value={dateFrom}
-                onChange={setDateFrom}
-                placeholder="من تاريخ"
-              />
+              <DatePickerInput value={dateFrom} onChange={setDateFrom} placeholder="من تاريخ" />
             </div>
             <div>
               <Label className="text-xs">إلى تاريخ</Label>
-              <DatePickerInput
-                value={dateTo}
-                onChange={setDateTo}
-                placeholder="إلى تاريخ"
-              />
+              <DatePickerInput value={dateTo} onChange={setDateTo} placeholder="إلى تاريخ" />
             </div>
             <ExportMenu
               config={exportConfig}
@@ -386,29 +339,19 @@ export default function AccountStatement({
             },
             {
               label: "الرصيد النهائي",
-              value:
-                finalBalance >= 0
-                  ? fmt(finalBalance)
-                  : `(${fmt(Math.abs(finalBalance))})`,
+              value: finalBalance >= 0 ? fmt(finalBalance) : `(${fmt(Math.abs(finalBalance))})`,
               icon: Coins,
-              color:
-                finalBalance >= 0
-                  ? "bg-emerald-500/10 text-emerald-600"
-                  : "bg-rose-500/10 text-rose-600",
+              color: finalBalance >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600",
             },
           ].map(({ label, value, icon: Icon, color }) => (
             <Card key={label}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <div
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}
-                  >
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
                     <Icon className="h-4 w-4" />
                   </div>
                 </div>
-                <p className="text-2xl font-black text-foreground font-mono">
-                  {value}
-                </p>
+                <p className="text-2xl font-black text-foreground font-mono">{value}</p>
                 <p className="text-xs text-muted-foreground mt-1">{label}</p>
               </CardContent>
             </Card>
@@ -419,6 +362,7 @@ export default function AccountStatement({
       {/* Table */}
       {selectedEntity ? (
         <DataTable
+          compactRows
           columns={columns}
           data={lines}
           isLoading={loading}
