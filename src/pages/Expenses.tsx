@@ -390,10 +390,10 @@ export default function Expenses() {
         await supabase.from("journal_entry_lines").insert(reversed as any);
       }
 
-      await supabase
-        .from("journal_entries")
-        .update({ status: "cancelled" } as any)
-        .eq("id", cancelTarget.journal_entry_id);
+      // NOTE: We intentionally KEEP the original JE as 'posted'.
+      // The reversal entry above offsets it, so net P&L impact = 0.
+      // Marking the original as 'cancelled' would exclude it from reports
+      // while the reversal alone would show as a negative expense — bug.
 
       await (supabase.from("expenses" as any) as any).update({ status: "cancelled" }).eq("id", cancelTarget.id);
 
