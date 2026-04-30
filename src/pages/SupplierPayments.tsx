@@ -170,11 +170,11 @@ export default function SupplierPayments() {
     if (amount <= 0) errors.amount = "يرجى إدخال مبلغ صحيح";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast({
-        title: "تنبيه",
-        description: Object.values(errors)[0],
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "تنبيه",
+      //   description: Object.values(errors)[0],
+      //   variant: "destructive",
+      // });
       return;
     }
     setSaving(true);
@@ -215,11 +215,11 @@ export default function SupplierPayments() {
     if (amount <= 0) errors.amount = "يرجى إدخال مبلغ صحيح";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast({
-        title: "تنبيه",
-        description: Object.values(errors)[0],
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "تنبيه",
+      //   description: Object.values(errors)[0],
+      //   variant: "destructive",
+      // });
       return;
     }
     setSaving(true);
