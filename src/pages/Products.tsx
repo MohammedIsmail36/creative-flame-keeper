@@ -846,7 +846,7 @@ export default function Products() {
       <DataTable
         columns={columns}
         data={products}
-        searchPlaceholder="بحث بالاسم، الكود، الباركود، أو الموديل..."
+        searchPlaceholder="بحث بالاسم، الكود، الماركة، الباركود، أو الموديل..."
         isLoading={isLoading}
         emptyMessage="لا توجد منتجات"
         onRowClick={(p) => navigate(`/products/${p.id}`)}
