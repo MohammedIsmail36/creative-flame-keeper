@@ -19,15 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Eye,
-  Pencil,
-  MoreVertical,
-  Package,
-  CheckCircle2,
-  Archive,
-  Trash2,
-} from "lucide-react";
+import { Eye, Pencil, MoreVertical, Package, CheckCircle2, Archive, Trash2 } from "lucide-react";
 
 export interface ProductCardData {
   id: string;
@@ -64,13 +56,7 @@ const fmtNum = (n: number) =>
   });
 const fmtInt = (n: number) => Number(n || 0).toLocaleString("en-US");
 
-function StockBadge({
-  qty,
-  min,
-}: {
-  qty: number;
-  min: number;
-}) {
+function StockBadge({ qty, min }: { qty: number; min: number }) {
   if (qty <= 0)
     return (
       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-destructive/90 text-destructive-foreground shadow-sm">
@@ -79,14 +65,10 @@ function StockBadge({
     );
   if (qty < min)
     return (
-      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/90 text-white shadow-sm">
-        منخفض
-      </span>
+      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/90 text-white shadow-sm">منخفض</span>
     );
   return (
-    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/90 text-white shadow-sm">
-      متوفر
-    </span>
+    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/90 text-white shadow-sm">متوفر</span>
   );
 }
 
@@ -140,10 +122,7 @@ export function ProductCard({
         </div>
 
         {/* Actions menu */}
-        <div
-          className="absolute top-2 left-2"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="absolute top-2 left-2" onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -202,10 +181,7 @@ export function ProductCard({
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={onDelete}
-                          className="bg-destructive hover:bg-destructive/90"
-                        >
+                        <AlertDialogAction onClick={onDelete} className="bg-destructive hover:bg-destructive/90">
                           حذف
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -223,8 +199,8 @@ export function ProductCard({
         <h3 className="font-bold text-sm text-foreground truncate" title={p.name}>
           {p.name}
         </h3>
-        <p className="text-[11px] text-muted-foreground truncate min-h-[14px]">
-          {[brand, p.model_number].filter(Boolean).join(" • ") || "—"}
+        <p className="text-[0.9rem] text-muted-foreground truncate min-h-[14px]">
+          {[brand, p.model_number].filter(Boolean).join(" - ") || "—"}
         </p>
         <p className="text-[10px] text-muted-foreground/80 truncate font-mono">
           {p.code}
@@ -233,23 +209,15 @@ export function ProductCard({
 
         <div className="flex items-end justify-between pt-2 border-t mt-2">
           <div className="flex flex-col">
-            <span className="text-[9px] text-muted-foreground uppercase tracking-wide">
-              الكمية
-            </span>
+            <span className="text-[9px] text-muted-foreground uppercase tracking-wide">الكمية</span>
             <span className="text-xs font-bold text-foreground">
               {fmtInt(p.quantity_on_hand)} {unit}
             </span>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-[9px] text-muted-foreground uppercase tracking-wide">
-              البيع
-            </span>
-            <span className="text-sm font-black text-primary font-mono leading-tight">
-              {fmtNum(p.selling_price)}
-            </span>
-            <span className="text-[10px] text-muted-foreground font-mono">
-              شراء: {fmtNum(p.purchase_price)}
-            </span>
+            <span className="text-[9px] text-muted-foreground uppercase tracking-wide">البيع</span>
+            <span className="text-sm font-black text-primary font-mono leading-tight">{fmtNum(p.selling_price)}</span>
+            <span className="text-[10px] text-muted-foreground font-mono">شراء: {fmtNum(p.purchase_price)}</span>
           </div>
         </div>
       </div>
