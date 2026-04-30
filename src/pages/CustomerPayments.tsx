@@ -181,14 +181,7 @@ export default function CustomerPayments() {
     if (!customerId) errors.customer = "يرجى اختيار العميل";
     if (amount <= 0) errors.amount = "يرجى إدخال المبلغ";
     setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      toast({
-        title: "تنبيه",
-        description: Object.values(errors)[0],
-        variant: "destructive",
-      });
-      return;
-    }
+    if (Object.keys(errors).length > 0) return;
     setSaving(true);
     try {
       const data = {
