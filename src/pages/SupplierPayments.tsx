@@ -633,7 +633,7 @@ export default function SupplierPayments() {
         return (
           <Badge variant={isRefund ? "default" : "destructive"} className="gap-1">
             {isRefund ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
-            {isRefund ? "رد" : "سداد"}
+            {isRefund ? "قبض" : "صرف"}
           </Badge>
         );
       },
