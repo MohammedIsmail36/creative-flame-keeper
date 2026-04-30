@@ -756,7 +756,7 @@ export default function Products() {
         const filtersBar = (
           <div className="flex gap-3 flex-wrap items-center">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="bg-card border-border h-9 text-sm">
+              <SelectTrigger className="max-w-[250px] bg-card border-border h-9 text-sm">
                 <SelectValue placeholder="كافة التصنيفات" />
               </SelectTrigger>
               <SelectContent>
