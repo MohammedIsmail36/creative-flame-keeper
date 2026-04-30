@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import {
-  getNextPostedNumber,
-  formatDisplayNumber,
-} from "@/lib/posted-number-utils";
+import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -13,20 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,30 +25,13 @@ import {
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
-import {
-  Plus,
-  CreditCard,
-  X,
-  Trash2,
-  CheckCircle,
-  XCircle,
-  Pencil,
-  ArrowDownLeft,
-  ArrowUpRight,
-} from "lucide-react";
+import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle, Pencil, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { FormFieldError } from "@/components/FormFieldError";
 import { useSettings } from "@/contexts/SettingsContext";
-import {
-  ACCOUNT_CODES,
-  INVOICE_STATUS_LABELS,
-  INVOICE_STATUS_COLORS,
-} from "@/lib/constants";
-import {
-  recalculateEntityBalance,
-  recalculateInvoicePaidAmount,
-} from "@/lib/entity-balance";
+import { ACCOUNT_CODES, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { recalculateEntityBalance, recalculateInvoicePaidAmount } from "@/lib/entity-balance";
 
 interface Supplier {
   id: string;
@@ -109,9 +77,7 @@ export default function SupplierPayments() {
 
   const [supplierId, setSupplierId] = useState("");
   const [amount, setAmount] = useState(0);
-  const [paymentDate, setPaymentDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
@@ -127,9 +93,7 @@ export default function SupplierPayments() {
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
   const [postTarget, setPostTarget] = useState<Payment | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Payment | null>(null);
-  const [editPostedTarget, setEditPostedTarget] = useState<Payment | null>(
-    null,
-  );
+  const [editPostedTarget, setEditPostedTarget] = useState<Payment | null>(null);
 
   const canEdit = role === "admin" || role === "accountant";
 
@@ -141,10 +105,7 @@ export default function SupplierPayments() {
     setLoading(true);
     const { fetchAllPaged } = await import("@/lib/paged-fetch");
     const [supRes, payments] = await Promise.all([
-      (supabase.from("suppliers" as any) as any)
-        .select("id, code, name, balance")
-        .eq("is_active", true)
-        .order("name"),
+      (supabase.from("suppliers" as any) as any).select("id, code, name, balance").eq("is_active", true).order("name"),
       fetchAllPaged<any>(
         () =>
           (supabase.from("supplier_payments") as any)
@@ -160,9 +121,7 @@ export default function SupplierPayments() {
     }));
 
     // Identify refund payments (linked to purchase returns)
-    const postedIds = rawPayments
-      .filter((p: any) => p.status === "posted")
-      .map((p: any) => p.id);
+    const postedIds = rawPayments.filter((p: any) => p.status === "posted").map((p: any) => p.id);
     let refundIds = new Set<string>();
     if (postedIds.length > 0) {
       const { data: returnAllocs } = await supabase
@@ -171,16 +130,13 @@ export default function SupplierPayments() {
         .in("payment_id", postedIds);
       refundIds = new Set((returnAllocs || []).map((a: any) => a.payment_id));
     }
-    setPayments(
-      rawPayments.map((p: any) => ({ ...p, isRefund: refundIds.has(p.id) })),
-    );
+    setPayments(rawPayments.map((p: any) => ({ ...p, isRefund: refundIds.has(p.id) })));
     setLoading(false);
   }
 
   const filtered = useMemo(() => {
     return payments.filter((p) => {
-      if (methodFilter !== "all" && p.payment_method !== methodFilter)
-        return false;
+      if (methodFilter !== "all" && p.payment_method !== methodFilter) return false;
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
       if (dateFrom && p.payment_date < dateFrom) return false;
       if (dateTo && p.payment_date > dateTo) return false;
@@ -188,8 +144,7 @@ export default function SupplierPayments() {
     });
   }, [payments, methodFilter, statusFilter, dateFrom, dateTo]);
 
-  const hasFilters =
-    methodFilter !== "all" || statusFilter !== "all" || dateFrom || dateTo;
+  const hasFilters = methodFilter !== "all" || statusFilter !== "all" || dateFrom || dateTo;
   const clearFilters = () => {
     setMethodFilter("all");
     setStatusFilter("all");
@@ -234,9 +189,7 @@ export default function SupplierPayments() {
         status: "draft",
       };
       if (editTarget) {
-        await (supabase.from("supplier_payments" as any) as any)
-          .update(data)
-          .eq("id", editTarget.id);
+        await (supabase.from("supplier_payments" as any) as any).update(data).eq("id", editTarget.id);
         toast({ title: "تم التحديث", description: "تم تحديث المسودة بنجاح" });
       } else {
         await (supabase.from("supplier_payments" as any) as any).insert(data);
@@ -331,34 +284,24 @@ export default function SupplierPayments() {
     reuseJournalPostedNum?: number | null,
   ) {
     if (settings?.locked_until_date && date <= settings.locked_until_date) {
-      throw new Error(
-        `لا يمكن تسجيل دفعة بتاريخ ${date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-      );
+      throw new Error(`لا يمكن تسجيل دفعة بتاريخ ${date} — الفترة مقفلة حتى ${settings.locked_until_date}`);
     }
-    const accountCode =
-      method === "cash" ? ACCOUNT_CODES.CASH : ACCOUNT_CODES.BANK;
+    const accountCode = method === "cash" ? ACCOUNT_CODES.CASH : ACCOUNT_CODES.BANK;
     const { data: accounts } = await supabase
       .from("accounts")
       .select("id, code")
       .in("code", [ACCOUNT_CODES.SUPPLIERS, accountCode]);
-    const suppliersAcc = accounts?.find(
-      (a) => a.code === ACCOUNT_CODES.SUPPLIERS,
-    );
+    const suppliersAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.SUPPLIERS);
     const cashBankAcc = accounts?.find((a) => a.code === accountCode);
-    if (!suppliersAcc || !cashBankAcc)
-      throw new Error("تأكد من وجود حسابات الموردين والصندوق/البنك");
+    if (!suppliersAcc || !cashBankAcc) throw new Error("تأكد من وجود حسابات الموردين والصندوق/البنك");
 
-    const paymentPostedNum = reusePostedNum
-      ? reusePostedNum
-      : await getNextPostedNumber("supplier_payments");
+    const paymentPostedNum = reusePostedNum ? reusePostedNum : await getNextPostedNumber("supplier_payments");
     const payPrefix = settings?.supplier_payment_prefix || "SPY-";
     const displayPayNum = `${payPrefix}${String(paymentPostedNum).padStart(4, "0")}`;
     const supplierName = suppliers.find((s) => s.id === supId)?.name || "";
     const desc = `سند صرف رقم ${displayPayNum} - سداد لمورد ${supplierName}`;
 
-    const jePostedNum = reuseJournalPostedNum
-      ? reuseJournalPostedNum
-      : await getNextPostedNumber("journal_entries");
+    const jePostedNum = reuseJournalPostedNum ? reuseJournalPostedNum : await getNextPostedNumber("journal_entries");
     const { data: je, error: jeError } = await supabase
       .from("journal_entries")
       .insert({
@@ -448,9 +391,7 @@ export default function SupplierPayments() {
     if (!deleteTarget || saving) return;
     setSaving(true);
     try {
-      await (supabase.from("supplier_payments" as any) as any)
-        .delete()
-        .eq("id", deleteTarget.id);
+      await (supabase.from("supplier_payments" as any) as any).delete().eq("id", deleteTarget.id);
       toast({
         title: "تم الحذف",
         description: `تم حذف الدفعة #${deleteTarget.payment_number}`,
@@ -473,17 +414,13 @@ export default function SupplierPayments() {
     setSaving(true);
     try {
       // 1. Get all invoice allocations for this payment
-      const { data: allocations } = await (
-        supabase.from("supplier_payment_allocations" as any) as any
-      )
+      const { data: allocations } = await (supabase.from("supplier_payment_allocations" as any) as any)
         .select("id, invoice_id, allocated_amount")
         .eq("payment_id", cancelTarget.id);
 
       // 2. Delete invoice allocations
       if (allocations && allocations.length > 0) {
-        await (supabase.from("supplier_payment_allocations" as any) as any)
-          .delete()
-          .eq("payment_id", cancelTarget.id);
+        await (supabase.from("supplier_payment_allocations" as any) as any).delete().eq("payment_id", cancelTarget.id);
       }
 
       // 3. Delete return payment allocations (refund linkages)
@@ -493,15 +430,10 @@ export default function SupplierPayments() {
 
       // 4. Reverse journal entry status to cancelled
       if (cancelTarget.journal_entry_id) {
-        const { error: jeError } = await (
-          supabase.from("journal_entries") as any
-        )
+        const { error: jeError } = await (supabase.from("journal_entries") as any)
           .update({ status: "cancelled" })
           .eq("id", cancelTarget.journal_entry_id);
-        if (jeError)
-          throw new Error(
-            "فشل في تحديث حالة القيد المحاسبي: " + jeError.message,
-          );
+        if (jeError) throw new Error("فشل في تحديث حالة القيد المحاسبي: " + jeError.message);
       }
 
       // 5. CRITICAL: Update payment status to cancelled BEFORE recalculating
@@ -514,9 +446,7 @@ export default function SupplierPayments() {
       if (allocations && allocations.length > 0) {
         const affectedInvoiceIds = (allocations || [])
           .map((a: any) => String(a.invoice_id))
-          .filter(
-            (v: string, i: number, arr: string[]) => arr.indexOf(v) === i,
-          );
+          .filter((v: string, i: number, arr: string[]) => arr.indexOf(v) === i);
         for (const invoiceId of affectedInvoiceIds) {
           await recalculateInvoicePaidAmount("purchase", invoiceId);
         }
@@ -544,10 +474,7 @@ export default function SupplierPayments() {
   async function handleConfirmEditPosted() {
     if (!editPostedTarget || saving) return;
     const target = editPostedTarget;
-    if (
-      settings?.locked_until_date &&
-      target.payment_date <= settings.locked_until_date
-    ) {
+    if (settings?.locked_until_date && target.payment_date <= settings.locked_until_date) {
       toast({
         title: "غير مسموح",
         description: `لا يمكن تعديل سند بتاريخ ${target.payment_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
@@ -558,8 +485,7 @@ export default function SupplierPayments() {
     if (target.isRefund) {
       toast({
         title: "غير مسموح",
-        description:
-          "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.",
+        description: "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.",
         variant: "destructive",
       });
       return;
@@ -577,28 +503,18 @@ export default function SupplierPayments() {
         preservedJeNum = (je as any)?.posted_number ?? null;
       }
 
-      const { data: allocs } = await (
-        supabase.from("supplier_payment_allocations" as any) as any
-      )
+      const { data: allocs } = await (supabase.from("supplier_payment_allocations" as any) as any)
         .select("invoice_id")
         .eq("payment_id", target.id);
       const affectedInvoiceIds = ((allocs as any[]) || [])
         .map((a) => String(a.invoice_id))
         .filter((v, i, arr) => arr.indexOf(v) === i);
 
-      await (supabase.from("supplier_payment_allocations" as any) as any)
-        .delete()
-        .eq("payment_id", target.id);
+      await (supabase.from("supplier_payment_allocations" as any) as any).delete().eq("payment_id", target.id);
 
       if (target.journal_entry_id) {
-        await supabase
-          .from("journal_entry_lines")
-          .delete()
-          .eq("journal_entry_id", target.journal_entry_id);
-        await supabase
-          .from("journal_entries")
-          .delete()
-          .eq("id", target.journal_entry_id);
+        await supabase.from("journal_entry_lines").delete().eq("journal_entry_id", target.journal_entry_id);
+        await supabase.from("journal_entries").delete().eq("id", target.journal_entry_id);
       }
 
       await (supabase.from("supplier_payments" as any) as any)
@@ -655,17 +571,10 @@ export default function SupplierPayments() {
   const columns: ColumnDef<Payment, any>[] = [
     {
       accessorKey: "payment_number",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="#" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="#" />,
       cell: ({ row }) => (
         <span className="font-mono">
-          {formatDisplayNumber(
-            prefix,
-            row.original.posted_number,
-            row.original.payment_number,
-            row.original.status,
-          )}
+          {formatDisplayNumber(prefix, row.original.posted_number, row.original.payment_number, row.original.status)}
         </span>
       ),
     },
@@ -675,15 +584,8 @@ export default function SupplierPayments() {
       cell: ({ row }) => {
         const isRefund = row.original.isRefund;
         return (
-          <Badge
-            variant={isRefund ? "default" : "destructive"}
-            className="gap-1"
-          >
-            {isRefund ? (
-              <ArrowDownLeft className="h-3 w-3" />
-            ) : (
-              <ArrowUpRight className="h-3 w-3" />
-            )}
+          <Badge variant={isRefund ? "default" : "destructive"} className="gap-1">
+            {isRefund ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
             {isRefund ? "مبلغ مسترد" : "سداد"}
           </Badge>
         );
@@ -691,29 +593,17 @@ export default function SupplierPayments() {
     },
     {
       accessorKey: "supplier_name",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="المورد" />
-      ),
-      cell: ({ row }) => (
-        <span className="font-medium">{row.original.supplier_name || "—"}</span>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="المورد" />,
+      cell: ({ row }) => <span className="font-medium">{row.original.supplier_name || "—"}</span>,
     },
     {
       accessorKey: "payment_date",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="التاريخ" />
-      ),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.payment_date}
-        </span>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.payment_date}</span>,
     },
     {
       accessorKey: "amount",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="المبلغ" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="المبلغ" />,
       cell: ({ row }) => (
         <span className="font-mono font-semibold">
           {row.original.amount.toLocaleString("en-US", {
@@ -727,10 +617,7 @@ export default function SupplierPayments() {
       meta: { hideOnMobile: true },
       header: "طريقة الدفع",
       cell: ({ row }) => (
-        <Badge variant="outline">
-          {methodLabels[row.original.payment_method] ||
-            row.original.payment_method}
-        </Badge>
+        <Badge variant="outline">{methodLabels[row.original.payment_method] || row.original.payment_method}</Badge>
       ),
     },
     {
@@ -746,11 +633,7 @@ export default function SupplierPayments() {
       accessorKey: "reference",
       meta: { hideOnMobile: true },
       header: "المرجع",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.reference || "—"}
-        </span>
-      ),
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.reference || "—"}</span>,
     },
     {
       id: "actions",
@@ -762,21 +645,11 @@ export default function SupplierPayments() {
           <div className="flex items-center gap-1">
             {p.status === "draft" && (
               <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEditDialog(p)}
-                  className="gap-1 text-xs h-7 px-2"
-                >
+                <Button variant="ghost" size="sm" onClick={() => openEditDialog(p)} className="gap-1 text-xs h-7 px-2">
                   <Pencil className="h-3.5 w-3.5" />
                   تعديل
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPostTarget(p)}
-                  className="gap-1 text-xs h-7 px-2"
-                >
+                <Button variant="ghost" size="sm" onClick={() => setPostTarget(p)} className="gap-1 text-xs h-7 px-2">
                   <CheckCircle className="h-3.5 w-3.5" />
                   ترحيل
                 </Button>
@@ -838,150 +711,115 @@ export default function SupplierPayments() {
         }
       />
       {canEdit && (
-          <Dialog
-            open={dialogOpen}
-            onOpenChange={(v) => {
-              setDialogOpen(v);
-              if (!v) resetForm();
-            }}
-          >
-            <DialogContent className="max-w-md" dir="rtl">
-              <DialogHeader>
-                <DialogTitle>
-                  {editTarget
-                    ? `تعديل الدفعة #${editTarget.payment_number}`
-                    : "تسجيل سداد مورد"}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>
-                    المورد <span className="text-red-500">*</span>
-                  </Label>
-                  <LookupCombobox
-                    items={suppliers}
-                    value={supplierId}
-                    onValueChange={(v) => {
-                      setSupplierId(v);
-                      setFieldErrors((e) => {
-                        const { supplier, ...rest } = e;
-                        return rest;
-                      });
-                    }}
-                    placeholder="اختر المورد"
-                    error={!!fieldErrors.supplier}
-                  />
-                  <FormFieldError message={fieldErrors.supplier} />
-                  {supplierId && (
-                    <p className="text-xs text-muted-foreground">
-                      الرصيد:{" "}
-                      {suppliers
-                        .find((s) => s.id === supplierId)
-                        ?.balance?.toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                        })}{" "}
-                      EGP
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>
-                    المبلغ <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={amount}
-                    onChange={(e) => {
-                      setAmount(+e.target.value);
-                      setFieldErrors((err) => {
-                        const { amount, ...rest } = err;
-                        return rest;
-                      });
-                    }}
-                    className="font-mono"
-                    error={!!fieldErrors.amount}
-                  />
-                  <FormFieldError message={fieldErrors.amount} />
-                </div>
-                <div className="space-y-2">
-                  <Label>التاريخ</Label>
-                  <DatePickerInput
-                    value={paymentDate}
-                    onChange={setPaymentDate}
-                    placeholder="اختر التاريخ"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>طريقة الدفع</Label>
-                  <Select
-                    value={paymentMethod}
-                    onValueChange={setPaymentMethod}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">نقدي</SelectItem>
-                      <SelectItem value="bank">تحويل بنكي</SelectItem>
-                      <SelectItem value="check">شيك</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>مرجع</Label>
-                  <Input
-                    value={reference}
-                    onChange={(e) => setReference(e.target.value)}
-                    placeholder="رقم إيصال أو شيك"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>ملاحظات</Label>
-                  <Textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={2}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleSaveDraft}
-                    disabled={saving}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    {saving && (
-                      <Loader2 className="h-4 w-4 ml-1 animate-spin" />
-                    )}
-                    {saving
-                      ? "جاري الحفظ..."
-                      : editTarget
-                        ? "تحديث المسودة"
-                        : "حفظ كمسودة"}
-                  </Button>
-                  <Button
-                    onClick={handleSubmitPosted}
-                    disabled={saving}
-                    className="flex-1"
-                  >
-                    {saving && (
-                      <Loader2 className="h-4 w-4 ml-1 animate-spin" />
-                    )}
-                    {saving
-                      ? "جاري الحفظ..."
-                      : editTarget
-                        ? "تحديث وترحيل"
-                        : "حفظ وترحيل"}
-                  </Button>
-                </div>
+        <Dialog
+          open={dialogOpen}
+          onOpenChange={(v) => {
+            setDialogOpen(v);
+            if (!v) resetForm();
+          }}
+        >
+          <DialogContent className="max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>{editTarget ? `تعديل الدفعة #${editTarget.payment_number}` : "تسجيل سداد مورد"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>
+                  المورد <span className="text-red-500">*</span>
+                </Label>
+                <LookupCombobox
+                  items={suppliers}
+                  value={supplierId}
+                  onValueChange={(v) => {
+                    setSupplierId(v);
+                    setFieldErrors((e) => {
+                      const { supplier, ...rest } = e;
+                      return rest;
+                    });
+                  }}
+                  placeholder="اختر المورد"
+                  error={!!fieldErrors.supplier}
+                />
+                <FormFieldError message={fieldErrors.supplier} />
+                {supplierId && (
+                  <p className="text-xs text-muted-foreground">
+                    الرصيد:{" "}
+                    {suppliers
+                      .find((s) => s.id === supplierId)
+                      ?.balance?.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                      })}{" "}
+                    EGP
+                  </p>
+                )}
               </div>
-            </DialogContent>
-          </Dialog>
-        )}
+              <div className="space-y-2">
+                <Label>
+                  المبلغ <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => {
+                    setAmount(+e.target.value);
+                    setFieldErrors((err) => {
+                      const { amount, ...rest } = err;
+                      return rest;
+                    });
+                  }}
+                  className="font-mono"
+                  error={!!fieldErrors.amount}
+                />
+                <FormFieldError message={fieldErrors.amount} />
+              </div>
+              <div className="space-y-2">
+                <Label>التاريخ</Label>
+                <DatePickerInput value={paymentDate} onChange={setPaymentDate} placeholder="اختر التاريخ" />
+              </div>
+              <div className="space-y-2">
+                <Label>طريقة الدفع</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">نقدي</SelectItem>
+                    <SelectItem value="bank">تحويل بنكي</SelectItem>
+                    <SelectItem value="check">شيك</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>مرجع</Label>
+                <Input
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="رقم إيصال أو شيك"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>ملاحظات</Label>
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleSaveDraft} disabled={saving} variant="outline" className="flex-1">
+                  {saving && <Loader2 className="h-4 w-4 ml-1 animate-spin" />}
+                  {saving ? "جاري الحفظ..." : editTarget ? "تحديث المسودة" : "حفظ كمسودة"}
+                </Button>
+                <Button onClick={handleSubmitPosted} disabled={saving} className="flex-1">
+                  {saving && <Loader2 className="h-4 w-4 ml-1 animate-spin" />}
+                  {saving ? "جاري الحفظ..." : editTarget ? "تحديث وترحيل" : "حفظ وترحيل"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <DataTable
+        compactRows
         columns={columns}
         data={filtered}
         searchPlaceholder="بحث..."
@@ -1039,14 +877,7 @@ export default function SupplierPayments() {
                 filenamePrefix: "مدفوعات-الموردين",
                 sheetName: "مدفوعات الموردين",
                 pdfTitle: "مدفوعات الموردين",
-                headers: [
-                  "#",
-                  "المورد",
-                  "التاريخ",
-                  "المبلغ",
-                  "الطريقة",
-                  "الحالة",
-                ],
+                headers: ["#", "المورد", "التاريخ", "المبلغ", "الطريقة", "الحالة"],
                 rows: filtered.map((p) => [
                   p.payment_number,
                   p.supplier_name || "—",
@@ -1065,15 +896,10 @@ export default function SupplierPayments() {
       />
 
       {/* Delete confirmation */}
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={() => setDeleteTarget(null)}
-      >
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              حذف الدفعة #{deleteTarget?.payment_number}
-            </AlertDialogTitle>
+            <AlertDialogTitle>حذف الدفعة #{deleteTarget?.payment_number}</AlertDialogTitle>
             <AlertDialogDescription>
               هل أنت متأكد من حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
@@ -1094,9 +920,7 @@ export default function SupplierPayments() {
       <AlertDialog open={!!postTarget} onOpenChange={() => setPostTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              ترحيل الدفعة #{postTarget?.payment_number}
-            </AlertDialogTitle>
+            <AlertDialogTitle>ترحيل الدفعة #{postTarget?.payment_number}</AlertDialogTitle>
             <AlertDialogDescription>
               سيتم إنشاء قيد محاسبي وتحديث رصيد المورد بمبلغ{" "}
               {postTarget?.amount.toLocaleString("en-US", {
@@ -1107,23 +931,16 @@ export default function SupplierPayments() {
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row-reverse gap-2">
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handlePostDraft}>
-              ترحيل
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handlePostDraft}>ترحيل</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Cancel confirmation */}
-      <AlertDialog
-        open={!!cancelTarget}
-        onOpenChange={() => setCancelTarget(null)}
-      >
+      <AlertDialog open={!!cancelTarget} onOpenChange={() => setCancelTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              إلغاء الدفعة #{cancelTarget?.payment_number}
-            </AlertDialogTitle>
+            <AlertDialogTitle>إلغاء الدفعة #{cancelTarget?.payment_number}</AlertDialogTitle>
             <AlertDialogDescription>
               سيتم إلغاء القيد المحاسبي وإعادة رصيد المورد بمبلغ{" "}
               {cancelTarget?.amount.toLocaleString("en-US", {
@@ -1145,18 +962,15 @@ export default function SupplierPayments() {
       </AlertDialog>
 
       {/* Edit posted payment confirmation */}
-      <AlertDialog
-        open={!!editPostedTarget}
-        onOpenChange={() => setEditPostedTarget(null)}
-      >
+      <AlertDialog open={!!editPostedTarget} onOpenChange={() => setEditPostedTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
             <AlertDialogTitle>
               تعديل سند مُرحّل #{editPostedTarget?.posted_number ?? editPostedTarget?.payment_number}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم حذف القيد المحاسبي القديم وإعادة السند إلى حالة "مسودة" لتعديله،
-              مع <strong>الحفاظ على نفس رقم السند ورقم القيد</strong> ({prefix}
+              سيتم حذف القيد المحاسبي القديم وإعادة السند إلى حالة "مسودة" لتعديله، مع{" "}
+              <strong>الحفاظ على نفس رقم السند ورقم القيد</strong> ({prefix}
               {String(editPostedTarget?.posted_number ?? 0).padStart(4, "0")}).
               <br />
               عند الحفظ والترحيل سيتم إنشاء قيد جديد بنفس الرقم. هل تريد المتابعة؟
@@ -1164,9 +978,7 @@ export default function SupplierPayments() {
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row-reverse gap-2">
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmEditPosted}>
-              متابعة
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmEditPosted}>متابعة</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
