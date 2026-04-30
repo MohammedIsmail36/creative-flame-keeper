@@ -723,7 +723,7 @@ export default function SupplierPayments() {
           }}
         >
           <DialogContent className="max-w-md" dir="rtl">
-            <DialogHeader>
+            <DialogHeader dir="rtl">
               <DialogTitle>{editTarget ? `تعديل الدفعة #${editTarget.payment_number}` : "تسجيل سداد مورد"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
