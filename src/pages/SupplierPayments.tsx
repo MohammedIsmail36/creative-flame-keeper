@@ -571,7 +571,7 @@ export default function SupplierPayments() {
   const columns: ColumnDef<Payment, any>[] = [
     {
       accessorKey: "payment_number",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="#" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الرقم" />,
       cell: ({ row }) => (
         <span className="font-mono">
           {formatDisplayNumber(prefix, row.original.posted_number, row.original.payment_number, row.original.status)}
