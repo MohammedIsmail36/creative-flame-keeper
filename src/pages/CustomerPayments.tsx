@@ -227,14 +227,7 @@ export default function CustomerPayments() {
     if (!customerId) errors.customer = "يرجى اختيار العميل";
     if (amount <= 0) errors.amount = "يرجى إدخال مبلغ صحيح";
     setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      toast({
-        title: "تنبيه",
-        description: Object.values(errors)[0],
-        variant: "destructive",
-      });
-      return;
-    }
+    if (Object.keys(errors).length > 0) return;
     setSaving(true);
     try {
       if (editTarget) {
@@ -598,36 +591,26 @@ export default function CustomerPayments() {
   const columns: ColumnDef<Payment, any>[] = [
     {
       accessorKey: "payment_number",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="#" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="الرقم" />,
       cell: ({ row }) => (
         <span className="font-mono">
           {formatDisplayNumber(prefix, row.original.posted_number, row.original.payment_number, row.original.status)}
         </span>
       ),
     },
-    {
-      id: "type",
-      header: "النوع",
-      cell: ({ row }) => {
-        const isRefund = row.original.isRefund;
-        return (
-          <Badge variant={isRefund ? "destructive" : "default"} className="gap-1">
-            {isRefund ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownLeft className="h-3 w-3" />}
-            {isRefund ? "رد مبلغ" : "تحصيل"}
-          </Badge>
-        );
-      },
-    },
-    {
-      accessorKey: "customer_name",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="العميل" />,
-      cell: ({ row }) => <span className="font-medium">{row.original.customer_name || "—"}</span>,
-    },
+
     {
       accessorKey: "payment_date",
       header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.payment_date}</span>,
     },
+
+    {
+      accessorKey: "customer_name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="العميل" />,
+      cell: ({ row }) => <span className="font-medium">{row.original.customer_name || "—"}</span>,
+    },
+
     {
       accessorKey: "amount",
       header: ({ column }) => <DataTableColumnHeader column={column} title="المبلغ" />,
@@ -648,6 +631,12 @@ export default function CustomerPayments() {
       ),
     },
     {
+      accessorKey: "reference",
+      meta: { hideOnMobile: true },
+      header: "المرجع",
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.reference || "—"}</span>,
+    },
+    {
       accessorKey: "status",
       header: "الحالة",
       cell: ({ row }) => (
@@ -656,12 +645,21 @@ export default function CustomerPayments() {
         </Badge>
       ),
     },
+
     {
-      accessorKey: "reference",
-      meta: { hideOnMobile: true },
-      header: "المرجع",
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.reference || "—"}</span>,
+      id: "type",
+      header: "النوع",
+      cell: ({ row }) => {
+        const isRefund = row.original.isRefund;
+        return (
+          <Badge variant={isRefund ? "destructive" : "default"} className="gap-1">
+            {isRefund ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownLeft className="h-3 w-3" />}
+            {isRefund ? "صرف" : "قبض"}
+          </Badge>
+        );
+      },
     },
+
     {
       id: "actions",
       header: "",
