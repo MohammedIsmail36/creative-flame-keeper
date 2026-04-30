@@ -5,13 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,11 +46,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useQuery } from "@tanstack/react-query";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { StatusChips } from "@/components/StatusChips";
-import {
-  buildCategoryTree,
-  getDescendantIds,
-  CategoryNode,
-} from "@/lib/category-utils";
+import { buildCategoryTree, getDescendantIds, CategoryNode } from "@/lib/category-utils";
 
 interface ProductRow {
   id: string;
@@ -91,19 +81,14 @@ const fmtNum = (n: number) =>
 const fmtInt = (n: number) => Number(n || 0).toLocaleString("en-US");
 const formatCurrency = (val: number) => `${fmtNum(val)} EGP`;
 
-function renderCategoryOptions(
-  nodes: CategoryNode[],
-  depth = 0,
-): React.ReactNode[] {
+function renderCategoryOptions(nodes: CategoryNode[], depth = 0): React.ReactNode[] {
   const result: React.ReactNode[] = [];
   for (const node of nodes) {
     const prefix = depth > 0 ? "─ ".repeat(depth) : "";
     result.push(
       <SelectItem key={node.id} value={node.id}>
         <span className="flex items-center gap-1">
-          {depth > 0 && (
-            <ChevronLeft className="h-3 w-3 text-muted-foreground inline" />
-          )}
+          {depth > 0 && <ChevronLeft className="h-3 w-3 text-muted-foreground inline" />}
           {prefix}
           {node.name}
         </span>
@@ -121,9 +106,7 @@ export default function Products() {
 
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
-  const [statusFilter, setStatusFilter] = useState<
-    "active" | "inactive" | "all"
-  >("active");
+  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
 
@@ -152,9 +135,7 @@ export default function Products() {
   const { data: summary, refetch: refetchSummary } = useQuery({
     queryKey: ["products-summary"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc(
-        "get_products_summary" as any,
-      );
+      const { data, error } = await supabase.rpc("get_products_summary" as any);
       if (error) throw error;
       return data as any;
     },
@@ -172,10 +153,7 @@ export default function Products() {
     })();
   }, []);
 
-  const categoryTree = useMemo(
-    () => buildCategoryTree(categories),
-    [categories],
-  );
+  const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
 
   const matchingCategoryIds = useMemo(() => {
     if (categoryFilter === "all") return null;
@@ -183,9 +161,11 @@ export default function Products() {
   }, [categoryFilter, categoryTree]);
 
   // Paged products
-  const { data: pagedData, isLoading, refetch: refetchList } = usePagedQuery<
-    ProductRow
-  >(
+  const {
+    data: pagedData,
+    isLoading,
+    refetch: refetchList,
+  } = usePagedQuery<ProductRow>(
     [
       "products-list",
       pagination.pageIndex,
@@ -223,16 +203,9 @@ export default function Products() {
         const s = debouncedSearch.trim();
         // Look up brand IDs whose name matches the search term so we can
         // include products of those brands in the results.
-        const { data: brandRows } = await (supabase.from("product_brands") as any)
-          .select("id")
-          .ilike("name", `%${s}%`);
+        const { data: brandRows } = await (supabase.from("product_brands") as any).select("id").ilike("name", `%${s}%`);
         const brandIds: string[] = (brandRows || []).map((b: any) => b.id);
-        const orParts = [
-          `name.ilike.%${s}%`,
-          `code.ilike.%${s}%`,
-          `barcode.ilike.%${s}%`,
-          `model_number.ilike.%${s}%`,
-        ];
+        const orParts = [`name.ilike.%${s}%`, `code.ilike.%${s}%`, `barcode.ilike.%${s}%`, `model_number.ilike.%${s}%`];
         if (brandIds.length > 0) {
           orParts.push(`brand_id.in.(${brandIds.join(",")})`);
         }
@@ -250,10 +223,7 @@ export default function Products() {
       }
       let rows = (data || []) as ProductRow[];
       if (stockFilter === "low") {
-        rows = rows.filter(
-          (p) =>
-            p.quantity_on_hand > 0 && p.quantity_on_hand < p.min_stock_level,
-        );
+        rows = rows.filter((p) => p.quantity_on_hand > 0 && p.quantity_on_hand < p.min_stock_level);
       }
       return { rows, totalCount: count ?? 0 };
     },
@@ -279,11 +249,7 @@ export default function Products() {
         "inventory_adjustment_items",
       ];
       const results = await Promise.all(
-        tables.map((t) =>
-          (supabase.from(t as any) as any)
-            .select("product_id")
-            .in("product_id", productIds),
-        ),
+        tables.map((t) => (supabase.from(t as any) as any).select("product_id").in("product_id", productIds)),
       );
       const map: Record<string, number> = {};
       productIds.forEach((id) => (map[id] = 0));
@@ -313,10 +279,7 @@ export default function Products() {
       });
       return;
     }
-    const { error } = await supabase
-      .from("products")
-      .update({ is_active: newStatus })
-      .eq("id", product.id);
+    const { error } = await supabase.from("products").update({ is_active: newStatus }).eq("id", product.id);
     if (error) {
       toast({
         title: "خطأ",
@@ -326,9 +289,7 @@ export default function Products() {
     } else {
       toast({
         title: newStatus ? "تم التفعيل" : "تم التعطيل",
-        description: newStatus
-          ? "تم تفعيل المنتج بنجاح"
-          : "تم تعطيل المنتج بنجاح",
+        description: newStatus ? "تم تفعيل المنتج بنجاح" : "تم تعطيل المنتج بنجاح",
       });
       refetchList();
       refetchSummary();
@@ -340,11 +301,20 @@ export default function Products() {
     try {
       const checks = await Promise.all([
         supabase.from("sales_invoice_items").select("id", { count: "exact", head: true }).eq("product_id", product.id),
-        supabase.from("purchase_invoice_items").select("id", { count: "exact", head: true }).eq("product_id", product.id),
+        supabase
+          .from("purchase_invoice_items")
+          .select("id", { count: "exact", head: true })
+          .eq("product_id", product.id),
         supabase.from("sales_return_items").select("id", { count: "exact", head: true }).eq("product_id", product.id),
-        supabase.from("purchase_return_items").select("id", { count: "exact", head: true }).eq("product_id", product.id),
+        supabase
+          .from("purchase_return_items")
+          .select("id", { count: "exact", head: true })
+          .eq("product_id", product.id),
         supabase.from("inventory_movements").select("id", { count: "exact", head: true }).eq("product_id", product.id),
-        supabase.from("inventory_adjustment_items").select("id", { count: "exact", head: true }).eq("product_id", product.id),
+        supabase
+          .from("inventory_adjustment_items")
+          .select("id", { count: "exact", head: true })
+          .eq("product_id", product.id),
       ]);
       const totalUsage = checks.reduce((sum, r) => sum + (r.count || 0), 0);
       if (totalUsage > 0) {
@@ -379,10 +349,8 @@ export default function Products() {
     }
   };
 
-  const getCategoryName = (p: ProductRow) =>
-    (p as any).product_categories?.name || p.category || "-";
-  const getBrandName = (p: ProductRow) =>
-    (p as any).product_brands?.name || "-";
+  const getCategoryName = (p: ProductRow) => (p as any).product_categories?.name || p.category || "-";
+  const getBrandName = (p: ProductRow) => (p as any).product_brands?.name || "-";
 
   const getStockBadge = (product: ProductRow) => {
     if (product.quantity_on_hand <= 0)
@@ -405,9 +373,7 @@ export default function Products() {
   };
 
   // Lazy export with batching + progress
-  const fetchAllForExport = async (
-    onProgress?: (loaded: number, total: number) => void,
-  ): Promise<ProductRow[]> => {
+  const fetchAllForExport = async (onProgress?: (loaded: number, total: number) => void): Promise<ProductRow[]> => {
     const { fetchAllPaged } = await import("@/lib/paged-fetch");
     const rows = await fetchAllPaged<ProductRow>(
       () => {
@@ -429,10 +395,7 @@ export default function Products() {
     );
     let result = rows;
     if (stockFilter === "low") {
-      result = result.filter(
-        (p: any) =>
-          p.quantity_on_hand > 0 && p.quantity_on_hand < p.min_stock_level,
-      );
+      result = result.filter((p: any) => p.quantity_on_hand > 0 && p.quantity_on_hand < p.min_stock_level);
     }
     return result;
   };
@@ -459,17 +422,14 @@ export default function Products() {
     return out;
   }, [categories]);
 
-  const handlePrepareExport = async (
-    onProgress?: (loaded: number, total: number) => void,
-  ) => {
+  const handlePrepareExport = async (onProgress?: (loaded: number, total: number) => void) => {
     const all = await fetchAllForExport(onProgress);
     // Use the SAME column order/headers as the import template so the file is round-trippable
     const rows = all.map((p) => [
       p.code,
       p.name,
       p.description || "",
-      (p.category_id && categoryPathById.get(p.category_id)) ||
-        (getCategoryName(p) === "-" ? "" : getCategoryName(p)),
+      (p.category_id && categoryPathById.get(p.category_id)) || (getCategoryName(p) === "-" ? "" : getCategoryName(p)),
       (p as any).product_units?.name || p.unit || "",
       getBrandName(p) === "-" ? "" : getBrandName(p),
       p.model_number || "",
@@ -510,9 +470,7 @@ export default function Products() {
     () => [
       {
         id: "product_info",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="المنتج" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="المنتج" />,
         accessorKey: "name",
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
@@ -528,16 +486,10 @@ export default function Products() {
               </div>
             )}
             <div>
-              <p className="text-sm font-bold text-foreground">
-                {row.original.name}
-              </p>
+              <p className="text-sm font-bold text-foreground">{row.original.name}</p>
               <p className="text-xs text-muted-foreground">
-                {getBrandName(row.original) !== "-"
-                  ? getBrandName(row.original)
-                  : ""}
-                {row.original.model_number && getBrandName(row.original) !== "-"
-                  ? " - "
-                  : ""}
+                {getBrandName(row.original) !== "-" ? getBrandName(row.original) : ""}
+                {row.original.model_number && getBrandName(row.original) !== "-" ? " - " : ""}
                 {row.original.model_number || ""}
               </p>
             </div>
@@ -565,30 +517,18 @@ export default function Products() {
       {
         accessorKey: "code",
         meta: { hideOnMobile: true },
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="كود الصنف" />
-        ),
-        cell: ({ row }) => (
-          <span className="font-mono text-sm text-foreground">
-            {row.original.code}
-          </span>
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="كود الصنف" />,
+        cell: ({ row }) => <span className="font-mono text-sm text-foreground">{row.original.code}</span>,
       },
       {
         id: "category",
         meta: { hideOnMobile: true },
         header: "التصنيف",
-        cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
-            {getCategoryName(row.original)}
-          </span>
-        ),
+        cell: ({ row }) => <span className="text-sm text-muted-foreground">{getCategoryName(row.original)}</span>,
       },
       {
         accessorKey: "selling_price",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="سعر الوحدة" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="سعر الوحدة" />,
         cell: ({ row }) => (
           <span className="text-sm font-bold text-foreground font-mono">
             {formatCurrency(row.original.selling_price)}
@@ -597,13 +537,10 @@ export default function Products() {
       },
       {
         accessorKey: "quantity_on_hand",
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="الكمية" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="الكمية" />,
         cell: ({ row }) => (
           <span className="text-sm text-foreground font-mono">
-            {fmtInt(row.original.quantity_on_hand)}{" "}
-            {row.original.product_units?.name || row.original.unit || "وحدة"}
+            {fmtInt(row.original.quantity_on_hand)} {row.original.product_units?.name || row.original.unit || "وحدة"}
           </span>
         ),
       },
@@ -622,37 +559,24 @@ export default function Products() {
           const canHardDelete = canEdit && usage === 0 && qty === 0;
           // التعطيل/التفعيل: يُسمح فقط إذا كان للمنتج حركات (لا يمكن حذفه) والمخزون = صفر،
           // أو إذا كان المنتج معطّلاً بالفعل (للسماح بإعادة التفعيل)
-          const canToggle =
-            canEdit &&
-            ((!row.original.is_active) || (usage > 0 && qty === 0));
+          const canToggle = canEdit && (!row.original.is_active || (usage > 0 && qty === 0));
           return (
-            <div
-              className="flex items-center gap-1"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
               {canToggle && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label={
-                        row.original.is_active ? "أرشفة المنتج" : "تفعيل المنتج"
-                      }
+                      aria-label={row.original.is_active ? "أرشفة المنتج" : "تفعيل المنتج"}
                       className={`h-8 w-8 ${row.original.is_active ? "text-muted-foreground hover:text-destructive hover:bg-destructive/5" : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"}`}
                     >
-                      {row.original.is_active ? (
-                        <Archive className="h-4 w-4" />
-                      ) : (
-                        <CheckCircle2 className="h-4 w-4" />
-                      )}
+                      {row.original.is_active ? <Archive className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent dir="rtl">
                     <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        {row.original.is_active ? "تعطيل المنتج" : "تفعيل المنتج"}
-                      </AlertDialogTitle>
+                      <AlertDialogTitle>{row.original.is_active ? "تعطيل المنتج" : "تفعيل المنتج"}</AlertDialogTitle>
                       <AlertDialogDescription>
                         {row.original.is_active
                           ? `هل تريد تعطيل منتج "${row.original.name}"؟`
@@ -691,8 +615,8 @@ export default function Products() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>حذف المنتج نهائياً</AlertDialogTitle>
                       <AlertDialogDescription>
-                        سيتم حذف المنتج "{row.original.name}" نهائياً من قاعدة
-                        البيانات. هذا الإجراء لا يمكن التراجع عنه.
+                        سيتم حذف المنتج "{row.original.name}" نهائياً من قاعدة البيانات. هذا الإجراء لا يمكن التراجع
+                        عنه.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="flex-row-reverse gap-2">
@@ -707,9 +631,7 @@ export default function Products() {
                   </AlertDialogContent>
                 </AlertDialog>
               )}
-              {!canToggle && !canHardDelete && (
-                <span className="text-xs text-muted-foreground px-2">—</span>
-              )}
+              {!canToggle && !canHardDelete && <span className="text-xs text-muted-foreground px-2">—</span>}
             </div>
           );
         },
@@ -776,11 +698,7 @@ export default function Products() {
     },
   ];
 
-  const hasFilters =
-    categoryFilter !== "all" ||
-    stockFilter !== "all" ||
-    statusFilter !== "active" ||
-    search.trim();
+  const hasFilters = categoryFilter !== "all" || stockFilter !== "all" || statusFilter !== "active" || search.trim();
   const clearFilters = () => {
     setCategoryFilter("all");
     setStockFilter("all");
@@ -798,19 +716,11 @@ export default function Products() {
           <>
             {canEdit && (
               <>
-                <Button
-                  variant="outline"
-                  className="gap-2 shadow-sm"
-                  onClick={() => navigate("/products/import")}
-                >
+                <Button variant="outline" className="gap-2 shadow-sm" onClick={() => navigate("/products/import")}>
                   <Upload className="h-4 w-4" />
                   استيراد البيانات
                 </Button>
-                <ExportMenu
-                  config={exportConfig}
-                  disabled={isLoading}
-                  onOpen={handlePrepareExport}
-                />
+                <ExportMenu config={exportConfig} disabled={isLoading} onOpen={handlePrepareExport} />
                 <Button
                   className="gap-2 shadow-md shadow-primary/20 font-bold"
                   onClick={() => navigate("/products/new")}
@@ -820,13 +730,7 @@ export default function Products() {
                 </Button>
               </>
             )}
-            {!canEdit && (
-              <ExportMenu
-                config={exportConfig}
-                disabled={isLoading}
-                onOpen={handlePrepareExport}
-              />
-            )}
+            {!canEdit && <ExportMenu config={exportConfig} disabled={isLoading} onOpen={handlePrepareExport} />}
           </>
         }
       />
@@ -834,36 +738,25 @@ export default function Products() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {kpiCards.map(({ label, value, icon: Icon, color }) => (
-          <div
-            key={label}
-            className="rounded-xl border p-4 bg-card transition-all hover:shadow-md"
-          >
+          <div key={label} className="rounded-xl border p-4 bg-card transition-all hover:shadow-md">
             <div className="flex items-center justify-between mb-2">
-              <div
-                className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}
-              >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xl font-black text-foreground font-mono">
-                {value}
-              </span>
+              <span className="text-xl font-black text-foreground font-mono">{value}</span>
             </div>
             <p className="text-xs text-muted-foreground">{label}</p>
           </div>
         ))}
       </div>
 
-      <StatusChips
-        chips={statusChips}
-        active={statusFilter}
-        onSelect={(f) => setStatusFilter(f as any)}
-      />
+      <StatusChips chips={statusChips} active={statusFilter} onSelect={(f) => setStatusFilter(f as any)} />
 
       {(() => {
         const filtersBar = (
           <div className="flex gap-3 flex-wrap items-center">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-48 bg-card border-border h-9 text-sm">
+              <SelectTrigger className="bg-card border-border h-9 text-sm">
                 <SelectValue placeholder="كافة التصنيفات" />
               </SelectTrigger>
               <SelectContent>
@@ -871,10 +764,7 @@ export default function Products() {
                 {renderCategoryOptions(categoryTree)}
               </SelectContent>
             </Select>
-            <Select
-              value={stockFilter}
-              onValueChange={(v) => setStockFilter(v as any)}
-            >
+            <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as any)}>
               <SelectTrigger className="w-40 bg-card border-border h-9 text-sm">
                 <SelectValue />
               </SelectTrigger>
