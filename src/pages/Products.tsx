@@ -40,7 +40,13 @@ import {
   DollarSign,
   X,
   Trash2,
+  List,
+  LayoutGrid,
+  Search,
 } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Input } from "@/components/ui/input";
+import { ProductsGrid } from "@/components/products/ProductsGrid";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useQuery } from "@tanstack/react-query";
