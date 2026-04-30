@@ -579,27 +579,14 @@ export default function SupplierPayments() {
       ),
     },
     {
-      id: "type",
-      header: "النوع",
-      cell: ({ row }) => {
-        const isRefund = row.original.isRefund;
-        return (
-          <Badge variant={isRefund ? "default" : "destructive"} className="gap-1">
-            {isRefund ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
-            {isRefund ? "مبلغ مسترد" : "سداد"}
-          </Badge>
-        );
-      },
+      accessorKey: "payment_date",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.payment_date}</span>,
     },
     {
       accessorKey: "supplier_name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="المورد" />,
       cell: ({ row }) => <span className="font-medium">{row.original.supplier_name || "—"}</span>,
-    },
-    {
-      accessorKey: "payment_date",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.payment_date}</span>,
     },
     {
       accessorKey: "amount",
@@ -620,6 +607,14 @@ export default function SupplierPayments() {
         <Badge variant="outline">{methodLabels[row.original.payment_method] || row.original.payment_method}</Badge>
       ),
     },
+
+    {
+      accessorKey: "reference",
+      meta: { hideOnMobile: true },
+      header: "المرجع",
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.reference || "—"}</span>,
+    },
+
     {
       accessorKey: "status",
       header: "الحالة",
@@ -629,15 +624,24 @@ export default function SupplierPayments() {
         </Badge>
       ),
     },
+
     {
-      accessorKey: "reference",
-      meta: { hideOnMobile: true },
-      header: "المرجع",
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.reference || "—"}</span>,
+      id: "type",
+      header: "النوع",
+      cell: ({ row }) => {
+        const isRefund = row.original.isRefund;
+        return (
+          <Badge variant={isRefund ? "default" : "destructive"} className="gap-1">
+            {isRefund ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
+            {isRefund ? "مبلغ مسترد" : "سداد"}
+          </Badge>
+        );
+      },
     },
+
     {
       id: "actions",
-      header: "",
+      header: "الإجراء",
       cell: ({ row }) => {
         const p = row.original;
         if (!canEdit) return null;
