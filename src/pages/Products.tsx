@@ -137,6 +137,16 @@ export default function Products() {
   >([]);
 
   const canEdit = role === "admin" || role === "accountant";
+  const isAdmin = role === "admin";
+
+  const [viewMode, setViewMode] = useState<"list" | "grid">(() => {
+    if (typeof window === "undefined") return "list";
+    const v = window.localStorage.getItem("products-view-mode");
+    return v === "grid" ? "grid" : "list";
+  });
+  React.useEffect(() => {
+    window.localStorage.setItem("products-view-mode", viewMode);
+  }, [viewMode]);
 
   // KPI Summary (RPC)
   const { data: summary, refetch: refetchSummary } = useQuery({
