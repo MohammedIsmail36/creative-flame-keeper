@@ -205,9 +205,22 @@ export default function Products() {
 
       if (debouncedSearch.trim()) {
         const s = debouncedSearch.trim();
-        q = q.or(
-          `name.ilike.%${s}%,code.ilike.%${s}%,barcode.ilike.%${s}%,model_number.ilike.%${s}%`,
-        );
+        // Look up brand IDs whose name matches the search term so we can
+        // include products of those brands in the results.
+        const { data: brandRows } = await (supabase.from("product_brands") as any)
+          .select("id")
+          .ilike("name", `%${s}%`);
+        const brandIds: string[] = (brandRows || []).map((b: any) => b.id);
+        const orParts = [
+          `name.ilike.%${s}%`,
+          `code.ilike.%${s}%`,
+          `barcode.ilike.%${s}%`,
+          `model_number.ilike.%${s}%`,
+        ];
+        if (brandIds.length > 0) {
+          orParts.push(`brand_id.in.(${brandIds.join(",")})`);
+        }
+        q = q.or(orParts.join(","));
       }
 
       const { data, error, count } = await q;
