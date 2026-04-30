@@ -859,22 +859,8 @@ export default function Products() {
         onSelect={(f) => setStatusFilter(f as any)}
       />
 
-      <DataTable
-        columns={columns}
-        data={products}
-        searchPlaceholder="بحث بالاسم، الكود، الماركة، الباركود، أو الموديل..."
-        isLoading={isLoading}
-        emptyMessage="لا توجد منتجات"
-        onRowClick={(p) => navigate(`/products/${p.id}`)}
-        globalFilter={search}
-        onGlobalFilterChange={setSearch}
-        manualPagination
-        pageCount={pageCount}
-        totalRows={totalCount}
-        pagination={pagination}
-        onPaginationChange={setPagination}
-        pageSize={PAGE_SIZE}
-        toolbarContent={
+      {(() => {
+        const filtersBar = (
           <div className="flex gap-3 flex-wrap items-center">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-48 bg-card border-border h-9 text-sm">
@@ -909,6 +895,90 @@ export default function Products() {
                 مسح الفلاتر
               </Button>
             )}
+            <div className="ms-auto">
+              <ToggleGroup
+                type="single"
+                value={viewMode}
+                onValueChange={(v) => v && setViewMode(v as "list" | "grid")}
+                className="border rounded-lg p-0.5 bg-card"
+              >
+                <ToggleGroupItem
+                  value="list"
+                  size="sm"
+                  className="h-8 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                  aria-label="عرض قائمة"
+                >
+                  <List className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="grid"
+                  size="sm"
+                  className="h-8 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                  aria-label="عرض شبكي"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          </div>
+        );
+
+        if (viewMode === "list") {
+          return (
+            <DataTable
+              columns={columns}
+              data={products}
+              searchPlaceholder="بحث بالاسم، الكود، الماركة، الباركود، أو الموديل..."
+              isLoading={isLoading}
+              emptyMessage="لا توجد منتجات"
+              onRowClick={(p) => navigate(`/products/${p.id}`)}
+              globalFilter={search}
+              onGlobalFilterChange={setSearch}
+              manualPagination
+              pageCount={pageCount}
+              totalRows={totalCount}
+              pagination={pagination}
+              onPaginationChange={setPagination}
+              pageSize={PAGE_SIZE}
+              toolbarContent={filtersBar}
+            />
+          );
+        }
+
+        // Grid view
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center gap-3">
+              <div className="relative md:w-72">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="بحث بالاسم، الكود، الماركة..."
+                  className="pr-9 h-9 text-sm bg-card"
+                />
+              </div>
+              <div className="flex-1">{filtersBar}</div>
+            </div>
+
+            <ProductsGrid
+              products={products as any}
+              isLoading={isLoading}
+              usageMap={usageMap as Record<string, number>}
+              canEdit={canEdit}
+              isAdmin={isAdmin}
+              onView={(p) => navigate(`/products/${p.id}`)}
+              onEdit={(p) => navigate(`/products/${p.id}/edit`)}
+              onToggleStatus={(p) => toggleProductStatus(p as any)}
+              onDelete={(p) => hardDeleteProduct(p as any)}
+              pagination={pagination}
+              onPaginationChange={setPagination}
+              pageCount={pageCount}
+              totalRows={totalCount}
+            />
+          </div>
+        );
+      })()}
           </div>
         }
       />
