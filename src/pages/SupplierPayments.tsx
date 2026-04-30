@@ -631,9 +631,9 @@ export default function SupplierPayments() {
       cell: ({ row }) => {
         const isRefund = row.original.isRefund;
         return (
-          <Badge variant={isRefund ? "default" : "destructive"} className="gap-1">
+          <Badge variant={isRefund ? "destructive" : "default"} className="gap-1">
             {isRefund ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
-            {isRefund ? "مبلغ مسترد" : "سداد"}
+            {isRefund ? "رد" : "سداد"}
           </Badge>
         );
       },
