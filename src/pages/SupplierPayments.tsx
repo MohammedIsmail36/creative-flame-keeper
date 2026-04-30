@@ -169,14 +169,7 @@ export default function SupplierPayments() {
     if (!supplierId) errors.supplier = "يرجى اختيار المورد";
     if (amount <= 0) errors.amount = "يرجى إدخال مبلغ صحيح";
     setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      // toast({
-      //   title: "تنبيه",
-      //   description: Object.values(errors)[0],
-      //   variant: "destructive",
-      // });
-      return;
-    }
+    if (Object.keys(errors).length > 0) return;
     setSaving(true);
     try {
       const data = {
@@ -214,14 +207,7 @@ export default function SupplierPayments() {
     if (!supplierId) errors.supplier = "يرجى اختيار المورد";
     if (amount <= 0) errors.amount = "يرجى إدخال مبلغ صحيح";
     setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      // toast({
-      //   title: "تنبيه",
-      //   description: Object.values(errors)[0],
-      //   variant: "destructive",
-      // });
-      return;
-    }
+    if (Object.keys(errors).length > 0) return;
     setSaving(true);
     try {
       if (editTarget) {
