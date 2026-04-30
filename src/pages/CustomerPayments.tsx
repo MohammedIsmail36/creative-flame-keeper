@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import {
-  getNextPostedNumber,
-  formatDisplayNumber,
-} from "@/lib/posted-number-utils";
+import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -14,20 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { FormFieldError } from "@/components/FormFieldError";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,15 +40,8 @@ import {
 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
-import {
-  ACCOUNT_CODES,
-  INVOICE_STATUS_LABELS,
-  INVOICE_STATUS_COLORS,
-} from "@/lib/constants";
-import {
-  recalculateEntityBalance,
-  recalculateInvoicePaidAmount,
-} from "@/lib/entity-balance";
+import { ACCOUNT_CODES, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { recalculateEntityBalance, recalculateInvoicePaidAmount } from "@/lib/entity-balance";
 
 interface Customer {
   id: string;
@@ -109,9 +87,7 @@ export default function CustomerPayments() {
 
   const [customerId, setCustomerId] = useState("");
   const [amount, setAmount] = useState(0);
-  const [paymentDate, setPaymentDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
@@ -130,9 +106,7 @@ export default function CustomerPayments() {
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
   const [postTarget, setPostTarget] = useState<Payment | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Payment | null>(null);
-  const [editPostedTarget, setEditPostedTarget] = useState<Payment | null>(
-    null,
-  );
+  const [editPostedTarget, setEditPostedTarget] = useState<Payment | null>(null);
 
   useEffect(() => {
     fetchAll();
@@ -142,10 +116,7 @@ export default function CustomerPayments() {
     setLoading(true);
     const { fetchAllPaged } = await import("@/lib/paged-fetch");
     const [custRes, payments] = await Promise.all([
-      (supabase.from("customers" as any) as any)
-        .select("id, code, name, balance")
-        .eq("is_active", true)
-        .order("name"),
+      (supabase.from("customers" as any) as any).select("id, code, name, balance").eq("is_active", true).order("name"),
       fetchAllPaged<any>(
         () =>
           (supabase.from("customer_payments") as any)
@@ -161,9 +132,7 @@ export default function CustomerPayments() {
     }));
 
     // Identify refund payments (linked to sales returns)
-    const postedIds = rawPayments
-      .filter((p: any) => p.status === "posted")
-      .map((p: any) => p.id);
+    const postedIds = rawPayments.filter((p: any) => p.status === "posted").map((p: any) => p.id);
     let refundIds = new Set<string>();
     if (postedIds.length > 0) {
       const { data: returnAllocs } = await supabase
@@ -172,16 +141,13 @@ export default function CustomerPayments() {
         .in("payment_id", postedIds);
       refundIds = new Set((returnAllocs || []).map((a: any) => a.payment_id));
     }
-    setPayments(
-      rawPayments.map((p: any) => ({ ...p, isRefund: refundIds.has(p.id) })),
-    );
+    setPayments(rawPayments.map((p: any) => ({ ...p, isRefund: refundIds.has(p.id) })));
     setLoading(false);
   }
 
   const filtered = useMemo(() => {
     return payments.filter((p) => {
-      if (methodFilter !== "all" && p.payment_method !== methodFilter)
-        return false;
+      if (methodFilter !== "all" && p.payment_method !== methodFilter) return false;
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
       if (dateFrom && p.payment_date < dateFrom) return false;
       if (dateTo && p.payment_date > dateTo) return false;
@@ -189,8 +155,7 @@ export default function CustomerPayments() {
     });
   }, [payments, methodFilter, statusFilter, dateFrom, dateTo]);
 
-  const hasFilters =
-    methodFilter !== "all" || statusFilter !== "all" || dateFrom || dateTo;
+  const hasFilters = methodFilter !== "all" || statusFilter !== "all" || dateFrom || dateTo;
   const clearFilters = () => {
     setMethodFilter("all");
     setStatusFilter("all");
@@ -236,9 +201,7 @@ export default function CustomerPayments() {
         status: "draft",
       };
       if (editTarget) {
-        await (supabase.from("customer_payments" as any) as any)
-          .update(data)
-          .eq("id", editTarget.id);
+        await (supabase.from("customer_payments" as any) as any).update(data).eq("id", editTarget.id);
         toast({ title: "تم التحديث", description: "تم تحديث المسودة بنجاح" });
       } else {
         await (supabase.from("customer_payments" as any) as any).insert(data);
@@ -336,34 +299,24 @@ export default function CustomerPayments() {
     reuseJournalPostedNum?: number | null,
   ) {
     if (settings?.locked_until_date && date <= settings.locked_until_date) {
-      throw new Error(
-        `لا يمكن تسجيل دفعة بتاريخ ${date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-      );
+      throw new Error(`لا يمكن تسجيل دفعة بتاريخ ${date} — الفترة مقفلة حتى ${settings.locked_until_date}`);
     }
-    const accountCode =
-      method === "cash" ? ACCOUNT_CODES.CASH : ACCOUNT_CODES.BANK;
+    const accountCode = method === "cash" ? ACCOUNT_CODES.CASH : ACCOUNT_CODES.BANK;
     const { data: accounts } = await supabase
       .from("accounts")
       .select("id, code")
       .in("code", [ACCOUNT_CODES.CUSTOMERS, accountCode]);
-    const customersAcc = accounts?.find(
-      (a) => a.code === ACCOUNT_CODES.CUSTOMERS,
-    );
+    const customersAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.CUSTOMERS);
     const cashBankAcc = accounts?.find((a) => a.code === accountCode);
-    if (!customersAcc || !cashBankAcc)
-      throw new Error("تأكد من وجود حسابات العملاء والصندوق/البنك");
+    if (!customersAcc || !cashBankAcc) throw new Error("تأكد من وجود حسابات العملاء والصندوق/البنك");
 
-    const paymentPostedNum = reusePostedNum
-      ? reusePostedNum
-      : await getNextPostedNumber("customer_payments");
+    const paymentPostedNum = reusePostedNum ? reusePostedNum : await getNextPostedNumber("customer_payments");
     const payPrefix = settings?.customer_payment_prefix || "CPY-";
     const displayPayNum = `${payPrefix}${String(paymentPostedNum).padStart(4, "0")}`;
     const customerName = customers.find((c) => c.id === custId)?.name || "";
     const desc = `سند قبض رقم ${displayPayNum} - تحصيل من عميل ${customerName}`;
 
-    const jePostedNum = reuseJournalPostedNum
-      ? reuseJournalPostedNum
-      : await getNextPostedNumber("journal_entries");
+    const jePostedNum = reuseJournalPostedNum ? reuseJournalPostedNum : await getNextPostedNumber("journal_entries");
     const { data: je, error: jeError } = await supabase
       .from("journal_entries")
       .insert({
@@ -455,9 +408,7 @@ export default function CustomerPayments() {
     if (!deleteTarget || saving) return;
     setSaving(true);
     try {
-      await (supabase.from("customer_payments" as any) as any)
-        .delete()
-        .eq("id", deleteTarget.id);
+      await (supabase.from("customer_payments" as any) as any).delete().eq("id", deleteTarget.id);
       toast({
         title: "تم الحذف",
         description: `تم حذف الدفعة #${deleteTarget.payment_number}`,
@@ -481,17 +432,13 @@ export default function CustomerPayments() {
     setSaving(true);
     try {
       // 1. Get all invoice allocations for this payment
-      const { data: allocations } = await (
-        supabase.from("customer_payment_allocations" as any) as any
-      )
+      const { data: allocations } = await (supabase.from("customer_payment_allocations" as any) as any)
         .select("id, invoice_id, allocated_amount")
         .eq("payment_id", cancelTarget.id);
 
       // 2. Delete invoice allocations
       if (allocations && allocations.length > 0) {
-        await (supabase.from("customer_payment_allocations" as any) as any)
-          .delete()
-          .eq("payment_id", cancelTarget.id);
+        await (supabase.from("customer_payment_allocations" as any) as any).delete().eq("payment_id", cancelTarget.id);
       }
 
       // 3. Delete return payment allocations (refund linkages)
@@ -501,15 +448,10 @@ export default function CustomerPayments() {
 
       // 4. Reverse journal entry status to cancelled
       if (cancelTarget.journal_entry_id) {
-        const { error: jeError } = await (
-          supabase.from("journal_entries") as any
-        )
+        const { error: jeError } = await (supabase.from("journal_entries") as any)
           .update({ status: "cancelled" })
           .eq("id", cancelTarget.journal_entry_id);
-        if (jeError)
-          throw new Error(
-            "فشل في تحديث حالة القيد المحاسبي: " + jeError.message,
-          );
+        if (jeError) throw new Error("فشل في تحديث حالة القيد المحاسبي: " + jeError.message);
       }
 
       // 5. CRITICAL: Update payment status to cancelled BEFORE recalculating
@@ -522,9 +464,7 @@ export default function CustomerPayments() {
       if (allocations && allocations.length > 0) {
         const affectedInvoiceIds = (allocations || [])
           .map((a: any) => String(a.invoice_id))
-          .filter(
-            (v: string, i: number, arr: string[]) => arr.indexOf(v) === i,
-          );
+          .filter((v: string, i: number, arr: string[]) => arr.indexOf(v) === i);
         for (const invoiceId of affectedInvoiceIds) {
           await recalculateInvoicePaidAmount("sales", invoiceId);
         }
@@ -554,10 +494,7 @@ export default function CustomerPayments() {
   async function handleConfirmEditPosted() {
     if (!editPostedTarget || saving) return;
     const target = editPostedTarget;
-    if (
-      settings?.locked_until_date &&
-      target.payment_date <= settings.locked_until_date
-    ) {
+    if (settings?.locked_until_date && target.payment_date <= settings.locked_until_date) {
       toast({
         title: "غير مسموح",
         description: `لا يمكن تعديل سند بتاريخ ${target.payment_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
@@ -568,8 +505,7 @@ export default function CustomerPayments() {
     if (target.isRefund) {
       toast({
         title: "غير مسموح",
-        description:
-          "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.",
+        description: "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.",
         variant: "destructive",
       });
       return;
@@ -589,9 +525,7 @@ export default function CustomerPayments() {
       }
 
       // Capture invoice IDs to refresh paid_amount after re-posting
-      const { data: allocs } = await (
-        supabase.from("customer_payment_allocations" as any) as any
-      )
+      const { data: allocs } = await (supabase.from("customer_payment_allocations" as any) as any)
         .select("invoice_id")
         .eq("payment_id", target.id);
       const affectedInvoiceIds = ((allocs as any[]) || [])
@@ -599,20 +533,12 @@ export default function CustomerPayments() {
         .filter((v, i, arr) => arr.indexOf(v) === i);
 
       // Delete invoice allocations
-      await (supabase.from("customer_payment_allocations" as any) as any)
-        .delete()
-        .eq("payment_id", target.id);
+      await (supabase.from("customer_payment_allocations" as any) as any).delete().eq("payment_id", target.id);
 
       // Delete the journal entry (lines first, then header)
       if (target.journal_entry_id) {
-        await supabase
-          .from("journal_entry_lines")
-          .delete()
-          .eq("journal_entry_id", target.journal_entry_id);
-        await supabase
-          .from("journal_entries")
-          .delete()
-          .eq("id", target.journal_entry_id);
+        await supabase.from("journal_entry_lines").delete().eq("journal_entry_id", target.journal_entry_id);
+        await supabase.from("journal_entries").delete().eq("id", target.journal_entry_id);
       }
 
       // Revert payment to draft (KEEP posted_number for re-use)
@@ -672,17 +598,10 @@ export default function CustomerPayments() {
   const columns: ColumnDef<Payment, any>[] = [
     {
       accessorKey: "payment_number",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="#" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="#" />,
       cell: ({ row }) => (
         <span className="font-mono">
-          {formatDisplayNumber(
-            prefix,
-            row.original.posted_number,
-            row.original.payment_number,
-            row.original.status,
-          )}
+          {formatDisplayNumber(prefix, row.original.posted_number, row.original.payment_number, row.original.status)}
         </span>
       ),
     },
@@ -692,15 +611,8 @@ export default function CustomerPayments() {
       cell: ({ row }) => {
         const isRefund = row.original.isRefund;
         return (
-          <Badge
-            variant={isRefund ? "destructive" : "default"}
-            className="gap-1"
-          >
-            {isRefund ? (
-              <ArrowUpRight className="h-3 w-3" />
-            ) : (
-              <ArrowDownLeft className="h-3 w-3" />
-            )}
+          <Badge variant={isRefund ? "destructive" : "default"} className="gap-1">
+            {isRefund ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownLeft className="h-3 w-3" />}
             {isRefund ? "رد مبلغ" : "تحصيل"}
           </Badge>
         );
@@ -708,29 +620,17 @@ export default function CustomerPayments() {
     },
     {
       accessorKey: "customer_name",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="العميل" />
-      ),
-      cell: ({ row }) => (
-        <span className="font-medium">{row.original.customer_name || "—"}</span>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="العميل" />,
+      cell: ({ row }) => <span className="font-medium">{row.original.customer_name || "—"}</span>,
     },
     {
       accessorKey: "payment_date",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="التاريخ" />
-      ),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.payment_date}
-        </span>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="التاريخ" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.payment_date}</span>,
     },
     {
       accessorKey: "amount",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="المبلغ" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="المبلغ" />,
       cell: ({ row }) => (
         <span className="font-mono font-semibold">
           {row.original.amount.toLocaleString("en-US", {
@@ -744,10 +644,7 @@ export default function CustomerPayments() {
       meta: { hideOnMobile: true },
       header: "طريقة الدفع",
       cell: ({ row }) => (
-        <Badge variant="outline">
-          {methodLabels[row.original.payment_method] ||
-            row.original.payment_method}
-        </Badge>
+        <Badge variant="outline">{methodLabels[row.original.payment_method] || row.original.payment_method}</Badge>
       ),
     },
     {
@@ -763,11 +660,7 @@ export default function CustomerPayments() {
       accessorKey: "reference",
       meta: { hideOnMobile: true },
       header: "المرجع",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.reference || "—"}
-        </span>
-      ),
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.reference || "—"}</span>,
     },
     {
       id: "actions",
@@ -778,21 +671,11 @@ export default function CustomerPayments() {
           <div className="flex items-center gap-1">
             {p.status === "draft" && (
               <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEditDialog(p)}
-                  className="gap-1 text-xs h-7 px-2"
-                >
+                <Button variant="ghost" size="sm" onClick={() => openEditDialog(p)} className="gap-1 text-xs h-7 px-2">
                   <Pencil className="h-3.5 w-3.5" />
                   تعديل
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPostTarget(p)}
-                  className="gap-1 text-xs h-7 px-2"
-                >
+                <Button variant="ghost" size="sm" onClick={() => setPostTarget(p)} className="gap-1 text-xs h-7 px-2">
                   <CheckCircle className="h-3.5 w-3.5" />
                   ترحيل
                 </Button>
@@ -852,141 +735,109 @@ export default function CustomerPayments() {
         }
       />
       <Dialog
-          open={dialogOpen}
-          onOpenChange={(v) => {
-            setDialogOpen(v);
-            if (!v) resetForm();
-          }}
-        >
-          <DialogContent className="max-w-md" dir="rtl">
-            <DialogHeader>
-              <DialogTitle>
-                {editTarget
-                  ? `تعديل الدفعة #${editTarget.payment_number}`
-                  : "تسجيل سداد عميل"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>
-                  العميل <span className="text-red-500">*</span>
-                </Label>
-                <LookupCombobox
-                  items={customers}
-                  value={customerId}
-                  onValueChange={(v) => {
-                    setCustomerId(v);
-                    setFieldErrors((e) => {
-                      const { customer, ...rest } = e;
-                      return rest;
-                    });
-                  }}
-                  placeholder="اختر العميل"
-                  error={!!fieldErrors.customer}
-                />
-                <FormFieldError message={fieldErrors.customer} />
-                {customerId && (
-                  <p className="text-xs text-muted-foreground">
-                    الرصيد:{" "}
-                    {customers
-                      .find((c) => c.id === customerId)
-                      ?.balance?.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                      })}{" "}
-                    EGP
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  المبلغ <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={amount}
-                  onChange={(e) => {
-                    setAmount(+e.target.value);
-                    setFieldErrors((er) => {
-                      const { amount, ...rest } = er;
-                      return rest;
-                    });
-                  }}
-                  className="font-mono"
-                  error={!!fieldErrors.amount}
-                />
-                <FormFieldError message={fieldErrors.amount} />
-              </div>
-              <div className="space-y-2">
-                <Label>التاريخ</Label>
-                <DatePickerInput
-                  value={paymentDate}
-                  onChange={setPaymentDate}
-                  placeholder="اختر التاريخ"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>طريقة الدفع</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">نقدي</SelectItem>
-                    <SelectItem value="bank">تحويل بنكي</SelectItem>
-                    <SelectItem value="check">شيك</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>مرجع</Label>
-                <Input
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                  placeholder="رقم إيصال أو شيك"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>ملاحظات</Label>
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleSaveDraft}
-                  disabled={saving}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  {saving && <Loader2 className="h-4 w-4 ml-1 animate-spin" />}
-                  {saving
-                    ? "جاري الحفظ..."
-                    : editTarget
-                      ? "تحديث المسودة"
-                      : "حفظ كمسودة"}
-                </Button>
-                <Button
-                  onClick={handleSubmitPosted}
-                  disabled={saving}
-                  className="flex-1"
-                >
-                  {saving && <Loader2 className="h-4 w-4 ml-1 animate-spin" />}
-                  {saving
-                    ? "جاري الحفظ..."
-                    : editTarget
-                      ? "تحديث وترحيل"
-                      : "حفظ وترحيل"}
-                </Button>
-              </div>
+        open={dialogOpen}
+        onOpenChange={(v) => {
+          setDialogOpen(v);
+          if (!v) resetForm();
+        }}
+      >
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>{editTarget ? `تعديل الدفعة #${editTarget.payment_number}` : "تسجيل سداد عميل"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>
+                العميل <span className="text-red-500">*</span>
+              </Label>
+              <LookupCombobox
+                items={customers}
+                value={customerId}
+                onValueChange={(v) => {
+                  setCustomerId(v);
+                  setFieldErrors((e) => {
+                    const { customer, ...rest } = e;
+                    return rest;
+                  });
+                }}
+                placeholder="اختر العميل"
+                error={!!fieldErrors.customer}
+              />
+              <FormFieldError message={fieldErrors.customer} />
+              {customerId && (
+                <p className="text-xs text-muted-foreground">
+                  الرصيد:{" "}
+                  {customers
+                    .find((c) => c.id === customerId)
+                    ?.balance?.toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                    })}{" "}
+                  EGP
+                </p>
+              )}
             </div>
-          </DialogContent>
-        </Dialog>
+            <div className="space-y-2">
+              <Label>
+                المبلغ <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={amount}
+                onChange={(e) => {
+                  setAmount(+e.target.value);
+                  setFieldErrors((er) => {
+                    const { amount, ...rest } = er;
+                    return rest;
+                  });
+                }}
+                className="font-mono"
+                error={!!fieldErrors.amount}
+              />
+              <FormFieldError message={fieldErrors.amount} />
+            </div>
+            <div className="space-y-2">
+              <Label>التاريخ</Label>
+              <DatePickerInput value={paymentDate} onChange={setPaymentDate} placeholder="اختر التاريخ" />
+            </div>
+            <div className="space-y-2">
+              <Label>طريقة الدفع</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">نقدي</SelectItem>
+                  <SelectItem value="bank">تحويل بنكي</SelectItem>
+                  <SelectItem value="check">شيك</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>مرجع</Label>
+              <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="رقم إيصال أو شيك" />
+            </div>
+            <div className="space-y-2">
+              <Label>ملاحظات</Label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSaveDraft} disabled={saving} variant="outline" className="flex-1">
+                {saving && <Loader2 className="h-4 w-4 ml-1 animate-spin" />}
+                {saving ? "جاري الحفظ..." : editTarget ? "تحديث المسودة" : "حفظ كمسودة"}
+              </Button>
+              <Button onClick={handleSubmitPosted} disabled={saving} className="flex-1">
+                {saving && <Loader2 className="h-4 w-4 ml-1 animate-spin" />}
+                {saving ? "جاري الحفظ..." : editTarget ? "تحديث وترحيل" : "حفظ وترحيل"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <DataTable
+        compactRows
         columns={columns}
         data={filtered}
         searchPlaceholder="بحث..."
@@ -1044,14 +895,7 @@ export default function CustomerPayments() {
                 filenamePrefix: "مدفوعات-العملاء",
                 sheetName: "مدفوعات العملاء",
                 pdfTitle: "مدفوعات العملاء",
-                headers: [
-                  "#",
-                  "العميل",
-                  "التاريخ",
-                  "المبلغ",
-                  "الطريقة",
-                  "الحالة",
-                ],
+                headers: ["#", "العميل", "التاريخ", "المبلغ", "الطريقة", "الحالة"],
                 rows: filtered.map((p) => [
                   p.payment_number,
                   p.customer_name || "—",
@@ -1070,15 +914,10 @@ export default function CustomerPayments() {
       />
 
       {/* Delete confirmation */}
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={() => setDeleteTarget(null)}
-      >
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              حذف الدفعة #{deleteTarget?.payment_number}
-            </AlertDialogTitle>
+            <AlertDialogTitle>حذف الدفعة #{deleteTarget?.payment_number}</AlertDialogTitle>
             <AlertDialogDescription>
               هل أنت متأكد من حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
@@ -1099,9 +938,7 @@ export default function CustomerPayments() {
       <AlertDialog open={!!postTarget} onOpenChange={() => setPostTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              ترحيل الدفعة #{postTarget?.payment_number}
-            </AlertDialogTitle>
+            <AlertDialogTitle>ترحيل الدفعة #{postTarget?.payment_number}</AlertDialogTitle>
             <AlertDialogDescription>
               سيتم إنشاء قيد محاسبي وتحديث رصيد العميل بمبلغ{" "}
               {postTarget?.amount.toLocaleString("en-US", {
@@ -1112,23 +949,16 @@ export default function CustomerPayments() {
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row-reverse gap-2">
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handlePostDraft}>
-              ترحيل
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handlePostDraft}>ترحيل</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Cancel confirmation */}
-      <AlertDialog
-        open={!!cancelTarget}
-        onOpenChange={() => setCancelTarget(null)}
-      >
+      <AlertDialog open={!!cancelTarget} onOpenChange={() => setCancelTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              إلغاء الدفعة #{cancelTarget?.payment_number}
-            </AlertDialogTitle>
+            <AlertDialogTitle>إلغاء الدفعة #{cancelTarget?.payment_number}</AlertDialogTitle>
             <AlertDialogDescription>
               سيتم إلغاء القيد المحاسبي وإعادة رصيد العميل بمبلغ{" "}
               {cancelTarget?.amount.toLocaleString("en-US", {
@@ -1150,18 +980,15 @@ export default function CustomerPayments() {
       </AlertDialog>
 
       {/* Edit posted payment confirmation */}
-      <AlertDialog
-        open={!!editPostedTarget}
-        onOpenChange={() => setEditPostedTarget(null)}
-      >
+      <AlertDialog open={!!editPostedTarget} onOpenChange={() => setEditPostedTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
             <AlertDialogTitle>
               تعديل سند مُرحّل #{editPostedTarget?.posted_number ?? editPostedTarget?.payment_number}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم حذف القيد المحاسبي القديم وإعادة السند إلى حالة "مسودة" لتعديله،
-              مع <strong>الحفاظ على نفس رقم السند ورقم القيد</strong> ({prefix}
+              سيتم حذف القيد المحاسبي القديم وإعادة السند إلى حالة "مسودة" لتعديله، مع{" "}
+              <strong>الحفاظ على نفس رقم السند ورقم القيد</strong> ({prefix}
               {String(editPostedTarget?.posted_number ?? 0).padStart(4, "0")}).
               <br />
               عند الحفظ والترحيل سيتم إنشاء قيد جديد بنفس الرقم. هل تريد المتابعة؟
@@ -1169,9 +996,7 @@ export default function CustomerPayments() {
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row-reverse gap-2">
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmEditPosted}>
-              متابعة
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmEditPosted}>متابعة</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
