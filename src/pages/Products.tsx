@@ -140,9 +140,9 @@ export default function Products() {
   const isAdmin = role === "admin";
 
   const [viewMode, setViewMode] = useState<"list" | "grid">(() => {
-    if (typeof window === "undefined") return "list";
+    if (typeof window === "undefined") return "grid";
     const v = window.localStorage.getItem("products-view-mode");
-    return v === "grid" ? "grid" : "list";
+    return v === "list" ? "list" : "grid";
   });
   React.useEffect(() => {
     window.localStorage.setItem("products-view-mode", viewMode);
