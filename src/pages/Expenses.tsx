@@ -663,23 +663,25 @@ export default function Expenses() {
                       <TooltipContent>إعادة لمسودة للتعديل</TooltipContent>
                     </Tooltip>
                   )}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="إلغاء المصروف"
-                        className="h-8 w-8 text-orange-600"
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          setCancelTarget(e);
-                        }}
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>إلغاء (عكس القيد)</TooltipContent>
-                  </Tooltip>
+                  {(role === "admin" || role === "accountant") && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="إلغاء المصروف"
+                          className="h-8 w-8 text-orange-600"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setCancelTarget(e);
+                          }}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>إلغاء (عكس القيد)</TooltipContent>
+                    </Tooltip>
+                  )}
                 </>
               )}
             </div>
