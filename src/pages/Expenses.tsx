@@ -621,23 +621,25 @@ export default function Expenses() {
                     </TooltipTrigger>
                     <TooltipContent>ترحيل</TooltipContent>
                   </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="حذف المصروف"
-                        className="h-8 w-8 text-destructive"
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          setDeleteTarget(e);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>حذف</TooltipContent>
-                  </Tooltip>
+                  {role === "admin" && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="حذف المصروف"
+                          className="h-8 w-8 text-destructive"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setDeleteTarget(e);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>حذف</TooltipContent>
+                    </Tooltip>
+                  )}
                 </>
               )}
               {e.status === "posted" && (
