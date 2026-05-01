@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
-import { getNextPostedNumber } from "@/lib/posted-number-utils";
 import {
   Dialog,
   DialogContent,
@@ -23,13 +22,15 @@ import {
 } from "@/components/ui/select";
 import { FormFieldError } from "@/components/FormFieldError";
 import { toast } from "@/hooks/use-toast";
-import { Save, CheckCircle, Loader2 } from "lucide-react";
-import { ACCOUNT_CODES } from "@/lib/constants";
+import { Save, CheckCircle, Loader2, Info } from "lucide-react";
+import { postExpense } from "@/lib/expense-posting";
+import { formatSupabaseError } from "@/lib/format-error";
 
 interface ExpenseType {
   id: string;
   name: string;
   account_id: string;
+  is_active: boolean;
 }
 
 interface Props {
@@ -67,61 +68,125 @@ export function ExpenseFormDialog({
   const [existingJeId, setExistingJeId] = useState<string | null>(null);
   const [existingPostedNum, setExistingPostedNum] = useState<number | null>(null);
 
-  // Reset / load when dialog opens
+  // Reset / load when dialog opens (await both fetches in parallel to avoid races)
   useEffect(() => {
     if (!open) return;
     setFieldErrors({});
-    fetchExpenseTypes();
-    if (expenseId) {
-      loadExpense(expenseId);
-    } else {
-      setExpenseTypeId("");
-      setAmount(0);
-      setPaymentMethod("cash");
-      setExpenseDate(new Date().toISOString().split("T")[0]);
-      setDescription("");
-      setExistingStatus("draft");
-      setExistingJeId(null);
-      setExistingPostedNum(null);
-    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        if (expenseId) {
+          // Fetch expense + types in parallel; THEN apply state.
+          const [typesRes, expRes] = await Promise.all([
+            (supabase.from("expense_types") as any)
+              .select("id, name, account_id, is_active")
+              .order("name"),
+            (supabase.from("expenses") as any)
+              .select("*")
+              .eq("id", expenseId)
+              .single(),
+          ]);
+          if (cancelled) return;
+          const allTypes: ExpenseType[] = (typesRes.data as any[]) || [];
+          const exp: any = expRes.data;
+          if (exp) {
+            // If the expense's type is inactive (or somehow missing from list),
+            // splice it in so the combobox can display it.
+            const has = allTypes.some((t) => t.id === exp.expense_type_id);
+            let merged = allTypes;
+            if (!has && exp.expense_type_id) {
+              // Fetch the missing type by id (may be inactive)
+              const { data: missing } = await (
+                supabase.from("expense_types") as any
+              )
+                .select("id, name, account_id, is_active")
+                .eq("id", exp.expense_type_id)
+                .maybeSingle();
+              if (missing) merged = [...allTypes, missing as ExpenseType];
+            }
+            setExpenseTypes(merged);
+            setExpenseTypeId(exp.expense_type_id);
+            setAmount(Number(exp.amount) || 0);
+            setPaymentMethod(exp.payment_method);
+            setExpenseDate(exp.expense_date);
+            setDescription(exp.description || "");
+            setExistingStatus(exp.status || "draft");
+            setExistingJeId(exp.journal_entry_id || null);
+            setExistingPostedNum(exp.posted_number ?? null);
+          } else {
+            setExpenseTypes(allTypes);
+          }
+        } else {
+          // New expense: only active types
+          const { data } = await (supabase.from("expense_types") as any)
+            .select("id, name, account_id, is_active")
+            .eq("is_active", true)
+            .order("name");
+          if (cancelled) return;
+          setExpenseTypes((data as ExpenseType[]) || []);
+          setExpenseTypeId("");
+          setAmount(0);
+          setPaymentMethod("cash");
+          setExpenseDate(new Date().toISOString().split("T")[0]);
+          setDescription("");
+          setExistingStatus("draft");
+          setExistingJeId(null);
+          setExistingPostedNum(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [open, expenseId]);
 
-  async function fetchExpenseTypes() {
-    const { data } = await (supabase.from("expense_types") as any)
-      .select("id, name, account_id")
-      .eq("is_active", true)
-      .order("name");
-    setExpenseTypes(data || []);
-  }
+  const selectedType = useMemo(
+    () => expenseTypes.find((t) => t.id === expenseTypeId),
+    [expenseTypes, expenseTypeId],
+  );
 
-  async function loadExpense(id: string) {
-    setLoading(true);
-    const { data } = await (supabase.from("expenses") as any)
-      .select("*")
-      .eq("id", id)
-      .single();
-    if (data) {
-      setExpenseTypeId(data.expense_type_id);
-      setAmount(Number(data.amount) || 0);
-      setPaymentMethod(data.payment_method);
-      setExpenseDate(data.expense_date);
-      setDescription(data.description || "");
-      setExistingStatus(data.status || "draft");
-      setExistingJeId(data.journal_entry_id || null);
-      setExistingPostedNum(data.posted_number ?? null);
-    }
-    setLoading(false);
-  }
+  // Combobox items: mark inactive ones with a suffix
+  const comboItems = useMemo(
+    () =>
+      expenseTypes.map((t) => ({
+        id: t.id,
+        name: t.is_active ? t.name : `${t.name} (غير نشط)`,
+      })),
+    [expenseTypes],
+  );
 
   function validate() {
     const errors: Record<string, string> = {};
     if (!expenseTypeId) errors.expenseType = "يرجى اختيار نوع المصروف";
+    else if (selectedType && !selectedType.is_active) {
+      errors.expenseType = "نوع المصروف غير نشط — يرجى اختيار نوع آخر";
+    } else if (selectedType && !selectedType.account_id) {
+      errors.expenseType = "نوع المصروف لا يحتوي على حساب محاسبي مرتبط";
+    }
     if (amount <= 0) errors.amount = "يرجى إدخال مبلغ صحيح";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       toast({
         title: "تنبيه",
         description: Object.values(errors)[0],
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  }
+
+  function checkLockDate(): boolean {
+    if (
+      settings?.locked_until_date &&
+      expenseDate <= settings.locked_until_date
+    ) {
+      toast({
+        title: "خطأ",
+        description: `لا يمكن تسجيل/تعديل مصروف بتاريخ ${expenseDate} — الفترة مقفلة حتى ${settings.locked_until_date}`,
         variant: "destructive",
       });
       return false;
@@ -160,7 +225,7 @@ export function ExpenseFormDialog({
     } catch (error: any) {
       toast({
         title: "خطأ",
-        description: error.message,
+        description: formatSupabaseError(error),
         variant: "destructive",
       });
     }
@@ -170,115 +235,59 @@ export function ExpenseFormDialog({
   async function handleSaveAndPost() {
     if (saving) return;
     if (!validate()) return;
-    if (
-      settings?.locked_until_date &&
-      expenseDate <= settings.locked_until_date
-    ) {
-      toast({
-        title: "خطأ",
-        description: `لا يمكن تسجيل مصروف بتاريخ ${expenseDate} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!checkLockDate()) return;
     setSaving(true);
     try {
-      const expType = expenseTypes.find((t) => t.id === expenseTypeId);
-      if (!expType) throw new Error("نوع المصروف غير موجود");
-
-      const accountCode =
-        paymentMethod === "cash" ? ACCOUNT_CODES.CASH : ACCOUNT_CODES.BANK;
-      const { data: accounts } = await supabase
-        .from("accounts")
-        .select("id, code")
-        .in("code", [accountCode]);
-      const cashBankAcc = accounts?.find((a) => a.code === accountCode);
-      if (!cashBankAcc) throw new Error("تأكد من وجود حساب الصندوق/البنك");
-
-      // If editing a previously posted expense, delete the old journal entry+lines
-      // and reuse the same expense posted_number so audit numbering stays stable.
-      const wasPosted = isEdit && existingStatus === "posted" && !!existingJeId;
-      if (wasPosted && existingJeId) {
-        await supabase
-          .from("journal_entry_lines")
-          .delete()
-          .eq("journal_entry_id", existingJeId);
-        await supabase.from("journal_entries").delete().eq("id", existingJeId);
-      }
-
-      const expPostedNum =
-        reusePostedNum ??
-        existingPostedNum ??
-        (await getNextPostedNumber("expenses" as any));
-      const jePostedNum = await getNextPostedNumber("journal_entries");
-      const expPrefix = (settings as any)?.expense_prefix || "EXP-";
-      const displayNum = `${expPrefix}${String(expPostedNum).padStart(4, "0")}`;
-      const desc = `سند مصروف رقم ${displayNum} - ${expType.name}${description.trim() ? ` - ${description.trim()}` : ""}`;
-
-      const { data: je, error: jeError } = await supabase
-        .from("journal_entries")
-        .insert({
-          description: desc,
-          entry_date: expenseDate,
-          total_debit: amount,
-          total_credit: amount,
-          status: "posted",
-          posted_number: jePostedNum,
-        } as any)
-        .select("id")
-        .single();
-      if (jeError) throw jeError;
-
-      await supabase.from("journal_entry_lines").insert([
-        {
-          journal_entry_id: je.id,
-          account_id: expType.account_id,
-          debit: amount,
-          credit: 0,
-          description: desc,
-        },
-        {
-          journal_entry_id: je.id,
-          account_id: cashBankAcc.id,
-          debit: 0,
-          credit: amount,
-          description: desc,
-        },
-      ] as any);
-
-      const expPayload: any = {
+      // Persist current form first (insert if new, update if edit)
+      let targetId = expenseId as string | null;
+      const basePayload: any = {
         expense_type_id: expenseTypeId,
         amount,
         payment_method: paymentMethod,
         expense_date: expenseDate,
         description: description.trim() || null,
-        status: "posted",
-        journal_entry_id: je.id,
-        posted_number: expPostedNum,
       };
-
-      if (isEdit) {
+      if (isEdit && targetId) {
         const { error } = await (supabase.from("expenses") as any)
-          .update(expPayload)
-          .eq("id", expenseId);
+          .update(basePayload)
+          .eq("id", targetId);
         if (error) throw error;
       } else {
-        const { error } = await (supabase.from("expenses") as any).insert(
-          expPayload,
-        );
+        const { data, error } = await (supabase.from("expenses") as any)
+          .insert({ ...basePayload, status: "draft" })
+          .select("id")
+          .single();
         if (error) throw error;
+        targetId = (data as any).id;
       }
+
+      const wasPosted =
+        isEdit && existingStatus === "posted" && !!existingJeId;
+
+      const { displayNumber } = await postExpense({
+        expenseId: targetId!,
+        expenseTypeId,
+        expenseTypeName: selectedType!.name,
+        accountId: selectedType!.account_id,
+        amount,
+        paymentMethod,
+        expenseDate,
+        description,
+        reusePostedNumber: reusePostedNum ?? existingPostedNum ?? null,
+        expensePrefix: (settings as any)?.expense_prefix || "EXP-",
+        oldJournalEntryId: wasPosted ? existingJeId : null,
+      });
 
       toast({
         title: "تم الترحيل",
-        description: `تم تسجيل المصروف ${displayNum} بنجاح`,
+        description: `تم تسجيل المصروف ${displayNumber} بنجاح`,
       });
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
       toast({
         title: "خطأ",
-        description: error.message,
+        description: formatSupabaseError(error),
         variant: "destructive",
       });
     }
@@ -303,6 +312,24 @@ export function ExpenseFormDialog({
           </div>
         ) : (
           <div className="space-y-4">
+            {isEdit && existingStatus === "posted" && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+                <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  هذا المصروف مرحّل بالفعل. للتعديل استخدم زر "إعادة لمسودة" من
+                  القائمة أولاً.
+                </span>
+              </div>
+            )}
+            {selectedType && !selectedType.is_active && (
+              <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  نوع المصروف الحالي غير نشط. لا يمكن إعادة الترحيل قبل اختيار
+                  نوع نشط.
+                </span>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <Label>
@@ -310,10 +337,7 @@ export function ExpenseFormDialog({
                 </Label>
                 <div className="mt-1">
                   <LookupCombobox
-                    items={expenseTypes.map((t) => ({
-                      id: t.id,
-                      name: t.name,
-                    }))}
+                    items={comboItems}
                     value={expenseTypeId}
                     onValueChange={(v) => {
                       setExpenseTypeId(v);
@@ -391,8 +415,7 @@ export function ExpenseFormDialog({
                 <div className="flex justify-between text-sm">
                   <span>
                     مدين:{" "}
-                    {expenseTypes.find((t) => t.id === expenseTypeId)?.name ||
-                      "حساب المصروف"}
+                    {selectedType?.name || "حساب المصروف"}
                   </span>
                   <span className="font-semibold">
                     {formatCurrency(amount)}
