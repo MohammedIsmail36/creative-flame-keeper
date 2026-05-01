@@ -275,65 +275,35 @@ export default function Expenses() {
 
   async function handlePost() {
     if (!postTarget) return;
+    if (settings?.locked_until_date && postTarget.expense_date <= settings.locked_until_date) {
+      toast({
+        title: "خطأ",
+        description: `لا يمكن ترحيل مصروف بتاريخ ${postTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
+        variant: "destructive",
+      });
+      setPostTarget(null);
+      return;
+    }
     setSaving(true);
     try {
       const expType = expenseTypes.find((t) => t.id === postTarget.expense_type_id);
-      if (!expType) throw new Error("نوع المصروف غير موجود");
+      if (!expType) throw new Error("نوع المصروف غير موجود أو غير نشط — يرجى تعديل المصروف واختيار نوع آخر");
+      if (!expType.account_id) throw new Error("نوع المصروف لا يحتوي على حساب محاسبي مرتبط");
 
-      const accountCode = postTarget.payment_method === "cash" ? ACCOUNT_CODES.CASH : ACCOUNT_CODES.BANK;
-      const { data: accounts } = await supabase.from("accounts").select("id, code").in("code", [accountCode]);
-      const cashBankAcc = accounts?.find((a) => a.code === accountCode);
-      if (!cashBankAcc) throw new Error("تأكد من وجود حساب الصندوق/البنك في شجرة الحسابات");
-
-      const expPostedNum = await getNextPostedNumber("expenses" as any);
-      const jePostedNum = await getNextPostedNumber("journal_entries");
-      const expPrefix = (settings as any)?.expense_prefix || "EXP-";
-      const displayNum = `${expPrefix}${String(expPostedNum).padStart(4, "0")}`;
-      const desc = `سند مصروف رقم ${displayNum} - ${postTarget.expense_type_name}${postTarget.description ? ` - ${postTarget.description}` : ""}`;
-
-      const { data: je, error: jeError } = await supabase
-        .from("journal_entries")
-        .insert({
-          description: desc,
-          entry_date: postTarget.expense_date,
-          total_debit: postTarget.amount,
-          total_credit: postTarget.amount,
-          status: "posted",
-          posted_number: jePostedNum,
-        } as any)
-        .select("id")
-        .single();
-      if (jeError) throw jeError;
-
-      await supabase.from("journal_entry_lines").insert([
-        {
-          journal_entry_id: je.id,
-          account_id: expType.account_id,
-          debit: postTarget.amount,
-          credit: 0,
-          description: desc,
-        },
-        {
-          journal_entry_id: je.id,
-          account_id: cashBankAcc.id,
-          debit: 0,
-          credit: postTarget.amount,
-          description: desc,
-        },
-      ] as any);
-
-      await (supabase.from("expenses" as any) as any)
-        .update({
-          status: "posted",
-          journal_entry_id: je.id,
-          posted_number: expPostedNum,
-        })
-        .eq("id", postTarget.id);
-
-      toast({
-        title: "تم الترحيل",
-        description: `تم ترحيل المصروف ${displayNum}`,
+      const { postExpense } = await import("@/lib/expense-posting");
+      const { displayNumber } = await postExpense({
+        expenseId: postTarget.id,
+        expenseTypeId: postTarget.expense_type_id,
+        expenseTypeName: expType.name,
+        accountId: expType.account_id,
+        amount: postTarget.amount,
+        paymentMethod: postTarget.payment_method,
+        expenseDate: postTarget.expense_date,
+        description: postTarget.description,
+        expensePrefix: (settings as any)?.expense_prefix || "EXP-",
       });
+
+      toast({ title: "تم الترحيل", description: `تم ترحيل المصروف ${displayNumber}` });
       setPostTarget(null);
       refetchAll();
     } catch (error: any) {
