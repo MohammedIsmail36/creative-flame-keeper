@@ -318,6 +318,20 @@ export default function Expenses() {
 
   async function handleCancel() {
     if (!cancelTarget || !cancelTarget.journal_entry_id) return;
+    if (cancelTarget.status === "cancelled") {
+      toast({ title: "تنبيه", description: "المصروف ملغى بالفعل", variant: "destructive" });
+      setCancelTarget(null);
+      return;
+    }
+    if (settings?.locked_until_date && cancelTarget.expense_date <= settings.locked_until_date) {
+      toast({
+        title: "خطأ",
+        description: `لا يمكن إلغاء مصروف بتاريخ ${cancelTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
+        variant: "destructive",
+      });
+      setCancelTarget(null);
+      return;
+    }
     setSaving(true);
     try {
       const { data: lines } = await supabase
@@ -385,6 +399,33 @@ export default function Expenses() {
 
   async function handleDelete() {
     if (!deleteTarget) return;
+    if (deleteTarget.status === "posted") {
+      toast({
+        title: "غير مسموح",
+        description: "لا يمكن حذف مصروف مرحّل — قم بإلغائه أولاً.",
+        variant: "destructive",
+      });
+      setDeleteTarget(null);
+      return;
+    }
+    if (deleteTarget.journal_entry_id) {
+      toast({
+        title: "غير مسموح",
+        description: "هذا المصروف مرتبط بقيد محاسبي — قم بإلغائه أولاً.",
+        variant: "destructive",
+      });
+      setDeleteTarget(null);
+      return;
+    }
+    if (settings?.locked_until_date && deleteTarget.expense_date <= settings.locked_until_date) {
+      toast({
+        title: "خطأ",
+        description: `لا يمكن حذف مصروف بتاريخ ${deleteTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
+        variant: "destructive",
+      });
+      setDeleteTarget(null);
+      return;
+    }
     try {
       const { error } = await (supabase.from("expenses" as any) as any).delete().eq("id", deleteTarget.id);
       if (error) throw error;
