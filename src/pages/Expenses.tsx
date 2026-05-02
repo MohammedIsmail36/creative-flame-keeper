@@ -88,19 +88,22 @@ export default function Expenses() {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   }, [debouncedSearch, statusFilter, typeFilter, methodFilter, dateFrom, dateTo]);
 
-  // Expense types lookup (small) - fetched once
-  const { data: expenseTypes = [] } = useQuery({
-    queryKey: ["expense_types_active"],
+  // Expense types lookup (small) - fetched once.
+  // IMPORTANT: fetch ALL types (active + inactive) so the list/filter can always
+  // resolve a type name even if it was later deactivated.
+  const { data: expenseTypesAll = [] } = useQuery({
+    queryKey: ["expense_types_all"],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await (supabase.from("expense_types" as any) as any)
-        .select("id, name, account_id")
-        .eq("is_active", true);
+        .select("id, name, account_id, is_active");
       if (error) throw error;
-      return (data as { id: string; name: string; account_id: string }[]) || [];
+      return (data as { id: string; name: string; account_id: string; is_active: boolean }[]) || [];
     },
   });
-  const typesMap = useMemo(() => new Map(expenseTypes.map((t) => [t.id, t])), [expenseTypes]);
+  const typesMap = useMemo(() => new Map(expenseTypesAll.map((t) => [t.id, t])), [expenseTypesAll]);
+  // Active-only list for the filter dropdown + search-by-name matching
+  const expenseTypes = useMemo(() => expenseTypesAll.filter((t) => t.is_active), [expenseTypesAll]);
 
   // Build server query (paged)
   function applyFilters(q: any) {
@@ -163,6 +166,33 @@ export default function Expenses() {
   const rows = pageData?.rows ?? [];
   const totalCount = pageData?.totalCount ?? 0;
   const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
+
+  // Fetch JE numbers for the current page so we can display them inline.
+  const jeIds = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.journal_entry_id).filter(Boolean) as string[])),
+    [rows],
+  );
+  const { data: jeMap } = useQuery({
+    queryKey: ["expenses_je_numbers", jeIds],
+    enabled: jeIds.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("journal_entries")
+        .select("id, posted_number, entry_number, status")
+        .in("id", jeIds);
+      if (error) throw error;
+      const m = new Map<string, { posted_number: number | null; entry_number: number | null; status: string }>();
+      for (const r of (data as any[]) || []) {
+        m.set(r.id, {
+          posted_number: r.posted_number ?? null,
+          entry_number: r.entry_number ?? null,
+          status: r.status ?? "draft",
+        });
+      }
+      return m;
+    },
+  });
 
   // Status counts + total posted (independent lightweight queries; not affected by pagination)
   const { data: stats } = useQuery({
@@ -535,6 +565,11 @@ export default function Expenses() {
       cell: ({ row }) => {
         const e = row.original;
         if (!e.journal_entry_id) return <span className="text-muted-foreground text-xs">-</span>;
+        const je = jeMap?.get(e.journal_entry_id);
+        const jvPrefix = (settings as any)?.journal_prefix || "JV-";
+        const label = je
+          ? formatDisplayNumber(jvPrefix, je.posted_number, je.entry_number ?? 0, je.status || "posted")
+          : "...";
         return (
           <button
             onClick={(ev) => {
@@ -542,9 +577,10 @@ export default function Expenses() {
               navigate(`/journal/${e.journal_entry_id}`);
             }}
             className="text-xs text-primary hover:underline inline-flex items-center gap-1 font-mono"
+            title="عرض القيد"
           >
             <FileText className="h-3 w-3" />
-            عرض القيد
+            {label}
           </button>
         );
       },
