@@ -167,6 +167,33 @@ export default function Expenses() {
   const totalCount = pageData?.totalCount ?? 0;
   const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
 
+  // Fetch JE numbers for the current page so we can display them inline.
+  const jeIds = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.journal_entry_id).filter(Boolean) as string[])),
+    [rows],
+  );
+  const { data: jeMap } = useQuery({
+    queryKey: ["expenses_je_numbers", jeIds],
+    enabled: jeIds.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("journal_entries")
+        .select("id, posted_number, entry_number, status")
+        .in("id", jeIds);
+      if (error) throw error;
+      const m = new Map<string, { posted_number: number | null; entry_number: number | null; status: string }>();
+      for (const r of (data as any[]) || []) {
+        m.set(r.id, {
+          posted_number: r.posted_number ?? null,
+          entry_number: r.entry_number ?? null,
+          status: r.status ?? "draft",
+        });
+      }
+      return m;
+    },
+  });
+
   // Status counts + total posted (independent lightweight queries; not affected by pagination)
   const { data: stats } = useQuery({
     queryKey: ["expenses_stats"],
