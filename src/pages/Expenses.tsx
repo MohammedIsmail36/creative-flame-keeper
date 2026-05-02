@@ -91,7 +91,7 @@ export default function Expenses() {
   // Expense types lookup (small) - fetched once.
   // IMPORTANT: fetch ALL types (active + inactive) so the list/filter can always
   // resolve a type name even if it was later deactivated.
-  const { data: expenseTypesAll = [] } = useQuery({
+  const { data: expenseTypesAll = [], isFetched: expenseTypesFetched } = useQuery({
     queryKey: ["expense_types_all"],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
@@ -155,15 +155,18 @@ export default function Expenses() {
     q = applyFilters(q);
     const { data, error, count } = await q.order("expense_number", { ascending: false }).range(from, to);
     if (error) throw error;
-    const mapped = ((data as any[]) || []).map((e: any) => ({
-      ...e,
-      expense_type_name: typesMap.get(e.expense_type_id)?.name,
-      account_id: typesMap.get(e.expense_type_id)?.account_id,
-    })) as Expense[];
-    return { rows: mapped, totalCount: count || 0 };
-  });
+    return { rows: ((data as any[]) || []) as Expense[], totalCount: count || 0 };
+  }, { enabled: expenseTypesFetched });
 
-  const rows = pageData?.rows ?? [];
+  const rows = useMemo(
+    () =>
+      (pageData?.rows ?? []).map((e: Expense) => ({
+        ...e,
+        expense_type_name: typesMap.get(e.expense_type_id)?.name || "نوع مصروف غير موجود",
+        account_id: typesMap.get(e.expense_type_id)?.account_id,
+      })),
+    [pageData?.rows, typesMap],
+  );
   const totalCount = pageData?.totalCount ?? 0;
   const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
 
