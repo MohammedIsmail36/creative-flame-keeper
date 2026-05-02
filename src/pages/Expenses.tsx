@@ -532,7 +532,14 @@ export default function Expenses() {
     {
       accessorKey: "expense_type_name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="نوع المصروف" />,
-      cell: ({ row }) => <span className="text-sm font-bold text-foreground">{row.original.expense_type_name}</span>,
+      cell: ({ row }) => {
+        const type = typesMap.get(row.original.expense_type_id);
+        return (
+          <span className="text-sm font-bold text-foreground">
+            {type?.name || row.original.expense_type_name || "نوع مصروف غير موجود"}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "amount",
