@@ -88,19 +88,22 @@ export default function Expenses() {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   }, [debouncedSearch, statusFilter, typeFilter, methodFilter, dateFrom, dateTo]);
 
-  // Expense types lookup (small) - fetched once
-  const { data: expenseTypes = [] } = useQuery({
-    queryKey: ["expense_types_active"],
+  // Expense types lookup (small) - fetched once.
+  // IMPORTANT: fetch ALL types (active + inactive) so the list/filter can always
+  // resolve a type name even if it was later deactivated.
+  const { data: expenseTypesAll = [] } = useQuery({
+    queryKey: ["expense_types_all"],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await (supabase.from("expense_types" as any) as any)
-        .select("id, name, account_id")
-        .eq("is_active", true);
+        .select("id, name, account_id, is_active");
       if (error) throw error;
-      return (data as { id: string; name: string; account_id: string }[]) || [];
+      return (data as { id: string; name: string; account_id: string; is_active: boolean }[]) || [];
     },
   });
-  const typesMap = useMemo(() => new Map(expenseTypes.map((t) => [t.id, t])), [expenseTypes]);
+  const typesMap = useMemo(() => new Map(expenseTypesAll.map((t) => [t.id, t])), [expenseTypesAll]);
+  // Active-only list for the filter dropdown + search-by-name matching
+  const expenseTypes = useMemo(() => expenseTypesAll.filter((t) => t.is_active), [expenseTypesAll]);
 
   // Build server query (paged)
   function applyFilters(q: any) {
