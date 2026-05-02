@@ -565,6 +565,11 @@ export default function Expenses() {
       cell: ({ row }) => {
         const e = row.original;
         if (!e.journal_entry_id) return <span className="text-muted-foreground text-xs">-</span>;
+        const je = jeMap?.get(e.journal_entry_id);
+        const jvPrefix = (settings as any)?.journal_prefix || "JV-";
+        const label = je
+          ? formatDisplayNumber(jvPrefix, je.posted_number, je.entry_number ?? 0, je.status || "posted")
+          : "...";
         return (
           <button
             onClick={(ev) => {
@@ -572,9 +577,10 @@ export default function Expenses() {
               navigate(`/journal/${e.journal_entry_id}`);
             }}
             className="text-xs text-primary hover:underline inline-flex items-center gap-1 font-mono"
+            title="عرض القيد"
           >
             <FileText className="h-3 w-3" />
-            عرض القيد
+            {label}
           </button>
         );
       },
