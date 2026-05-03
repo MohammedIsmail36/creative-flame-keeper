@@ -474,7 +474,14 @@ export default function PurchaseInvoiceForm() {
   async function handlePrint() {
     await exportInvoicePdf({
       type: "purchase_invoice",
-      number: invoiceNumber || "جديدة",
+      number: invoiceNumber
+        ? formatDisplayNumber(
+            settings?.purchase_invoice_prefix || "PUR-",
+            postedNumber,
+            invoiceNumber,
+            status,
+          )
+        : "جديدة",
       date: invoiceDate,
       partyName: supplierName || suppliers.find((s) => s.id === supplierId)?.name || "—",
       partyLabel: "المورد",

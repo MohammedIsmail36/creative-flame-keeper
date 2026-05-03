@@ -486,7 +486,14 @@ export default function SalesInvoiceForm() {
   async function handlePrint() {
     await exportInvoicePdf({
       type: "sales_invoice",
-      number: invoiceNumber || "جديدة",
+      number: invoiceNumber
+        ? formatDisplayNumber(
+            settings?.sales_invoice_prefix || "INV-",
+            postedNumber,
+            invoiceNumber,
+            status,
+          )
+        : "جديدة",
       date: invoiceDate,
       partyName: customerName || customers.find((c) => c.id === customerId)?.name || "—",
       partyLabel: "العميل",

@@ -2026,6 +2026,7 @@ function InvoiceDocument(
   if (dueDate)
     metaDefs.push({ label: "تاريخ الاستحقاق", value: fmtDate(dueDate) });
   if (reference) metaDefs.push({ label: "المرجع", value: reference });
+  if (pillText) metaDefs.push({ label: "الحالة", value: pillText });
 
   // ── Footer contact ──
   const contactParts: string[] = [];
@@ -2175,15 +2176,8 @@ function InvoiceDocument(
             React.createElement(
               View,
               { style: s.titleBadge },
-              React.createElement(Text, { style: s.titleBadgeText }, `#${num}`),
+              React.createElement(Text, { style: s.titleBadgeText }, String(num)),
             ),
-            pillText
-              ? React.createElement(
-                  View,
-                  { style: s.statusPill },
-                  React.createElement(Text, { style: s.statusText }, pillText),
-                )
-              : null,
           ),
         ),
       ),
