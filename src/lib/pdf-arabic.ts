@@ -2176,15 +2176,8 @@ function InvoiceDocument(
             React.createElement(
               View,
               { style: s.titleBadge },
-              React.createElement(Text, { style: s.titleBadgeText }, `#${num}`),
+              React.createElement(Text, { style: s.titleBadgeText }, String(num)),
             ),
-            pillText
-              ? React.createElement(
-                  View,
-                  { style: s.statusPill },
-                  React.createElement(Text, { style: s.statusText }, pillText),
-                )
-              : null,
           ),
         ),
       ),
