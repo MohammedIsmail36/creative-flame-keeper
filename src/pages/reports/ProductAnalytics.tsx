@@ -378,7 +378,7 @@ export default function ProductAnalytics() {
       if (!metrics[id]) {
         metrics[id] = {
           id,
-          name: item.product?.name || "محذوف",
+          name: formatProductDisplay(item.product?.name || "محذوف", item.product?.brand?.name, item.product?.model_number),
           code: item.product?.code || "-",
           category: item.product?.category?.name || "بدون تصنيف",
           categoryId: item.product?.category_id || null,
