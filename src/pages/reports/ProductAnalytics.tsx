@@ -65,6 +65,7 @@ import {
 import { exportToExcel } from "@/lib/excel-export";
 import { exportReportPdf } from "@/lib/report-pdf";
 import { useSettings } from "@/contexts/SettingsContext";
+import { formatProductDisplay } from "@/lib/product-utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -251,7 +252,7 @@ export default function ProductAnalytics() {
       const { data, error } = await supabase
         .from("sales_invoice_items")
         .select(
-          "quantity, total, net_total, unit_price, product_id, product:products!inner(name, code, category_id, quantity_on_hand, min_stock_level, purchase_price, is_active, created_at, category:product_categories(name)), invoice:sales_invoices!inner(invoice_date, status)",
+          "quantity, total, net_total, unit_price, product_id, product:products!inner(name, code, model_number, category_id, quantity_on_hand, min_stock_level, purchase_price, is_active, created_at, brand:product_brands(name), category:product_categories(name)), invoice:sales_invoices!inner(invoice_date, status)",
         )
         .gte("invoice.invoice_date", dateFrom)
         .lte("invoice.invoice_date", dateTo)
@@ -303,7 +304,7 @@ export default function ProductAnalytics() {
       const { data, error } = await supabase
         .from("products")
         .select(
-          "id, name, code, purchase_price, selling_price, quantity_on_hand, min_stock_level, category_id, created_at, category:product_categories(name)",
+          "id, name, code, model_number, purchase_price, selling_price, quantity_on_hand, min_stock_level, category_id, created_at, brand:product_brands(name), category:product_categories(name)",
         )
         .eq("is_active", true);
       if (error) throw error;
@@ -377,7 +378,7 @@ export default function ProductAnalytics() {
       if (!metrics[id]) {
         metrics[id] = {
           id,
-          name: item.product?.name || "محذوف",
+          name: formatProductDisplay(item.product?.name || "محذوف", item.product?.brand?.name, item.product?.model_number),
           code: item.product?.code || "-",
           category: item.product?.category?.name || "بدون تصنيف",
           categoryId: item.product?.category_id || null,
@@ -562,7 +563,7 @@ export default function ProductAnalytics() {
 
         return {
           id: p.id,
-          name: p.name,
+          name: formatProductDisplay(p.name, p.brand?.name, p.model_number),
           code: p.code,
           category: p.category?.name || "بدون تصنيف",
           cogs,
@@ -2580,7 +2581,7 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
-          searchPlaceholder="بحث بالاسم أو الكود..."
+          searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد مبيعات في هذه الفترة"
           columnLabels={{
             rank: "#",
@@ -2607,7 +2608,7 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
-          searchPlaceholder="بحث بالاسم أو الكود..."
+          searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد بيانات"
           columnLabels={{
             rank: "#",
@@ -2654,7 +2655,7 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
-          searchPlaceholder="بحث بالاسم أو الكود..."
+          searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد بيانات"
           columnLabels={{
             code: "الكود",
@@ -2678,7 +2679,7 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
-          searchPlaceholder="بحث بالاسم أو الكود..."
+          searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد بيانات كافية"
           columnLabels={{
             rank: "#",
@@ -2702,7 +2703,7 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
-          searchPlaceholder="بحث بالاسم أو الكود..."
+          searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد مرتجعات في هذه الفترة"
           columnLabels={{
             rank: "#",
