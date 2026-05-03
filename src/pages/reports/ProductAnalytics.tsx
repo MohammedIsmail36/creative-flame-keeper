@@ -65,6 +65,7 @@ import {
 import { exportToExcel } from "@/lib/excel-export";
 import { exportReportPdf } from "@/lib/report-pdf";
 import { useSettings } from "@/contexts/SettingsContext";
+import { formatProductDisplay } from "@/lib/product-utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
