@@ -2026,6 +2026,7 @@ function InvoiceDocument(
   if (dueDate)
     metaDefs.push({ label: "تاريخ الاستحقاق", value: fmtDate(dueDate) });
   if (reference) metaDefs.push({ label: "المرجع", value: reference });
+  if (pillText) metaDefs.push({ label: "الحالة", value: pillText });
 
   // ── Footer contact ──
   const contactParts: string[] = [];
