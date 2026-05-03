@@ -2049,7 +2049,8 @@ function InvoiceDocument(
       ),
     ),
   );
-  if (showDiscount && discountTotal && discountTotal > 0) {
+  if (showDiscount) {
+    const discValue = discountTotal || 0;
     const discLabel =
       invoiceDiscount && invoiceDiscount > 0
         ? `خصم على الفاتورة${subtotal > 0 ? ` (${((invoiceDiscount / subtotal) * 100).toFixed(1)}%)` : ""}`
@@ -2061,8 +2062,8 @@ function InvoiceDocument(
         React.createElement(Text, { style: s.totalLabel }, discLabel),
         React.createElement(
           Text,
-          { style: { ...s.totalValue, color: C.red } },
-          `${fmtNum(discountTotal)} ${currency}`,
+          { style: { ...s.totalValue, color: discValue > 0 ? C.red : C.ink5 } },
+          `${fmtNum(discValue)} ${currency}`,
         ),
       ),
     );
