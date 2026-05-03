@@ -2581,7 +2581,7 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
-          searchPlaceholder="بحث بالاسم أو الكود..."
+          searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد مبيعات في هذه الفترة"
           columnLabels={{
             rank: "#",
@@ -2608,7 +2608,7 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
-          searchPlaceholder="بحث بالاسم أو الكود..."
+          searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد بيانات"
           columnLabels={{
             rank: "#",
@@ -2655,7 +2655,7 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
-          searchPlaceholder="بحث بالاسم أو الكود..."
+          searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد بيانات"
           columnLabels={{
             code: "الكود",
@@ -2679,7 +2679,7 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
-          searchPlaceholder="بحث بالاسم أو الكود..."
+          searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد بيانات كافية"
           columnLabels={{
             rank: "#",
@@ -2703,7 +2703,7 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
-          searchPlaceholder="بحث بالاسم أو الكود..."
+          searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد مرتجعات في هذه الفترة"
           columnLabels={{
             rank: "#",
