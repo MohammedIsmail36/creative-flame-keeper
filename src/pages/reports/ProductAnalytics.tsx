@@ -563,7 +563,7 @@ export default function ProductAnalytics() {
 
         return {
           id: p.id,
-          name: p.name,
+          name: formatProductDisplay(p.name, p.brand?.name, p.model_number),
           code: p.code,
           category: p.category?.name || "بدون تصنيف",
           cogs,
