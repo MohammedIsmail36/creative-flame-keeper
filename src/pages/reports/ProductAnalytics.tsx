@@ -304,7 +304,7 @@ export default function ProductAnalytics() {
       const { data, error } = await supabase
         .from("products")
         .select(
-          "id, name, code, purchase_price, selling_price, quantity_on_hand, min_stock_level, category_id, created_at, category:product_categories(name)",
+          "id, name, code, model_number, purchase_price, selling_price, quantity_on_hand, min_stock_level, category_id, created_at, brand:product_brands(name), category:product_categories(name)",
         )
         .eq("is_active", true);
       if (error) throw error;
