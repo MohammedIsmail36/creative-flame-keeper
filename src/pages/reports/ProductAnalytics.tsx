@@ -252,7 +252,7 @@ export default function ProductAnalytics() {
       const { data, error } = await supabase
         .from("sales_invoice_items")
         .select(
-          "quantity, total, net_total, unit_price, product_id, product:products!inner(name, code, category_id, quantity_on_hand, min_stock_level, purchase_price, is_active, created_at, category:product_categories(name)), invoice:sales_invoices!inner(invoice_date, status)",
+          "quantity, total, net_total, unit_price, product_id, product:products!inner(name, code, model_number, category_id, quantity_on_hand, min_stock_level, purchase_price, is_active, created_at, brand:product_brands(name), category:product_categories(name)), invoice:sales_invoices!inner(invoice_date, status)",
         )
         .gte("invoice.invoice_date", dateFrom)
         .lte("invoice.invoice_date", dateTo)
