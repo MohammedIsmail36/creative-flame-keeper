@@ -2050,7 +2050,7 @@ function InvoiceDocument(
     ),
   );
   if (showDiscount) {
-    const discValue = discountTotal || 0;
+    const discValue = (invoiceDiscount && invoiceDiscount > 0 ? invoiceDiscount : discountTotal) || 0;
     const discLabel =
       invoiceDiscount && invoiceDiscount > 0
         ? `خصم على الفاتورة${subtotal > 0 ? ` (${((invoiceDiscount / subtotal) * 100).toFixed(1)}%)` : ""}`
