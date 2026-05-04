@@ -826,13 +826,13 @@ export default function Products() {
             </Select>
             {hasFilters && (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={clearFilters}
-                className="h-8 gap-1 text-muted-foreground hover:text-foreground shrink-0"
+                className="h-8 gap-1.5 text-destructive hover:bg-destructive/5 hover:text-destructive shrink-0 font-medium"
               >
-                <X className="h-3.5 w-3.5" />
-                مسح
+                <Trash2 className="h-3.5 w-3.5" />
+                مسح الفلاتر
               </Button>
             )}
           </>
