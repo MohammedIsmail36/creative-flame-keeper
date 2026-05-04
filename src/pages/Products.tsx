@@ -753,10 +753,60 @@ export default function Products() {
       <StatusChips chips={statusChips} active={statusFilter} onSelect={(f) => setStatusFilter(f as any)} />
 
       {(() => {
-        const filtersBar = (
-          <div className="flex gap-3 flex-wrap items-center">
+        // Unified toolbar shared between list & grid views.
+        // Layout (RTL): [Search] [Category] [Stock] [Clear]  …spacer…  [ViewToggle]
+        // In list view, DataTable also appends its built-in [Columns] button (mr-auto → far left).
+        const SearchBox = (
+          <div className="relative w-full sm:w-72 shrink-0">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="بحث بالاسم، الكود، الماركة، الموديل..."
+              className="pr-8 h-8 text-sm bg-card"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="مسح البحث"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        );
+
+        const ViewToggle = (
+          <ToggleGroup
+            type="single"
+            value={viewMode}
+            onValueChange={(v) => v && setViewMode(v as "list" | "grid")}
+            className="border rounded-lg p-0.5 bg-card shrink-0"
+          >
+            <ToggleGroupItem
+              value="list"
+              size="sm"
+              className="h-7 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+              aria-label="عرض قائمة"
+            >
+              <List className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="grid"
+              size="sm"
+              className="h-7 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+              aria-label="عرض شبكي"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
+        );
+
+        const FilterControls = (
+          <>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="max-w-[250px] bg-card border-border h-9 text-sm">
+              <SelectTrigger className="w-[200px] bg-card border-border h-8 text-sm shrink-0">
                 <SelectValue placeholder="كافة التصنيفات" />
               </SelectTrigger>
               <SelectContent>
@@ -765,7 +815,7 @@ export default function Products() {
               </SelectContent>
             </Select>
             <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as any)}>
-              <SelectTrigger className="w-40 bg-card border-border h-9 text-sm">
+              <SelectTrigger className="w-36 bg-card border-border h-8 text-sm shrink-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -779,46 +829,31 @@ export default function Products() {
                 variant="ghost"
                 size="sm"
                 onClick={clearFilters}
-                className="h-9 gap-1 text-muted-foreground hover:text-foreground"
+                className="h-8 gap-1 text-muted-foreground hover:text-foreground shrink-0"
               >
                 <X className="h-3.5 w-3.5" />
-                مسح الفلاتر
+                مسح
               </Button>
             )}
-            <div className="ms-auto">
-              <ToggleGroup
-                type="single"
-                value={viewMode}
-                onValueChange={(v) => v && setViewMode(v as "list" | "grid")}
-                className="border rounded-lg p-0.5 bg-card"
-              >
-                <ToggleGroupItem
-                  value="list"
-                  size="sm"
-                  className="h-8 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-                  aria-label="عرض قائمة"
-                >
-                  <List className="h-4 w-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="grid"
-                  size="sm"
-                  className="h-8 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-                  aria-label="عرض شبكي"
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-          </div>
+          </>
         );
 
         if (viewMode === "list") {
+          // Pass our own search + filters through toolbarContent; disable DataTable's built-in search.
+          // DataTable still renders the [Columns] toggle (mr-auto pushes it to the far end).
+          const toolbar = (
+            <>
+              {SearchBox}
+              {FilterControls}
+              <div className="flex-1" />
+              {ViewToggle}
+            </>
+          );
           return (
             <DataTable
               columns={columns}
               data={products}
-              searchPlaceholder="بحث بالاسم، الكود، الماركة، الباركود، أو الموديل..."
+              showSearch={false}
               isLoading={isLoading}
               emptyMessage="لا توجد منتجات"
               onRowClick={(p) => navigate(`/products/${p.id}`)}
@@ -830,25 +865,19 @@ export default function Products() {
               pagination={pagination}
               onPaginationChange={setPagination}
               pageSize={PAGE_SIZE}
-              toolbarContent={filtersBar}
+              toolbarContent={toolbar}
             />
           );
         }
 
-        // Grid view
+        // Grid view — same layout, no Columns toggle.
         return (
           <div className="space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center gap-3">
-              <div className="relative md:w-72">
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="بحث بالاسم، الكود، الماركة..."
-                  className="pr-9 h-9 text-sm bg-card"
-                />
-              </div>
-              <div className="flex-1">{filtersBar}</div>
+            <div className="flex flex-wrap items-center gap-2">
+              {SearchBox}
+              {FilterControls}
+              <div className="flex-1" />
+              {ViewToggle}
             </div>
 
             <ProductsGrid
