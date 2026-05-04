@@ -1125,24 +1125,22 @@ function ReportDocument(
       paddingVertical: 6,
       paddingHorizontal: 6,
     },
-    // Section header bar
+    // Section header bar (clean: single accent underline, no right border)
     sectionHeader: {
       flexDirection: "row-reverse" as const,
       alignItems: "center" as const,
-      backgroundColor: C.slate100,
-      borderRightWidth: 4,
-      borderRightColor: accent,
-      paddingVertical: 6,
-      paddingHorizontal: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: accent,
+      paddingVertical: 4,
+      paddingHorizontal: 0,
       marginHorizontal: 24,
       marginBottom: 8,
-      marginTop: 4,
-      borderRadius: 2,
+      marginTop: 6,
     },
     sectionHeaderText: {
-      fontSize: 9,
+      fontSize: 10,
       fontWeight: 700,
-      color: C.ink2,
+      color: accent,
       textAlign: "right" as const,
     },
     reconciliationSection: {
