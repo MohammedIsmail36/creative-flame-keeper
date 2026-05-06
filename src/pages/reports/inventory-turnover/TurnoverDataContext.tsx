@@ -112,11 +112,59 @@ export function useTurnoverData() {
 export function TurnoverDataProvider({ children }: { children: ReactNode }) {
   const { settings } = useSettings();
 
-  const [dateFrom, setDateFrom] = useState(
+  const [dateFrom, setDateFromState] = useState(
     format(subDays(new Date(), 30), "yyyy-MM-dd"),
   );
-  const [dateTo, setDateTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [dateTo, setDateToState] = useState(format(new Date(), "yyyy-MM-dd"));
   const [categoryFilter, setCategoryFilter] = useState("all");
+  // Track whether the user has manually changed dates (touched = true → don't auto-align)
+  const userTouchedDatesRef = useRef(false);
+  const setDateFrom = (v: string) => {
+    userTouchedDatesRef.current = true;
+    setDateFromState(v);
+  };
+  const setDateTo = (v: string) => {
+    userTouchedDatesRef.current = true;
+    setDateToState(v);
+  };
+
+  // ── fetch last sales activity date (anchor for default period) ───────────
+  const { data: lastActivityDate = null } = useQuery({
+    queryKey: ["turnover-last-activity-date"],
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_invoices")
+        .select("invoice_date")
+        .eq("status", "posted")
+        .order("invoice_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.invoice_date as string) ?? null;
+    },
+  });
+
+  // Auto-align default period to "last 30 days ending at last activity" — once, only if untouched
+  useEffect(() => {
+    if (!lastActivityDate || userTouchedDatesRef.current) return;
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    // Only realign if current dateTo is "today" (i.e. still the initial default)
+    if (dateTo !== todayStr) return;
+    const newTo = lastActivityDate;
+    const newFrom = format(subDays(new Date(lastActivityDate), 30), "yyyy-MM-dd");
+    setDateFromState(newFrom);
+    setDateToState(newTo);
+  }, [lastActivityDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isPeriodAutoAligned = !userTouchedDatesRef.current && !!lastActivityDate && dateTo === lastActivityDate;
+
+  const resetPeriodToLastActivity = () => {
+    if (!lastActivityDate) return;
+    userTouchedDatesRef.current = false;
+    setDateToState(lastActivityDate);
+    setDateFromState(format(subDays(new Date(lastActivityDate), 30), "yyyy-MM-dd"));
+  };
 
   const rawPeriodDays = Math.max(
     differenceInDays(new Date(dateTo), new Date(dateFrom)),
