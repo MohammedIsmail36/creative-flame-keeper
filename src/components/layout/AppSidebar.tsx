@@ -319,14 +319,8 @@ const sections: MenuSection[] = [
             roles: ["admin", "accountant"],
           },
           {
-            title: "إجراءات عاجلة",
-            url: "/reports/inventory-turnover/urgent-actions",
-            icon: AlertTriangle,
-            roles: ["admin", "accountant"],
-          },
-          {
-            title: "خطة الشراء",
-            url: "/reports/inventory-turnover/purchase-planning",
+            title: "اشترِ الآن",
+            url: "/reports/inventory-turnover/buy-now",
             icon: ShoppingCart,
             roles: ["admin", "accountant"],
           },
