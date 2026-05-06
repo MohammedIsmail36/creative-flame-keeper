@@ -76,8 +76,7 @@ const AccountBalancesPage = lazy(() => import("./pages/reports/AccountBalancesPa
 const ProfitLossPage = lazy(() => import("./pages/reports/ProfitLossPage"));
 const TurnoverLayout = lazy(() => import("./pages/reports/inventory-turnover/TurnoverLayout"));
 const TurnoverDashboardPage = lazy(() => import("./pages/reports/inventory-turnover/TurnoverDashboardPage"));
-const UrgentActionsPage = lazy(() => import("./pages/reports/inventory-turnover/UrgentActionsPage"));
-const PurchasePlanningPage = lazy(() => import("./pages/reports/inventory-turnover/PurchasePlanningPage"));
+const BuyNowPage = lazy(() => import("./pages/reports/inventory-turnover/BuyNowPage"));
 const DormantInventoryPage = lazy(() => import("./pages/reports/inventory-turnover/DormantInventoryPage"));
 const SupplierReturnsPage = lazy(() => import("./pages/reports/inventory-turnover/SupplierReturnsPage"));
 const NewProductsPage = lazy(() => import("./pages/reports/inventory-turnover/NewProductsPage"));
@@ -161,8 +160,9 @@ const App = () => (
             <Route path="/reports/inventory-turnover" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<TurnoverLayout />)}</AppLayout></ProtectedRoute>}>
               <Route index element={withSuspense(<TurnoverDashboardPage />)} />
               <Route path="dashboard" element={withSuspense(<TurnoverDashboardPage />)} />
-              <Route path="urgent-actions" element={withSuspense(<UrgentActionsPage />)} />
-              <Route path="purchase-planning" element={withSuspense(<PurchasePlanningPage />)} />
+              <Route path="urgent-actions" element={withSuspense(<BuyNowPage />)} />
+              <Route path="purchase-planning" element={withSuspense(<BuyNowPage />)} />
+              <Route path="buy-now" element={withSuspense(<BuyNowPage />)} />
               <Route path="dormant" element={withSuspense(<DormantInventoryPage />)} />
               <Route path="supplier-returns" element={withSuspense(<SupplierReturnsPage />)} />
               <Route path="new-products" element={withSuspense(<NewProductsPage />)} />
