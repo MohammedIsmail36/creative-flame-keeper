@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo, ReactNode } from "react";
+import { createContext, useContext, useState, useMemo, useEffect, useRef, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -51,6 +51,12 @@ interface TurnoverDataContextValue {
   setDateTo: (v: string) => void;
   categoryFilter: string;
   setCategoryFilter: (v: string) => void;
+  // Last sales activity date in the system (for default period anchor)
+  lastActivityDate: string | null;
+  // Whether the displayed period was auto-aligned to last activity (i.e. user hasn't touched dates)
+  isPeriodAutoAligned: boolean;
+  // Reset dates back to "last 30 days ending at last activity"
+  resetPeriodToLastActivity: () => void;
 
   // Loading
   isLoading: boolean;
