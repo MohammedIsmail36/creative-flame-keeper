@@ -29,6 +29,7 @@ import {
   Archive,
   Undo2,
   ShieldAlert,
+  Eye,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
@@ -337,27 +338,15 @@ const sections: MenuSection[] = [
             roles: ["admin", "accountant"],
           },
           {
-            title: "منتجات جديدة",
-            url: "/reports/inventory-turnover/new-products",
-            icon: Sparkles,
-            roles: ["admin", "accountant"],
-          },
-          {
-            title: "مراجعة مطلوبة",
-            url: "/reports/inventory-turnover/unlisted",
-            icon: AlertTriangle,
+            title: "تحت المراقبة",
+            url: "/reports/inventory-turnover/under-observation",
+            icon: Eye,
             roles: ["admin", "accountant"],
           },
           {
             title: "التحليل الشامل",
             url: "/reports/inventory-turnover/analysis",
             icon: BarChart3,
-            roles: ["admin", "accountant"],
-          },
-          {
-            title: "صحة المنتجات",
-            url: "/reports/inventory-turnover/health",
-            icon: ShieldAlert,
             roles: ["admin", "accountant"],
           },
         ],

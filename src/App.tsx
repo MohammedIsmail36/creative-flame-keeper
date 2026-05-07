@@ -83,6 +83,7 @@ const NewProductsPage = lazy(() => import("./pages/reports/inventory-turnover/Ne
 const UnlistedProductsPage = lazy(() => import("./pages/reports/inventory-turnover/UnlistedProductsPage"));
 const FullAnalysisPage = lazy(() => import("./pages/reports/inventory-turnover/FullAnalysisPage"));
 const ProductHealthPage = lazy(() => import("./pages/reports/inventory-turnover/ProductHealthPage"));
+const UnderObservationPage = lazy(() => import("./pages/reports/inventory-turnover/UnderObservationPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -165,10 +166,11 @@ const App = () => (
               <Route path="buy-now" element={withSuspense(<BuyNowPage />)} />
               <Route path="dormant" element={withSuspense(<DormantInventoryPage />)} />
               <Route path="supplier-returns" element={withSuspense(<SupplierReturnsPage />)} />
-              <Route path="new-products" element={withSuspense(<NewProductsPage />)} />
-              <Route path="unlisted" element={withSuspense(<UnlistedProductsPage />)} />
+              <Route path="new-products" element={withSuspense(<UnderObservationPage />)} />
+              <Route path="unlisted" element={withSuspense(<UnderObservationPage />)} />
+              <Route path="health" element={withSuspense(<UnderObservationPage />)} />
+              <Route path="under-observation" element={withSuspense(<UnderObservationPage />)} />
               <Route path="analysis" element={withSuspense(<FullAnalysisPage />)} />
-              <Route path="health" element={withSuspense(<ProductHealthPage />)} />
             </Route>
             <Route path="/inventory-adjustments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryAdjustments />)}</AppLayout></ProtectedRoute>} />
             <Route path="/inventory-adjustments/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryAdjustmentForm />)}</AppLayout></ProtectedRoute>} />
