@@ -29,6 +29,7 @@ import {
   Archive,
   Undo2,
   ShieldAlert,
+  Eye,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
