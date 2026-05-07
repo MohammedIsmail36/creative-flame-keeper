@@ -30,7 +30,7 @@ export const routeLabels: Record<string, string> = {
   expenses: "المصروفات",
   "expense-types": "أنواع المصروفات",
   reports: "التقارير",
-  health: "صحة المنتجات",
+  // health key defined below for inventory-turnover
   "sales-report": "تقرير المبيعات",
   "purchases-report": "تقرير المشتريات",
   growth: "تحليلات النمو",
