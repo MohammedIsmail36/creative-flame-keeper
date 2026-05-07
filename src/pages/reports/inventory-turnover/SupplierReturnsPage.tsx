@@ -18,6 +18,7 @@ import { TurnoverFilterBar } from "./TurnoverFilterBar";
 import { ProductTurnoverData, TURNOVER_LABELS, fmt, fmtInt } from "./types";
 import { ExportConfig } from "@/components/ExportMenu";
 import { LookupCombobox } from "@/components/LookupCombobox";
+import { SupplierReturnActionMenu } from "./SupplierReturnActionMenu";
 
 export default function SupplierReturnsPage() {
   const { supplierReturnCandidates, uniqueSuppliers, isLoading, settings } =
@@ -189,6 +190,13 @@ export default function SupplierReturnsPage() {
           <span className="text-xs text-muted-foreground">
             {(getValue() as string) || "—"}
           </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "إجراء",
+        cell: ({ row }) => (
+          <SupplierReturnActionMenu productId={row.original.productId} />
         ),
       },
     ],
