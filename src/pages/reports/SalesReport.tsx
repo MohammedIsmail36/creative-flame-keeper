@@ -689,7 +689,13 @@ export default function SalesReport() {
     filtered.forEach((inv) => {
       (inv.items || []).forEach((item: any) => {
         const pid = item.product_id || "__desc__" + (item.description || "");
-        const name = item.product?.name || item.description || "منتج محذوف";
+        const name = item.product
+          ? formatProductDisplay(
+              item.product.name,
+              item.product.brand?.name,
+              item.product.model_number,
+            )
+          : item.description || "منتج محذوف";
         if (!map[pid])
           map[pid] = { name, qtySold: 0, qtyReturned: 0, revenue: 0, cogs: 0 };
         map[pid].qtySold += Number(item.quantity);
@@ -703,6 +709,17 @@ export default function SalesReport() {
     });
     return Object.values(map).sort((a, b) => b.revenue - a.revenue);
   }, [filtered, returnsByProduct, movements]);
+
+  // ── COGS per invoice (for invoice grouping profit columns) ──
+  const cogsByInvoice = useMemo(() => {
+    const map: Record<string, number> = {};
+    movements.forEach((m) => {
+      if (m.reference_type !== "sales_invoice" || !m.reference_id) return;
+      if (m.movement_type !== "sale") return;
+      map[m.reference_id] = (map[m.reference_id] || 0) + Number(m.total_cost);
+    });
+    return map;
+  }, [movements]);
 
   const productColumns = useMemo<ColumnDef<any, any>[]>(
     () => [
