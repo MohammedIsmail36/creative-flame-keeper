@@ -1672,6 +1672,7 @@ export default function SalesReport() {
     dateTo,
     settings,
     timeMode,
+    isPostedOnly,
     overdueInfo,
     discountTaxInfo,
     targetInfo,
