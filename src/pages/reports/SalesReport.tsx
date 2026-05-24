@@ -101,6 +101,7 @@ export default function SalesReport() {
     "invoice" | "customer" | "product" | "time" | "category"
   >("invoice");
   const [timeMode, setTimeMode] = useState<"daily" | "monthly">("daily");
+  const [showExtras, setShowExtras] = useState(false);
 
   // ── Quick date presets ──
   const quickRanges = useMemo(() => {
