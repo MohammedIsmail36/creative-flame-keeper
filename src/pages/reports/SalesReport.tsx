@@ -67,6 +67,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
+import { formatProductDisplay } from "@/lib/product-utils";
 
 // ── helpers ──
 const fmt = (n: number) =>
