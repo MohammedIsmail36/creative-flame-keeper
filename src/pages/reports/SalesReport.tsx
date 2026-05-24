@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import type { SortingState } from "@tanstack/react-table";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -113,6 +115,48 @@ export default function SalesReport() {
   const [showExtras, setShowExtras] = useState<boolean>(
     savedPrefs.showExtras ?? false,
   );
+  const [invoiceSort, setInvoiceSort] = useState<SortingState>([]);
+  const [productSort, setProductSort] = useState<SortingState>([]);
+
+  // Quick sort toolbar (next to search) — sorts by profit or margin
+  const QuickSortToolbar = ({
+    sorting,
+    setSorting,
+  }: {
+    sorting: SortingState;
+    setSorting: (s: SortingState) => void;
+  }) => {
+    const active = sorting[0];
+    const toggle = (id: "profit" | "margin") => {
+      if (active?.id !== id) setSorting([{ id, desc: true }]);
+      else if (active.desc) setSorting([{ id, desc: false }]);
+      else setSorting([]);
+    };
+    const renderBtn = (id: "profit" | "margin", label: string) => {
+      const isActive = active?.id === id;
+      const Icon = isActive && !active.desc ? ArrowUp : ArrowDown;
+      return (
+        <Button
+          key={id}
+          variant={isActive ? "default" : "outline"}
+          size="sm"
+          className="h-8 gap-1 text-xs"
+          onClick={() => toggle(id)}
+        >
+          <Icon className="h-3 w-3" />
+          {label}
+        </Button>
+      );
+    };
+    return (
+      <div className="flex items-center gap-1.5">
+        {renderBtn("profit", "الربح")}
+        {renderBtn("margin", "الهامش%")}
+      </div>
+    );
+  };
+
+
 
   // Persist prefs
   useMemo(() => {
@@ -2139,6 +2183,18 @@ export default function SalesReport() {
               showSearch
               searchPlaceholder="بحث في الفواتير..."
               emptyMessage="لا توجد فواتير في هذه الفترة"
+              sorting={invoiceSort}
+              onSortingChange={(updater) =>
+                setInvoiceSort(
+                  typeof updater === "function" ? updater(invoiceSort) : updater,
+                )
+              }
+              toolbarContent={
+                <QuickSortToolbar
+                  sorting={invoiceSort}
+                  setSorting={setInvoiceSort}
+                />
+              }
             />
           ) : groupBy === "customer" ? (
             <DataTable
@@ -2162,7 +2218,22 @@ export default function SalesReport() {
                 showSearch
                 searchPlaceholder="بحث بالمنتج..."
                 emptyMessage="لا توجد بيانات"
+                sorting={productSort}
+                onSortingChange={(updater) =>
+                  setProductSort(
+                    typeof updater === "function"
+                      ? updater(productSort)
+                      : updater,
+                  )
+                }
+                toolbarContent={
+                  <QuickSortToolbar
+                    sorting={productSort}
+                    setSorting={setProductSort}
+                  />
+                }
               />
+
               <p className="text-xs text-muted-foreground mt-2 text-center">
                 للتفاصيل الكاملة (التكلفة، الربح، الهوامش) راجع تقرير تحليل
                 المنتجات
