@@ -183,7 +183,7 @@ export default function SalesReport() {
       const { data, error } = await supabase
         .from("sales_invoices")
         .select(
-          "id, invoice_number, posted_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, customer_id, customer:customers(name), items:sales_invoice_items(quantity, total, net_total, product_id, product:products(name, category_id, category:product_categories(name)))",
+          "id, invoice_number, posted_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, customer_id, customer:customers(name), items:sales_invoice_items(quantity, total, net_total, product_id, product:products(name, model_number, category_id, category:product_categories(name), brand:product_brands(name)))",
         )
         .gte("invoice_date", dateFrom)
         .lte("invoice_date", dateTo)
