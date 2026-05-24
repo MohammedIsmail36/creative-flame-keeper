@@ -67,6 +67,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
+import { formatProductDisplay } from "@/lib/product-utils";
 
 // ── helpers ──
 const fmt = (n: number) =>
@@ -182,7 +183,7 @@ export default function SalesReport() {
       const { data, error } = await supabase
         .from("sales_invoices")
         .select(
-          "id, invoice_number, posted_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, customer_id, customer:customers(name), items:sales_invoice_items(quantity, total, net_total, product_id, product:products(name, category_id, category:product_categories(name)))",
+          "id, invoice_number, posted_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, customer_id, customer:customers(name), items:sales_invoice_items(quantity, total, net_total, product_id, product:products(name, model_number, category_id, category:product_categories(name), brand:product_brands(name)))",
         )
         .gte("invoice_date", dateFrom)
         .lte("invoice_date", dateTo)
@@ -216,7 +217,7 @@ export default function SalesReport() {
       const { data, error } = await supabase
         .from("inventory_movements")
         .select(
-          "product_id, movement_type, quantity, total_cost, movement_date",
+          "product_id, movement_type, quantity, total_cost, movement_date, reference_id, reference_type",
         )
         .in("movement_type", ["sale", "sale_return"])
         .gte("movement_date", dateFrom)
@@ -406,6 +407,18 @@ export default function SalesReport() {
     };
   }, [invoices]);
 
+  // ── COGS per invoice (for invoice grouping profit columns) ──
+  const cogsByInvoice = useMemo(() => {
+    const map: Record<string, number> = {};
+    movements.forEach((m) => {
+      if (m.reference_type !== "sales_invoice" || !m.reference_id) return;
+      if (m.movement_type !== "sale") return;
+      map[m.reference_id] = (map[m.reference_id] || 0) + Number(m.total_cost);
+    });
+    return map;
+  }, [movements]);
+
+
   // ═══ GROUPING: By Invoice ═══
   const invoiceColumns = useMemo<ColumnDef<any, any>[]>(
     () => [
@@ -510,6 +523,75 @@ export default function SalesReport() {
         },
       },
       {
+        id: "cogs",
+        header: "تكلفة البضاعة",
+        accessorFn: (r: any) => cogsByInvoice[r.id] || 0,
+        cell: ({ getValue }) => (
+          <span className="font-mono">{fmt(getValue() as number)}</span>
+        ),
+        footer: ({ table }) => {
+          const total = table
+            .getFilteredRowModel()
+            .rows.reduce((s, r) => s + (cogsByInvoice[r.original.id] || 0), 0);
+          return <span className="font-mono">{fmt(total)}</span>;
+        },
+      },
+      {
+        id: "profit",
+        header: "الربح",
+        accessorFn: (r: any) => {
+          if (r.status !== "posted") return 0;
+          return Number(r.total) - Number(r.tax || 0) - (cogsByInvoice[r.id] || 0);
+        },
+        cell: ({ row }) => {
+          const r = row.original;
+          if (r.status !== "posted")
+            return <span className="text-muted-foreground">—</span>;
+          const v = Number(r.total) - Number(r.tax || 0) - (cogsByInvoice[r.id] || 0);
+          return (
+            <span
+              className={`font-mono ${v < 0 ? "text-destructive" : "text-emerald-600"}`}
+            >
+              {fmt(v)}
+            </span>
+          );
+        },
+        footer: ({ table }) => {
+          const total = table
+            .getFilteredRowModel()
+            .rows.reduce((s, r) => {
+              if (r.original.status !== "posted") return s;
+              return (
+                s +
+                Number(r.original.total) -
+                Number(r.original.tax || 0) -
+                (cogsByInvoice[r.original.id] || 0)
+              );
+            }, 0);
+          return (
+            <span className="font-bold font-mono">{fmt(total)}</span>
+          );
+        },
+      },
+      {
+        id: "margin",
+        header: "الهامش%",
+        accessorFn: (r: any) => {
+          if (r.status !== "posted") return 0;
+          const rev = Number(r.total) - Number(r.tax || 0);
+          if (rev <= 0) return 0;
+          return ((rev - (cogsByInvoice[r.id] || 0)) / rev) * 100;
+        },
+        cell: ({ row }) => {
+          const r = row.original;
+          if (r.status !== "posted")
+            return <span className="text-muted-foreground">—</span>;
+          const rev = Number(r.total) - Number(r.tax || 0);
+          const v = rev > 0 ? ((rev - (cogsByInvoice[r.id] || 0)) / rev) * 100 : 0;
+          return <span className="font-mono">{v.toFixed(1)}%</span>;
+        },
+      },
+      {
         id: "overdue",
         header: "متأخر",
         cell: ({ row }) =>
@@ -521,7 +603,7 @@ export default function SalesReport() {
           ) : null,
       },
     ],
-    [navigate, today],
+    [navigate, today, cogsByInvoice],
   );
 
   // ═══ GROUPING: By Customer ═══
@@ -688,7 +770,13 @@ export default function SalesReport() {
     filtered.forEach((inv) => {
       (inv.items || []).forEach((item: any) => {
         const pid = item.product_id || "__desc__" + (item.description || "");
-        const name = item.product?.name || item.description || "منتج محذوف";
+        const name = item.product
+          ? formatProductDisplay(
+              item.product.name,
+              item.product.brand?.name,
+              item.product.model_number,
+            )
+          : item.description || "منتج محذوف";
         if (!map[pid])
           map[pid] = { name, qtySold: 0, qtyReturned: 0, revenue: 0, cogs: 0 };
         map[pid].qtySold += Number(item.quantity);
@@ -702,6 +790,7 @@ export default function SalesReport() {
     });
     return Object.values(map).sort((a, b) => b.revenue - a.revenue);
   }, [filtered, returnsByProduct, movements]);
+
 
   const productColumns = useMemo<ColumnDef<any, any>[]>(
     () => [
@@ -1136,27 +1225,40 @@ export default function SalesReport() {
           "الإجمالي",
           "المدفوع",
           "المتبقي",
+          "تكلفة البضاعة",
+          "الربح",
+          "الهامش%",
           "متأخر",
         ],
-        rows: filtered.map((inv) => [
-          formatDisplayNumber(
-            settings?.sales_invoice_prefix || "INV-",
-            inv.posted_number,
-            inv.invoice_number,
-            inv.status,
-          ),
-          inv.invoice_date,
-          inv.customer?.name || "-",
-          inv.status === "posted"
-            ? "مُرحّل"
-            : inv.status === "cancelled"
-              ? "ملغي"
-              : "مسودة",
-          Number(inv.total),
-          Number(inv.paid_amount),
-          Number(inv.total) - Number(inv.paid_amount),
-          isOverdue(inv) ? "نعم" : "",
-        ]),
+        rows: filtered.map((inv) => {
+          const cogs = cogsByInvoice[inv.id] || 0;
+          const rev = Number(inv.total) - Number(inv.tax || 0);
+          const isPosted = inv.status === "posted";
+          const profit = isPosted ? rev - cogs : 0;
+          const margin = isPosted && rev > 0 ? ((rev - cogs) / rev) * 100 : 0;
+          return [
+            formatDisplayNumber(
+              settings?.sales_invoice_prefix || "INV-",
+              inv.posted_number,
+              inv.invoice_number,
+              inv.status,
+            ),
+            inv.invoice_date,
+            inv.customer?.name || "-",
+            inv.status === "posted"
+              ? "مُرحّل"
+              : inv.status === "cancelled"
+                ? "ملغي"
+                : "مسودة",
+            Number(inv.total),
+            Number(inv.paid_amount),
+            Number(inv.total) - Number(inv.paid_amount),
+            cogs,
+            isPosted ? profit : "—",
+            isPosted ? margin.toFixed(1) + "%" : "—",
+            isOverdue(inv) ? "نعم" : "",
+          ];
+        }),
         summaryCards,
         settings,
         pdfOrientation: "landscape" as const,
