@@ -814,7 +814,9 @@ export default function SalesReport() {
         name: string;
         qtySold: number;
         qtyReturned: number;
-        revenue: number;
+        grossRevenue: number;
+        returnsRevenue: number;
+        revenue: number; // net (gross - returns) to align with netted cogs
         cogs: number;
       }
     > = {};
@@ -829,18 +831,31 @@ export default function SalesReport() {
             )
           : item.description || "منتج محذوف";
         if (!map[pid])
-          map[pid] = { name, qtySold: 0, qtyReturned: 0, revenue: 0, cogs: 0 };
+          map[pid] = {
+            name,
+            qtySold: 0,
+            qtyReturned: 0,
+            grossRevenue: 0,
+            returnsRevenue: 0,
+            revenue: 0,
+            cogs: 0,
+          };
         map[pid].qtySold += Number(item.quantity);
-        map[pid].revenue += Number(item.net_total || item.total);
+        map[pid].grossRevenue += Number(item.net_total || item.total);
       });
     });
     Object.keys(map).forEach((pid) => {
       const ret = returnsByProduct[pid];
-      if (ret) map[pid].qtyReturned = ret.qty;
+      if (ret) {
+        map[pid].qtyReturned = ret.qty;
+        map[pid].returnsRevenue = ret.total;
+      }
+      map[pid].revenue = map[pid].grossRevenue - map[pid].returnsRevenue;
       map[pid].cogs = cogsByProduct[pid] || 0;
     });
     return Object.values(map).sort((a, b) => b.revenue - a.revenue);
   }, [filtered, returnsByProduct, movements]);
+
 
 
   const productColumns = useMemo<ColumnDef<any, any>[]>(
