@@ -1225,27 +1225,40 @@ export default function SalesReport() {
           "الإجمالي",
           "المدفوع",
           "المتبقي",
+          "تكلفة البضاعة",
+          "الربح",
+          "الهامش%",
           "متأخر",
         ],
-        rows: filtered.map((inv) => [
-          formatDisplayNumber(
-            settings?.sales_invoice_prefix || "INV-",
-            inv.posted_number,
-            inv.invoice_number,
-            inv.status,
-          ),
-          inv.invoice_date,
-          inv.customer?.name || "-",
-          inv.status === "posted"
-            ? "مُرحّل"
-            : inv.status === "cancelled"
-              ? "ملغي"
-              : "مسودة",
-          Number(inv.total),
-          Number(inv.paid_amount),
-          Number(inv.total) - Number(inv.paid_amount),
-          isOverdue(inv) ? "نعم" : "",
-        ]),
+        rows: filtered.map((inv) => {
+          const cogs = cogsByInvoice[inv.id] || 0;
+          const rev = Number(inv.total) - Number(inv.tax || 0);
+          const isPosted = inv.status === "posted";
+          const profit = isPosted ? rev - cogs : 0;
+          const margin = isPosted && rev > 0 ? ((rev - cogs) / rev) * 100 : 0;
+          return [
+            formatDisplayNumber(
+              settings?.sales_invoice_prefix || "INV-",
+              inv.posted_number,
+              inv.invoice_number,
+              inv.status,
+            ),
+            inv.invoice_date,
+            inv.customer?.name || "-",
+            inv.status === "posted"
+              ? "مُرحّل"
+              : inv.status === "cancelled"
+                ? "ملغي"
+                : "مسودة",
+            Number(inv.total),
+            Number(inv.paid_amount),
+            Number(inv.total) - Number(inv.paid_amount),
+            cogs,
+            isPosted ? profit : "—",
+            isPosted ? margin.toFixed(1) + "%" : "—",
+            isOverdue(inv) ? "نعم" : "",
+          ];
+        }),
         summaryCards,
         settings,
         pdfOrientation: "landscape" as const,
