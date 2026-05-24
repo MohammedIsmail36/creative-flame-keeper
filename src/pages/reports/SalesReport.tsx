@@ -779,16 +779,6 @@ export default function SalesReport() {
     return Object.values(map).sort((a, b) => b.revenue - a.revenue);
   }, [filtered, returnsByProduct, movements]);
 
-  // ── COGS per invoice (for invoice grouping profit columns) ──
-  const cogsByInvoice = useMemo(() => {
-    const map: Record<string, number> = {};
-    movements.forEach((m) => {
-      if (m.reference_type !== "sales_invoice" || !m.reference_id) return;
-      if (m.movement_type !== "sale") return;
-      map[m.reference_id] = (map[m.reference_id] || 0) + Number(m.total_cost);
-    });
-    return map;
-  }, [movements]);
 
   const productColumns = useMemo<ColumnDef<any, any>[]>(
     () => [
