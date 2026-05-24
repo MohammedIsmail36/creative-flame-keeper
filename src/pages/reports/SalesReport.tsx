@@ -217,7 +217,7 @@ export default function SalesReport() {
       const { data, error } = await supabase
         .from("inventory_movements")
         .select(
-          "product_id, movement_type, quantity, total_cost, movement_date",
+          "product_id, movement_type, quantity, total_cost, movement_date, reference_id, reference_type",
         )
         .in("movement_type", ["sale", "sale_return"])
         .gte("movement_date", dateFrom)
