@@ -511,6 +511,75 @@ export default function SalesReport() {
         },
       },
       {
+        id: "cogs",
+        header: "تكلفة البضاعة",
+        accessorFn: (r: any) => cogsByInvoice[r.id] || 0,
+        cell: ({ getValue }) => (
+          <span className="font-mono">{fmt(getValue() as number)}</span>
+        ),
+        footer: ({ table }) => {
+          const total = table
+            .getFilteredRowModel()
+            .rows.reduce((s, r) => s + (cogsByInvoice[r.original.id] || 0), 0);
+          return <span className="font-mono">{fmt(total)}</span>;
+        },
+      },
+      {
+        id: "profit",
+        header: "الربح",
+        accessorFn: (r: any) => {
+          if (r.status !== "posted") return 0;
+          return Number(r.total) - Number(r.tax || 0) - (cogsByInvoice[r.id] || 0);
+        },
+        cell: ({ row }) => {
+          const r = row.original;
+          if (r.status !== "posted")
+            return <span className="text-muted-foreground">—</span>;
+          const v = Number(r.total) - Number(r.tax || 0) - (cogsByInvoice[r.id] || 0);
+          return (
+            <span
+              className={`font-mono ${v < 0 ? "text-destructive" : "text-emerald-600"}`}
+            >
+              {fmt(v)}
+            </span>
+          );
+        },
+        footer: ({ table }) => {
+          const total = table
+            .getFilteredRowModel()
+            .rows.reduce((s, r) => {
+              if (r.original.status !== "posted") return s;
+              return (
+                s +
+                Number(r.original.total) -
+                Number(r.original.tax || 0) -
+                (cogsByInvoice[r.original.id] || 0)
+              );
+            }, 0);
+          return (
+            <span className="font-bold font-mono">{fmt(total)}</span>
+          );
+        },
+      },
+      {
+        id: "margin",
+        header: "الهامش%",
+        accessorFn: (r: any) => {
+          if (r.status !== "posted") return 0;
+          const rev = Number(r.total) - Number(r.tax || 0);
+          if (rev <= 0) return 0;
+          return ((rev - (cogsByInvoice[r.id] || 0)) / rev) * 100;
+        },
+        cell: ({ row }) => {
+          const r = row.original;
+          if (r.status !== "posted")
+            return <span className="text-muted-foreground">—</span>;
+          const rev = Number(r.total) - Number(r.tax || 0);
+          const v = rev > 0 ? ((rev - (cogsByInvoice[r.id] || 0)) / rev) * 100 : 0;
+          return <span className="font-mono">{v.toFixed(1)}%</span>;
+        },
+      },
+      {
         id: "overdue",
         header: "متأخر",
         cell: ({ row }) =>
@@ -522,7 +591,7 @@ export default function SalesReport() {
           ) : null,
       },
     ],
-    [navigate, today],
+    [navigate, today, cogsByInvoice],
   );
 
   // ═══ GROUPING: By Customer ═══
