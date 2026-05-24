@@ -2183,6 +2183,18 @@ export default function SalesReport() {
               showSearch
               searchPlaceholder="بحث في الفواتير..."
               emptyMessage="لا توجد فواتير في هذه الفترة"
+              sorting={invoiceSort}
+              onSortingChange={(updater) =>
+                setInvoiceSort(
+                  typeof updater === "function" ? updater(invoiceSort) : updater,
+                )
+              }
+              toolbarContent={
+                <QuickSortToolbar
+                  sorting={invoiceSort}
+                  setSorting={setInvoiceSort}
+                />
+              }
             />
           ) : groupBy === "customer" ? (
             <DataTable
@@ -2206,7 +2218,22 @@ export default function SalesReport() {
                 showSearch
                 searchPlaceholder="بحث بالمنتج..."
                 emptyMessage="لا توجد بيانات"
+                sorting={productSort}
+                onSortingChange={(updater) =>
+                  setProductSort(
+                    typeof updater === "function"
+                      ? updater(productSort)
+                      : updater,
+                  )
+                }
+                toolbarContent={
+                  <QuickSortToolbar
+                    sorting={productSort}
+                    setSorting={setProductSort}
+                  />
+                }
               />
+
               <p className="text-xs text-muted-foreground mt-2 text-center">
                 للتفاصيل الكاملة (التكلفة، الربح، الهوامش) راجع تقرير تحليل
                 المنتجات
