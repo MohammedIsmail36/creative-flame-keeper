@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { useSearchParams } from "react-router-dom";
 import { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -18,6 +19,8 @@ import {
   DollarSign,
   Package,
   ShoppingCart,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTurnoverData } from "./TurnoverDataContext";
@@ -29,61 +32,122 @@ import {
   PriorityDot,
   fmt,
   fmtInt,
-  getTurnoverSpeed,
 } from "./types";
 import { ExportConfig } from "@/components/ExportMenu";
 import { LookupCombobox } from "@/components/LookupCombobox";
 
+type ViewKey =
+  | "all"
+  | "action"
+  | "fast"
+  | "stagnant"
+  | "out"
+  | "below"
+  | "no_sales";
+
+const VIEWS: { key: ViewKey; label: string; hint: string }[] = [
+  { key: "all", label: "الكل", hint: "كل المنتجات" },
+  { key: "action", label: "يحتاج إجراء", hint: "أولوية P1 — فوري" },
+  { key: "fast", label: "حركة سريعة", hint: "دوران ممتاز/جيد" },
+  { key: "stagnant", label: "راكد", hint: "بدون حركة طويلة" },
+  { key: "out", label: "نفد المخزون", hint: "رصيد = 0" },
+  { key: "below", label: "تحت الأدنى", hint: "رصيد < الحد الأدنى" },
+  { key: "no_sales", label: "بدون مبيعات", hint: "لم يُباع في الفترة" },
+];
+
+const STORAGE_KEY = "turnover_full_analysis_view";
+
 export default function FullAnalysisPage() {
   const {
     filteredData,
-    eligibleData,
-    kpis,
     uniqueSuppliers,
     isLoading,
     settings,
   } = useTurnoverData();
   const [searchParams] = useSearchParams();
-
   const matrixParam = searchParams.get("matrix"); // e.g. "A-fast"
 
+  // Quick view chip (persisted)
+  const [view, setView] = useState<ViewKey>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY) as ViewKey | null;
+      return saved && VIEWS.find((v) => v.key === saved) ? saved : "all";
+    } catch {
+      return "all";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, view);
+    } catch {
+      /* noop */
+    }
+  }, [view]);
+
+  // Advanced filters (collapsed by default)
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [supplierFilter, setSupplierFilter] = useState("all");
   const [abcFilter, setAbcFilter] = useState(() =>
     matrixParam ? matrixParam.split("-")[0] : "all",
   );
-  const [turnoverFilter, setTurnoverFilter] = useState("all");
-  const [priorityFilter, setPriorityFilter] = useState("all");
-  const [stockStatusFilter, setStockStatusFilter] = useState("all");
-  const [speedFilter, setSpeedFilter] = useState(() =>
-    matrixParam ? matrixParam.split("-")[1] : "all",
-  );
+
+  // Expand advanced if matrix param drove a filter
+  useEffect(() => {
+    if (matrixParam) setShowAdvanced(true);
+  }, [matrixParam]);
+
+  const resetAdvanced = () => {
+    setSupplierFilter("all");
+    setAbcFilter("all");
+  };
+
+  const advancedActive =
+    (supplierFilter !== "all" ? 1 : 0) + (abcFilter !== "all" ? 1 : 0);
 
   const data = useMemo(() => {
     let d = [...filteredData];
+    // Quick view
+    if (view === "action") d = d.filter((p) => p.actionPriority === 1);
+    else if (view === "fast")
+      d = d.filter(
+        (p) => p.turnoverClass === "excellent" || p.turnoverClass === "good",
+      );
+    else if (view === "stagnant")
+      d = d.filter((p) => p.turnoverClass === "stagnant");
+    else if (view === "out") d = d.filter((p) => p.currentStock === 0);
+    else if (view === "below")
+      d = d.filter((p) => p.belowMinStock && p.currentStock > 0);
+    else if (view === "no_sales") d = d.filter((p) => p.soldQty === 0);
+
+    // Advanced
     if (supplierFilter !== "all")
       d = d.filter((p) => p.lastSupplierName === supplierFilter);
     if (abcFilter !== "all") d = d.filter((p) => p.abcClass === abcFilter);
-    if (turnoverFilter !== "all")
-      d = d.filter((p) => p.turnoverClass === turnoverFilter);
-    if (priorityFilter !== "all")
-      d = d.filter((p) => String(p.actionPriority) === priorityFilter);
-    if (stockStatusFilter === "out") d = d.filter((p) => p.currentStock === 0);
-    else if (stockStatusFilter === "below")
-      d = d.filter((p) => p.belowMinStock && p.currentStock > 0);
-    else if (stockStatusFilter === "normal")
-      d = d.filter((p) => !p.belowMinStock && p.currentStock > 0);
-    if (speedFilter !== "all")
-      d = d.filter((p) => getTurnoverSpeed(p.turnoverClass) === speedFilter);
     return d;
-  }, [
-    filteredData,
-    supplierFilter,
-    abcFilter,
-    turnoverFilter,
-    priorityFilter,
-    stockStatusFilter,
-    speedFilter,
-  ]);
+  }, [filteredData, view, supplierFilter, abcFilter]);
+
+  // Counts per view (computed once on filteredData)
+  const viewCounts = useMemo(() => {
+    const c: Record<ViewKey, number> = {
+      all: filteredData.length,
+      action: 0,
+      fast: 0,
+      stagnant: 0,
+      out: 0,
+      below: 0,
+      no_sales: 0,
+    };
+    for (const p of filteredData) {
+      if (p.actionPriority === 1) c.action++;
+      if (p.turnoverClass === "excellent" || p.turnoverClass === "good")
+        c.fast++;
+      if (p.turnoverClass === "stagnant") c.stagnant++;
+      if (p.currentStock === 0) c.out++;
+      if (p.belowMinStock && p.currentStock > 0) c.below++;
+      if (p.soldQty === 0) c.no_sales++;
+    }
+    return c;
+  }, [filteredData]);
 
   const summary = useMemo(() => {
     const totalStock = data.reduce((s, p) => s + (p.stockValue ?? 0), 0);
@@ -349,11 +413,13 @@ export default function FullAnalysisPage() {
     [],
   );
 
+  const currentView = VIEWS.find((v) => v.key === view)!;
+
   const exportConfig = useMemo<ExportConfig>(
     () => ({
-      filenamePrefix: "تقرير-دوران-المخزون-شامل",
+      filenamePrefix: `تقرير-دوران-المخزون-${currentView.label}`,
       sheetName: "دوران المخزون",
-      pdfTitle: "تقرير دوران المخزون الشامل",
+      pdfTitle: `تقرير دوران المخزون — ${currentView.label}`,
       headers: [
         "الكود",
         "المنتج",
@@ -395,6 +461,7 @@ export default function FullAnalysisPage() {
         p.actionPriority ? `P${p.actionPriority}` : "—",
       ]),
       summaryCards: [
+        { label: "العرض", value: currentView.label },
         { label: "إجمالي المنتجات", value: String(summary.total) },
         { label: "متوسط الدوران", value: summary.avgTurnover.toFixed(2) },
         { label: "إجمالي قيمة المخزون", value: fmt(summary.totalStock) },
@@ -403,88 +470,116 @@ export default function FullAnalysisPage() {
       settings,
       pdfOrientation: "landscape",
     }),
-    [data, summary, settings],
+    [data, summary, settings, currentView],
   );
 
   return (
     <div className="space-y-5" dir="rtl">
       <PageHeader
         icon={BarChart3}
-        title="التحليل الشامل"
-        description="جميع المنتجات مع كافة المرشحات"
+        title="مستكشف البيانات"
+        description="استكشف منتجاتك بعروض جاهزة، ثم خصّص بالتصفية المتقدمة عند الحاجة"
       />
 
-      <TurnoverFilterBar exportConfig={exportConfig}>
-        <div className="w-px h-5 bg-border mx-1" />
-        <Select value={turnoverFilter} onValueChange={setTurnoverFilter}>
-          <SelectTrigger className="w-28 h-9 text-xs">
-            <SelectValue placeholder="فئة الدوران" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل الفئات</SelectItem>
-            <SelectItem value="excellent">ممتاز</SelectItem>
-            <SelectItem value="good">جيد</SelectItem>
-            <SelectItem value="slow">بطيء</SelectItem>
-            <SelectItem value="stagnant">راكد</SelectItem>
-            <SelectItem value="new">جديد</SelectItem>
-            <SelectItem value="inactive">غير نشط</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={abcFilter} onValueChange={setAbcFilter}>
-          <SelectTrigger className="w-24 h-9 text-xs">
-            <SelectValue placeholder="ABC" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">الكل</SelectItem>
-            <SelectItem value="A">A</SelectItem>
-            <SelectItem value="B">B</SelectItem>
-            <SelectItem value="C">C</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-28 h-9 text-xs">
-            <SelectValue placeholder="الأولوية" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل الأولويات</SelectItem>
-            <SelectItem value="1">P1 — فوري</SelectItem>
-            <SelectItem value="2">P2 — متابعة</SelectItem>
-            <SelectItem value="3">P3 — مراجعة</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={stockStatusFilter} onValueChange={setStockStatusFilter}>
-          <SelectTrigger className="w-28 h-9 text-xs">
-            <SelectValue placeholder="المخزون" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل الحالات</SelectItem>
-            <SelectItem value="out">نفد المخزون</SelectItem>
-            <SelectItem value="below">تحت الأدنى</SelectItem>
-            <SelectItem value="normal">عادي</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={speedFilter} onValueChange={setSpeedFilter}>
-          <SelectTrigger className="w-24 h-9 text-xs">
-            <SelectValue placeholder="السرعة" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">الكل</SelectItem>
-            <SelectItem value="fast">سريع</SelectItem>
-            <SelectItem value="medium">متوسط</SelectItem>
-            <SelectItem value="slow">بطيء</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="w-40">
-          <LookupCombobox
-            items={supplierItems}
-            value={supplierFilter === "all" ? "" : supplierFilter}
-            onValueChange={(v) => setSupplierFilter(v || "all")}
-            placeholder="كل الموردين"
-            searchPlaceholder="ابحث عن مورد..."
-            className="h-9"
-          />
-        </div>
-      </TurnoverFilterBar>
+      <TurnoverFilterBar exportConfig={exportConfig} />
+
+      {/* Quick views — chips */}
+      <Card className="border shadow-sm">
+        <CardContent className="py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground ml-2">
+              عرض سريع:
+            </span>
+            {VIEWS.map((v) => {
+              const active = view === v.key;
+              const count = viewCounts[v.key];
+              return (
+                <button
+                  key={v.key}
+                  type="button"
+                  onClick={() => setView(v.key)}
+                  title={v.hint}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 h-8 rounded-full text-xs font-medium border transition-all",
+                    active
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background hover:bg-muted border-border text-foreground/80",
+                  )}
+                >
+                  {v.label}
+                  <span
+                    className={cn(
+                      "tabular-nums text-[10px] px-1.5 rounded-full",
+                      active
+                        ? "bg-primary-foreground/20"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+
+            <div className="flex-1" />
+
+            <Button
+              variant={showAdvanced ? "default" : "outline"}
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => setShowAdvanced((s) => !s)}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              تصفية متقدمة
+              {advancedActive > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="h-4 px-1.5 text-[10px] tabular-nums"
+                >
+                  {advancedActive}
+                </Badge>
+              )}
+            </Button>
+          </div>
+
+          {showAdvanced && (
+            <div className="mt-3 pt-3 border-t flex flex-wrap items-center gap-2">
+              <Select value={abcFilter} onValueChange={setAbcFilter}>
+                <SelectTrigger className="w-28 h-9 text-xs">
+                  <SelectValue placeholder="فئة ABC" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل فئات ABC</SelectItem>
+                  <SelectItem value="A">A — حيوي</SelectItem>
+                  <SelectItem value="B">B — مهم</SelectItem>
+                  <SelectItem value="C">C — هامشي</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="w-48">
+                <LookupCombobox
+                  items={supplierItems}
+                  value={supplierFilter === "all" ? "" : supplierFilter}
+                  onValueChange={(v) => setSupplierFilter(v || "all")}
+                  placeholder="كل الموردين"
+                  searchPlaceholder="ابحث عن مورد..."
+                  className="h-9"
+                />
+              </div>
+              {advancedActive > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 gap-1 text-xs text-muted-foreground"
+                  onClick={resetAdvanced}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  مسح المتقدمة
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -549,7 +644,7 @@ export default function FullAnalysisPage() {
             data={data}
             isLoading={isLoading}
             searchPlaceholder="ابحث بالكود أو الاسم أو التصنيف أو المورد..."
-            emptyMessage="لا توجد بيانات مطابقة"
+            emptyMessage="لا توجد بيانات مطابقة لهذا العرض"
             pageSize={20}
             columnLabels={{
               productCode: "الكود",
