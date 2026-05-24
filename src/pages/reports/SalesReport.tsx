@@ -86,6 +86,14 @@ const CHART_COLORS = [
 export default function SalesReport() {
   const navigate = useNavigate();
   const { settings } = useSettings();
+  const LS_KEY = "sales-report-prefs-v1";
+  const savedPrefs = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+    } catch {
+      return {};
+    }
+  })();
   const [dateFrom, setDateFrom] = useState(
     format(startOfMonth(new Date()), "yyyy-MM-dd"),
   );
@@ -94,12 +102,27 @@ export default function SalesReport() {
   );
   const [statusFilter, setStatusFilter] = useState<
     "all" | "posted" | "draft" | "cancelled"
-  >("posted");
+  >(savedPrefs.statusFilter ?? "posted");
   const [groupBy, setGroupBy] = useState<
     "invoice" | "customer" | "product" | "time" | "category"
-  >("invoice");
-  const [timeMode, setTimeMode] = useState<"daily" | "monthly">("daily");
-  const [showExtras, setShowExtras] = useState(false);
+  >(savedPrefs.groupBy ?? "invoice");
+  const [timeMode, setTimeMode] = useState<"daily" | "monthly">(
+    savedPrefs.timeMode ?? "daily",
+  );
+  const [showExtras, setShowExtras] = useState<boolean>(
+    savedPrefs.showExtras ?? false,
+  );
+
+  // Persist prefs
+  useMemo(() => {
+    try {
+      localStorage.setItem(
+        LS_KEY,
+        JSON.stringify({ statusFilter, groupBy, timeMode, showExtras }),
+      );
+    } catch {}
+    return null;
+  }, [statusFilter, groupBy, timeMode, showExtras]);
 
   // ── Quick date presets ──
   const quickRanges = useMemo(() => {
@@ -1313,19 +1336,29 @@ export default function SalesReport() {
                 </SelectContent>
               </Select>
 
-              {/* Group By */}
-              <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
-                <SelectTrigger className="w-[140px] font-medium h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="invoice">الفاتورة</SelectItem>
-                  <SelectItem value="customer">العميل</SelectItem>
-                  <SelectItem value="product">المنتج</SelectItem>
-                  <SelectItem value="time">يومي/شهري</SelectItem>
-                  <SelectItem value="category">التصنيف</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Group By - Tabs style */}
+              <ToggleGroup
+                type="single"
+                value={groupBy}
+                onValueChange={(v) => v && setGroupBy(v as any)}
+                className="border rounded-lg p-0.5 bg-muted/30"
+              >
+                <ToggleGroupItem value="invoice" className="text-xs px-3 h-8">
+                  الفاتورة
+                </ToggleGroupItem>
+                <ToggleGroupItem value="customer" className="text-xs px-3 h-8">
+                  العميل
+                </ToggleGroupItem>
+                <ToggleGroupItem value="product" className="text-xs px-3 h-8">
+                  المنتج
+                </ToggleGroupItem>
+                <ToggleGroupItem value="category" className="text-xs px-3 h-8">
+                  التصنيف
+                </ToggleGroupItem>
+                <ToggleGroupItem value="time" className="text-xs px-3 h-8">
+                  زمني
+                </ToggleGroupItem>
+              </ToggleGroup>
 
               {groupBy === "time" && (
                 <>
@@ -1440,6 +1473,28 @@ export default function SalesReport() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* ── Status Scope Note ── */}
+      {!isLoading && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
+          <Info className="w-3.5 h-3.5" />
+          <span>الأرقام مبنية على:</span>
+          <Badge variant="outline" className="font-medium">
+            {statusFilter === "posted"
+              ? "الفواتير المُرحّلة فقط"
+              : statusFilter === "draft"
+                ? "المسودات فقط"
+                : statusFilter === "cancelled"
+                  ? "الفواتير الملغاة فقط"
+                  : "كل الحالات"}
+          </Badge>
+          {!isPostedOnly && (
+            <span className="text-amber-600 dark:text-amber-400">
+              • الربح وتكلفة البضاعة لا تُحسب إلا للمُرحّل
+            </span>
+          )}
+        </div>
       )}
 
       {/* ── 5 Primary KPI Cards ── */}
