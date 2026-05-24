@@ -1475,6 +1475,28 @@ export default function SalesReport() {
         </Card>
       )}
 
+      {/* ── Status Scope Note ── */}
+      {!isLoading && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
+          <Info className="w-3.5 h-3.5" />
+          <span>الأرقام مبنية على:</span>
+          <Badge variant="outline" className="font-medium">
+            {statusFilter === "posted"
+              ? "الفواتير المُرحّلة فقط"
+              : statusFilter === "draft"
+                ? "المسودات فقط"
+                : statusFilter === "cancelled"
+                  ? "الفواتير الملغاة فقط"
+                  : "كل الحالات"}
+          </Badge>
+          {!isPostedOnly && (
+            <span className="text-amber-600 dark:text-amber-400">
+              • الربح وتكلفة البضاعة لا تُحسب إلا للمُرحّل
+            </span>
+          )}
+        </div>
+      )}
+
       {/* ── 5 Primary KPI Cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* صافي المبيعات (الرقم الأهم) */}
