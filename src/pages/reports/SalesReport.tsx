@@ -86,6 +86,14 @@ const CHART_COLORS = [
 export default function SalesReport() {
   const navigate = useNavigate();
   const { settings } = useSettings();
+  const LS_KEY = "sales-report-prefs-v1";
+  const savedPrefs = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+    } catch {
+      return {};
+    }
+  })();
   const [dateFrom, setDateFrom] = useState(
     format(startOfMonth(new Date()), "yyyy-MM-dd"),
   );
@@ -94,12 +102,27 @@ export default function SalesReport() {
   );
   const [statusFilter, setStatusFilter] = useState<
     "all" | "posted" | "draft" | "cancelled"
-  >("posted");
+  >(savedPrefs.statusFilter ?? "posted");
   const [groupBy, setGroupBy] = useState<
     "invoice" | "customer" | "product" | "time" | "category"
-  >("invoice");
-  const [timeMode, setTimeMode] = useState<"daily" | "monthly">("daily");
-  const [showExtras, setShowExtras] = useState(false);
+  >(savedPrefs.groupBy ?? "invoice");
+  const [timeMode, setTimeMode] = useState<"daily" | "monthly">(
+    savedPrefs.timeMode ?? "daily",
+  );
+  const [showExtras, setShowExtras] = useState<boolean>(
+    savedPrefs.showExtras ?? false,
+  );
+
+  // Persist prefs
+  useMemo(() => {
+    try {
+      localStorage.setItem(
+        LS_KEY,
+        JSON.stringify({ statusFilter, groupBy, timeMode, showExtras }),
+      );
+    } catch {}
+    return null;
+  }, [statusFilter, groupBy, timeMode, showExtras]);
 
   // ── Quick date presets ──
   const quickRanges = useMemo(() => {
