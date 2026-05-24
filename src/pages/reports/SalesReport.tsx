@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import type { SortingState } from "@tanstack/react-table";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
