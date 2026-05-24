@@ -901,8 +901,23 @@ export default function SalesReport() {
       },
       {
         accessorKey: "revenue",
-        header: "الإيرادات",
-        cell: ({ getValue }) => fmt(getValue() as number),
+        header: "الإيرادات الصافية",
+        cell: ({ row }) => {
+          const r = row.original;
+          const v = r.revenue;
+          return (
+            <span
+              className="font-mono"
+              title={
+                r.returnsRevenue > 0
+                  ? `الإجمالي: ${fmt(r.grossRevenue)} − المرتجعات: ${fmt(r.returnsRevenue)}`
+                  : undefined
+              }
+            >
+              {fmt(v)}
+            </span>
+          );
+        },
         footer: ({ table }) => (
           <span className="font-bold font-mono">
             {fmt(
@@ -913,6 +928,7 @@ export default function SalesReport() {
           </span>
         ),
       },
+
       {
         accessorKey: "cogs",
         header: "التكلفة",
