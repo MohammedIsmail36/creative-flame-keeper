@@ -63,6 +63,9 @@ import {
   DollarSign,
   AlertTriangle,
   Target,
+  ChevronDown,
+  Sparkles,
+  Info,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
