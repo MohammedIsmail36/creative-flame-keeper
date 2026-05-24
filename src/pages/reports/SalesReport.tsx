@@ -984,6 +984,40 @@ export default function SalesReport() {
     [],
   );
 
+  // ── Product → Category map (from filtered items) ──
+  const productCategoryMap = useMemo(() => {
+    const m: Record<string, { id: string; name: string }> = {};
+    filtered.forEach((inv) => {
+      (inv.items || []).forEach((item: any) => {
+        if (item.product_id && item.product) {
+          m[item.product_id] = {
+            id: item.product.category_id || "__none__",
+            name: item.product.category?.name || "بدون تصنيف",
+          };
+        }
+      });
+    });
+    return m;
+  }, [filtered]);
+
+  // ── COGS aggregations from movements ──
+  const cogsAggregates = useMemo(() => {
+    const byCategory: Record<string, number> = {};
+    const byPeriod: Record<string, number> = {};
+    movements.forEach((m) => {
+      const sign = m.movement_type === "sale" ? 1 : -1;
+      const amt = sign * Number(m.total_cost || 0);
+      const cat = productCategoryMap[m.product_id]?.id || "__none__";
+      byCategory[cat] = (byCategory[cat] || 0) + amt;
+      const key =
+        timeMode === "daily"
+          ? m.movement_date
+          : (m.movement_date || "").substring(0, 7);
+      if (key) byPeriod[key] = (byPeriod[key] || 0) + amt;
+    });
+    return { byCategory, byPeriod };
+  }, [movements, productCategoryMap, timeMode]);
+
   // ═══ GROUPING: By Time ═══
   const timeData = useMemo(() => {
     const map: Record<
@@ -1008,18 +1042,8 @@ export default function SalesReport() {
           : (() => {
               const [y, m] = key.split("-");
               const months = [
-                "يناير",
-                "فبراير",
-                "مارس",
-                "أبريل",
-                "مايو",
-                "يونيو",
-                "يوليو",
-                "أغسطس",
-                "سبتمبر",
-                "أكتوبر",
-                "نوفمبر",
-                "ديسمبر",
+                "يناير","فبراير","مارس","أبريل","مايو","يونيو",
+                "يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر",
               ];
               return `${months[parseInt(m) - 1]} ${y}`;
             })();
@@ -1027,15 +1051,38 @@ export default function SalesReport() {
       map[key].count++;
       map[key].total += Number(inv.total);
     });
-    // Add returns
     Object.keys(returnsByDate).forEach((key) => {
       if (map[key]) map[key].returns = returnsByDate[key];
     });
-    return Object.values(map).sort((a, b) => a.key.localeCompare(b.key));
-  }, [filtered, returnsByDate, timeMode]);
+    const sorted = Object.values(map).sort((a, b) =>
+      a.key.localeCompare(b.key),
+    );
+    // Enrich with derived metrics + period-over-period growth
+    return sorted.map((d, i) => {
+      const net = d.total - d.returns;
+      const cogs = isPostedOnly ? cogsAggregates.byPeriod[d.key] || 0 : 0;
+      const profit = isPostedOnly ? net - cogs : 0;
+      const margin = isPostedOnly && net > 0 ? (profit / net) * 100 : null;
+      const returnRate = d.total > 0 ? (d.returns / d.total) * 100 : 0;
+      const aov = d.count > 0 ? net / d.count : 0;
+      const prevNet = i > 0 ? sorted[i - 1].total - sorted[i - 1].returns : 0;
+      const growth =
+        i > 0 && prevNet > 0 ? ((net - prevNet) / prevNet) * 100 : null;
+      return {
+        ...d,
+        net,
+        cogs,
+        profit,
+        margin,
+        returnRate,
+        aov,
+        growth,
+      };
+    });
+  }, [filtered, returnsByDate, timeMode, cogsAggregates, isPostedOnly]);
 
-  const timeColumns = useMemo<ColumnDef<any, any>[]>(
-    () => [
+  const timeColumns = useMemo<ColumnDef<any, any>[]>(() => {
+    const cols: ColumnDef<any, any>[] = [
       {
         accessorKey: "label",
         header: timeMode === "daily" ? "التاريخ" : "الشهر",
@@ -1050,68 +1097,131 @@ export default function SalesReport() {
             .rows.reduce((s, r) => s + r.original.count, 0),
       },
       {
-        accessorKey: "total",
-        header: "الإجمالي",
-        cell: ({ getValue }) => fmt(getValue() as number),
-        footer: ({ table }) => (
+        accessorKey: "net",
+        header: "صافي المبيعات",
+        cell: ({ getValue }) => (
           <span className="font-bold font-mono">
-            {fmt(
-              table
-                .getFilteredRowModel()
-                .rows.reduce((s, r) => s + r.original.total, 0),
-            )}
+            {fmt(getValue() as number)}
           </span>
-        ),
-      },
-      {
-        accessorKey: "returns",
-        header: "المرتجعات",
-        cell: ({ getValue }) => (
-          <span className="text-destructive">{fmt(getValue() as number)}</span>
-        ),
-        footer: ({ table }) => (
-          <span className="text-destructive font-mono">
-            {fmt(
-              table
-                .getFilteredRowModel()
-                .rows.reduce((s, r) => s + r.original.returns, 0),
-            )}
-          </span>
-        ),
-      },
-      {
-        id: "net",
-        header: "الصافي",
-        accessorFn: (r: any) => r.total - r.returns,
-        cell: ({ getValue }) => (
-          <span className="font-bold">{fmt(getValue() as number)}</span>
         ),
         footer: ({ table }) => (
           <span className="font-bold font-mono">
             {fmt(
               table
                 .getFilteredRowModel()
-                .rows.reduce(
-                  (s, r) => s + r.original.total - r.original.returns,
-                  0,
-                ),
+                .rows.reduce((s, r) => s + r.original.net, 0),
             )}
           </span>
         ),
       },
-    ],
-    [timeMode],
-  );
+      {
+        accessorKey: "aov",
+        header: "متوسط الفاتورة",
+        cell: ({ getValue }) => (
+          <span className="font-mono text-muted-foreground">
+            {fmt(getValue() as number)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "returnRate",
+        header: "% المرتجعات",
+        cell: ({ getValue, row }) => {
+          const v = getValue() as number;
+          const ret = row.original.returns;
+          if (ret <= 0)
+            return <span className="text-muted-foreground">—</span>;
+          const tone =
+            v >= 10
+              ? "text-destructive"
+              : v >= 5
+                ? "text-amber-600"
+                : "text-muted-foreground";
+          return (
+            <span className={`font-mono ${tone}`}>{v.toFixed(1)}%</span>
+          );
+        },
+      },
+    ];
+    if (isPostedOnly) {
+      cols.push(
+        {
+          accessorKey: "profit",
+          header: "الربح",
+          cell: ({ getValue, row }) => {
+            if (row.original.cogs <= 0)
+              return <span className="text-muted-foreground">—</span>;
+            const v = getValue() as number;
+            return (
+              <span
+                className={`font-mono font-semibold ${v >= 0 ? "text-emerald-600" : "text-destructive"}`}
+              >
+                {fmt(v)}
+              </span>
+            );
+          },
+          footer: ({ table }) => {
+            const v = table
+              .getFilteredRowModel()
+              .rows.reduce(
+                (s, r) =>
+                  s + (r.original.cogs > 0 ? r.original.profit : 0),
+                0,
+              );
+            return (
+              <span className="font-bold font-mono">{fmt(v)}</span>
+            );
+          },
+        },
+        {
+          accessorKey: "margin",
+          header: "الهامش %",
+          cell: ({ getValue }) => {
+            const v = getValue() as number | null;
+            if (v === null)
+              return <span className="text-muted-foreground">—</span>;
+            const tone =
+              v >= 25
+                ? "text-emerald-600"
+                : v >= 10
+                  ? "text-amber-600"
+                  : "text-destructive";
+            return (
+              <span className={`font-mono ${tone}`}>{v.toFixed(1)}%</span>
+            );
+          },
+        },
+      );
+    }
+    cols.push({
+      accessorKey: "growth",
+      header: "النمو vs السابق",
+      cell: ({ getValue }) => {
+        const v = getValue() as number | null;
+        if (v === null)
+          return <span className="text-muted-foreground">—</span>;
+        const tone = v >= 0 ? "text-emerald-600" : "text-destructive";
+        const arrow = v >= 0 ? "▲" : "▼";
+        return (
+          <span className={`font-mono ${tone}`}>
+            {arrow} {Math.abs(v).toFixed(1)}%
+          </span>
+        );
+      },
+    });
+    return cols;
+  }, [timeMode, isPostedOnly]);
 
   // ═══ GROUPING: By Category ═══
   const categoryData = useMemo(() => {
     const map: Record<
       string,
       {
+        id: string;
         name: string;
         products: Set<string>;
         qty: number;
-        revenue: number;
+        revenue: number; // gross
         returns: number;
       }
     > = {};
@@ -1121,6 +1231,7 @@ export default function SalesReport() {
         const catName = item.product?.category?.name || "بدون تصنيف";
         if (!map[catId])
           map[catId] = {
+            id: catId,
             name: catName,
             products: new Set(),
             qty: 0,
@@ -1138,22 +1249,36 @@ export default function SalesReport() {
         if (map[catId]) map[catId].returns += Number(item.total);
       });
     });
-    const totalRevenue = Object.values(map).reduce((s, c) => s + c.revenue, 0);
+    const totalNet = Object.values(map).reduce(
+      (s, c) => s + (c.revenue - c.returns),
+      0,
+    );
     return Object.values(map)
-      .map((c) => ({
-        name: c.name,
-        productCount: c.products.size,
-        qty: c.qty,
-        revenue: c.revenue,
-        returns: c.returns,
-        net: c.revenue - c.returns,
-        pctOfTotal: totalRevenue > 0 ? (c.revenue / totalRevenue) * 100 : 0,
-      }))
-      .sort((a, b) => b.revenue - a.revenue);
-  }, [filtered, returns]);
+      .map((c) => {
+        const net = c.revenue - c.returns;
+        const cogs = isPostedOnly ? cogsAggregates.byCategory[c.id] || 0 : 0;
+        const profit = isPostedOnly ? net - cogs : 0;
+        const margin = isPostedOnly && net > 0 ? (profit / net) * 100 : null;
+        const returnRate = c.revenue > 0 ? (c.returns / c.revenue) * 100 : 0;
+        return {
+          name: c.name,
+          productCount: c.products.size,
+          qty: c.qty,
+          revenue: c.revenue,
+          returns: c.returns,
+          net,
+          cogs,
+          profit,
+          margin,
+          returnRate,
+          pctOfTotal: totalNet > 0 ? (net / totalNet) * 100 : 0,
+        };
+      })
+      .sort((a, b) => b.net - a.net);
+  }, [filtered, returns, cogsAggregates, isPostedOnly]);
 
-  const categoryColumns = useMemo<ColumnDef<any, any>[]>(
-    () => [
+  const categoryColumns = useMemo<ColumnDef<any, any>[]>(() => {
+    const cols: ColumnDef<any, any>[] = [
       {
         accessorKey: "name",
         header: "التصنيف",
@@ -1161,7 +1286,7 @@ export default function SalesReport() {
       },
       {
         accessorKey: "productCount",
-        header: "عدد المنتجات",
+        header: "منتجات",
         footer: ({ table }) =>
           table
             .getFilteredRowModel()
@@ -1176,39 +1301,13 @@ export default function SalesReport() {
             .rows.reduce((s, r) => s + r.original.qty, 0),
       },
       {
-        accessorKey: "revenue",
-        header: "الإيرادات",
-        cell: ({ getValue }) => fmt(getValue() as number),
-        footer: ({ table }) => (
-          <span className="font-bold font-mono">
-            {fmt(
-              table
-                .getFilteredRowModel()
-                .rows.reduce((s, r) => s + r.original.revenue, 0),
-            )}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "returns",
-        header: "المرتجعات",
-        cell: ({ getValue }) => (
-          <span className="text-destructive">{fmt(getValue() as number)}</span>
-        ),
-        footer: ({ table }) => (
-          <span className="text-destructive font-mono">
-            {fmt(
-              table
-                .getFilteredRowModel()
-                .rows.reduce((s, r) => s + r.original.returns, 0),
-            )}
-          </span>
-        ),
-      },
-      {
         accessorKey: "net",
-        header: "الصافي",
-        cell: ({ getValue }) => fmt(getValue() as number),
+        header: "صافي الإيرادات",
+        cell: ({ getValue }) => (
+          <span className="font-bold font-mono">
+            {fmt(getValue() as number)}
+          </span>
+        ),
         footer: ({ table }) => (
           <span className="font-bold font-mono">
             {fmt(
@@ -1220,17 +1319,96 @@ export default function SalesReport() {
         ),
       },
       {
-        accessorKey: "pctOfTotal",
-        header: "% من الإجمالي",
-        cell: ({ getValue }) => (
-          <span className="font-mono">
-            {(getValue() as number).toFixed(1)}%
-          </span>
-        ),
+        accessorKey: "returnRate",
+        header: "% المرتجعات",
+        cell: ({ getValue, row }) => {
+          const v = getValue() as number;
+          if (row.original.returns <= 0)
+            return <span className="text-muted-foreground">—</span>;
+          const tone =
+            v >= 10
+              ? "text-destructive"
+              : v >= 5
+                ? "text-amber-600"
+                : "text-muted-foreground";
+          return (
+            <span className={`font-mono ${tone}`}>{v.toFixed(1)}%</span>
+          );
+        },
       },
-    ],
-    [],
-  );
+    ];
+    if (isPostedOnly) {
+      cols.push(
+        {
+          accessorKey: "profit",
+          header: "الربح",
+          cell: ({ getValue, row }) => {
+            if (row.original.cogs <= 0)
+              return <span className="text-muted-foreground">—</span>;
+            const v = getValue() as number;
+            return (
+              <span
+                className={`font-mono font-semibold ${v >= 0 ? "text-emerald-600" : "text-destructive"}`}
+              >
+                {fmt(v)}
+              </span>
+            );
+          },
+          footer: ({ table }) => {
+            const v = table
+              .getFilteredRowModel()
+              .rows.reduce(
+                (s, r) =>
+                  s + (r.original.cogs > 0 ? r.original.profit : 0),
+                0,
+              );
+            return (
+              <span className="font-bold font-mono">{fmt(v)}</span>
+            );
+          },
+        },
+        {
+          accessorKey: "margin",
+          header: "الهامش %",
+          cell: ({ getValue }) => {
+            const v = getValue() as number | null;
+            if (v === null)
+              return <span className="text-muted-foreground">—</span>;
+            const tone =
+              v >= 25
+                ? "text-emerald-600"
+                : v >= 10
+                  ? "text-amber-600"
+                  : "text-destructive";
+            return (
+              <span className={`font-mono ${tone}`}>{v.toFixed(1)}%</span>
+            );
+          },
+        },
+      );
+    }
+    cols.push({
+      accessorKey: "pctOfTotal",
+      header: "% المساهمة",
+      cell: ({ getValue }) => {
+        const v = getValue() as number;
+        return (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-muted rounded overflow-hidden min-w-[40px]">
+              <div
+                className="h-full bg-primary"
+                style={{ width: `${Math.min(v, 100)}%` }}
+              />
+            </div>
+            <span className="font-mono text-xs w-12 text-left">
+              {v.toFixed(1)}%
+            </span>
+          </div>
+        );
+      },
+    });
+    return cols;
+  }, [isPostedOnly]);
 
   // ── Chart data for time and customer/product ──
   const chartData = useMemo(() => {
