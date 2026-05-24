@@ -1336,19 +1336,29 @@ export default function SalesReport() {
                 </SelectContent>
               </Select>
 
-              {/* Group By */}
-              <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
-                <SelectTrigger className="w-[140px] font-medium h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="invoice">الفاتورة</SelectItem>
-                  <SelectItem value="customer">العميل</SelectItem>
-                  <SelectItem value="product">المنتج</SelectItem>
-                  <SelectItem value="time">يومي/شهري</SelectItem>
-                  <SelectItem value="category">التصنيف</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Group By - Tabs style */}
+              <ToggleGroup
+                type="single"
+                value={groupBy}
+                onValueChange={(v) => v && setGroupBy(v as any)}
+                className="border rounded-lg p-0.5 bg-muted/30"
+              >
+                <ToggleGroupItem value="invoice" className="text-xs px-3 h-8">
+                  الفاتورة
+                </ToggleGroupItem>
+                <ToggleGroupItem value="customer" className="text-xs px-3 h-8">
+                  العميل
+                </ToggleGroupItem>
+                <ToggleGroupItem value="product" className="text-xs px-3 h-8">
+                  المنتج
+                </ToggleGroupItem>
+                <ToggleGroupItem value="category" className="text-xs px-3 h-8">
+                  التصنيف
+                </ToggleGroupItem>
+                <ToggleGroupItem value="time" className="text-xs px-3 h-8">
+                  زمني
+                </ToggleGroupItem>
+              </ToggleGroup>
 
               {groupBy === "time" && (
                 <>
