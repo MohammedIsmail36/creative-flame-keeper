@@ -1602,20 +1602,25 @@ export default function SalesReport() {
         pdfTitle: `تقرير المبيعات بالتصنيف (${dateFrom} - ${dateTo})`,
         headers: [
           "التصنيف",
-          "عدد المنتجات",
+          "منتجات",
           "الكمية",
-          "الإيرادات",
-          "المرتجعات",
-          "الصافي",
-          "% من الإجمالي",
+          "صافي الإيرادات",
+          "% المرتجعات",
+          ...(isPostedOnly ? ["الربح", "الهامش %"] : []),
+          "% المساهمة",
         ],
         rows: categoryData.map((c) => [
           c.name,
           c.productCount,
           c.qty,
-          c.revenue,
-          c.returns,
           c.net,
+          c.returns > 0 ? c.returnRate.toFixed(1) + "%" : "—",
+          ...(isPostedOnly
+            ? [
+                c.cogs > 0 ? c.profit : "—",
+                c.margin !== null ? c.margin.toFixed(1) + "%" : "—",
+              ]
+            : []),
           c.pctOfTotal.toFixed(1) + "%",
         ]),
         summaryCards,
@@ -1630,16 +1635,27 @@ export default function SalesReport() {
       headers: [
         timeMode === "daily" ? "التاريخ" : "الشهر",
         "عدد الفواتير",
-        "الإجمالي",
-        "المرتجعات",
-        "الصافي",
+        "صافي المبيعات",
+        "متوسط الفاتورة",
+        "% المرتجعات",
+        ...(isPostedOnly ? ["الربح", "الهامش %"] : []),
+        "النمو vs السابق",
       ],
       rows: timeData.map((d) => [
         d.label,
         d.count,
-        d.total,
-        d.returns,
-        d.total - d.returns,
+        d.net,
+        d.aov,
+        d.returns > 0 ? d.returnRate.toFixed(1) + "%" : "—",
+        ...(isPostedOnly
+          ? [
+              d.cogs > 0 ? d.profit : "—",
+              d.margin !== null ? d.margin.toFixed(1) + "%" : "—",
+            ]
+          : []),
+        d.growth !== null
+          ? (d.growth >= 0 ? "+" : "") + d.growth.toFixed(1) + "%"
+          : "—",
       ]),
       summaryCards,
       settings,
