@@ -344,7 +344,7 @@ const sections: MenuSection[] = [
             roles: ["admin", "accountant"],
           },
           {
-            title: "التحليل الشامل",
+            title: "مستكشف البيانات",
             url: "/reports/inventory-turnover/analysis",
             icon: BarChart3,
             roles: ["admin", "accountant"],

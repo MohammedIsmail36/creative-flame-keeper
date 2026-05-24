@@ -49,7 +49,7 @@ export const routeLabels: Record<string, string> = {
   unlisted: "تحت المراقبة",
   health: "تحت المراقبة",
   "under-observation": "تحت المراقبة",
-  analysis: "التحليل الشامل",
+  analysis: "مستكشف البيانات",
   settings: "الإعدادات",
   users: "إدارة المستخدمين",
   profile: "الملف الشخصي",
