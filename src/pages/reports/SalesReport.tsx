@@ -630,8 +630,15 @@ export default function SalesReport() {
           const r = row.original;
           if (r.status !== "posted")
             return <span className="text-muted-foreground">—</span>;
+          const cogs = cogsByInvoice[r.id] || 0;
           const rev = Number(r.total) - Number(r.tax || 0);
-          const v = rev > 0 ? ((rev - (cogsByInvoice[r.id] || 0)) / rev) * 100 : 0;
+          if (rev <= 0 || cogs <= 0)
+            return (
+              <span className="text-muted-foreground" title="لا توجد تكلفة مسجّلة لهذه الفاتورة">
+                —
+              </span>
+            );
+          const v = ((rev - cogs) / rev) * 100;
           return <span className="font-mono">{v.toFixed(1)}%</span>;
         },
       },
@@ -928,13 +935,20 @@ export default function SalesReport() {
         id: "margin",
         header: "الهامش%",
         accessorFn: (r: any) =>
-          r.revenue > 0 ? ((r.revenue - r.cogs) / r.revenue) * 100 : 0,
-        cell: ({ getValue }) => (
-          <span className="font-mono">
-            {(getValue() as number).toFixed(1)}%
-          </span>
-        ),
+          r.revenue > 0 && r.cogs > 0 ? ((r.revenue - r.cogs) / r.revenue) * 100 : 0,
+        cell: ({ row }) => {
+          const r = row.original;
+          if (!(r.revenue > 0) || !(r.cogs > 0))
+            return (
+              <span className="text-muted-foreground" title="لا توجد تكلفة مسجّلة لهذا المنتج">
+                —
+              </span>
+            );
+          const v = ((r.revenue - r.cogs) / r.revenue) * 100;
+          return <span className="font-mono">{v.toFixed(1)}%</span>;
+        },
       },
+
     ],
     [],
   );
