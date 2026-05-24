@@ -1378,92 +1378,81 @@ export default function SalesReport() {
         </CardContent>
       </Card>
 
-      {/* ── KPI Cards (ProductAnalytics style) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {/* عدد الفواتير */}
-        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+      {/* ── Insight Banner ── */}
+      {!isLoading && kpi.count > 0 && (
+        <Card className="border-primary/20 bg-gradient-to-l from-primary/5 via-primary/[0.02] to-transparent">
+          <CardContent className="py-3 px-4 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex-1 text-sm leading-relaxed">
+              {(() => {
+                const parts: string[] = [];
+                const growth = calcGrowth(kpi.netSales, prevKpi.netSales);
+                if (prevKpi.netSales > 0) {
+                  parts.push(
+                    growth >= 0
+                      ? `نمو ${growth.toFixed(1)}% في صافي المبيعات مقارنة بالفترة السابقة`
+                      : `تراجع ${Math.abs(growth).toFixed(1)}% في صافي المبيعات مقارنة بالفترة السابقة`,
+                  );
+                }
+                if (isPostedOnly && kpi.netSales > 0) {
+                  const marginPct = (kpi.grossProfit / kpi.netSales) * 100;
+                  parts.push(`هامش ربح ${marginPct.toFixed(1)}%`);
+                }
+                if (kpi.grossSales > 0 && kpi.returnsTotal > 0) {
+                  const retPct = (kpi.returnsTotal / kpi.grossSales) * 100;
+                  if (retPct >= 5)
+                    parts.push(`نسبة مرتجعات مرتفعة ${retPct.toFixed(1)}%`);
+                }
+                if (customerData.length >= 3) {
+                  const top3 = customerData
+                    .slice(0, 3)
+                    .reduce((s, c) => s + c.total, 0);
+                  const totalCust = customerData.reduce(
+                    (s, c) => s + c.total,
+                    0,
+                  );
+                  if (totalCust > 0) {
+                    const pct = (top3 / totalCust) * 100;
+                    if (pct >= 50)
+                      parts.push(
+                        `تركّز عالٍ: أعلى 3 عملاء = ${pct.toFixed(0)}% من المبيعات`,
+                      );
+                  }
+                }
+                if (overdueInfo.count > 0)
+                  parts.push(
+                    `${overdueInfo.count} فاتورة متأخرة بقيمة ${fmt(overdueInfo.total)}`,
+                  );
+                if (parts.length === 0)
+                  return (
+                    <span className="text-muted-foreground">
+                      {kpi.count} فاتورة في هذه الفترة بإجمالي صافي{" "}
+                      {fmt(kpi.netSales)}.
+                    </span>
+                  );
+                return (
+                  <span>
+                    <span className="font-semibold">قراءة سريعة:</span>{" "}
+                    {parts.join(" • ")}.
+                  </span>
+                );
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── 5 Primary KPI Cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {/* صافي المبيعات (الرقم الأهم) */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow lg:col-span-1">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
           <CardContent className="pt-5 pb-4">
             <div className="flex items-start gap-3">
               <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 shadow-inner">
-                <ReceiptText className="w-5 h-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground mb-1">
-                  عدد الفواتير
-                </p>
-                {isLoading ? (
-                  <Skeleton className="h-7 w-12" />
-                ) : (
-                  <p className="text-2xl font-extrabold tracking-tight tabular-nums">
-                    {kpi.count}
-                  </p>
-                )}
-                <GrowthBadge current={kpi.count} previous={prevKpi.count} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* إجمالي المبيعات */}
-        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-transparent pointer-events-none" />
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-blue-500/10 flex items-center justify-center shrink-0 shadow-inner">
-                <DollarSign className="w-5 h-5 text-blue-500" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground mb-1">
-                  إجمالي المبيعات
-                </p>
-                {isLoading ? (
-                  <Skeleton className="h-7 w-20" />
-                ) : (
-                  <p className="text-2xl font-extrabold tracking-tight tabular-nums truncate">
-                    {fmt(kpi.grossSales)}
-                  </p>
-                )}
-                <GrowthBadge
-                  current={kpi.grossSales}
-                  previous={prevKpi.grossSales}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* المرتجعات */}
-        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
-          <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 via-transparent to-transparent pointer-events-none" />
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-destructive/10 flex items-center justify-center shrink-0 shadow-inner">
-                <ArrowDownLeft className="w-5 h-5 text-destructive" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground mb-1">
-                  المرتجعات
-                </p>
-                {isLoading ? (
-                  <Skeleton className="h-7 w-16" />
-                ) : (
-                  <p className="text-2xl font-extrabold tracking-tight tabular-nums text-destructive">
-                    {fmt(kpi.returnsTotal)}
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* صافي المبيعات */}
-        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center shrink-0 shadow-inner">
-                <TrendingUp className="w-5 h-5 text-emerald-600" />
+                <DollarSign className="w-5 h-5 text-primary" />
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
@@ -1476,10 +1465,15 @@ export default function SalesReport() {
                     {fmt(kpi.netSales)}
                   </p>
                 )}
-                <GrowthBadge
-                  current={kpi.netSales}
-                  previous={prevKpi.netSales}
-                />
+                <div className="flex items-center gap-2 mt-0.5">
+                  <GrowthBadge
+                    current={kpi.netSales}
+                    previous={prevKpi.netSales}
+                  />
+                  <span className="text-[10px] text-muted-foreground">
+                    من {kpi.count} فاتورة
+                  </span>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -1520,9 +1514,23 @@ export default function SalesReport() {
                 )}
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground mb-1">
-                  إجمالي الربح
-                </p>
+                <div className="flex items-center gap-1 mb-1">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    إجمالي الربح
+                  </p>
+                  {!isPostedOnly && (
+                    <TooltipProvider>
+                      <UITooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-3 h-3 text-muted-foreground/60" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          الربح يُحسب فقط على الفواتير المُرحّلة
+                        </TooltipContent>
+                      </UITooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
                 {isLoading ? (
                   <Skeleton className="h-7 w-20" />
                 ) : (
@@ -1530,6 +1538,41 @@ export default function SalesReport() {
                     className={`text-2xl font-extrabold tracking-tight tabular-nums truncate ${isPostedOnly ? (kpi.grossProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive") : "text-muted-foreground"}`}
                   >
                     {isPostedOnly ? fmt(kpi.grossProfit) : "—"}
+                  </p>
+                )}
+                {isPostedOnly && kpi.netSales > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    هامش {((kpi.grossProfit / kpi.netSales) * 100).toFixed(1)}%
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* المرتجعات */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+          <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-destructive/10 flex items-center justify-center shrink-0 shadow-inner">
+                <ArrowDownLeft className="w-5 h-5 text-destructive" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  المرتجعات
+                </p>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-16" />
+                ) : (
+                  <p className="text-2xl font-extrabold tracking-tight tabular-nums text-destructive">
+                    {fmt(kpi.returnsTotal)}
+                  </p>
+                )}
+                {kpi.grossSales > 0 && kpi.returnsTotal > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {((kpi.returnsTotal / kpi.grossSales) * 100).toFixed(1)}% من
+                    المبيعات
                   </p>
                 )}
               </div>
@@ -1556,95 +1599,182 @@ export default function SalesReport() {
                     {kpi.collectionRate.toFixed(1)}%
                   </p>
                 )}
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {fmt(kpi.paid)} مُحصّل
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* المتأخرات (إجراء) */}
+        <Card
+          className={`relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow ${overdueInfo.count > 0 ? "border-destructive/30" : ""}`}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-orange-500/10 flex items-center justify-center shrink-0 shadow-inner">
+                <AlertTriangle className="w-5 h-5 text-orange-600" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    المتأخرات
+                  </p>
+                  {overdueInfo.count > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="text-[10px] px-1.5 py-0 h-4"
+                    >
+                      {overdueInfo.count}
+                    </Badge>
+                  )}
+                </div>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-16" />
+                ) : (
+                  <p
+                    className={`text-2xl font-extrabold tracking-tight tabular-nums ${overdueInfo.total > 0 ? "text-destructive" : "text-muted-foreground"}`}
+                  >
+                    {fmt(overdueInfo.total)}
+                  </p>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {overdueInfo.count === 0
+                    ? "لا متأخرات"
+                    : `${overdueInfo.count} فاتورة متأخرة`}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* ── Extra KPI row: avg invoice, overdue, discount/tax ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* متوسط الفاتورة */}
-        <Card className="border shadow-sm">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs font-medium text-muted-foreground mb-1">
-              متوسط الفاتورة
-            </p>
-            {isLoading ? (
-              <Skeleton className="h-6 w-16" />
-            ) : (
-              <p className="text-lg font-bold tabular-nums">
-                {fmt(kpi.count > 0 ? kpi.grossSales / kpi.count : 0)}
-              </p>
-            )}
-            <GrowthBadge
-              current={kpi.count > 0 ? kpi.grossSales / kpi.count : 0}
-              previous={
-                prevKpi.count > 0 ? prevKpi.grossSales / prevKpi.count : 0
-              }
+      {/* ── Status filter indicator ── */}
+      {statusFilter !== "all" && (
+        <p className="text-[11px] text-muted-foreground -mt-2 px-1">
+          <Info className="inline w-3 h-3 ml-1" />
+          الأرقام مبنية على الفواتير{" "}
+          {statusFilter === "posted"
+            ? "المُرحّلة فقط"
+            : statusFilter === "draft"
+              ? "المسودة فقط"
+              : "الملغاة فقط"}
+        </p>
+      )}
+
+      {/* ── Collapsible: Extra KPIs ── */}
+      <Collapsible open={showExtras} onOpenChange={setShowExtras}>
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2 h-8 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ChevronDown
+              className={`w-3.5 h-3.5 transition-transform ${showExtras ? "rotate-180" : ""}`}
             />
-          </CardContent>
-        </Card>
-        {/* المتأخرات */}
-        <Card
-          className={`border shadow-sm ${overdueInfo.count > 0 ? "border-destructive/30" : ""}`}
-        >
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <p className="text-xs font-medium text-muted-foreground">
-                المتأخرات
-              </p>
-              {overdueInfo.count > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="text-[10px] px-1.5 py-0"
-                >
-                  {overdueInfo.count}
-                </Badge>
-              )}
-            </div>
-            {isLoading ? (
-              <Skeleton className="h-6 w-16" />
-            ) : (
-              <p
-                className={`text-lg font-bold tabular-nums ${overdueInfo.total > 0 ? "text-destructive" : ""}`}
-              >
-                {fmt(overdueInfo.total)}
-              </p>
+            مؤشرات إضافية
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+            {/* إجمالي المبيعات (قبل المرتجعات) */}
+            <Card className="border shadow-sm">
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  إجمالي المبيعات
+                </p>
+                {isLoading ? (
+                  <Skeleton className="h-6 w-16" />
+                ) : (
+                  <p className="text-lg font-bold tabular-nums">
+                    {fmt(kpi.grossSales)}
+                  </p>
+                )}
+                <GrowthBadge
+                  current={kpi.grossSales}
+                  previous={prevKpi.grossSales}
+                />
+              </CardContent>
+            </Card>
+
+            {/* عدد الفواتير */}
+            <Card className="border shadow-sm">
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  عدد الفواتير
+                </p>
+                {isLoading ? (
+                  <Skeleton className="h-6 w-12" />
+                ) : (
+                  <p className="text-lg font-bold tabular-nums">{kpi.count}</p>
+                )}
+                <GrowthBadge current={kpi.count} previous={prevKpi.count} />
+              </CardContent>
+            </Card>
+
+            {/* متوسط الفاتورة */}
+            <Card className="border shadow-sm">
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  متوسط الفاتورة
+                </p>
+                {isLoading ? (
+                  <Skeleton className="h-6 w-16" />
+                ) : (
+                  <p className="text-lg font-bold tabular-nums">
+                    {fmt(kpi.count > 0 ? kpi.grossSales / kpi.count : 0)}
+                  </p>
+                )}
+                <GrowthBadge
+                  current={kpi.count > 0 ? kpi.grossSales / kpi.count : 0}
+                  previous={
+                    prevKpi.count > 0 ? prevKpi.grossSales / prevKpi.count : 0
+                  }
+                />
+              </CardContent>
+            </Card>
+
+            {/* الخصم (يظهر فقط إذا > 0) */}
+            {discountTaxInfo.discount > 0 && (
+              <Card className="border shadow-sm">
+                <CardContent className="pt-4 pb-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
+                    إجمالي الخصم
+                  </p>
+                  {isLoading ? (
+                    <Skeleton className="h-6 w-16" />
+                  ) : (
+                    <p className="text-lg font-bold tabular-nums">
+                      {fmt(discountTaxInfo.discount)}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
-        {/* الخصم */}
-        <Card className="border shadow-sm">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs font-medium text-muted-foreground mb-1">
-              إجمالي الخصم
-            </p>
-            {isLoading ? (
-              <Skeleton className="h-6 w-16" />
-            ) : (
-              <p className="text-lg font-bold tabular-nums">
-                {fmt(discountTaxInfo.discount)}
-              </p>
+
+            {/* الضريبة (تظهر فقط إذا > 0) */}
+            {discountTaxInfo.tax > 0 && (
+              <Card className="border shadow-sm">
+                <CardContent className="pt-4 pb-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
+                    إجمالي الضريبة
+                  </p>
+                  {isLoading ? (
+                    <Skeleton className="h-6 w-16" />
+                  ) : (
+                    <p className="text-lg font-bold tabular-nums">
+                      {fmt(discountTaxInfo.tax)}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
-        {/* الضريبة */}
-        <Card className="border shadow-sm">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs font-medium text-muted-foreground mb-1">
-              إجمالي الضريبة
-            </p>
-            {isLoading ? (
-              <Skeleton className="h-6 w-16" />
-            ) : (
-              <p className="text-lg font-bold tabular-nums">
-                {fmt(discountTaxInfo.tax)}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* ── Sales Target ── */}
       {targetInfo && (
