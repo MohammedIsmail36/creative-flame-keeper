@@ -54,11 +54,9 @@ import {
 } from "recharts";
 import { useSettings } from "@/contexts/SettingsContext";
 import {
-  FileText,
   TrendingUp,
   TrendingDown,
   ArrowDownLeft,
-  ReceiptText,
   Percent,
   DollarSign,
   AlertTriangle,
