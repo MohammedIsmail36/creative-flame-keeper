@@ -842,6 +842,65 @@ export default function ProductAnalytics() {
     );
   };
 
+  /**
+   * Smart margin renderer — handles edge cases that produce misleading numbers:
+   *  - Fully returned (netQty<=0 with returns) → "مرتجع كامل"
+   *  - No cost recorded (netCogs=0, netRevenue>0) → "بدون تكلفة" (phantom margin)
+   *  - No revenue → "—"
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const smartMarginCell = (row: any) => {
+    const netRevenue = Number(row?.netRevenue ?? 0);
+    const netCogs = Number(row?.netCogs ?? 0);
+    const netQty = row?.netQty;
+    const returnedQty = Number(row?.returnedQty ?? 0);
+    const profit = Number(row?.profit ?? 0);
+
+    if (typeof netQty === "number" && netQty <= 0 && returnedQty > 0) {
+      return (
+        <TooltipProvider>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="destructive" className="text-[10px] font-normal cursor-help">
+                مرتجع كامل
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs max-w-xs">
+              تم إرجاع الكمية بالكامل — الهامش غير ذي معنى
+            </TooltipContent>
+          </UITooltip>
+        </TooltipProvider>
+      );
+    }
+
+    if (netRevenue <= 0) {
+      return <span className="text-muted-foreground/40">—</span>;
+    }
+
+    if (netCogs <= 0) {
+      return (
+        <TooltipProvider>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="outline"
+                className="text-[10px] font-normal cursor-help border-amber-400 text-amber-600 dark:text-amber-400"
+              >
+                ⚠ بدون تكلفة
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs max-w-xs">
+              لا توجد تكلفة شراء مسجلة لهذا المنتج — الهامش الظاهر (100%) غير موثوق
+            </TooltipContent>
+          </UITooltip>
+        </TooltipProvider>
+      );
+    }
+
+    const margin = (profit / netRevenue) * 100;
+    return marginBadge(margin);
+  };
+
   // ─── Column Definitions ────────────────────────────────────────────────────
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
