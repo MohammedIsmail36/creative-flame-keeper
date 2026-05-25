@@ -163,6 +163,11 @@ Deno.serve(async (req) => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // ── Step 5: إعادة إنشاء حساب المدير ──
+    if (!DEFAULT_ADMIN_PASSWORD) {
+      return new Response(JSON.stringify({ error: "يجب ضبط DEFAULT_ADMIN_PASSWORD كـ secret قبل إعادة البناء" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
       email: DEFAULT_ADMIN_EMAIL,
       password: DEFAULT_ADMIN_PASSWORD,
@@ -223,7 +228,7 @@ Deno.serve(async (req) => {
     results.push("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     results.push("✅ تم تصفير قاعدة البيانات وإعادة البناء بنجاح");
     results.push(`📧 بريد المدير: ${DEFAULT_ADMIN_EMAIL}`);
-    results.push(`🔐 كلمة المرور الافتراضية: Sys@Admin#2025!Reset (يُرجى تغييرها فور الدخول)`);
+    results.push(`🔐 يُرجى استخدام كلمة المرور المُكوّنة في إعدادات النظام وتغييرها فور الدخول`);
 
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
