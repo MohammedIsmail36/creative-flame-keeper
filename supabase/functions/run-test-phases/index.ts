@@ -10,10 +10,35 @@ function round2(n: number) { return Math.round((n + Number.EPSILON) * 100) / 100
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  // ── Admin-only auth guard ──
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "غير مصرح" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const SUPABASE_URL_ENV = Deno.env.get("SUPABASE_URL")!;
+  const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const callerClient = createClient(SUPABASE_URL_ENV, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user: caller }, error: callerError } = await callerClient.auth.getUser();
+  if (callerError || !caller) {
+    return new Response(JSON.stringify({ error: "جلسة غير صالحة" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabase = createClient(SUPABASE_URL_ENV, SERVICE_ROLE_KEY);
+
+  const { data: roleData } = await supabase
+    .from("user_roles").select("role").eq("user_id", caller.id).eq("role", "admin").maybeSingle();
+  if (!roleData) {
+    return new Response(JSON.stringify({ error: "صلاحيات غير كافية" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
 
   const { phase } = await req.json();
   const log: string[] = [];
