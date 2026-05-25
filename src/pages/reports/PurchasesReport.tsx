@@ -1102,8 +1102,10 @@ export default function PurchasesReport() {
         returns: c.returns,
         net: c.cost - c.returns,
         pctOfTotal: totalCost > 0 ? (c.cost / totalCost) * 100 : 0,
+        avgUnitCost: c.qty > 0 ? c.cost / c.qty : 0,
+        returnRate: c.cost > 0 ? (c.returns / c.cost) * 100 : 0,
       }))
-      .sort((a, b) => b.cost - a.cost);
+      .sort((a, b) => b.net - a.net);
   }, [filtered, returns]);
 
   const categoryColumns = useMemo<ColumnDef<any, any>[]>(
