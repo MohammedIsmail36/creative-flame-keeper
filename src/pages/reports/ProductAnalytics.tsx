@@ -650,7 +650,10 @@ export default function ProductAnalytics() {
         revenueShare,
         cumulative,
         abcClass,
+        profit: p.profit,
+        margin: p.netRevenue > 0 ? (p.profit / p.netRevenue) * 100 : 0,
       };
+
     });
   }, [filteredMetrics]);
 
