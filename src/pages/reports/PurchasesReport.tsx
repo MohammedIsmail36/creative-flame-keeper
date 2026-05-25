@@ -51,6 +51,12 @@ import {
   Percent,
   AlertTriangle,
   ShoppingCart,
+  ArrowUp,
+  ArrowDown,
+  Lightbulb,
+  Users,
+  Package,
+  Target,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
