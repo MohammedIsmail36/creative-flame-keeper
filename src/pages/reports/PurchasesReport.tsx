@@ -514,6 +514,7 @@ export default function PurchasesReport() {
     const map: Record<
       string,
       {
+        id: string;
         name: string;
         count: number;
         total: number;
@@ -525,7 +526,7 @@ export default function PurchasesReport() {
       const sid = inv.supplier_id || "__none__";
       const name = inv.supplier?.name || "بدون مورد";
       if (!map[sid])
-        map[sid] = { name, count: 0, total: 0, paid: 0, returns: 0 };
+        map[sid] = { id: sid, name, count: 0, total: 0, paid: 0, returns: 0 };
       map[sid].count++;
       map[sid].total += Number(inv.total);
       map[sid].paid += Number(inv.paid_amount);
@@ -533,7 +534,21 @@ export default function PurchasesReport() {
     Object.keys(map).forEach((sid) => {
       map[sid].returns = returnsBySupplier[sid] || 0;
     });
-    return Object.values(map).sort((a, b) => b.total - a.total);
+    const grandTotal = Object.values(map).reduce((s, c) => s + c.total, 0);
+    return Object.values(map)
+      .map((c) => {
+        const net = c.total - c.returns;
+        return {
+          ...c,
+          net,
+          remaining: c.total - c.paid,
+          avgInvoice: c.count > 0 ? c.total / c.count : 0,
+          pctOfTotal: grandTotal > 0 ? (c.total / grandTotal) * 100 : 0,
+          returnRate: c.total > 0 ? (c.returns / c.total) * 100 : 0,
+          paymentRate: net > 0 ? Math.min((c.paid / net) * 100, 100) : 0,
+        };
+      })
+      .sort((a, b) => b.net - a.net);
   }, [filtered, returnsBySupplier]);
 
   const supplierColumns = useMemo<ColumnDef<any, any>[]>(
@@ -541,6 +556,20 @@ export default function PurchasesReport() {
       {
         accessorKey: "name",
         header: "المورد",
+        cell: ({ row }) => {
+          const r = row.original;
+          return (
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{r.name}</span>
+              {r.pctOfTotal >= 40 && (
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                  <AlertTriangle className="w-2.5 h-2.5 ml-0.5" />
+                  اعتماد مفرط
+                </Badge>
+              )}
+            </div>
+          );
+        },
         footer: () => <span className="font-bold">الإجمالي</span>,
       },
       {
@@ -582,41 +611,67 @@ export default function PurchasesReport() {
         ),
       },
       {
-        id: "net",
+        accessorKey: "net",
         header: "الصافي",
-        accessorFn: (r: any) => r.total - r.returns,
-        cell: ({ getValue }) => fmt(getValue() as number),
+        cell: ({ getValue }) => (
+          <span className="font-bold">{fmt(getValue() as number)}</span>
+        ),
         footer: ({ table }) => (
           <span className="font-bold font-mono">
             {fmt(
               table
                 .getFilteredRowModel()
-                .rows.reduce(
-                  (s, r) => s + r.original.total - r.original.returns,
-                  0,
-                ),
+                .rows.reduce((s, r) => s + r.original.net, 0),
             )}
           </span>
         ),
       },
       {
-        accessorKey: "paid",
-        header: "المدفوع",
-        cell: ({ getValue }) => fmt(getValue() as number),
-        footer: ({ table }) => (
-          <span className="font-mono">
-            {fmt(
-              table
-                .getFilteredRowModel()
-                .rows.reduce((s, r) => s + r.original.paid, 0),
-            )}
+        accessorKey: "pctOfTotal",
+        header: "حصة %",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          const color =
+            v >= 40
+              ? "text-destructive"
+              : v >= 25
+                ? "text-amber-600"
+                : "text-muted-foreground";
+          return (
+            <span className={`font-mono font-semibold ${color}`}>
+              {v.toFixed(1)}%
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "returnRate",
+        header: "معدل الإرجاع",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          const color =
+            v >= 10
+              ? "text-destructive"
+              : v >= 5
+                ? "text-amber-600"
+                : "text-emerald-600";
+          return (
+            <span className={`font-mono ${color}`}>{v.toFixed(1)}%</span>
+          );
+        },
+      },
+      {
+        accessorKey: "avgInvoice",
+        header: "متوسط الفاتورة",
+        cell: ({ getValue }) => (
+          <span className="font-mono text-muted-foreground">
+            {fmt(getValue() as number)}
           </span>
         ),
       },
       {
-        id: "remaining",
+        accessorKey: "remaining",
         header: "المتبقي",
-        accessorFn: (r: any) => r.total - r.paid,
         cell: ({ getValue }) => {
           const v = getValue() as number;
           return (
@@ -626,26 +681,46 @@ export default function PurchasesReport() {
         footer: ({ table }) => {
           const t = table
             .getFilteredRowModel()
-            .rows.reduce((s, r) => s + r.original.total - r.original.paid, 0);
+            .rows.reduce((s, r) => s + r.original.remaining, 0);
           return <span className="text-destructive font-mono">{fmt(t)}</span>;
         },
       },
       {
-        id: "payment",
+        accessorKey: "paymentRate",
         header: "السداد%",
-        accessorFn: (r: any) => {
-          const net = r.total - r.returns;
-          return net > 0 ? Math.min((r.paid / net) * 100, 100) : 0;
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          const color =
+            v >= 80
+              ? "text-emerald-600"
+              : v >= 50
+                ? "text-amber-600"
+                : "text-destructive";
+          return (
+            <div className="flex items-center gap-1.5 min-w-[80px]">
+              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${
+                    v >= 80
+                      ? "bg-emerald-500"
+                      : v >= 50
+                        ? "bg-amber-500"
+                        : "bg-destructive"
+                  }`}
+                  style={{ width: `${v}%` }}
+                />
+              </div>
+              <span className={`font-mono text-xs ${color}`}>
+                {v.toFixed(0)}%
+              </span>
+            </div>
+          );
         },
-        cell: ({ getValue }) => (
-          <span className="font-mono">
-            {(getValue() as number).toFixed(1)}%
-          </span>
-        ),
       },
     ],
     [],
   );
+
 
   // ═══ GROUPING: By Product ═══
   const productData = useMemo(() => {
