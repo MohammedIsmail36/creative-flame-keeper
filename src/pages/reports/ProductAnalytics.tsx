@@ -1742,6 +1742,8 @@ export default function ProductAnalytics() {
           "الإيرادات",
           "الحصة %",
           "التراكمي %",
+          "الربح",
+          "هامش %",
           "التصنيف ABC",
         ],
         rows: abcData.map((p, i) => [
@@ -1753,8 +1755,11 @@ export default function ProductAnalytics() {
           p.netRevenue,
           p.revenueShare,
           p.cumulative,
+          p.profit,
+          p.margin,
           p.abcClass,
         ]),
+
       });
     } else {
       exportToExcel({
