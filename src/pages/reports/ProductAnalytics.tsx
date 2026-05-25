@@ -2712,6 +2712,9 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          toolbarContent={<QuickSortToolbar />}
           searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد مبيعات في هذه الفترة"
           columnLabels={{
@@ -2739,6 +2742,9 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          toolbarContent={<QuickSortToolbar />}
           searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد بيانات"
           columnLabels={{
@@ -2764,6 +2770,9 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          toolbarContent={<QuickSortToolbar />}
           searchPlaceholder="بحث بالتصنيف..."
           emptyMessage="لا توجد بيانات"
           columnLabels={{
@@ -2786,6 +2795,9 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          toolbarContent={<QuickSortToolbar />}
           searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد بيانات"
           columnLabels={{
@@ -2810,6 +2822,9 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          toolbarContent={<QuickSortToolbar />}
           searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد بيانات كافية"
           columnLabels={{
@@ -2834,6 +2849,9 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          toolbarContent={<QuickSortToolbar />}
           searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد مرتجعات في هذه الفترة"
           columnLabels={{
