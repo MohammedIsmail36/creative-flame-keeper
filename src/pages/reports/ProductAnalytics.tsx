@@ -1132,7 +1132,7 @@ export default function ProductAnalytics() {
         header: "هامش الربح",
         accessorFn: (row) =>
           row.netRevenue > 0 ? (row.profit / row.netRevenue) * 100 : 0,
-        cell: ({ getValue }) => marginBadge(getValue() as number),
+        cell: ({ row }) => smartMarginCell(row.original),
       },
       {
         id: "profitPerUnit",
