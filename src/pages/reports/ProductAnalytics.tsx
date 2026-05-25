@@ -1707,6 +1707,8 @@ export default function ProductAnalytics() {
           "أيام التغطية",
           "المخزون الحالي",
           "الحد الأدنى",
+          "الربح",
+          "هامش %",
           "التقييم",
         ],
         rows: turnoverData.map((p) => [
@@ -1719,8 +1721,11 @@ export default function ProductAnalytics() {
           p.daysOfSupply ?? "",
           p.currentStock,
           p.minStockLevel,
+          p.profit,
+          p.margin,
           TURNOVER_LABELS[p.rating],
         ]),
+
       });
     } else if (view === "abc") {
       exportToExcel({
