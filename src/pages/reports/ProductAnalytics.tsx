@@ -1355,6 +1355,21 @@ export default function ProductAnalytics() {
         cell: ({ getValue }) => {
           const v = getValue() as number;
           if (!v) return <span className="text-muted-foreground/40">—</span>;
+          if (v >= 99.5)
+            return (
+              <TooltipProvider>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="text-[10px] font-normal cursor-help border-amber-400 text-amber-600 dark:text-amber-400">
+                      ⚠ بدون تكلفة
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs max-w-xs">
+                    لا توجد تكلفة شراء مسجلة — الهامش الظاهر غير موثوق
+                  </TooltipContent>
+                </UITooltip>
+              </TooltipProvider>
+            );
           return marginBadge(v);
         },
       },
