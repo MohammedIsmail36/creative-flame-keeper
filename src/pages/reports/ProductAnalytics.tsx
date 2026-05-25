@@ -1660,9 +1660,42 @@ export default function ProductAnalytics() {
       {
         accessorKey: "margin",
         header: "هامش %",
-        cell: ({ getValue }) => {
+        cell: ({ row, getValue }) => {
           const v = getValue() as number;
+          const r = row.original;
+          // fully returned
+          if (r.soldQty > 0 && r.returnedQty >= r.soldQty) {
+            return (
+              <TooltipProvider>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="destructive" className="text-[10px] font-normal cursor-help">
+                      مرتجع كامل
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs max-w-xs">
+                    تم إرجاع الكمية بالكامل — الهامش غير ذي معنى
+                  </TooltipContent>
+                </UITooltip>
+              </TooltipProvider>
+            );
+          }
           if (!v) return <span className="text-muted-foreground/40">—</span>;
+          if (v >= 99.5)
+            return (
+              <TooltipProvider>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="text-[10px] font-normal cursor-help border-amber-400 text-amber-600 dark:text-amber-400">
+                      ⚠ بدون تكلفة
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs max-w-xs">
+                    لا توجد تكلفة شراء مسجلة — الهامش الظاهر غير موثوق
+                  </TooltipContent>
+                </UITooltip>
+              </TooltipProvider>
+            );
           return marginBadge(v);
         },
       },
