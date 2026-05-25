@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, SortingState } from "@tanstack/react-table";
 import {
   format,
   startOfMonth,
@@ -51,6 +51,12 @@ import {
   Percent,
   AlertTriangle,
   ShoppingCart,
+  ArrowUp,
+  ArrowDown,
+  Lightbulb,
+  Users,
+  Package,
+  Target,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
@@ -85,6 +91,50 @@ export default function PurchasesReport() {
     "invoice" | "supplier" | "product" | "time" | "category"
   >("invoice");
   const [timeMode, setTimeMode] = useState<"daily" | "monthly">("daily");
+
+  // ── Sorting states per grouping ──
+  const [supplierSort, setSupplierSort] = useState<SortingState>([]);
+  const [productSort, setProductSort] = useState<SortingState>([]);
+  const [categorySort, setCategorySort] = useState<SortingState>([]);
+  const [timeSort, setTimeSort] = useState<SortingState>([]);
+
+  // ── Generic quick-sort toolbar ──
+  const QuickSortToolbar = ({
+    sorting,
+    setSorting,
+    buttons,
+  }: {
+    sorting: SortingState;
+    setSorting: (s: SortingState) => void;
+    buttons: { id: string; label: string }[];
+  }) => {
+    const active = sorting[0];
+    const toggle = (id: string) => {
+      if (active?.id !== id) setSorting([{ id, desc: true }]);
+      else if (active.desc) setSorting([{ id, desc: false }]);
+      else setSorting([]);
+    };
+    return (
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {buttons.map((b) => {
+          const isActive = active?.id === b.id;
+          const Icon = isActive && !active.desc ? ArrowUp : ArrowDown;
+          return (
+            <Button
+              key={b.id}
+              variant={isActive ? "default" : "outline"}
+              size="sm"
+              className="h-8 gap-1 text-xs"
+              onClick={() => toggle(b.id)}
+            >
+              <Icon className="h-3 w-3" />
+              {b.label}
+            </Button>
+          );
+        })}
+      </div>
+    );
+  };
 
   // ── Quick date presets ──
   const quickRanges = useMemo(() => {
@@ -464,6 +514,7 @@ export default function PurchasesReport() {
     const map: Record<
       string,
       {
+        id: string;
         name: string;
         count: number;
         total: number;
@@ -475,7 +526,7 @@ export default function PurchasesReport() {
       const sid = inv.supplier_id || "__none__";
       const name = inv.supplier?.name || "بدون مورد";
       if (!map[sid])
-        map[sid] = { name, count: 0, total: 0, paid: 0, returns: 0 };
+        map[sid] = { id: sid, name, count: 0, total: 0, paid: 0, returns: 0 };
       map[sid].count++;
       map[sid].total += Number(inv.total);
       map[sid].paid += Number(inv.paid_amount);
@@ -483,7 +534,21 @@ export default function PurchasesReport() {
     Object.keys(map).forEach((sid) => {
       map[sid].returns = returnsBySupplier[sid] || 0;
     });
-    return Object.values(map).sort((a, b) => b.total - a.total);
+    const grandTotal = Object.values(map).reduce((s, c) => s + c.total, 0);
+    return Object.values(map)
+      .map((c) => {
+        const net = c.total - c.returns;
+        return {
+          ...c,
+          net,
+          remaining: c.total - c.paid,
+          avgInvoice: c.count > 0 ? c.total / c.count : 0,
+          pctOfTotal: grandTotal > 0 ? (c.total / grandTotal) * 100 : 0,
+          returnRate: c.total > 0 ? (c.returns / c.total) * 100 : 0,
+          paymentRate: net > 0 ? Math.min((c.paid / net) * 100, 100) : 0,
+        };
+      })
+      .sort((a, b) => b.net - a.net);
   }, [filtered, returnsBySupplier]);
 
   const supplierColumns = useMemo<ColumnDef<any, any>[]>(
@@ -491,6 +556,20 @@ export default function PurchasesReport() {
       {
         accessorKey: "name",
         header: "المورد",
+        cell: ({ row }) => {
+          const r = row.original;
+          return (
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{r.name}</span>
+              {r.pctOfTotal >= 40 && (
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                  <AlertTriangle className="w-2.5 h-2.5 ml-0.5" />
+                  اعتماد مفرط
+                </Badge>
+              )}
+            </div>
+          );
+        },
         footer: () => <span className="font-bold">الإجمالي</span>,
       },
       {
@@ -532,41 +611,67 @@ export default function PurchasesReport() {
         ),
       },
       {
-        id: "net",
+        accessorKey: "net",
         header: "الصافي",
-        accessorFn: (r: any) => r.total - r.returns,
-        cell: ({ getValue }) => fmt(getValue() as number),
+        cell: ({ getValue }) => (
+          <span className="font-bold">{fmt(getValue() as number)}</span>
+        ),
         footer: ({ table }) => (
           <span className="font-bold font-mono">
             {fmt(
               table
                 .getFilteredRowModel()
-                .rows.reduce(
-                  (s, r) => s + r.original.total - r.original.returns,
-                  0,
-                ),
+                .rows.reduce((s, r) => s + r.original.net, 0),
             )}
           </span>
         ),
       },
       {
-        accessorKey: "paid",
-        header: "المدفوع",
-        cell: ({ getValue }) => fmt(getValue() as number),
-        footer: ({ table }) => (
-          <span className="font-mono">
-            {fmt(
-              table
-                .getFilteredRowModel()
-                .rows.reduce((s, r) => s + r.original.paid, 0),
-            )}
+        accessorKey: "pctOfTotal",
+        header: "حصة %",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          const color =
+            v >= 40
+              ? "text-destructive"
+              : v >= 25
+                ? "text-amber-600"
+                : "text-muted-foreground";
+          return (
+            <span className={`font-mono font-semibold ${color}`}>
+              {v.toFixed(1)}%
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "returnRate",
+        header: "معدل الإرجاع",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          const color =
+            v >= 10
+              ? "text-destructive"
+              : v >= 5
+                ? "text-amber-600"
+                : "text-emerald-600";
+          return (
+            <span className={`font-mono ${color}`}>{v.toFixed(1)}%</span>
+          );
+        },
+      },
+      {
+        accessorKey: "avgInvoice",
+        header: "متوسط الفاتورة",
+        cell: ({ getValue }) => (
+          <span className="font-mono text-muted-foreground">
+            {fmt(getValue() as number)}
           </span>
         ),
       },
       {
-        id: "remaining",
+        accessorKey: "remaining",
         header: "المتبقي",
-        accessorFn: (r: any) => r.total - r.paid,
         cell: ({ getValue }) => {
           const v = getValue() as number;
           return (
@@ -576,48 +681,103 @@ export default function PurchasesReport() {
         footer: ({ table }) => {
           const t = table
             .getFilteredRowModel()
-            .rows.reduce((s, r) => s + r.original.total - r.original.paid, 0);
+            .rows.reduce((s, r) => s + r.original.remaining, 0);
           return <span className="text-destructive font-mono">{fmt(t)}</span>;
         },
       },
       {
-        id: "payment",
+        accessorKey: "paymentRate",
         header: "السداد%",
-        accessorFn: (r: any) => {
-          const net = r.total - r.returns;
-          return net > 0 ? Math.min((r.paid / net) * 100, 100) : 0;
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          const color =
+            v >= 80
+              ? "text-emerald-600"
+              : v >= 50
+                ? "text-amber-600"
+                : "text-destructive";
+          return (
+            <div className="flex items-center gap-1.5 min-w-[80px]">
+              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${
+                    v >= 80
+                      ? "bg-emerald-500"
+                      : v >= 50
+                        ? "bg-amber-500"
+                        : "bg-destructive"
+                  }`}
+                  style={{ width: `${v}%` }}
+                />
+              </div>
+              <span className={`font-mono text-xs ${color}`}>
+                {v.toFixed(0)}%
+              </span>
+            </div>
+          );
         },
-        cell: ({ getValue }) => (
-          <span className="font-mono">
-            {(getValue() as number).toFixed(1)}%
-          </span>
-        ),
       },
     ],
     [],
   );
 
+
   // ═══ GROUPING: By Product ═══
   const productData = useMemo(() => {
     const map: Record<
       string,
-      { name: string; qtyPurchased: number; qtyReturned: number; cost: number }
+      {
+        name: string;
+        qtyPurchased: number;
+        qtyReturned: number;
+        cost: number;
+        returnCost: number;
+        suppliers: Set<string>;
+      }
     > = {};
     filtered.forEach((inv) => {
       (inv.items || []).forEach((item: any) => {
         const pid = item.product_id || "__desc__" + (item.description || "");
         const name = item.product?.name || item.description || "منتج محذوف";
         if (!map[pid])
-          map[pid] = { name, qtyPurchased: 0, qtyReturned: 0, cost: 0 };
+          map[pid] = {
+            name,
+            qtyPurchased: 0,
+            qtyReturned: 0,
+            cost: 0,
+            returnCost: 0,
+            suppliers: new Set(),
+          };
         map[pid].qtyPurchased += Number(item.quantity);
         map[pid].cost += Number(item.net_total || item.total);
+        if (inv.supplier_id) map[pid].suppliers.add(inv.supplier_id);
       });
     });
     Object.keys(map).forEach((pid) => {
       const ret = returnsByProduct[pid];
-      if (ret) map[pid].qtyReturned = ret.qty;
+      if (ret) {
+        map[pid].qtyReturned = ret.qty;
+        map[pid].returnCost = ret.total;
+      }
     });
-    return Object.values(map).sort((a, b) => b.cost - a.cost);
+    return Object.values(map)
+      .map((p) => {
+        const netQty = p.qtyPurchased - p.qtyReturned;
+        const netCost = p.cost - p.returnCost;
+        return {
+          name: p.name,
+          qtyPurchased: p.qtyPurchased,
+          qtyReturned: p.qtyReturned,
+          netQty,
+          cost: p.cost,
+          netCost,
+          supplierCount: p.suppliers.size,
+          avgUnitCost: p.qtyPurchased > 0 ? p.cost / p.qtyPurchased : 0,
+          returnRate:
+            p.qtyPurchased > 0 ? (p.qtyReturned / p.qtyPurchased) * 100 : 0,
+        };
+      })
+      .sort((a, b) => b.netCost - a.netCost);
   }, [filtered, returnsByProduct]);
 
   const productColumns = useMemo<ColumnDef<any, any>[]>(
@@ -625,6 +785,9 @@ export default function PurchasesReport() {
       {
         accessorKey: "name",
         header: "المنتج",
+        cell: ({ row }) => (
+          <span className="font-medium">{row.original.name}</span>
+        ),
         footer: () => <span className="font-bold">الإجمالي</span>,
       },
       {
@@ -638,9 +801,14 @@ export default function PurchasesReport() {
       {
         accessorKey: "qtyReturned",
         header: "المرتجع",
-        cell: ({ getValue }) => (
-          <span className="text-destructive">{getValue() as number}</span>
-        ),
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          return v > 0 ? (
+            <span className="text-destructive">{v}</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          );
+        },
         footer: ({ table }) => (
           <span className="text-destructive">
             {table
@@ -650,37 +818,45 @@ export default function PurchasesReport() {
         ),
       },
       {
-        id: "netQty",
+        accessorKey: "netQty",
         header: "صافي الكمية",
-        accessorFn: (r: any) => r.qtyPurchased - r.qtyReturned,
+        cell: ({ row }) => {
+          const r = row.original;
+          if (r.netQty <= 0 && r.qtyReturned > 0)
+            return (
+              <Badge variant="destructive" className="text-[10px] px-1.5">
+                مرتجع كامل
+              </Badge>
+            );
+          return r.netQty;
+        },
         footer: ({ table }) =>
           table
             .getFilteredRowModel()
-            .rows.reduce(
-              (s, r) => s + r.original.qtyPurchased - r.original.qtyReturned,
-              0,
-            ),
+            .rows.reduce((s, r) => s + r.original.netQty, 0),
       },
       {
-        accessorKey: "cost",
-        header: "التكلفة",
-        cell: ({ getValue }) => fmt(getValue() as number),
+        accessorKey: "netCost",
+        header: "صافي التكلفة",
+        cell: ({ getValue }) => (
+          <span className="font-bold font-mono">{fmt(getValue() as number)}</span>
+        ),
         footer: ({ table }) => (
           <span className="font-bold font-mono">
             {fmt(
               table
                 .getFilteredRowModel()
-                .rows.reduce((s, r) => s + r.original.cost, 0),
+                .rows.reduce((s, r) => s + r.original.netCost, 0),
             )}
           </span>
         ),
       },
       {
-        id: "avgUnitCost",
+        accessorKey: "avgUnitCost",
         header: "متوسط سعر الوحدة",
-        accessorFn: (r: any) =>
-          r.qtyPurchased > 0 ? r.cost / r.qtyPurchased : 0,
-        cell: ({ getValue }) => fmt(getValue() as number),
+        cell: ({ getValue }) => (
+          <span className="font-mono">{fmt(getValue() as number)}</span>
+        ),
         footer: ({ table }) => {
           const tc = table
             .getFilteredRowModel()
@@ -691,9 +867,47 @@ export default function PurchasesReport() {
           return <span className="font-mono">{fmt(tq > 0 ? tc / tq : 0)}</span>;
         },
       },
+      {
+        accessorKey: "supplierCount",
+        header: "الموردون",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (v <= 1)
+            return (
+              <span className="inline-flex items-center gap-1 text-amber-600 font-mono text-xs">
+                <AlertTriangle className="w-3 h-3" />
+                {v} مصدر
+              </span>
+            );
+          return (
+            <span className="font-mono text-xs text-emerald-600">
+              {v} مصادر
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "returnRate",
+        header: "معدل الإرجاع",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (v === 0)
+            return <span className="text-muted-foreground">—</span>;
+          const color =
+            v >= 20
+              ? "text-destructive"
+              : v >= 10
+                ? "text-amber-600"
+                : "text-emerald-600";
+          return (
+            <span className={`font-mono ${color}`}>{v.toFixed(1)}%</span>
+          );
+        },
+      },
     ],
     [],
   );
+
 
   // ═══ GROUPING: By Time ═══
   const timeData = useMemo(() => {
@@ -741,7 +955,14 @@ export default function PurchasesReport() {
     Object.keys(returnsByDate).forEach((key) => {
       if (map[key]) map[key].returns = returnsByDate[key];
     });
-    return Object.values(map).sort((a, b) => a.key.localeCompare(b.key));
+    return Object.values(map)
+      .map((d) => ({
+        ...d,
+        net: d.total - d.returns,
+        returnRate: d.total > 0 ? (d.returns / d.total) * 100 : 0,
+        avgInvoice: d.count > 0 ? d.total / d.count : 0,
+      }))
+      .sort((a, b) => a.key.localeCompare(b.key));
   }, [filtered, returnsByDate, timeMode]);
 
   const timeColumns = useMemo<ColumnDef<any, any>[]>(
@@ -790,9 +1011,8 @@ export default function PurchasesReport() {
         ),
       },
       {
-        id: "net",
+        accessorKey: "net",
         header: "الصافي",
-        accessorFn: (r: any) => r.total - r.returns,
         cell: ({ getValue }) => (
           <span className="font-bold">{fmt(getValue() as number)}</span>
         ),
@@ -801,17 +1021,41 @@ export default function PurchasesReport() {
             {fmt(
               table
                 .getFilteredRowModel()
-                .rows.reduce(
-                  (s, r) => s + r.original.total - r.original.returns,
-                  0,
-                ),
+                .rows.reduce((s, r) => s + r.original.net, 0),
             )}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "returnRate",
+        header: "معدل الإرجاع",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (v === 0) return <span className="text-muted-foreground">—</span>;
+          const color =
+            v >= 10
+              ? "text-destructive"
+              : v >= 5
+                ? "text-amber-600"
+                : "text-emerald-600";
+          return (
+            <span className={`font-mono ${color}`}>{v.toFixed(1)}%</span>
+          );
+        },
+      },
+      {
+        accessorKey: "avgInvoice",
+        header: "متوسط الفاتورة",
+        cell: ({ getValue }) => (
+          <span className="font-mono text-muted-foreground">
+            {fmt(getValue() as number)}
           </span>
         ),
       },
     ],
     [timeMode],
   );
+
 
   // ═══ GROUPING: By Category ═══
   const categoryData = useMemo(() => {
@@ -858,8 +1102,10 @@ export default function PurchasesReport() {
         returns: c.returns,
         net: c.cost - c.returns,
         pctOfTotal: totalCost > 0 ? (c.cost / totalCost) * 100 : 0,
+        avgUnitCost: c.qty > 0 ? c.cost / c.qty : 0,
+        returnRate: c.cost > 0 ? (c.returns / c.cost) * 100 : 0,
       }))
-      .sort((a, b) => b.cost - a.cost);
+      .sort((a, b) => b.net - a.net);
   }, [filtered, returns]);
 
   const categoryColumns = useMemo<ColumnDef<any, any>[]>(
@@ -930,17 +1176,149 @@ export default function PurchasesReport() {
         ),
       },
       {
+        accessorKey: "avgUnitCost",
+        header: "متوسط سعر الوحدة",
+        cell: ({ getValue }) => (
+          <span className="font-mono">{fmt(getValue() as number)}</span>
+        ),
+      },
+      {
+        accessorKey: "returnRate",
+        header: "معدل الإرجاع",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (v === 0) return <span className="text-muted-foreground">—</span>;
+          const color =
+            v >= 10
+              ? "text-destructive"
+              : v >= 5
+                ? "text-amber-600"
+                : "text-emerald-600";
+          return (
+            <span className={`font-mono ${color}`}>{v.toFixed(1)}%</span>
+          );
+        },
+      },
+      {
         accessorKey: "pctOfTotal",
         header: "% من الإجمالي",
-        cell: ({ getValue }) => (
-          <span className="font-mono">
-            {(getValue() as number).toFixed(1)}%
-          </span>
-        ),
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          const color =
+            v >= 30
+              ? "text-primary font-bold"
+              : "text-muted-foreground";
+          return (
+            <span className={`font-mono ${color}`}>{v.toFixed(1)}%</span>
+          );
+        },
       },
     ],
     [],
   );
+
+  // ── Insights ──
+  const insights = useMemo(() => {
+    const out: {
+      icon: any;
+      text: string;
+      severity: "info" | "warn" | "danger" | "good";
+    }[] = [];
+    // Supplier concentration
+    if (supplierData.length > 0) {
+      const top3 = supplierData.slice(0, 3);
+      const top3Share = top3.reduce((s, c) => s + c.pctOfTotal, 0);
+      if (supplierData.length >= 3 && top3Share >= 60) {
+        out.push({
+          icon: Users,
+          severity: top3Share >= 80 ? "danger" : "warn",
+          text: `${top3Share.toFixed(0)}% من مشترياتك متمركزة في 3 موردين فقط — نوّع مصادرك لتقليل المخاطر`,
+        });
+      } else if (supplierData.length >= 3) {
+        out.push({
+          icon: Users,
+          severity: "good",
+          text: `قاعدة موردين متنوعة (${supplierData.length} مورد) — أكبر اعتماد ${top3[0]?.pctOfTotal.toFixed(0)}%`,
+        });
+      }
+    }
+    // Returns rate trend
+    const prevReturnsTotal = prevReturns.reduce(
+      (s, r) => s + Number(r.total),
+      0,
+    );
+    if (prevKpi.grossPurchases > 0 || kpi.grossPurchases > 0) {
+      const currRate =
+        kpi.grossPurchases > 0
+          ? (kpi.returnsTotal / kpi.grossPurchases) * 100
+          : 0;
+      const prevRate =
+        prevKpi.grossPurchases > 0
+          ? (prevReturnsTotal / prevKpi.grossPurchases) * 100
+          : 0;
+      const delta = currRate - prevRate;
+      if (Math.abs(delta) >= 1) {
+        out.push({
+          icon: delta > 0 ? TrendingUp : TrendingDown,
+          severity: delta > 0 ? "danger" : "good",
+          text:
+            delta > 0
+              ? `معدل الإرجاع ارتفع إلى ${currRate.toFixed(1)}% (+${delta.toFixed(1)} نقطة مقارنة بالفترة السابقة)`
+              : `معدل الإرجاع انخفض إلى ${currRate.toFixed(1)}% (${delta.toFixed(1)} نقطة) — تحسّن في الجودة`,
+        });
+      }
+    }
+    // Top products contributing 50%
+    if (productData.length >= 3) {
+      const totalCost = productData.reduce((s, p) => s + p.netCost, 0);
+      if (totalCost > 0) {
+        const sorted = [...productData].sort((a, b) => b.netCost - a.netCost);
+        let cumulative = 0;
+        let count = 0;
+        for (const p of sorted) {
+          cumulative += p.netCost;
+          count++;
+          if (cumulative / totalCost >= 0.5) break;
+        }
+        out.push({
+          icon: Package,
+          severity: "info",
+          text: `${count} منتج فقط يشكّل 50% من حجم مشترياتك — ركّز على ضبط أسعارها وجودتها`,
+        });
+      }
+    }
+    // Single-source products warning
+    const singleSourceProducts = productData.filter(
+      (p) => p.supplierCount === 1 && p.cost > 0,
+    );
+    if (singleSourceProducts.length >= 3 && productData.length > 0) {
+      const share =
+        (singleSourceProducts.length / productData.length) * 100;
+      if (share >= 50) {
+        out.push({
+          icon: Target,
+          severity: "warn",
+          text: `${singleSourceProducts.length} منتج (${share.toFixed(0)}%) يُشترى من مصدر واحد فقط — ابحث عن موردين بدلاء`,
+        });
+      }
+    }
+    // Overdue
+    if (overdueInfo.count > 0) {
+      out.push({
+        icon: AlertTriangle,
+        severity: "danger",
+        text: `${overdueInfo.count} فاتورة متأخرة بإجمالي ${fmt(overdueInfo.total)} — راجع التزاماتك مع الموردين`,
+      });
+    }
+    return out;
+  }, [
+    supplierData,
+    productData,
+    kpi,
+    prevKpi,
+    prevReturns,
+    overdueInfo,
+  ]);
 
   // ── Chart data ──
   const chartData = useMemo(() => {
@@ -1064,7 +1442,9 @@ export default function PurchasesReport() {
           "الإجمالي",
           "المرتجعات",
           "الصافي",
-          "المدفوع",
+          "حصة %",
+          "معدل الإرجاع",
+          "متوسط الفاتورة",
           "المتبقي",
           "السداد%",
         ],
@@ -1073,13 +1453,12 @@ export default function PurchasesReport() {
           c.count,
           c.total,
           c.returns,
-          c.total - c.returns,
-          c.paid,
-          c.total - c.paid,
-          c.total - c.returns > 0
-            ? Math.min((c.paid / (c.total - c.returns)) * 100, 100).toFixed(1) +
-              "%"
-            : "0%",
+          c.net,
+          c.pctOfTotal.toFixed(1) + "%",
+          c.returnRate.toFixed(1) + "%",
+          c.avgInvoice.toFixed(2),
+          c.remaining,
+          c.paymentRate.toFixed(1) + "%",
         ]),
         summaryCards,
         settings,
@@ -1093,22 +1472,27 @@ export default function PurchasesReport() {
         pdfTitle: `تقرير المشتريات بالمنتج (${dateFrom} - ${dateTo})`,
         headers: [
           "المنتج",
-          "الكمية المشتراة",
+          "الكمية",
           "المرتجع",
           "صافي الكمية",
-          "التكلفة",
+          "صافي التكلفة",
           "متوسط سعر الوحدة",
+          "عدد الموردين",
+          "معدل الإرجاع",
         ],
         rows: productData.map((p) => [
           p.name,
           p.qtyPurchased,
           p.qtyReturned,
-          p.qtyPurchased - p.qtyReturned,
-          p.cost,
-          p.qtyPurchased > 0 ? (p.cost / p.qtyPurchased).toFixed(2) : "0",
+          p.netQty,
+          p.netCost,
+          p.avgUnitCost.toFixed(2),
+          p.supplierCount,
+          p.returnRate.toFixed(1) + "%",
         ]),
         summaryCards,
         settings,
+        pdfOrientation: "landscape" as const,
       };
     }
     if (groupBy === "category") {
@@ -1123,6 +1507,8 @@ export default function PurchasesReport() {
           "التكلفة",
           "المرتجعات",
           "الصافي",
+          "متوسط سعر الوحدة",
+          "معدل الإرجاع",
           "% من الإجمالي",
         ],
         rows: categoryData.map((c) => [
@@ -1132,10 +1518,13 @@ export default function PurchasesReport() {
           c.cost,
           c.returns,
           c.net,
+          c.avgUnitCost.toFixed(2),
+          c.returnRate.toFixed(1) + "%",
           c.pctOfTotal.toFixed(1) + "%",
         ]),
         summaryCards,
         settings,
+        pdfOrientation: "landscape" as const,
       };
     }
     return {
@@ -1148,13 +1537,17 @@ export default function PurchasesReport() {
         "الإجمالي",
         "المرتجعات",
         "الصافي",
+        "معدل الإرجاع",
+        "متوسط الفاتورة",
       ],
       rows: timeData.map((d) => [
         d.label,
         d.count,
         d.total,
         d.returns,
-        d.total - d.returns,
+        d.net,
+        d.returnRate.toFixed(1) + "%",
+        d.avgInvoice.toFixed(2),
       ]),
       summaryCards,
       settings,
@@ -1654,6 +2047,43 @@ export default function PurchasesReport() {
         </div>
       )}
 
+      {/* ── Insights Strip ── */}
+      {!isLoading && insights.length > 0 && (
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Lightbulb className="w-4 h-4 text-primary" />
+              <p className="text-sm font-bold text-primary">
+                رؤى ذكية ({insights.length})
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {insights.map((ins, i) => {
+                const Icon = ins.icon;
+                const colorMap = {
+                  danger:
+                    "bg-destructive/5 border-destructive/30 text-destructive",
+                  warn: "bg-amber-500/5 border-amber-500/30 text-amber-700 dark:text-amber-500",
+                  good: "bg-emerald-500/5 border-emerald-500/30 text-emerald-700 dark:text-emerald-500",
+                  info: "bg-blue-500/5 border-blue-500/30 text-blue-700 dark:text-blue-500",
+                };
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-2 p-2.5 rounded-lg border ${colorMap[ins.severity]}`}
+                  >
+                    <Icon className="w-4 h-4 mt-0.5 shrink-0" />
+                    <p className="text-xs leading-relaxed text-foreground">
+                      {ins.text}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── Data Table ── */}
       <Card>
         <CardContent className="pt-4">
@@ -1678,6 +2108,20 @@ export default function PurchasesReport() {
               showSearch
               searchPlaceholder="بحث بالمورد..."
               emptyMessage="لا توجد بيانات"
+              sorting={supplierSort}
+              onSortingChange={setSupplierSort}
+              toolbarContent={
+                <QuickSortToolbar
+                  sorting={supplierSort}
+                  setSorting={setSupplierSort}
+                  buttons={[
+                    { id: "net", label: "الصافي" },
+                    { id: "returnRate", label: "معدل الإرجاع" },
+                    { id: "paymentRate", label: "السداد" },
+                    { id: "pctOfTotal", label: "الحصة" },
+                  ]}
+                />
+              }
             />
           ) : groupBy === "product" ? (
             <DataTable
@@ -1689,6 +2133,20 @@ export default function PurchasesReport() {
               showSearch
               searchPlaceholder="بحث بالمنتج..."
               emptyMessage="لا توجد بيانات"
+              sorting={productSort}
+              onSortingChange={setProductSort}
+              toolbarContent={
+                <QuickSortToolbar
+                  sorting={productSort}
+                  setSorting={setProductSort}
+                  buttons={[
+                    { id: "netCost", label: "صافي التكلفة" },
+                    { id: "qtyPurchased", label: "الكمية" },
+                    { id: "avgUnitCost", label: "سعر الوحدة" },
+                    { id: "returnRate", label: "معدل الإرجاع" },
+                  ]}
+                />
+              }
             />
           ) : groupBy === "category" ? (
             <DataTable
@@ -1700,6 +2158,20 @@ export default function PurchasesReport() {
               showSearch
               searchPlaceholder="بحث بالتصنيف..."
               emptyMessage="لا توجد بيانات"
+              sorting={categorySort}
+              onSortingChange={setCategorySort}
+              toolbarContent={
+                <QuickSortToolbar
+                  sorting={categorySort}
+                  setSorting={setCategorySort}
+                  buttons={[
+                    { id: "net", label: "الصافي" },
+                    { id: "qty", label: "الكمية" },
+                    { id: "avgUnitCost", label: "سعر الوحدة" },
+                    { id: "returnRate", label: "معدل الإرجاع" },
+                  ]}
+                />
+              }
             />
           ) : (
             <DataTable
@@ -1710,6 +2182,19 @@ export default function PurchasesReport() {
               showPagination
               showSearch={false}
               emptyMessage="لا توجد بيانات"
+              sorting={timeSort}
+              onSortingChange={setTimeSort}
+              toolbarContent={
+                <QuickSortToolbar
+                  sorting={timeSort}
+                  setSorting={setTimeSort}
+                  buttons={[
+                    { id: "net", label: "الصافي" },
+                    { id: "total", label: "الإجمالي" },
+                    { id: "returnRate", label: "معدل الإرجاع" },
+                  ]}
+                />
+              }
             />
           )}
         </CardContent>
