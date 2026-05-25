@@ -1247,6 +1247,24 @@ export default function ProductAnalytics() {
         },
       },
       {
+        accessorKey: "profit",
+        header: "الربح",
+        cell: ({ getValue }) => (
+          <span className={profitColor(getValue() as number)}>
+            {fmt(getValue() as number)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "margin",
+        header: "هامش %",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (!v) return <span className="text-muted-foreground/40">—</span>;
+          return marginBadge(v);
+        },
+      },
+      {
         accessorKey: "rating",
         header: "التقييم",
         cell: ({ row }) => {
@@ -1265,6 +1283,7 @@ export default function ProductAnalytics() {
           );
         },
       },
+
       // eslint-disable-next-line react-hooks/exhaustive-deps
     ],
     [fmt, fmtN],
