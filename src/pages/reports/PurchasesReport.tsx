@@ -1011,9 +1011,8 @@ export default function PurchasesReport() {
         ),
       },
       {
-        id: "net",
+        accessorKey: "net",
         header: "الصافي",
-        accessorFn: (r: any) => r.total - r.returns,
         cell: ({ getValue }) => (
           <span className="font-bold">{fmt(getValue() as number)}</span>
         ),
@@ -1022,17 +1021,41 @@ export default function PurchasesReport() {
             {fmt(
               table
                 .getFilteredRowModel()
-                .rows.reduce(
-                  (s, r) => s + r.original.total - r.original.returns,
-                  0,
-                ),
+                .rows.reduce((s, r) => s + r.original.net, 0),
             )}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "returnRate",
+        header: "معدل الإرجاع",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (v === 0) return <span className="text-muted-foreground">—</span>;
+          const color =
+            v >= 10
+              ? "text-destructive"
+              : v >= 5
+                ? "text-amber-600"
+                : "text-emerald-600";
+          return (
+            <span className={`font-mono ${color}`}>{v.toFixed(1)}%</span>
+          );
+        },
+      },
+      {
+        accessorKey: "avgInvoice",
+        header: "متوسط الفاتورة",
+        cell: ({ getValue }) => (
+          <span className="font-mono text-muted-foreground">
+            {fmt(getValue() as number)}
           </span>
         ),
       },
     ],
     [timeMode],
   );
+
 
   // ═══ GROUPING: By Category ═══
   const categoryData = useMemo(() => {
