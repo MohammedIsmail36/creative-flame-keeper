@@ -580,7 +580,10 @@ export default function ProductAnalytics() {
           currentStock: Number(p.quantity_on_hand),
           minStockLevel: Number(p.min_stock_level),
           rating,
+          profit: m?.profit ?? 0,
+          margin: m && m.netRevenue > 0 ? (m.profit / m.netRevenue) * 100 : 0,
         };
+
       })
       .sort((a, b) => {
         const order: Record<TurnoverRating, number> = {
