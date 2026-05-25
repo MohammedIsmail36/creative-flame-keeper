@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Tooltip as UITooltip,
@@ -47,6 +47,8 @@ import {
   Layers,
   Zap,
   CalendarDays,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { CategoryTreeSelect } from "@/components/CategoryTreeSelect";
 import {
@@ -232,6 +234,39 @@ export default function ProductAnalytics() {
   );
   const [view, setView] = useState<ViewType>("top-sellers");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  // Quick sort toolbar — sorts the active table by الربح / الهامش%
+  const QuickSortToolbar = () => {
+    const active = sorting[0];
+    const toggle = (id: "profit" | "margin") => {
+      if (active?.id !== id) setSorting([{ id, desc: true }]);
+      else if (active.desc) setSorting([{ id, desc: false }]);
+      else setSorting([]);
+    };
+    const renderBtn = (id: "profit" | "margin", label: string) => {
+      const isActive = active?.id === id;
+      const Icon = isActive && !active.desc ? ArrowUp : ArrowDown;
+      return (
+        <Button
+          key={id}
+          variant={isActive ? "default" : "outline"}
+          size="sm"
+          className="h-8 gap-1 text-xs"
+          onClick={() => toggle(id)}
+        >
+          <Icon className="h-3 w-3" />
+          {label}
+        </Button>
+      );
+    };
+    return (
+      <div className="flex items-center gap-1.5">
+        {renderBtn("profit", "الربح")}
+        {renderBtn("margin", "الهامش%")}
+      </div>
+    );
+  };
 
   const applyQuickRange = (months: QuickRange) => {
     if (months === "custom") {
@@ -2677,6 +2712,9 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          toolbarContent={<QuickSortToolbar />}
           searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد مبيعات في هذه الفترة"
           columnLabels={{
@@ -2704,6 +2742,9 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          toolbarContent={<QuickSortToolbar />}
           searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد بيانات"
           columnLabels={{
@@ -2729,6 +2770,9 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          toolbarContent={<QuickSortToolbar />}
           searchPlaceholder="بحث بالتصنيف..."
           emptyMessage="لا توجد بيانات"
           columnLabels={{
@@ -2751,6 +2795,9 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          toolbarContent={<QuickSortToolbar />}
           searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد بيانات"
           columnLabels={{
@@ -2775,6 +2822,9 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          toolbarContent={<QuickSortToolbar />}
           searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد بيانات كافية"
           columnLabels={{
@@ -2799,6 +2849,9 @@ export default function ProductAnalytics() {
           showColumnToggle
           showPagination
           pageSize={20}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          toolbarContent={<QuickSortToolbar />}
           searchPlaceholder="بحث بالاسم أو الماركة أو الموديل أو الكود..."
           emptyMessage="لا توجد مرتجعات في هذه الفترة"
           columnLabels={{
