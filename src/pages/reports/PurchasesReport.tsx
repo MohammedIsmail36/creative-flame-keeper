@@ -726,23 +726,58 @@ export default function PurchasesReport() {
   const productData = useMemo(() => {
     const map: Record<
       string,
-      { name: string; qtyPurchased: number; qtyReturned: number; cost: number }
+      {
+        name: string;
+        qtyPurchased: number;
+        qtyReturned: number;
+        cost: number;
+        returnCost: number;
+        suppliers: Set<string>;
+      }
     > = {};
     filtered.forEach((inv) => {
       (inv.items || []).forEach((item: any) => {
         const pid = item.product_id || "__desc__" + (item.description || "");
         const name = item.product?.name || item.description || "منتج محذوف";
         if (!map[pid])
-          map[pid] = { name, qtyPurchased: 0, qtyReturned: 0, cost: 0 };
+          map[pid] = {
+            name,
+            qtyPurchased: 0,
+            qtyReturned: 0,
+            cost: 0,
+            returnCost: 0,
+            suppliers: new Set(),
+          };
         map[pid].qtyPurchased += Number(item.quantity);
         map[pid].cost += Number(item.net_total || item.total);
+        if (inv.supplier_id) map[pid].suppliers.add(inv.supplier_id);
       });
     });
     Object.keys(map).forEach((pid) => {
       const ret = returnsByProduct[pid];
-      if (ret) map[pid].qtyReturned = ret.qty;
+      if (ret) {
+        map[pid].qtyReturned = ret.qty;
+        map[pid].returnCost = ret.total;
+      }
     });
-    return Object.values(map).sort((a, b) => b.cost - a.cost);
+    return Object.values(map)
+      .map((p) => {
+        const netQty = p.qtyPurchased - p.qtyReturned;
+        const netCost = p.cost - p.returnCost;
+        return {
+          name: p.name,
+          qtyPurchased: p.qtyPurchased,
+          qtyReturned: p.qtyReturned,
+          netQty,
+          cost: p.cost,
+          netCost,
+          supplierCount: p.suppliers.size,
+          avgUnitCost: p.qtyPurchased > 0 ? p.cost / p.qtyPurchased : 0,
+          returnRate:
+            p.qtyPurchased > 0 ? (p.qtyReturned / p.qtyPurchased) * 100 : 0,
+        };
+      })
+      .sort((a, b) => b.netCost - a.netCost);
   }, [filtered, returnsByProduct]);
 
   const productColumns = useMemo<ColumnDef<any, any>[]>(
@@ -750,6 +785,9 @@ export default function PurchasesReport() {
       {
         accessorKey: "name",
         header: "المنتج",
+        cell: ({ row }) => (
+          <span className="font-medium">{row.original.name}</span>
+        ),
         footer: () => <span className="font-bold">الإجمالي</span>,
       },
       {
@@ -763,9 +801,14 @@ export default function PurchasesReport() {
       {
         accessorKey: "qtyReturned",
         header: "المرتجع",
-        cell: ({ getValue }) => (
-          <span className="text-destructive">{getValue() as number}</span>
-        ),
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          return v > 0 ? (
+            <span className="text-destructive">{v}</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          );
+        },
         footer: ({ table }) => (
           <span className="text-destructive">
             {table
@@ -775,37 +818,45 @@ export default function PurchasesReport() {
         ),
       },
       {
-        id: "netQty",
+        accessorKey: "netQty",
         header: "صافي الكمية",
-        accessorFn: (r: any) => r.qtyPurchased - r.qtyReturned,
+        cell: ({ row }) => {
+          const r = row.original;
+          if (r.netQty <= 0 && r.qtyReturned > 0)
+            return (
+              <Badge variant="destructive" className="text-[10px] px-1.5">
+                مرتجع كامل
+              </Badge>
+            );
+          return r.netQty;
+        },
         footer: ({ table }) =>
           table
             .getFilteredRowModel()
-            .rows.reduce(
-              (s, r) => s + r.original.qtyPurchased - r.original.qtyReturned,
-              0,
-            ),
+            .rows.reduce((s, r) => s + r.original.netQty, 0),
       },
       {
-        accessorKey: "cost",
-        header: "التكلفة",
-        cell: ({ getValue }) => fmt(getValue() as number),
+        accessorKey: "netCost",
+        header: "صافي التكلفة",
+        cell: ({ getValue }) => (
+          <span className="font-bold font-mono">{fmt(getValue() as number)}</span>
+        ),
         footer: ({ table }) => (
           <span className="font-bold font-mono">
             {fmt(
               table
                 .getFilteredRowModel()
-                .rows.reduce((s, r) => s + r.original.cost, 0),
+                .rows.reduce((s, r) => s + r.original.netCost, 0),
             )}
           </span>
         ),
       },
       {
-        id: "avgUnitCost",
+        accessorKey: "avgUnitCost",
         header: "متوسط سعر الوحدة",
-        accessorFn: (r: any) =>
-          r.qtyPurchased > 0 ? r.cost / r.qtyPurchased : 0,
-        cell: ({ getValue }) => fmt(getValue() as number),
+        cell: ({ getValue }) => (
+          <span className="font-mono">{fmt(getValue() as number)}</span>
+        ),
         footer: ({ table }) => {
           const tc = table
             .getFilteredRowModel()
@@ -816,9 +867,47 @@ export default function PurchasesReport() {
           return <span className="font-mono">{fmt(tq > 0 ? tc / tq : 0)}</span>;
         },
       },
+      {
+        accessorKey: "supplierCount",
+        header: "الموردون",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (v <= 1)
+            return (
+              <span className="inline-flex items-center gap-1 text-amber-600 font-mono text-xs">
+                <AlertTriangle className="w-3 h-3" />
+                {v} مصدر
+              </span>
+            );
+          return (
+            <span className="font-mono text-xs text-emerald-600">
+              {v} مصادر
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "returnRate",
+        header: "معدل الإرجاع",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (v === 0)
+            return <span className="text-muted-foreground">—</span>;
+          const color =
+            v >= 20
+              ? "text-destructive"
+              : v >= 10
+                ? "text-amber-600"
+                : "text-emerald-600";
+          return (
+            <span className={`font-mono ${color}`}>{v.toFixed(1)}%</span>
+          );
+        },
+      },
     ],
     [],
   );
+
 
   // ═══ GROUPING: By Time ═══
   const timeData = useMemo(() => {
