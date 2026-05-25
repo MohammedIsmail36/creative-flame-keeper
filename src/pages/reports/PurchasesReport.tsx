@@ -92,6 +92,50 @@ export default function PurchasesReport() {
   >("invoice");
   const [timeMode, setTimeMode] = useState<"daily" | "monthly">("daily");
 
+  // ── Sorting states per grouping ──
+  const [supplierSort, setSupplierSort] = useState<SortingState>([]);
+  const [productSort, setProductSort] = useState<SortingState>([]);
+  const [categorySort, setCategorySort] = useState<SortingState>([]);
+  const [timeSort, setTimeSort] = useState<SortingState>([]);
+
+  // ── Generic quick-sort toolbar ──
+  const QuickSortToolbar = ({
+    sorting,
+    setSorting,
+    buttons,
+  }: {
+    sorting: SortingState;
+    setSorting: (s: SortingState) => void;
+    buttons: { id: string; label: string }[];
+  }) => {
+    const active = sorting[0];
+    const toggle = (id: string) => {
+      if (active?.id !== id) setSorting([{ id, desc: true }]);
+      else if (active.desc) setSorting([{ id, desc: false }]);
+      else setSorting([]);
+    };
+    return (
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {buttons.map((b) => {
+          const isActive = active?.id === b.id;
+          const Icon = isActive && !active.desc ? ArrowUp : ArrowDown;
+          return (
+            <Button
+              key={b.id}
+              variant={isActive ? "default" : "outline"}
+              size="sm"
+              className="h-8 gap-1 text-xs"
+              onClick={() => toggle(b.id)}
+            >
+              <Icon className="h-3 w-3" />
+              {b.label}
+            </Button>
+          );
+        })}
+      </div>
+    );
+  };
+
   // ── Quick date presets ──
   const quickRanges = useMemo(() => {
     const now = new Date();
