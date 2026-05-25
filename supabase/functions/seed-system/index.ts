@@ -21,6 +21,42 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const results: string[] = [];
 
+    // ── Auth guard: allow bootstrap when no users exist; otherwise require admin ──
+    const { data: allUsers } = await supabase.auth.admin.listUsers();
+    const userCount = allUsers?.users?.length ?? 0;
+    if (userCount > 0) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "غير مصرح" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const callerClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user: caller }, error: callerError } = await callerClient.auth.getUser();
+      if (callerError || !caller) {
+        return new Response(JSON.stringify({ error: "جلسة غير صالحة" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: roleData } = await supabase
+        .from("user_roles").select("role").eq("user_id", caller.id).eq("role", "admin").maybeSingle();
+      if (!roleData) {
+        return new Response(JSON.stringify({ error: "صلاحيات غير كافية — يتطلب دور المدير" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Require DEFAULT_ADMIN_PASSWORD to be configured
+    if (!DEFAULT_ADMIN_PASSWORD) {
+      return new Response(JSON.stringify({ error: "يجب ضبط DEFAULT_ADMIN_PASSWORD كـ secret قبل التشغيل" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+
     // ── 1. إنشاء حساب المدير ──
     let adminId: string | null = null;
     const { data: existingUsers, error: listErr } = await supabase.auth.admin.listUsers();
