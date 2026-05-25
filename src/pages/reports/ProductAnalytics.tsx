@@ -190,6 +190,8 @@ interface TurnoverMetrics {
   currentStock: number;
   minStockLevel: number;
   rating: TurnoverRating;
+  profit: number;
+  margin: number;
 }
 
 interface ABCMetrics {
@@ -201,6 +203,8 @@ interface ABCMetrics {
   revenueShare: number;
   cumulative: number;
   abcClass: ABCClass;
+  profit: number;
+  margin: number;
 }
 
 interface ReturnMetrics {
@@ -212,7 +216,10 @@ interface ReturnMetrics {
   returnRate: number;
   returnsValue: number;
   profitImpact: number;
+  profit: number;
+  margin: number;
 }
+
 
 export default function ProductAnalytics() {
   const { settings } = useSettings();
@@ -573,7 +580,10 @@ export default function ProductAnalytics() {
           currentStock: Number(p.quantity_on_hand),
           minStockLevel: Number(p.min_stock_level),
           rating,
+          profit: m?.profit ?? 0,
+          margin: m && m.netRevenue > 0 ? (m.profit / m.netRevenue) * 100 : 0,
         };
+
       })
       .sort((a, b) => {
         const order: Record<TurnoverRating, number> = {
@@ -640,7 +650,10 @@ export default function ProductAnalytics() {
         revenueShare,
         cumulative,
         abcClass,
+        profit: p.profit,
+        margin: p.netRevenue > 0 ? (p.profit / p.netRevenue) * 100 : 0,
       };
+
     });
   }, [filteredMetrics]);
 
@@ -674,8 +687,11 @@ export default function ProductAnalytics() {
         returnRate: p.soldQty > 0 ? (p.returnedQty / p.soldQty) * 100 : 0,
         returnsValue: p.returnsValue,
         profitImpact: p.returnsValue - p.returnsCogs,
+        profit: p.profit,
+        margin: p.netRevenue > 0 ? (p.profit / p.netRevenue) * 100 : 0,
       }))
       .sort((a, b) => b.returnRate - a.returnRate);
+
   }, [filteredMetrics]);
 
   const returnKpis = useMemo(() => {
@@ -1231,6 +1247,24 @@ export default function ProductAnalytics() {
         },
       },
       {
+        accessorKey: "profit",
+        header: "الربح",
+        cell: ({ getValue }) => (
+          <span className={profitColor(getValue() as number)}>
+            {fmt(getValue() as number)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "margin",
+        header: "هامش %",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (!v) return <span className="text-muted-foreground/40">—</span>;
+          return marginBadge(v);
+        },
+      },
+      {
         accessorKey: "rating",
         header: "التقييم",
         cell: ({ row }) => {
@@ -1249,6 +1283,7 @@ export default function ProductAnalytics() {
           );
         },
       },
+
       // eslint-disable-next-line react-hooks/exhaustive-deps
     ],
     [fmt, fmtN],
@@ -1336,6 +1371,29 @@ export default function ProductAnalytics() {
         },
       },
       {
+        accessorKey: "profit",
+        header: "الربح",
+        cell: ({ getValue }) => (
+          <span className={profitColor(getValue() as number)}>
+            {fmt(getValue() as number)}
+          </span>
+        ),
+        footer: () => {
+          const t = abcData.reduce((s, p) => s + p.profit, 0);
+          return <span className={profitColor(t)}>{fmt(t)}</span>;
+        },
+      },
+      {
+        accessorKey: "margin",
+        header: "هامش %",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (!v) return <span className="text-muted-foreground/40">—</span>;
+          return marginBadge(v);
+        },
+      },
+      {
+
         accessorKey: "abcClass",
         header: "التصنيف ABC",
         cell: ({ getValue }) => {
@@ -1463,6 +1521,29 @@ export default function ProductAnalytics() {
         ),
       },
       {
+        accessorKey: "profit",
+        header: "صافي الربح",
+        cell: ({ getValue }) => (
+          <span className={profitColor(getValue() as number)}>
+            {fmt(getValue() as number)}
+          </span>
+        ),
+        footer: () => {
+          const t = returnMetrics.reduce((s, p) => s + p.profit, 0);
+          return <span className={profitColor(t)}>{fmt(t)}</span>;
+        },
+      },
+      {
+        accessorKey: "margin",
+        header: "هامش %",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (!v) return <span className="text-muted-foreground/40">—</span>;
+          return marginBadge(v);
+        },
+      },
+      {
+
         accessorKey: "profitImpact",
         header: "أثر على الربح",
         cell: ({ getValue }) => {
@@ -1626,6 +1707,8 @@ export default function ProductAnalytics() {
           "أيام التغطية",
           "المخزون الحالي",
           "الحد الأدنى",
+          "الربح",
+          "هامش %",
           "التقييم",
         ],
         rows: turnoverData.map((p) => [
@@ -1638,8 +1721,11 @@ export default function ProductAnalytics() {
           p.daysOfSupply ?? "",
           p.currentStock,
           p.minStockLevel,
+          p.profit,
+          p.margin,
           TURNOVER_LABELS[p.rating],
         ]),
+
       });
     } else if (view === "abc") {
       exportToExcel({
@@ -1656,6 +1742,8 @@ export default function ProductAnalytics() {
           "الإيرادات",
           "الحصة %",
           "التراكمي %",
+          "الربح",
+          "هامش %",
           "التصنيف ABC",
         ],
         rows: abcData.map((p, i) => [
@@ -1667,8 +1755,11 @@ export default function ProductAnalytics() {
           p.netRevenue,
           p.revenueShare,
           p.cumulative,
+          p.profit,
+          p.margin,
           p.abcClass,
         ]),
+
       });
     } else {
       exportToExcel({
@@ -1685,6 +1776,8 @@ export default function ProductAnalytics() {
           "مرتجع",
           "معدل الإرجاع %",
           "قيمة المرتجعات",
+          "صافي الربح",
+          "هامش %",
           "أثر على الربح",
         ],
         rows: returnMetrics.map((p) => [
@@ -1695,8 +1788,11 @@ export default function ProductAnalytics() {
           p.returnedQty,
           p.returnRate,
           p.returnsValue,
+          p.profit,
+          p.margin,
           p.profitImpact,
         ]),
+
       });
     }
   };
