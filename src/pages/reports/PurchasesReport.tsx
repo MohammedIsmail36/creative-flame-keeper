@@ -955,7 +955,14 @@ export default function PurchasesReport() {
     Object.keys(returnsByDate).forEach((key) => {
       if (map[key]) map[key].returns = returnsByDate[key];
     });
-    return Object.values(map).sort((a, b) => a.key.localeCompare(b.key));
+    return Object.values(map)
+      .map((d) => ({
+        ...d,
+        net: d.total - d.returns,
+        returnRate: d.total > 0 ? (d.returns / d.total) * 100 : 0,
+        avgInvoice: d.count > 0 ? d.total / d.count : 0,
+      }))
+      .sort((a, b) => a.key.localeCompare(b.key));
   }, [filtered, returnsByDate, timeMode]);
 
   const timeColumns = useMemo<ColumnDef<any, any>[]>(
