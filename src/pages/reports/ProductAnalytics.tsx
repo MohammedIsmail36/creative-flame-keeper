@@ -687,8 +687,11 @@ export default function ProductAnalytics() {
         returnRate: p.soldQty > 0 ? (p.returnedQty / p.soldQty) * 100 : 0,
         returnsValue: p.returnsValue,
         profitImpact: p.returnsValue - p.returnsCogs,
+        profit: p.profit,
+        margin: p.netRevenue > 0 ? (p.profit / p.netRevenue) * 100 : 0,
       }))
       .sort((a, b) => b.returnRate - a.returnRate);
+
   }, [filteredMetrics]);
 
   const returnKpis = useMemo(() => {
