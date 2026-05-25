@@ -2032,6 +2032,43 @@ export default function PurchasesReport() {
         </div>
       )}
 
+      {/* ── Insights Strip ── */}
+      {!isLoading && insights.length > 0 && (
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Lightbulb className="w-4 h-4 text-primary" />
+              <p className="text-sm font-bold text-primary">
+                رؤى ذكية ({insights.length})
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {insights.map((ins, i) => {
+                const Icon = ins.icon;
+                const colorMap = {
+                  danger:
+                    "bg-destructive/5 border-destructive/30 text-destructive",
+                  warn: "bg-amber-500/5 border-amber-500/30 text-amber-700 dark:text-amber-500",
+                  good: "bg-emerald-500/5 border-emerald-500/30 text-emerald-700 dark:text-emerald-500",
+                  info: "bg-blue-500/5 border-blue-500/30 text-blue-700 dark:text-blue-500",
+                };
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-2 p-2.5 rounded-lg border ${colorMap[ins.severity]}`}
+                  >
+                    <Icon className="w-4 h-4 mt-0.5 shrink-0" />
+                    <p className="text-xs leading-relaxed text-foreground">
+                      {ins.text}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── Data Table ── */}
       <Card>
         <CardContent className="pt-4">
@@ -2056,6 +2093,20 @@ export default function PurchasesReport() {
               showSearch
               searchPlaceholder="بحث بالمورد..."
               emptyMessage="لا توجد بيانات"
+              sorting={supplierSort}
+              onSortingChange={setSupplierSort}
+              toolbarContent={
+                <QuickSortToolbar
+                  sorting={supplierSort}
+                  setSorting={setSupplierSort}
+                  buttons={[
+                    { id: "net", label: "الصافي" },
+                    { id: "returnRate", label: "معدل الإرجاع" },
+                    { id: "paymentRate", label: "السداد" },
+                    { id: "pctOfTotal", label: "الحصة" },
+                  ]}
+                />
+              }
             />
           ) : groupBy === "product" ? (
             <DataTable
@@ -2067,6 +2118,20 @@ export default function PurchasesReport() {
               showSearch
               searchPlaceholder="بحث بالمنتج..."
               emptyMessage="لا توجد بيانات"
+              sorting={productSort}
+              onSortingChange={setProductSort}
+              toolbarContent={
+                <QuickSortToolbar
+                  sorting={productSort}
+                  setSorting={setProductSort}
+                  buttons={[
+                    { id: "netCost", label: "صافي التكلفة" },
+                    { id: "qtyPurchased", label: "الكمية" },
+                    { id: "avgUnitCost", label: "سعر الوحدة" },
+                    { id: "returnRate", label: "معدل الإرجاع" },
+                  ]}
+                />
+              }
             />
           ) : groupBy === "category" ? (
             <DataTable
@@ -2078,6 +2143,20 @@ export default function PurchasesReport() {
               showSearch
               searchPlaceholder="بحث بالتصنيف..."
               emptyMessage="لا توجد بيانات"
+              sorting={categorySort}
+              onSortingChange={setCategorySort}
+              toolbarContent={
+                <QuickSortToolbar
+                  sorting={categorySort}
+                  setSorting={setCategorySort}
+                  buttons={[
+                    { id: "net", label: "الصافي" },
+                    { id: "qty", label: "الكمية" },
+                    { id: "avgUnitCost", label: "سعر الوحدة" },
+                    { id: "returnRate", label: "معدل الإرجاع" },
+                  ]}
+                />
+              }
             />
           ) : (
             <DataTable
@@ -2088,6 +2167,19 @@ export default function PurchasesReport() {
               showPagination
               showSearch={false}
               emptyMessage="لا توجد بيانات"
+              sorting={timeSort}
+              onSortingChange={setTimeSort}
+              toolbarContent={
+                <QuickSortToolbar
+                  sorting={timeSort}
+                  setSorting={setTimeSort}
+                  buttons={[
+                    { id: "net", label: "الصافي" },
+                    { id: "total", label: "الإجمالي" },
+                    { id: "returnRate", label: "معدل الإرجاع" },
+                  ]}
+                />
+              }
             />
           )}
         </CardContent>
