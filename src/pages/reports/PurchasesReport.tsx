@@ -1176,13 +1176,42 @@ export default function PurchasesReport() {
         ),
       },
       {
+        accessorKey: "avgUnitCost",
+        header: "متوسط سعر الوحدة",
+        cell: ({ getValue }) => (
+          <span className="font-mono">{fmt(getValue() as number)}</span>
+        ),
+      },
+      {
+        accessorKey: "returnRate",
+        header: "معدل الإرجاع",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (v === 0) return <span className="text-muted-foreground">—</span>;
+          const color =
+            v >= 10
+              ? "text-destructive"
+              : v >= 5
+                ? "text-amber-600"
+                : "text-emerald-600";
+          return (
+            <span className={`font-mono ${color}`}>{v.toFixed(1)}%</span>
+          );
+        },
+      },
+      {
         accessorKey: "pctOfTotal",
         header: "% من الإجمالي",
-        cell: ({ getValue }) => (
-          <span className="font-mono">
-            {(getValue() as number).toFixed(1)}%
-          </span>
-        ),
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          const color =
+            v >= 30
+              ? "text-primary font-bold"
+              : "text-muted-foreground";
+          return (
+            <span className={`font-mono ${color}`}>{v.toFixed(1)}%</span>
+          );
+        },
       },
     ],
     [],
