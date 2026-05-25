@@ -1371,6 +1371,29 @@ export default function ProductAnalytics() {
         },
       },
       {
+        accessorKey: "profit",
+        header: "الربح",
+        cell: ({ getValue }) => (
+          <span className={profitColor(getValue() as number)}>
+            {fmt(getValue() as number)}
+          </span>
+        ),
+        footer: () => {
+          const t = abcData.reduce((s, p) => s + p.profit, 0);
+          return <span className={profitColor(t)}>{fmt(t)}</span>;
+        },
+      },
+      {
+        accessorKey: "margin",
+        header: "هامش %",
+        cell: ({ getValue }) => {
+          const v = getValue() as number;
+          if (!v) return <span className="text-muted-foreground/40">—</span>;
+          return marginBadge(v);
+        },
+      },
+      {
+
         accessorKey: "abcClass",
         header: "التصنيف ABC",
         cell: ({ getValue }) => {
