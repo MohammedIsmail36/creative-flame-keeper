@@ -190,6 +190,8 @@ interface TurnoverMetrics {
   currentStock: number;
   minStockLevel: number;
   rating: TurnoverRating;
+  profit: number;
+  margin: number;
 }
 
 interface ABCMetrics {
@@ -201,6 +203,8 @@ interface ABCMetrics {
   revenueShare: number;
   cumulative: number;
   abcClass: ABCClass;
+  profit: number;
+  margin: number;
 }
 
 interface ReturnMetrics {
@@ -212,7 +216,10 @@ interface ReturnMetrics {
   returnRate: number;
   returnsValue: number;
   profitImpact: number;
+  profit: number;
+  margin: number;
 }
+
 
 export default function ProductAnalytics() {
   const { settings } = useSettings();
