@@ -1217,6 +1217,109 @@ export default function PurchasesReport() {
     [],
   );
 
+  // ── Insights ──
+  const insights = useMemo(() => {
+    const out: {
+      icon: any;
+      text: string;
+      severity: "info" | "warn" | "danger" | "good";
+    }[] = [];
+    // Supplier concentration
+    if (supplierData.length > 0) {
+      const top3 = supplierData.slice(0, 3);
+      const top3Share = top3.reduce((s, c) => s + c.pctOfTotal, 0);
+      if (supplierData.length >= 3 && top3Share >= 60) {
+        out.push({
+          icon: Users,
+          severity: top3Share >= 80 ? "danger" : "warn",
+          text: `${top3Share.toFixed(0)}% من مشترياتك متمركزة في 3 موردين فقط — نوّع مصادرك لتقليل المخاطر`,
+        });
+      } else if (supplierData.length >= 3) {
+        out.push({
+          icon: Users,
+          severity: "good",
+          text: `قاعدة موردين متنوعة (${supplierData.length} مورد) — أكبر اعتماد ${top3[0]?.pctOfTotal.toFixed(0)}%`,
+        });
+      }
+    }
+    // Returns rate trend
+    const prevReturnsTotal = prevReturns.reduce(
+      (s, r) => s + Number(r.total),
+      0,
+    );
+    if (prevKpi.grossPurchases > 0 || kpi.grossPurchases > 0) {
+      const currRate =
+        kpi.grossPurchases > 0
+          ? (kpi.returnsTotal / kpi.grossPurchases) * 100
+          : 0;
+      const prevRate =
+        prevKpi.grossPurchases > 0
+          ? (prevReturnsTotal / prevKpi.grossPurchases) * 100
+          : 0;
+      const delta = currRate - prevRate;
+      if (Math.abs(delta) >= 1) {
+        out.push({
+          icon: delta > 0 ? TrendingUp : TrendingDown,
+          severity: delta > 0 ? "danger" : "good",
+          text:
+            delta > 0
+              ? `معدل الإرجاع ارتفع إلى ${currRate.toFixed(1)}% (+${delta.toFixed(1)} نقطة مقارنة بالفترة السابقة)`
+              : `معدل الإرجاع انخفض إلى ${currRate.toFixed(1)}% (${delta.toFixed(1)} نقطة) — تحسّن في الجودة`,
+        });
+      }
+    }
+    // Top products contributing 50%
+    if (productData.length >= 3) {
+      const totalCost = productData.reduce((s, p) => s + p.netCost, 0);
+      if (totalCost > 0) {
+        const sorted = [...productData].sort((a, b) => b.netCost - a.netCost);
+        let cumulative = 0;
+        let count = 0;
+        for (const p of sorted) {
+          cumulative += p.netCost;
+          count++;
+          if (cumulative / totalCost >= 0.5) break;
+        }
+        out.push({
+          icon: Package,
+          severity: "info",
+          text: `${count} منتج فقط يشكّل 50% من حجم مشترياتك — ركّز على ضبط أسعارها وجودتها`,
+        });
+      }
+    }
+    // Single-source products warning
+    const singleSourceProducts = productData.filter(
+      (p) => p.supplierCount === 1 && p.cost > 0,
+    );
+    if (singleSourceProducts.length >= 3 && productData.length > 0) {
+      const share =
+        (singleSourceProducts.length / productData.length) * 100;
+      if (share >= 50) {
+        out.push({
+          icon: Target,
+          severity: "warn",
+          text: `${singleSourceProducts.length} منتج (${share.toFixed(0)}%) يُشترى من مصدر واحد فقط — ابحث عن موردين بدلاء`,
+        });
+      }
+    }
+    // Overdue
+    if (overdueInfo.count > 0) {
+      out.push({
+        icon: AlertTriangle,
+        severity: "danger",
+        text: `${overdueInfo.count} فاتورة متأخرة بإجمالي ${fmt(overdueInfo.total)} — راجع التزاماتك مع الموردين`,
+      });
+    }
+    return out;
+  }, [
+    supplierData,
+    productData,
+    kpi,
+    prevKpi,
+    prevReturns,
+    overdueInfo,
+  ]);
+
   // ── Chart data ──
   const chartData = useMemo(() => {
     if (groupBy === "time") {
