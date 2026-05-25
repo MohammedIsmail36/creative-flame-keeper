@@ -1776,6 +1776,8 @@ export default function ProductAnalytics() {
           "مرتجع",
           "معدل الإرجاع %",
           "قيمة المرتجعات",
+          "صافي الربح",
+          "هامش %",
           "أثر على الربح",
         ],
         rows: returnMetrics.map((p) => [
@@ -1786,8 +1788,11 @@ export default function ProductAnalytics() {
           p.returnedQty,
           p.returnRate,
           p.returnsValue,
+          p.profit,
+          p.margin,
           p.profitImpact,
         ]),
+
       });
     }
   };
