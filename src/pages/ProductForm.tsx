@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { ACCOUNT_CODES } from "@/lib/constants";
+import { deleteStorageFile, deleteStorageFiles } from "@/lib/storage-cleanup";
 import {
   generateEntityCode,
   generateProductBarcode,
