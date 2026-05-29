@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
+import { deleteStorageFiles } from "@/lib/storage-cleanup";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import {
