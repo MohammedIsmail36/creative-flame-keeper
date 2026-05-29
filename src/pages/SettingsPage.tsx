@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { deleteStorageFile } from "@/lib/storage-cleanup";
 import { useSettings, type CompanySettings } from "@/contexts/SettingsContext";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
