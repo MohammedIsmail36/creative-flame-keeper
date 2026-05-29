@@ -197,8 +197,13 @@ export default function ProductForm() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingMain(true);
+    const oldUrl = mainImageUrl;
     const url = await uploadImage(file, "main");
-    if (url) setMainImageUrl(url);
+    if (url) {
+      setMainImageUrl(url);
+      // Remove previous main image from storage after successful replacement
+      if (oldUrl && oldUrl !== url) await deleteStorageFile(oldUrl);
+    }
     setUploadingMain(false);
   };
 
@@ -218,7 +223,14 @@ export default function ProductForm() {
   };
 
   const removeGalleryImage = (index: number) => {
-    setGalleryImages((prev) => prev.filter((_, i) => i !== index));
+    setGalleryImages((prev) => {
+      const removed = prev[index];
+      if (removed?.image_url) {
+        // fire-and-forget storage cleanup
+        void deleteStorageFile(removed.image_url);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const handleSave = async () => {
