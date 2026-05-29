@@ -520,7 +520,11 @@ export default function ProductForm() {
                 size="icon"
                 aria-label="حذف الصورة الرئيسية"
                 className="absolute top-2 left-2 h-8 w-8 rounded-full"
-                onClick={() => setMainImageUrl(null)}
+                onClick={() => {
+                  const old = mainImageUrl;
+                  setMainImageUrl(null);
+                  if (old) void deleteStorageFile(old);
+                }}
               >
                 <X className="h-4 w-4" />
               </Button>
