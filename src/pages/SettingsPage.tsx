@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { deleteStorageFile } from "@/lib/storage-cleanup";
 import { useSettings, type CompanySettings } from "@/contexts/SettingsContext";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -242,6 +243,7 @@ export default function SettingsPage() {
 
     setUploading(true);
     try {
+      const previousLogo = settings.logo_url || "";
       const ext = file.name.split(".").pop();
       const fileName = `company-logo-${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
@@ -252,6 +254,10 @@ export default function SettingsPage() {
         .from("product-images")
         .getPublicUrl(fileName);
       updateField("logo_url", urlData.publicUrl);
+      // Best-effort cleanup of the previous logo file
+      if (previousLogo && previousLogo !== urlData.publicUrl) {
+        await deleteStorageFile(previousLogo);
+      }
       toast.success("تم رفع الشعار بنجاح. اضغط حفظ لتأكيد التغييرات.");
     } catch (err: any) {
       toast.error("خطأ في رفع الشعار: " + err.message);
@@ -259,7 +265,11 @@ export default function SettingsPage() {
     setUploading(false);
   };
 
-  const removeLogo = () => updateField("logo_url", "");
+  const removeLogo = () => {
+    const old = settings?.logo_url || "";
+    updateField("logo_url", "");
+    if (old) void deleteStorageFile(old);
+  };
 
   if (loading) {
     return (

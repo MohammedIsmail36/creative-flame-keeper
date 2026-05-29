@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
+import { deleteStorageFiles } from "@/lib/storage-cleanup";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -333,6 +334,17 @@ export default function Products() {
         });
         return;
       }
+      // جمع كل عناوين الصور (الرئيسية + المعرض) لحذفها من Storage
+      const { data: galleryImgs } = await supabase
+        .from("product_images")
+        .select("image_url")
+        .eq("product_id", product.id);
+      const urls = [
+        (product as any).main_image_url,
+        ...((galleryImgs || []).map((g: any) => g.image_url)),
+      ];
+      await deleteStorageFiles(urls);
+
       // حذف الصور المرتبطة أولاً ثم المنتج
       await supabase.from("product_images").delete().eq("product_id", product.id);
       const { error } = await supabase.from("products").delete().eq("id", product.id);

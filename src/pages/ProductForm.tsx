@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { ACCOUNT_CODES } from "@/lib/constants";
+import { deleteStorageFile, deleteStorageFiles } from "@/lib/storage-cleanup";
 import {
   generateEntityCode,
   generateProductBarcode,
@@ -196,8 +197,13 @@ export default function ProductForm() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingMain(true);
+    const oldUrl = mainImageUrl;
     const url = await uploadImage(file, "main");
-    if (url) setMainImageUrl(url);
+    if (url) {
+      setMainImageUrl(url);
+      // Remove previous main image from storage after successful replacement
+      if (oldUrl && oldUrl !== url) await deleteStorageFile(oldUrl);
+    }
     setUploadingMain(false);
   };
 
@@ -217,7 +223,14 @@ export default function ProductForm() {
   };
 
   const removeGalleryImage = (index: number) => {
-    setGalleryImages((prev) => prev.filter((_, i) => i !== index));
+    setGalleryImages((prev) => {
+      const removed = prev[index];
+      if (removed?.image_url) {
+        // fire-and-forget storage cleanup
+        void deleteStorageFile(removed.image_url);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const handleSave = async () => {
@@ -347,7 +360,11 @@ export default function ProductForm() {
             });
             if (movError) throw movError;
           } catch (openingBalanceError) {
-            // Rollback: delete the product since its opening balance records failed
+            // Rollback: delete the product + any uploaded images from storage
+            await deleteStorageFiles([
+              mainImageUrl,
+              ...galleryImages.map((g) => g.image_url),
+            ]);
             await supabase.from("products").delete().eq("id", productId!);
             throw openingBalanceError;
           }
@@ -356,6 +373,16 @@ export default function ProductForm() {
 
       if (productId) {
         if (isEdit) {
+          // Diff old gallery vs current to remove orphaned files from storage
+          const { data: oldImgs } = await (supabase.from("product_images") as any)
+            .select("image_url")
+            .eq("product_id", productId);
+          const currentUrls = new Set(galleryImages.map((g) => g.image_url));
+          const orphanUrls = (oldImgs || [])
+            .map((r: any) => r.image_url as string)
+            .filter((u: string) => !currentUrls.has(u));
+          if (orphanUrls.length > 0) await deleteStorageFiles(orphanUrls);
+
           await (supabase.from("product_images") as any)
             .delete()
             .eq("product_id", productId);
@@ -369,6 +396,7 @@ export default function ProductForm() {
           await (supabase.from("product_images") as any).insert(rows);
         }
       }
+
 
       toast({
         title: isEdit ? "تم التحديث" : "تمت الإضافة",
@@ -507,7 +535,11 @@ export default function ProductForm() {
                 size="icon"
                 aria-label="حذف الصورة الرئيسية"
                 className="absolute top-2 left-2 h-8 w-8 rounded-full"
-                onClick={() => setMainImageUrl(null)}
+                onClick={() => {
+                  const old = mainImageUrl;
+                  setMainImageUrl(null);
+                  if (old) void deleteStorageFile(old);
+                }}
               >
                 <X className="h-4 w-4" />
               </Button>
