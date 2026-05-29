@@ -360,7 +360,11 @@ export default function ProductForm() {
             });
             if (movError) throw movError;
           } catch (openingBalanceError) {
-            // Rollback: delete the product since its opening balance records failed
+            // Rollback: delete the product + any uploaded images from storage
+            await deleteStorageFiles([
+              mainImageUrl,
+              ...galleryImages.map((g) => g.image_url),
+            ]);
             await supabase.from("products").delete().eq("id", productId!);
             throw openingBalanceError;
           }
@@ -369,6 +373,16 @@ export default function ProductForm() {
 
       if (productId) {
         if (isEdit) {
+          // Diff old gallery vs current to remove orphaned files from storage
+          const { data: oldImgs } = await (supabase.from("product_images") as any)
+            .select("image_url")
+            .eq("product_id", productId);
+          const currentUrls = new Set(galleryImages.map((g) => g.image_url));
+          const orphanUrls = (oldImgs || [])
+            .map((r: any) => r.image_url as string)
+            .filter((u: string) => !currentUrls.has(u));
+          if (orphanUrls.length > 0) await deleteStorageFiles(orphanUrls);
+
           await (supabase.from("product_images") as any)
             .delete()
             .eq("product_id", productId);
@@ -382,6 +396,7 @@ export default function ProductForm() {
           await (supabase.from("product_images") as any).insert(rows);
         }
       }
+
 
       toast({
         title: isEdit ? "تم التحديث" : "تمت الإضافة",
