@@ -1,48 +1,67 @@
-## المشكلة المؤكدة بعد فحص الكود
+# خطة: صفحة روابط التواصل العامة لـ "فريدة" (Mobile-First + Domain-Agnostic)
 
-نعم — يوجد **تسرّب فعلي** للصور في bucket التخزين. الإزالة من الواجهة تحذف فقط المرجع من قاعدة البيانات، أمّا الملف نفسه في `storage.product-images` فيظل موجوداً للأبد:
+## الهدف
+صفحة مستقلة (Linktree-style) يفتحها العميل بمسح QR Code من **الموبايل**. تعمل على أي دومين دون الحاجة لإعادة طباعة الكود.
 
-| الحالة | السلوك الحالي | النتيجة |
-|---|---|---|
-| إزالة صورة من معرض المنتج | حذف من state فقط، ثم عند الحفظ تُحذف صفوف `product_images` وتُعاد كتابتها | الملف الأصلي يبقى في bucket |
-| استبدال الصورة الرئيسية للمنتج | تحديث `main_image_url` فقط | الصورة القديمة تبقى في bucket |
-| إزالة/استبدال شعار الشركة (`SettingsPage` → `removeLogo`) | `updateField("logo_url", "")` فقط | الشعار القديم يبقى في bucket |
-| حذف منتج (`Products.tsx` line 338, `ProductForm` rollback line 351) | حذف صف المنتج فقط | كل صور المنتج (رئيسية + معرض) تبقى في bucket |
+## المشكلة: تغيير الدومين لاحقاً
+الرابط الحالي: `https://creative-flame-keeper.lovable.app/links.html`
+لاحقاً عند الرفع على سيرفر خاص (مثلاً `farida-store.com`)، يجب ألا يتعطل QR Code المطبوع.
 
-ملاحظة جانبية: شعار الشركة يُرفع حالياً في bucket `product-images` بدلاً من bucket مخصّص.
+## الحل: استخدام الدومين النهائي من البداية للـ QR Code
+**القاعدة الذهبية**: لا تطبع QR Code يحتوي على رابط Lovable المؤقت.
 
-## الخطة
+### الخيار الموصى به (الأبسط والأكثر أماناً)
+1. **اشتر/جهّز الدومين النهائي أولاً** (مثل `farida-store.com`)
+2. **اربط الدومين بالمشروع** قبل توليد QR Code (من إعدادات Lovable → Domains)
+3. **ولّد QR Code من الرابط النهائي**: `https://farida-store.com/links.html`
+4. عند الرفع لاحقاً على أي سيرفر آخر، فقط وجّه نفس الدومين للسيرفر الجديد → الكود يستمر يعمل دون تغيير
 
-### 1. دالة مساعدة موحّدة `src/lib/storage-cleanup.ts`
-- `deleteStorageFile(publicUrl: string)` — تستخرج المسار من الـ public URL وتستدعي `supabase.storage.from("product-images").remove([path])`.
-- `deleteStorageFiles(urls: string[])` — حذف دفعة واحدة، يتجاهل الأخطاء بصمت (لا نوقف العملية الأساسية إذا فشل حذف ملف).
-- آمنة من URLs الخارجية: تتحقق أن الـ URL يخص bucket المشروع قبل الحذف.
+### إذا لم يكن الدومين جاهزاً الآن
+استخدم **خدمة redirect قصيرة** بينك وبين الصفحة:
+- خدمات مثل `bit.ly` أو `rebrand.ly` أو `tinyurl.com` تعطيك رابطاً قصيراً ثابتاً يمكنك تغيير وجهته في أي وقت
+- ولّد QR Code من الرابط القصير (مثل `bit.ly/farida-links`)
+- اليوم: وجّهه إلى `https://creative-flame-keeper.lovable.app/links.html`
+- لاحقاً: غيّر الوجهة من لوحة تحكم bit.ly إلى الدومين الجديد → الكود نفسه يعمل
 
-### 2. `src/pages/ProductForm.tsx`
-- `removeGalleryImage`: حذف الملف من Storage فوراً بعد إزالته من state.
-- `handleMainImage`: قبل استبدال `mainImageUrl` بصورة جديدة، حذف الصورة القديمة من Storage.
-- زر إزالة الصورة الرئيسية (إن وُجد) → حذف من Storage.
-- عند الحفظ في وضع التعديل: قبل `delete().eq("product_id", productId)`، جلب الصفوف القديمة ومقارنتها بـ `galleryImages` الحالية وحذف الـ URLs المحذوفة من Storage (بدل الاعتماد على state فقط، لتغطية أي حالة سباق).
+## الملف الوحيد
+```
+public/links.html
+```
+- داخل الصفحة: كل روابط السوشيال ميديا **مطلقة** (تبدأ بـ `https://`) → لا تتأثر بالدومين
+- الصفحة نفسها لا تحتوي أي رابط ذاتي → تعمل من أي دومين تلقائياً
 
-### 3. `src/pages/Products.tsx` — حذف منتج
-قبل `supabase.from("products").delete()`:
-1. جلب `main_image_url` من المنتج.
-2. جلب كل `image_url` من `product_images` للمنتج.
-3. حذف كل هذه الملفات من Storage عبر `deleteStorageFiles`.
-4. ثم تنفيذ الحذف من DB (سيحذف صفوف `product_images` تلقائياً عبر CASCADE إن وُجد، وإلا نحذفها يدوياً).
+## مبدأ التصميم: Mobile-First
+- محسّن لشاشات 360–430px، عرض أقصى للبطاقة 420px
+- viewport: `width=device-width, initial-scale=1`
+- أحجام لمس ≥ 56px، مسافات 12–14px
+- نصوص 16–18px للأزرار، 14px للثانوي
+- بدون scroll أفقي
+- خط Cairo بـ `preconnect` لتسريع التحميل
 
-نفس المعالجة في rollback داخل `ProductForm.tsx` (line 351) عند فشل الرصيد الافتتاحي.
+## التصميم البصري (مستقل عن النظام)
+- RTL، خلفية متدرجة (وردي/بنفسجي/ذهبي)
+- بطاقة glassmorphism، زوايا 24px
+- شعار دائري 96px (placeholder)
+- عنوان "فريدة" + رسالة فرعية "جميع وسائل التواصل الخاصة بنا"
+- أزرار عرض كامل: أيقونة يمين + الاسم + سهم يسار، ظل ناعم، `active:scale`
+- تذييل "© Farida Store"
 
-### 4. `src/pages/SettingsPage.tsx` — شعار الشركة
-- `removeLogo`: حذف الملف القديم من Storage قبل تفريغ `logo_url`.
-- رفع شعار جديد: حذف القديم قبل تحديث الحقل بالـ URL الجديد.
+## المنصات (أمثلة — تُستبدل لاحقاً)
+```
+📍 موقع المحل  → https://maps.google.com/?q=EXAMPLE
+💬 واتساب       → https://wa.me/966XXXXXXXXX
+📷 انستجرام     → https://instagram.com/your_account
+📘 فيسبوك       → https://facebook.com/your_account
+✈  تيليجرام     → https://t.me/your_account
+🎵 تيك توك      → https://tiktok.com/@your_account
+```
+كل زر: `target="_blank" rel="noopener"`
 
-### 5. (اختياري — للنظافة لاحقاً) سكربت تنظيف الصور اليتيمة
-سكربت SQL/edge-function يقارن ملفات `storage.objects` في bucket `product-images` بكل الـ URLs المستخدمة في `products.main_image_url` + `product_images.image_url` + `company_settings.logo_url` ويحذف الباقي. يُشغَّل يدوياً عند الحاجة. **لن يُنفّذ إلا بطلب صريح منك.**
+## ملخص الخطوات الموصى بها للمستخدم
+1. أُنشئ `public/links.html` الآن
+2. أنت تختار: دومين دائم الآن **أو** خدمة redirect (bit.ly)
+3. تطبع QR Code من الرابط الثابت فقط — ليس من رابط Lovable المؤقت
 
-## ملاحظات تقنية
-- لا حاجة لتغييرات في قاعدة البيانات أو RLS — bucket `product-images` عام والـ remove يعمل بصلاحيات المستخدم الحالي.
-- لا حاجة لتعديل دالة `database-backup` لأنها لا تتعامل مع Storage أصلاً (وهذا تسرّب آخر منفصل — يمكن معالجته لاحقاً عند الطلب).
-- لن أغيّر أيّ منطق وظيفي آخر للمنتجات أو الإعدادات.
-
-هل أبدأ التنفيذ؟
+## ما لن يتأثر
+- لا تعديل على `src/` أو أي ملف React
+- لا Supabase، لا سايدبار، لا authentication
