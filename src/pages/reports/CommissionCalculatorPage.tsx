@@ -156,13 +156,14 @@ export default function CommissionCalculatorPage() {
     },
   });
 
-  const target = manual
-    ? parseFloat(manualTarget) || 0
-    : Number(settings?.monthly_sales_target || 0);
-  const netSales = manual ? parseFloat(manualSales) || 0 : data?.netSales ?? 0;
-  const computedMargin =
+  // Target: per-month override > settings default
+  const settingsTarget = Number(settings?.monthly_sales_target || 0);
+  const target =
+    monthlyTargets[month] !== undefined ? monthlyTargets[month] : settingsTarget;
+  // Sales & margin are ALWAYS from actual data — not editable
+  const netSales = data?.netSales ?? 0;
+  const margin =
     netSales > 0 && data ? ((netSales - (data?.cogs ?? 0)) / netSales) * 100 : 0;
-  const margin = manual ? parseFloat(manualMargin) || 0 : computedMargin;
 
   // Calculation
   const achievement = target > 0 ? (netSales / target) * 100 : 0;
