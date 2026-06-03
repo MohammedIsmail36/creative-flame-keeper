@@ -302,6 +302,12 @@ const sections: MenuSection[] = [
         roles: ["admin", "accountant"],
       },
       {
+        title: "حاسبة العمولة",
+        url: "/reports/commission",
+        icon: Calculator,
+        roles: ["admin", "accountant", "sales"],
+      },
+      {
         title: "حركة المخزون",
         url: "/inventory-movements",
         icon: Package,
