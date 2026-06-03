@@ -74,6 +74,7 @@ const GrowthAnalyticsPage = lazy(() => import("./pages/reports/GrowthAnalyticsPa
 const ProductAnalyticsPage = lazy(() => import("./pages/reports/ProductAnalyticsPage"));
 const AccountBalancesPage = lazy(() => import("./pages/reports/AccountBalancesPage"));
 const ProfitLossPage = lazy(() => import("./pages/reports/ProfitLossPage"));
+const CommissionCalculatorPage = lazy(() => import("./pages/reports/CommissionCalculatorPage"));
 const TurnoverLayout = lazy(() => import("./pages/reports/inventory-turnover/TurnoverLayout"));
 const TurnoverDashboardPage = lazy(() => import("./pages/reports/inventory-turnover/TurnoverDashboardPage"));
 const BuyNowPage = lazy(() => import("./pages/reports/inventory-turnover/BuyNowPage"));
