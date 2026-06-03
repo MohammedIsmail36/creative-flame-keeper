@@ -225,18 +225,14 @@ export default function CommissionCalculatorPage() {
 
       {/* Auto-pulled data */}
       <Card>
-        <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
+        <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             البيانات الفعلية
             <span className="text-xs font-normal text-muted-foreground inline-flex items-center gap-1">
               <Info className="h-3.5 w-3.5" />
-              محسوبة تلقائياً من فواتير الشهر
+              صافي المبيعات وهامش الربح من فواتير الشهر — غير قابلة للتعديل
             </span>
           </CardTitle>
-          <div className="flex items-center gap-2">
-            <Label htmlFor="manual" className="text-sm text-muted-foreground">تعديل يدوي</Label>
-            <Switch id="manual" checked={manual} onCheckedChange={setManual} />
-          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -246,43 +242,35 @@ export default function CommissionCalculatorPage() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <StatBox label="الهدف الشهري" value={formatCurrency(target)}>
-                {manual && (
-                  <Input
-                    type="number"
-                    className="mt-2 h-8"
-                    value={manualTarget}
-                    placeholder={String(settings?.monthly_sales_target ?? 0)}
-                    onChange={(e) => setManualTarget(e.target.value)}
-                  />
-                )}
+                <Input
+                  type="number"
+                  className="mt-2 h-8 text-center"
+                  value={targetInput}
+                  placeholder={String(settingsTarget)}
+                  onChange={(e) => setTargetInput(e.target.value)}
+                  onBlur={() => {
+                    const v = parseFloat(targetInput);
+                    if (!isNaN(v) && v >= 0) saveMonthlyTarget(v);
+                    else if (targetInput === "") {
+                      const next = { ...monthlyTargets };
+                      delete next[month];
+                      setMonthlyTargets(next);
+                      localStorage.setItem(TARGET_LS, JSON.stringify(next));
+                    }
+                  }}
+                />
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  قابل للتغيير لكل شهر
+                </div>
               </StatBox>
-              <StatBox label="صافي المبيعات" value={formatCurrency(netSales)}>
-                {manual && (
-                  <Input
-                    type="number"
-                    className="mt-2 h-8"
-                    value={manualSales}
-                    placeholder={String((data?.netSales ?? 0).toFixed(2))}
-                    onChange={(e) => setManualSales(e.target.value)}
-                  />
-                )}
-              </StatBox>
-              <StatBox label="هامش الربح" value={fmtPct(margin)}>
-                {manual && (
-                  <Input
-                    type="number"
-                    className="mt-2 h-8"
-                    value={manualMargin}
-                    placeholder={computedMargin.toFixed(1)}
-                    onChange={(e) => setManualMargin(e.target.value)}
-                  />
-                )}
-              </StatBox>
+              <StatBox label="صافي المبيعات" value={formatCurrency(netSales)} />
+              <StatBox label="هامش الربح" value={fmtPct(margin)} />
               <StatBox label="نسبة الإنجاز" value={fmtPct(achievement)} />
             </div>
           )}
         </CardContent>
       </Card>
+
 
       {/* Calculator settings */}
       <Card>
