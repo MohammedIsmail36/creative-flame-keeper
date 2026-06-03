@@ -334,11 +334,12 @@ export default function CommissionCalculatorPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Progress
-              value={Math.min(achievement / 2, 100)}
-              className="h-2.5"
-              indicatorClassName={progressColor}
-            />
+            <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className={cn("h-full rounded-full transition-all", progressColor)}
+                style={{ width: `${Math.min(achievement / 2, 100)}%` }}
+              />
+            </div>
             <div className="text-xs text-muted-foreground mt-1.5 text-left">
               {fmtPct(achievement)} من الهدف
             </div>
