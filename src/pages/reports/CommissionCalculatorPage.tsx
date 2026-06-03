@@ -84,11 +84,21 @@ export default function CommissionCalculatorPage() {
     localStorage.setItem(LS_KEY, JSON.stringify(prefs));
   }, [prefs]);
 
-  // Manual override
-  const [manual, setManual] = useState(false);
-  const [manualSales, setManualSales] = useState<string>("");
-  const [manualMargin, setManualMargin] = useState<string>("");
-  const [manualTarget, setManualTarget] = useState<string>("");
+  // Per-month target override (persisted)
+  const TARGET_LS = "commission-monthly-targets-v1";
+  const loadTargets = (): Record<string, number> => {
+    try { return JSON.parse(localStorage.getItem(TARGET_LS) || "{}"); } catch { return {}; }
+  };
+  const [monthlyTargets, setMonthlyTargets] = useState<Record<string, number>>(loadTargets);
+  const [targetInput, setTargetInput] = useState<string>("");
+  useEffect(() => {
+    setTargetInput(monthlyTargets[month] !== undefined ? String(monthlyTargets[month]) : "");
+  }, [month, monthlyTargets]);
+  const saveMonthlyTarget = (val: number) => {
+    const next = { ...monthlyTargets, [month]: val };
+    setMonthlyTargets(next);
+    localStorage.setItem(TARGET_LS, JSON.stringify(next));
+  };
 
   // Pull data — sales (posted), returns (posted), COGS movements
   const { data, isLoading, refetch, isFetching } = useQuery({
