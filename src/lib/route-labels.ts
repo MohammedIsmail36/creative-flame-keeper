@@ -38,6 +38,7 @@ export const routeLabels: Record<string, string> = {
   aging: "أعمار الديون",
   balances: "أرصدة الحسابات",
   "profit-loss": "الأرباح والخسائر",
+  commission: "حاسبة العمولة",
   "inventory-turnover": "دوران المخزون",
   dashboard: "لوحة المؤشرات",
   "urgent-actions": "اشترِ الآن",
