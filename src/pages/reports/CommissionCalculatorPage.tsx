@@ -199,27 +199,63 @@ export default function CommissionCalculatorPage() {
         description="احسب عمولة البائع تلقائياً بناءً على نسبة تحقيق الهدف وهامش الربح"
       />
 
-      {/* Period */}
+      {/* Period + editable parameters */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">الفترة</CardTitle>
+          <CardTitle className="text-base">الفترة والمعايير</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
-          <div className="flex-1 space-y-1.5">
-            <Label>الشهر</Label>
-            <Select value={month} onValueChange={setMonth}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {monthOptions.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label>الشهر</Label>
+              <Select value={month} onValueChange={setMonth}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>الهدف الشهري</Label>
+              <Input
+                type="number"
+                value={targetInput}
+                placeholder={String(settingsTarget)}
+                onChange={(e) => setTargetInput(e.target.value)}
+                onBlur={() => {
+                  const v = parseFloat(targetInput);
+                  if (!isNaN(v) && v >= 0) saveMonthlyTarget(v);
+                  else if (targetInput === "") {
+                    const next = { ...monthlyTargets };
+                    delete next[month];
+                    setMonthlyTargets(next);
+                    localStorage.setItem(TARGET_LS, JSON.stringify(next));
+                  }
+                }}
+              />
+              <p className="text-[11px] text-muted-foreground">يمكن تغييره لكل شهر</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>الحد الأدنى لهامش الربح %</Label>
+              <Input
+                type="number"
+                value={prefs.minMargin}
+                onChange={(e) => setPrefs({ ...prefs, minMargin: parseFloat(e.target.value) || 0 })}
+              />
+              <p className="text-[11px] text-muted-foreground">شرط لصرف العمولة</p>
+            </div>
           </div>
-          <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCw className={cn("h-4 w-4 ml-2", isFetching && "animate-spin")} />
-            تحديث
-          </Button>
+
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+              <RefreshCw className={cn("h-4 w-4 ml-2", isFetching && "animate-spin")} />
+              تحديث البيانات
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -230,7 +266,7 @@ export default function CommissionCalculatorPage() {
             البيانات الفعلية
             <span className="text-xs font-normal text-muted-foreground inline-flex items-center gap-1">
               <Info className="h-3.5 w-3.5" />
-              صافي المبيعات وهامش الربح من فواتير الشهر — غير قابلة للتعديل
+              محسوبة تلقائياً من فواتير الشهر
             </span>
           </CardTitle>
         </CardHeader>
@@ -241,28 +277,7 @@ export default function CommissionCalculatorPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatBox label="الهدف الشهري" value={formatCurrency(target)}>
-                <Input
-                  type="number"
-                  className="mt-2 h-8 text-center"
-                  value={targetInput}
-                  placeholder={String(settingsTarget)}
-                  onChange={(e) => setTargetInput(e.target.value)}
-                  onBlur={() => {
-                    const v = parseFloat(targetInput);
-                    if (!isNaN(v) && v >= 0) saveMonthlyTarget(v);
-                    else if (targetInput === "") {
-                      const next = { ...monthlyTargets };
-                      delete next[month];
-                      setMonthlyTargets(next);
-                      localStorage.setItem(TARGET_LS, JSON.stringify(next));
-                    }
-                  }}
-                />
-                <div className="text-[10px] text-muted-foreground mt-1">
-                  قابل للتغيير لكل شهر
-                </div>
-              </StatBox>
+              <StatBox label="الهدف الشهري" value={formatCurrency(target)} />
               <StatBox label="صافي المبيعات" value={formatCurrency(netSales)} />
               <StatBox label="هامش الربح" value={fmtPct(margin)} />
               <StatBox label="نسبة الإنجاز" value={fmtPct(achievement)} />
@@ -271,59 +286,46 @@ export default function CommissionCalculatorPage() {
         </CardContent>
       </Card>
 
-
-      {/* Calculator settings */}
+      {/* Commission tiers */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">إعدادات الحاسبة</CardTitle>
+          <CardTitle className="text-base">شرائح العمولة</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>الحد الأدنى المقبول لهامش الربح %</Label>
-              <Input
-                type="number"
-                value={prefs.minMargin}
-                onChange={(e) => setPrefs({ ...prefs, minMargin: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
+        <CardContent className="space-y-3">
+          <div className="text-xs text-muted-foreground">
+            النسبة تُطبَّق على الفرق (المبيعات − الهدف)
           </div>
-
-          <div>
-            <div className="text-xs text-muted-foreground mb-2">
-              شرائح العمولة — النسبة تُطبَّق على الفرق (المبيعات − الهدف)
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {tiers.map((t) => (
-                <div
-                  key={t.idx}
-                  className={cn(
-                    "rounded-md border p-3 text-center transition-all",
-                    tierIdx === t.idx
-                      ? "border-primary bg-primary/10"
-                      : "border-border bg-muted/30",
-                  )}
-                >
-                  <div className="text-xs text-muted-foreground">{t.range}</div>
-                  <div className="my-2 flex items-baseline justify-center gap-1">
-                    <Input
-                      type="number"
-                      step="0.5"
-                      value={t.val}
-                      onChange={(e) =>
-                        setPrefs({ ...prefs, [t.key]: parseFloat(e.target.value) || 0 })
-                      }
-                      className="w-16 h-9 text-center text-lg font-medium"
-                    />
-                    <span className="text-sm text-muted-foreground">%</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">{t.label}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {tiers.map((t) => (
+              <div
+                key={t.idx}
+                className={cn(
+                  "rounded-md border p-3 text-center transition-all",
+                  tierIdx === t.idx
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-muted/30",
+                )}
+              >
+                <div className="text-xs text-muted-foreground">{t.range}</div>
+                <div className="my-2 flex items-baseline justify-center gap-1">
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={t.val}
+                    onChange={(e) =>
+                      setPrefs({ ...prefs, [t.key]: parseFloat(e.target.value) || 0 })
+                    }
+                    className="w-16 h-9 text-center text-lg font-medium"
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
                 </div>
-              ))}
-            </div>
+                <div className="text-xs text-muted-foreground">{t.label}</div>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
+
 
       {/* Result */}
       <Card>
