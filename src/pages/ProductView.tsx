@@ -1643,35 +1643,50 @@ export default function ProductView() {
                 </div>
                 {/* Profit Margin – based on actual averages */}
                 <div className="px-6 pb-6">
-                  <div className="mt-2 p-4 rounded-xl bg-primary/5 border border-primary/10 text-center">
-                    <span className="text-sm text-muted-foreground">
-                      هامش الربح الفعلي:{" "}
-                    </span>
-                    <strong className="text-primary text-lg font-mono">
-                      {formatCurrency(margin)}
-                    </strong>
-                    <span
-                      className="text-sm text-muted-foreground"
-                      title="هامش الربح = الربح ÷ سعر البيع"
-                    >
-                      {" "}
-                      • هامش {marginPct}%
-                    </span>
-                    <span
-                      className="text-sm text-muted-foreground"
-                      title="Markup = الربح ÷ التكلفة"
-                    >
-                      {" "}
-                      • Markup {markupPct}%
-                    </span>
-
+                  <div className="mt-2 p-4 rounded-xl bg-primary/5 border border-primary/10">
+                    <div className="grid grid-cols-3 divide-x divide-border/60 [direction:rtl]">
+                      {/* Profit amount */}
+                      <div className="px-2 text-center">
+                        <div className="text-[11px] text-muted-foreground mb-1">
+                          الربح الفعلي / وحدة
+                        </div>
+                        <div className="text-primary text-lg font-mono font-bold">
+                          {formatCurrency(margin)}
+                        </div>
+                      </div>
+                      {/* Profit margin */}
+                      <div
+                        className="px-2 text-center"
+                        title="هامش الربح = الربح ÷ سعر البيع"
+                      >
+                        <div className="text-[11px] text-muted-foreground mb-1">
+                          هامش الربح
+                        </div>
+                        <div className="text-foreground text-lg font-mono font-bold">
+                          {marginPct}%
+                        </div>
+                      </div>
+                      {/* Markup */}
+                      <div
+                        className="px-2 text-center"
+                        title="Markup = الربح ÷ التكلفة"
+                      >
+                        <div className="text-[11px] text-muted-foreground mb-1">
+                          نسبة الربح على التكلفة
+                        </div>
+                        <div className="text-muted-foreground text-lg font-mono font-bold">
+                          {markupPct}%
+                        </div>
+                      </div>
+                    </div>
                     {stats.avgPurchasePrice > 0 && (
-                      <p className="text-[11px] text-muted-foreground mt-1">
+                      <p className="text-[11px] text-muted-foreground mt-3 text-center">
                         محسوب من متوسط أسعار الشراء والبيع الفعلية
                       </p>
                     )}
                   </div>
                 </div>
+
               </div>
             </div>
 

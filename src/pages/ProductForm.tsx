@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { ACCOUNT_CODES } from "@/lib/constants";
+import { calcMargin } from "@/lib/margin-utils";
 import { deleteStorageFile, deleteStorageFiles } from "@/lib/storage-cleanup";
 import {
   generateEntityCode,
@@ -859,45 +860,63 @@ export default function ProductForm() {
             </div>
 
             {/* Profit Margin Bar */}
-            {sellingPrice > 0 && purchasePrice > 0 && (
-              <div className="flex items-center gap-3 bg-accent/50 rounded-xl p-3 mt-2">
-                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <span className="text-primary font-bold text-sm">%</span>
-                </div>
-                <div className="text-sm text-foreground">
-                  هامش الربح:{" "}
-                  <strong className="text-primary">
-                    {(sellingPrice - purchasePrice).toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                    })}{" "}
-                    EGP
-                  </strong>
-                  <span
-                    className="text-muted-foreground mr-2"
-                    title="هامش الربح = الربح ÷ سعر البيع"
-                  >
-                    • هامش{" "}
-                    {(
-                      ((sellingPrice - purchasePrice) / sellingPrice) *
-                      100
-                    ).toFixed(1)}
-                    %
-                  </span>
-                  <span
-                    className="text-muted-foreground mr-2"
-                    title="Markup = الربح ÷ التكلفة"
-                  >
-                    • Markup{" "}
-                    {(
-                      ((sellingPrice - purchasePrice) / purchasePrice) *
-                      100
-                    ).toFixed(1)}
-                    %
-                  </span>
-                </div>
+            {sellingPrice > 0 && purchasePrice > 0 && (() => {
+              const { profit, marginPct, markupPct } = calcMargin(
+                sellingPrice,
+                purchasePrice,
+              );
+              return (
+                <div className="rounded-xl border border-primary/15 bg-accent/40 p-3 mt-2">
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                    {/* Profit amount */}
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <span className="text-primary font-bold text-sm">%</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[11px] text-muted-foreground leading-tight">
+                          الربح / وحدة
+                        </span>
+                        <strong className="text-primary font-mono text-sm leading-tight">
+                          {profit.toLocaleString("en-US", { minimumFractionDigits: 2 })} EGP
+                        </strong>
+                      </div>
+                    </div>
 
-              </div>
-            )}
+                    <div className="h-8 w-px bg-border" />
+
+                    {/* Profit margin */}
+                    <div
+                      className="flex flex-col"
+                      title="هامش الربح = الربح ÷ سعر البيع"
+                    >
+                      <span className="text-[11px] text-muted-foreground leading-tight">
+                        هامش الربح
+                      </span>
+                      <strong className="text-foreground font-mono text-sm leading-tight">
+                        {marginPct.toFixed(1)}%
+                      </strong>
+                    </div>
+
+                    <div className="h-8 w-px bg-border" />
+
+                    {/* Markup */}
+                    <div
+                      className="flex flex-col"
+                      title="Markup = الربح ÷ التكلفة"
+                    >
+                      <span className="text-[11px] text-muted-foreground leading-tight">
+                        نسبة الربح على التكلفة (Markup)
+                      </span>
+                      <strong className="text-muted-foreground font-mono text-sm leading-tight">
+                        {markupPct.toFixed(1)}%
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
 
             {/* Product Active Status - Edit mode only */}
             {isEdit && (
