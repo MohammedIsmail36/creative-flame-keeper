@@ -10,9 +10,14 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, role, loading, mfaRequired } = useAuth();
+  const { user, role, loading, roleLoading, mfaRequired } = useAuth();
 
-  if (loading) {
+  // Wait for both the session AND (when role-gating is required) the role query
+  // to settle, otherwise a brief 403 flashes on every reload because `role`
+  // is still null while the user_roles query is in-flight.
+  const waitingForRole = !!allowedRoles && !!user && roleLoading;
+
+  if (loading || waitingForRole) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -35,3 +40,4 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   return <>{children}</>;
 }
+

@@ -9,21 +9,25 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
+  roleLoading: boolean;
   fullName: string;
   loading: boolean;
   mfaRequired: boolean;
   signOut: () => Promise<void>;
 }
 
+
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   role: null,
+  roleLoading: false,
   fullName: "",
   loading: true,
   mfaRequired: false,
   signOut: async () => {},
 });
+
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -35,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [mfaRequired, setMfaRequired] = useState(false);
 
   // Cached role + profile via React Query (deduplicated across components)
-  const { data: role = null } = useQuery({
+  const { data: role = null, isLoading: roleQueryLoading } = useQuery({
     queryKey: ["user-role", user?.id],
     enabled: !!user?.id,
     staleTime: Infinity,
@@ -50,6 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return (data?.role ?? null) as AppRole | null;
     },
   });
+  const roleLoading = !!user?.id && roleQueryLoading;
+
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -124,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, session, role, fullName, loading, mfaRequired, signOut }}
+      value={{ user, session, role, roleLoading, fullName, loading, mfaRequired, signOut }}
     >
       {children}
     </AuthContext.Provider>
