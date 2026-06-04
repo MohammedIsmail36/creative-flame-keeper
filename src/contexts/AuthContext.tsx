@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [mfaRequired, setMfaRequired] = useState(false);
 
   // Cached role + profile via React Query (deduplicated across components)
-  const { data: role = null } = useQuery({
+  const { data: role = null, isLoading: roleQueryLoading } = useQuery({
     queryKey: ["user-role", user?.id],
     enabled: !!user?.id,
     staleTime: Infinity,
@@ -54,6 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return (data?.role ?? null) as AppRole | null;
     },
   });
+  const roleLoading = !!user?.id && roleQueryLoading;
+
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
