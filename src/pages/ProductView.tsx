@@ -1650,10 +1650,21 @@ export default function ProductView() {
                     <strong className="text-primary text-lg font-mono">
                       {formatCurrency(margin)}
                     </strong>
-                    <span className="text-sm text-muted-foreground">
+                    <span
+                      className="text-sm text-muted-foreground"
+                      title="هامش الربح = الربح ÷ سعر البيع"
+                    >
                       {" "}
-                      ({marginPct}%)
+                      • هامش {marginPct}%
                     </span>
+                    <span
+                      className="text-sm text-muted-foreground"
+                      title="Markup = الربح ÷ التكلفة"
+                    >
+                      {" "}
+                      • Markup {markupPct}%
+                    </span>
+
                     {stats.avgPurchasePrice > 0 && (
                       <p className="text-[11px] text-muted-foreground mt-1">
                         محسوب من متوسط أسعار الشراء والبيع الفعلية
