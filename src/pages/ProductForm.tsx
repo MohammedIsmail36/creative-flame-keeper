@@ -872,15 +872,30 @@ export default function ProductForm() {
                     })}{" "}
                     EGP
                   </strong>
-                  <span className="text-muted-foreground mr-2">
-                    (
+                  <span
+                    className="text-muted-foreground mr-2"
+                    title="هامش الربح = الربح ÷ سعر البيع"
+                  >
+                    • هامش{" "}
+                    {(
+                      ((sellingPrice - purchasePrice) / sellingPrice) *
+                      100
+                    ).toFixed(1)}
+                    %
+                  </span>
+                  <span
+                    className="text-muted-foreground mr-2"
+                    title="Markup = الربح ÷ التكلفة"
+                  >
+                    • Markup{" "}
                     {(
                       ((sellingPrice - purchasePrice) / purchasePrice) *
                       100
                     ).toFixed(1)}
-                    %)
+                    %
                   </span>
                 </div>
+
               </div>
             )}
 

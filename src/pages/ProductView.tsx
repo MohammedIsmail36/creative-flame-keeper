@@ -1359,9 +1359,14 @@ export default function ProductView() {
     stats.avgSellingPrice > 0 ? stats.avgSellingPrice : product.selling_price;
   const margin = effectiveSellingPrice - effectivePurchasePrice;
   const marginPct =
+    effectiveSellingPrice > 0
+      ? ((margin / effectiveSellingPrice) * 100).toFixed(1)
+      : "0";
+  const markupPct =
     effectivePurchasePrice > 0
       ? ((margin / effectivePurchasePrice) * 100).toFixed(1)
       : "0";
+
 
   const allImages = [
     ...(product.main_image_url ? [product.main_image_url] : []),
@@ -1645,10 +1650,21 @@ export default function ProductView() {
                     <strong className="text-primary text-lg font-mono">
                       {formatCurrency(margin)}
                     </strong>
-                    <span className="text-sm text-muted-foreground">
+                    <span
+                      className="text-sm text-muted-foreground"
+                      title="هامش الربح = الربح ÷ سعر البيع"
+                    >
                       {" "}
-                      ({marginPct}%)
+                      • هامش {marginPct}%
                     </span>
+                    <span
+                      className="text-sm text-muted-foreground"
+                      title="Markup = الربح ÷ التكلفة"
+                    >
+                      {" "}
+                      • Markup {markupPct}%
+                    </span>
+
                     {stats.avgPurchasePrice > 0 && (
                       <p className="text-[11px] text-muted-foreground mt-1">
                         محسوب من متوسط أسعار الشراء والبيع الفعلية
