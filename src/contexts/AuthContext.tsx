@@ -21,11 +21,13 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   role: null,
+  roleLoading: false,
   fullName: "",
   loading: true,
   mfaRequired: false,
   signOut: async () => {},
 });
+
 
 export const useAuth = () => useContext(AuthContext);
 
