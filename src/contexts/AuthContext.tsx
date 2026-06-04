@@ -9,11 +9,13 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
+  roleLoading: boolean;
   fullName: string;
   loading: boolean;
   mfaRequired: boolean;
   signOut: () => Promise<void>;
 }
+
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
