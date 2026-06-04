@@ -1359,9 +1359,14 @@ export default function ProductView() {
     stats.avgSellingPrice > 0 ? stats.avgSellingPrice : product.selling_price;
   const margin = effectiveSellingPrice - effectivePurchasePrice;
   const marginPct =
+    effectiveSellingPrice > 0
+      ? ((margin / effectiveSellingPrice) * 100).toFixed(1)
+      : "0";
+  const markupPct =
     effectivePurchasePrice > 0
       ? ((margin / effectivePurchasePrice) * 100).toFixed(1)
       : "0";
+
 
   const allImages = [
     ...(product.main_image_url ? [product.main_image_url] : []),
