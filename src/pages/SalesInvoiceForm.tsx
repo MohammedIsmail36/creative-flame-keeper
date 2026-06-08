@@ -456,7 +456,7 @@ export default function SalesInvoiceForm() {
     setSaving(true);
     try {
       const { data: inv } = await (supabase.from("sales_invoices") as any)
-        .select("journal_entry_id")
+        .select("journal_entry_id, customer_id, total, tax, loyalty_discount, loyalty_points_redeemed, invoice_date, posted_number, invoice_number")
         .eq("id", id)
         .single();
 
