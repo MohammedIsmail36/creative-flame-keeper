@@ -58,6 +58,7 @@ interface Customer {
   contact_person: string | null;
   notes: string | null;
   balance: number;
+  loyalty_points: number;
   is_active: boolean;
 }
 
@@ -407,6 +408,21 @@ export default function Customers() {
         </Badge>
       ),
     },
+    ...(settings?.loyalty_enabled
+      ? [
+          {
+            accessorKey: "loyalty_points" as const,
+            header: ({ column }: any) => (
+              <DataTableColumnHeader column={column} title="نقاط الولاء" />
+            ),
+            cell: ({ row }: any) => (
+              <span className="font-mono tabular-nums text-amber-700 dark:text-amber-400">
+                {row.original.loyalty_points || 0}
+              </span>
+            ),
+          } as ColumnDef<Customer, any>,
+        ]
+      : []),
     ...(canEdit
       ? [
           {

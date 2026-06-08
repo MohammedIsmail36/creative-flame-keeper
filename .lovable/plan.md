@@ -1,46 +1,101 @@
-## المشكلة
 
-الرقم المعروض حالياً تحت مسمى **"هامش الربح"** في صفحتي تعديل الصنف وعرض الصنف يستخدم المعادلة:
+# خطة نهائية: نظام نقاط الولاء (MVP)
+
+ملاحظتاك الجديدتان مقبولتان ومدمجتان.
+
+## الفكرة
+كل عملية بيع تكسب العميل نقاطاً، والنقاط تُستبدل كخصم تناسبي على فاتورة لاحقة.
+
+## مثال
+- كل **10 ج.م** مبيعات = **1 نقطة**
+- كل **100 نقطة** = **5 ج.م** → قيمة النقطة = **0.05 ج.م**
+
+---
+
+## القرارات المضافة في هذه النسخة
+
+### ١) الاكتساب على القيمة **قبل** خصم الولاء ✅
+السلوك المعتمد: العميل يكسب نقاطاً على ما دفعه فعلياً (شامل قيمة النقاط المستبدلة، لأنها كانت مكسباً سابقاً).
+
 ```
-(البيع - التكلفة) / التكلفة
+earning_base = net_total + loyalty_discount
+points_earned = floor(earning_base / loyalty_egp_per_point)
 ```
-وهذه ليست معادلة هامش الربح، بل معادلة **نسبة الربح على التكلفة (Markup)**.
 
-- البيع 192، الشراء 140
-- Markup = 52 / 140 = **37.1%** ← المعروض حالياً (تسميته خاطئة)
-- Profit Margin = 52 / 192 = **27.1%** ← الصحيح حسب المستخدم وحسب باقي تقارير النظام
+**مثال:** فاتورة قيمتها 200، استُبدل 50 نقطة (2.50 ج.م خصم) → `net_total = 197.50`
+- earning_base = 197.50 + 2.50 = 200
+- points_earned = floor(200 / 10) = **20 نقطة** ✅
 
-## الحل المعتمد
+هذا يطبَّق أيضاً على الخصومات الأخرى؟ **لا** — فقط `loyalty_discount` يُضاف للقاعدة. الخصم اليدوي (سطر أو إجمالي) يبقى مخفّضاً للقاعدة كالمعتاد، لأن العميل لم يدفعه فعلياً.
 
-عرض الاثنين جنباً إلى جنب للوضوح الكامل:
-
-### 1) `src/pages/ProductForm.tsx` (السطور 861-885)
-شريط هامش الربح في كارت التسعير يصبح:
+### ٢) سقف الاستبدال لا يتجاوز قيمة الفاتورة ✅
+في حوار الاستبدال:
 ```
-هامش الربح: 52.00 EGP  •  هامش الربح 27.1%  •  Markup 37.1%
+point_value = loyalty_redeem_value / loyalty_points_per_redeem
+max_by_invoice = floor(invoice_total_before_loyalty / point_value)
+max_redeemable = min(customer_points, max_by_invoice)
 ```
-مع:
-- `margin = sellingPrice - purchasePrice`
-- `marginPct = (margin / sellingPrice) * 100` ← الجديد (هامش الربح الحقيقي)
-- `markupPct = (margin / purchasePrice) * 100` ← الموجود حالياً (نُعيد تسميته إلى Markup)
+الشريط المنزلق والحقل الرقمي يحترمان `max_redeemable`.
 
-### 2) `src/pages/ProductView.tsx` (السطور 1353-1365 و 1643-1651)
-تعديل منطق الحساب:
-- إضافة `marginPct` جديد = `(margin / effectiveSellingPrice) * 100`
-- إعادة تسمية المتغير الحالي إلى `markupPct`
-- التسمية في الواجهة (السطر 1643): `هامش الربح الفعلي: 52.00 EGP • هامش 27.1% • Markup 37.1%`
+**مثال:** عميل 10,000 نقطة، فاتورة 50 ج.م → max_by_invoice = floor(50 / 0.05) = 1000 → max_redeemable = **1000 نقطة فقط** (= 50 ج.م خصم كامل).
 
-### التنسيق المرئي
-استخدام نفس النمط الحالي (`text-muted-foreground` للنسب، `text-primary` للقيمة المالية)، مع فاصل بسيط `•` بين الرقمين لتجنّب الازدحام.
+كذلك validation في الـ RPC يرفض الترحيل إذا `loyalty_discount > invoice_total_before_loyalty`.
 
-### Tooltip توضيحي
-إضافة `title` (HTML tooltip) على كل نسبة:
-- على 27.1%: "هامش الربح = الربح ÷ سعر البيع"
-- على 37.1%: "Markup = الربح ÷ التكلفة"
+---
 
-## ملفات لن تتأثر
-- باقي التقارير (Sales Report, P&L, Commission Calculator, Growth) — تستخدم بالفعل صيغة هامش الربح الصحيحة `(Sales - COGS) / Sales`، لا تغيير عليها.
-- لا تغييرات في قاعدة البيانات أو منطق المحاسبة.
+## القرارات السابقة المثبّتة
+- **استبدال تناسبي**: أي عدد نقاط من 1 إلى max، القيمة = `points × point_value`.
+- **مرتجع جزئي**: `points_to_reverse = floor(returned_net / egp_per_point)`.
+- **إعادة النقاط المستبدلة عند المرتجع**: تناسبية مع نسبة المرتجع.
+- **فلتر تاريخ** في صفحة `/loyalty`.
 
-## ملاحظة تذكيرية
-ربما نريد لاحقاً إضافة قاعدة في مذكرة المشروع (memory) بأن **"هامش الربح = الربح ÷ البيع"** هو المعيار الموحّد في كل النظام لتفادي تكرار اللبس، لكن هذا اختياري وخارج نطاق التعديل الحالي.
+---
+
+## ملخص معادلات الترحيل (مرجع سريع)
+
+```text
+عند ترحيل فاتورة مبيعات:
+  loyalty_discount        = points_redeemed × point_value
+  net_total               = pre-loyalty totals − loyalty_discount
+  earning_base            = net_total + loyalty_discount
+  points_earned           = floor(earning_base / egp_per_point)
+  customer.points        += points_earned − points_redeemed
+
+عند ترحيل مرتجع مبيعات:
+  points_reversed         = floor(returned_net / egp_per_point)
+  points_redeem_refunded  = round(invoice.points_redeemed × returned_net / invoice.net_total)
+  customer.points        += points_redeem_refunded − points_reversed
+```
+
+---
+
+## التغييرات على القاعدة (بدون تعديل)
+
+- `company_settings`: 4 أعمدة جديدة.
+- `customers`: عمود `loyalty_points`.
+- `sales_invoices`: عمودا `loyalty_points_redeemed` و `loyalty_discount`.
+- جدول جديد `loyalty_transactions` + RLS + GRANTs.
+- تحديث `post_sales_invoice` و `post_sales_return` بالمعادلات أعلاه.
+
+---
+
+## واجهة المستخدم (بدون تعديل)
+
+- فاتورة المبيعات: بطاقة نقاط + حوار استبدال (شريط منزلق محدود بـ `max_redeemable`).
+- بطاقة العميل: KPI + آخر الحركات + تعديل يدوي (Admin).
+- صفحة `/loyalty`: فلتر تاريخ + 4 KPIs + جدول Top 20 + تصدير CSV.
+- Sidebar: عنصر "ولاء العملاء" تحت المبيعات.
+
+---
+
+## خطوات التنفيذ
+1. Migration: أعمدة + جدول + RLS + GRANTs.
+2. تبويب "الولاء" في الإعدادات.
+3. `SalesInvoiceForm`: بطاقة + حوار استبدال (بسقف `max_redeemable`).
+4. RPCs: `post_sales_invoice` و `post_sales_return` بالمعادلات أعلاه.
+5. بطاقة العميل + حوار التعديل اليدوي.
+6. صفحة `/loyalty` + فلتر التاريخ + رابط الـ Sidebar.
+
+**الوقت التقديري:** نصف يوم → يوم عمل.
+
+جاهز للتنفيذ؟

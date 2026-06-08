@@ -217,6 +217,12 @@ const sections: MenuSection[] = [
         roles: ["admin", "accountant", "sales"],
       },
       {
+        title: "ولاء العملاء",
+        url: "/loyalty",
+        icon: Award,
+        roles: ["admin", "accountant", "sales"],
+      },
+      {
         title: "كشف حساب عميل",
         url: "/customer-statement",
         icon: FileText,

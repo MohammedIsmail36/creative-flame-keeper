@@ -54,6 +54,7 @@ import {
   Eye,
   ShieldCheck,
   Percent,
+  Gift,
 } from "lucide-react";
 
 const currencies = [
@@ -335,6 +336,12 @@ export default function SettingsPage() {
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent px-0 pb-4 font-bold text-sm"
           >
             إدارة الفواتير
+          </TabsTrigger>
+          <TabsTrigger
+            value="loyalty"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent px-0 pb-4 font-bold text-sm"
+          >
+            ولاء العملاء
           </TabsTrigger>
         </TabsList>
 
@@ -1004,6 +1011,103 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
+            </div>
+          </SectionCard>
+        </TabsContent>
+
+        {/* ── Loyalty Tab ── */}
+        <TabsContent value="loyalty" className="space-y-6 mt-0">
+          <SectionCard icon={Gift} title="نظام نقاط الولاء">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border">
+                <div>
+                  <Label className="text-sm font-bold">تفعيل نظام النقاط</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    عند التفعيل سيكسب العملاء نقاطاً على كل فاتورة بيع مرحّلة، ويمكن استبدالها كخصم على فاتورة لاحقة.
+                  </p>
+                </div>
+                <Switch
+                  checked={!!settings.loyalty_enabled}
+                  onCheckedChange={(v) => updateField("loyalty_enabled", v)}
+                />
+              </div>
+
+              {settings.loyalty_enabled && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold">قيمة كل نقطة (مبيعات بالعملة)</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        step="any"
+                        value={settings.loyalty_egp_per_point ?? 10}
+                        onChange={(e) =>
+                          updateField("loyalty_egp_per_point", Number(e.target.value) || 0)
+                        }
+                        className="rounded-lg"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        مثال: 10 يعني أن كل 10 من قيمة الفاتورة = نقطة واحدة.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold">عدد النقاط للاستبدال المرجعي</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={settings.loyalty_points_per_redeem ?? 100}
+                        onChange={(e) =>
+                          updateField(
+                            "loyalty_points_per_redeem",
+                            parseInt(e.target.value || "0", 10) || 0,
+                          )
+                        }
+                        className="rounded-lg"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold">قيمة الخصم المقابل (بالعملة)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="any"
+                        value={settings.loyalty_redeem_value ?? 5}
+                        onChange={(e) =>
+                          updateField("loyalty_redeem_value", Number(e.target.value) || 0)
+                        }
+                        className="rounded-lg"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        مثال: 5 — يعني كل {settings.loyalty_points_per_redeem || 100} نقطة تساوي 5 من العملة.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold">قيمة النقطة الواحدة</Label>
+                      <div className="h-10 px-4 flex items-center rounded-lg border bg-muted/30 text-sm font-mono tabular-nums">
+                        {settings.loyalty_points_per_redeem > 0
+                          ? (
+                              (settings.loyalty_redeem_value || 0) /
+                              settings.loyalty_points_per_redeem
+                            ).toFixed(4)
+                          : "0.0000"}
+                      </div>
+                      <p className="text-xs text-muted-foreground">محسوبة تلقائياً.</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-primary/5 rounded-lg border border-primary/20 text-sm text-muted-foreground leading-relaxed">
+                    <strong className="text-foreground">كيف يعمل:</strong> العميل يكسب نقاطاً
+                    تساوي{" "}
+                    <span className="font-mono">
+                      floor(صافي الفاتورة قبل الخصم بالنقاط / {settings.loyalty_egp_per_point || 10})
+                    </span>
+                    . عند الاستبدال يُحسب الخصم تناسبياً ولا يتجاوز قيمة الفاتورة. عند المرتجع
+                    تُعكس النقاط بنفس النسبة.
+                  </div>
+                </>
+              )}
             </div>
           </SectionCard>
         </TabsContent>
