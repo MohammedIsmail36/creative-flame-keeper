@@ -41,7 +41,17 @@ import {
   StickyNote,
   ArrowLeftRight,
   Loader2,
+  Gift,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -70,6 +80,7 @@ interface Customer {
   code: string;
   name: string;
   balance?: number;
+  loyalty_points?: number;
 }
 type Product = ProductWithBrand & {
   selling_price: number;
@@ -120,6 +131,9 @@ export default function SalesInvoiceForm() {
   );
   const [editMode, setEditMode] = useState(true);
   const [invoiceDiscount, setInvoiceDiscount] = useState(0);
+  const [loyaltyPointsRedeemed, setLoyaltyPointsRedeemed] = useState(0);
+  const [redeemDialogOpen, setRedeemDialogOpen] = useState(false);
+  const [redeemDraft, setRedeemDraft] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddInitialName, setQuickAddInitialName] = useState("");
@@ -132,7 +146,7 @@ export default function SalesInvoiceForm() {
 
   async function loadData() {
     const [custRes, prodRes] = await Promise.all([
-      (supabase.from("customers") as any).select("id, code, name, balance").eq("is_active", true).order("name"),
+      (supabase.from("customers") as any).select("id, code, name, balance, loyalty_points").eq("is_active", true).order("name"),
       supabase.from("products").select(PRODUCT_SELECT_FIELDS).eq("is_active", true).order("name"),
     ]);
     setCustomers(custRes.data || []);
@@ -154,6 +168,7 @@ export default function SalesInvoiceForm() {
         setStatus(inv.status);
         setEditMode(inv.status === "draft");
         setInvoiceDiscount(Number(inv.discount) || 0);
+        setLoyaltyPointsRedeemed(Number(inv.loyalty_points_redeemed) || 0);
 
         const { data: itemsData } = await (supabase.from("sales_invoice_items") as any)
           .select("*, products:product_id(name, code, purchase_price, model_number, product_brands(name))")
