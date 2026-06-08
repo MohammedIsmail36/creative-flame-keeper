@@ -42,6 +42,10 @@ export interface CompanySettings {
   enable_tax: boolean;
   sales_tax_account_id: string | null;
   purchase_tax_account_id: string | null;
+  loyalty_enabled: boolean;
+  loyalty_egp_per_point: number;
+  loyalty_points_per_redeem: number;
+  loyalty_redeem_value: number;
 }
 
 interface SettingsContextType {
