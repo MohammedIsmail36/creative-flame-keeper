@@ -204,6 +204,46 @@ export default function SalesInvoiceForm() {
   const { subtotal, hasLineDiscount, hasInvoiceDiscount, discountMode, afterDiscount, taxAmount, grandTotal } =
     calcInvoiceTotals({ items, invoiceDiscount, showTax, taxRate });
 
+  // ── Loyalty calculations ──
+  const loyaltyEnabled = !!settings?.loyalty_enabled;
+  const egpPerPoint = Number(settings?.loyalty_egp_per_point) || 10;
+  const pointsPerRedeem = Number(settings?.loyalty_points_per_redeem) || 100;
+  const redeemValue = Number(settings?.loyalty_redeem_value) || 0;
+  const pointValue = pointsPerRedeem > 0 ? redeemValue / pointsPerRedeem : 0;
+
+  const currentCustomerPoints =
+    customers.find((c) => c.id === customerId)?.loyalty_points || 0;
+  // When editing an existing draft, the customer balance shown already excludes redeemed points only after posting.
+  // For UX show: available = currentCustomerPoints (pre-post) - already redeemed on this draft.
+  const availablePoints = Math.max(0, currentCustomerPoints - loyaltyPointsRedeemed);
+
+  const loyaltyDiscount = round2(Math.min(loyaltyPointsRedeemed * pointValue, grandTotal));
+  const finalGrandTotal = round2(Math.max(grandTotal - loyaltyDiscount, 0));
+
+  const maxByInvoice = pointValue > 0 ? Math.floor(grandTotal / pointValue) : 0;
+  const maxRedeemable = Math.min(currentCustomerPoints, maxByInvoice);
+
+  // Reset redeemed points if customer changes (only for unsaved/new state)
+  useEffect(() => {
+    if (isNew) setLoyaltyPointsRedeemed(0);
+  }, [customerId, isNew]);
+
+  function openRedeemDialog() {
+    setRedeemDraft(loyaltyPointsRedeemed || Math.min(pointsPerRedeem, maxRedeemable));
+    setRedeemDialogOpen(true);
+  }
+  function applyRedeem() {
+    const v = Math.max(0, Math.min(Math.floor(redeemDraft || 0), maxRedeemable));
+    setLoyaltyPointsRedeemed(v);
+    setIsDirty(true);
+    setRedeemDialogOpen(false);
+  }
+  function clearRedeem() {
+    setLoyaltyPointsRedeemed(0);
+    setIsDirty(true);
+    setRedeemDialogOpen(false);
+  }
+
   async function handleSave() {
     if (saving) return;
     const errors: Record<string, string> = {};
