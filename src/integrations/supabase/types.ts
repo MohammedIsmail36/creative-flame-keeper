@@ -119,6 +119,10 @@ export type Database = {
           journal_entry_prefix: string
           locked_until_date: string | null
           logo_url: string | null
+          loyalty_egp_per_point: number
+          loyalty_enabled: boolean
+          loyalty_points_per_redeem: number
+          loyalty_redeem_value: number
           monthly_sales_target: number
           payment_terms_days: number
           phone: string | null
@@ -160,6 +164,10 @@ export type Database = {
           journal_entry_prefix?: string
           locked_until_date?: string | null
           logo_url?: string | null
+          loyalty_egp_per_point?: number
+          loyalty_enabled?: boolean
+          loyalty_points_per_redeem?: number
+          loyalty_redeem_value?: number
           monthly_sales_target?: number
           payment_terms_days?: number
           phone?: string | null
@@ -201,6 +209,10 @@ export type Database = {
           journal_entry_prefix?: string
           locked_until_date?: string | null
           logo_url?: string | null
+          loyalty_egp_per_point?: number
+          loyalty_enabled?: boolean
+          loyalty_points_per_redeem?: number
+          loyalty_redeem_value?: number
           monthly_sales_target?: number
           payment_terms_days?: number
           phone?: string | null
@@ -363,6 +375,7 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          loyalty_points: number
           name: string
           notes: string | null
           opening_balance: number
@@ -379,6 +392,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          loyalty_points?: number
           name: string
           notes?: string | null
           opening_balance?: number
@@ -395,6 +409,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          loyalty_points?: number
           name?: string
           notes?: string | null
           opening_balance?: number
@@ -736,6 +751,53 @@ export type Database = {
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_transactions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          id: string
+          notes: string | null
+          points: number
+          reference_id: string | null
+          reference_type: string | null
+          transaction_date: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          id?: string
+          notes?: string | null
+          points: number
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_date?: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          points?: number
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_date?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
         ]
@@ -1423,6 +1485,8 @@ export type Database = {
           invoice_date: string
           invoice_number: number
           journal_entry_id: string | null
+          loyalty_discount: number
+          loyalty_points_redeemed: number
           notes: string | null
           paid_amount: number
           posted_number: number | null
@@ -1443,6 +1507,8 @@ export type Database = {
           invoice_date?: string
           invoice_number?: number
           journal_entry_id?: string | null
+          loyalty_discount?: number
+          loyalty_points_redeemed?: number
           notes?: string | null
           paid_amount?: number
           posted_number?: number | null
@@ -1463,6 +1529,8 @@ export type Database = {
           invoice_date?: string
           invoice_number?: number
           journal_entry_id?: string | null
+          loyalty_discount?: number
+          loyalty_points_redeemed?: number
           notes?: string | null
           paid_amount?: number
           posted_number?: number | null
