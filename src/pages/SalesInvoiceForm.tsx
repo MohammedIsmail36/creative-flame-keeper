@@ -997,10 +997,19 @@ export default function SalesInvoiceForm() {
                   </span>
                 </div>
               )}
+              {loyaltyDiscount > 0 && (
+                <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 px-3 py-1.5 rounded-lg">
+                  <Gift className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                  <span className="text-xs text-amber-700 dark:text-amber-300 font-medium">ولاء</span>
+                  <span className="text-xs font-mono font-semibold tabular-nums text-amber-700 dark:text-amber-300">
+                    -{formatCurrency(loyaltyDiscount)}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-1.5 bg-primary/5 border border-primary/20 px-3 py-1.5 rounded-lg">
                 <span className="text-xs text-primary/70 font-medium">الإجمالي</span>
                 <span className="text-xs font-mono font-bold tabular-nums text-primary">
-                  {formatCurrency(grandTotal)}
+                  {formatCurrency(finalGrandTotal)}
                 </span>
               </div>
             </div>
@@ -1092,9 +1101,20 @@ export default function SalesInvoiceForm() {
                 <span className="text-sm text-muted-foreground">ضريبة القيمة المضافة ({taxRate}%)</span>
               </div>
             )}
+            {loyaltyDiscount > 0 && (
+              <div className="flex justify-between items-center py-2.5 border-b border-border/50">
+                <span className="font-mono tabular-nums text-sm font-medium text-amber-600 dark:text-amber-400">
+                  -{formatCurrency(loyaltyDiscount)}
+                </span>
+                <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  <Gift className="h-3.5 w-3.5" />
+                  استبدال نقاط الولاء ({loyaltyPointsRedeemed})
+                </span>
+              </div>
+            )}
             <div className="flex justify-between items-center pt-4">
               <span className="text-2xl font-black text-primary font-mono tabular-nums">
-                {formatCurrency(grandTotal)}
+                {formatCurrency(finalGrandTotal)}
               </span>
               <span className="text-base font-bold text-foreground">الإجمالي الكلي</span>
             </div>
@@ -1115,7 +1135,7 @@ export default function SalesInvoiceForm() {
                 invoiceId={id}
                 entityId={customerId}
                 entityName={customerName || customers.find((c) => c.id === customerId)?.name || ""}
-                invoiceTotal={grandTotal}
+                invoiceTotal={finalGrandTotal}
                 invoiceNumber={invoiceNumber}
                 onPaymentAdded={loadData}
                 refreshKey={paymentSectionRefreshKey}
@@ -1126,7 +1146,7 @@ export default function SalesInvoiceForm() {
                 type="sales"
                 invoiceId={id}
                 entityId={customerId}
-                invoiceTotal={grandTotal}
+                invoiceTotal={finalGrandTotal}
                 onSettlementChanged={handleSettlementChanged}
               />
             </div>
