@@ -278,11 +278,13 @@ export default function SalesInvoiceForm() {
         setSaving(false);
         return;
       }
-      // Calculate net_total for each item
-      const discountPercent = discountMode === "invoice" && subtotal > 0 ? invoiceDiscount / subtotal : 0;
+      // Calculate net_total per item (distribute invoice-level discount AND loyalty discount proportionally)
+      const invoiceLevelReduction =
+        (discountMode === "invoice" ? invoiceDiscount : 0) + loyaltyDiscount;
+      const discountPercent = subtotal > 0 ? invoiceLevelReduction / subtotal : 0;
       const itemsWithNet = validItems.map((i) => ({
         ...i,
-        net_total: discountMode === "invoice" ? round2(i.total * (1 - discountPercent)) : i.total,
+        net_total: round2(i.total * (1 - discountPercent)),
       }));
 
       const payload: any = {
@@ -291,7 +293,9 @@ export default function SalesInvoiceForm() {
         subtotal,
         discount: invoiceDiscount,
         tax: taxAmount,
-        total: grandTotal,
+        total: finalGrandTotal,
+        loyalty_points_redeemed: loyaltyPointsRedeemed,
+        loyalty_discount: loyaltyDiscount,
         notes: notes.trim() || null,
         reference: reference.trim() || null,
         status: "draft",
