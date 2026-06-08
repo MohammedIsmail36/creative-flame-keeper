@@ -566,10 +566,10 @@ export default function SalesInvoiceForm() {
         total: i.total,
       })),
       subtotal,
-      discountTotal: discountMode === "invoice" ? invoiceDiscount : totalDiscount,
+      discountTotal: (discountMode === "invoice" ? invoiceDiscount : totalDiscount) + loyaltyDiscount,
       taxAmount,
       taxRate,
-      grandTotal,
+      grandTotal: finalGrandTotal,
       showTax,
       showDiscount,
       settings,
@@ -777,6 +777,121 @@ export default function SalesInvoiceForm() {
           </div>
         </div>
       </div>
+
+      {/* ── Loyalty Card ── */}
+      {loyaltyEnabled && customerId && (loyaltyPointsRedeemed > 0 || currentCustomerPoints > 0 || !isDraft) && (
+        <div className="bg-gradient-to-l from-amber-50/60 to-card dark:from-amber-950/10 dark:to-card p-4 rounded-2xl border border-amber-200/70 dark:border-amber-900/30 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <Gift className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="text-sm">
+                <div className="font-bold text-foreground">
+                  رصيد نقاط العميل: <span className="font-mono tabular-nums">{currentCustomerPoints}</span> نقطة
+                  {pointValue > 0 && (
+                    <span className="text-muted-foreground font-normal mr-2">
+                      ≈ {formatCurrency(round2(currentCustomerPoints * pointValue))}
+                    </span>
+                  )}
+                </div>
+                {loyaltyPointsRedeemed > 0 && (
+                  <div className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                    سيتم استخدام {loyaltyPointsRedeemed} نقطة (خصم {formatCurrency(loyaltyDiscount)})
+                  </div>
+                )}
+              </div>
+            </div>
+            {isEditable && (
+              <div className="flex items-center gap-2">
+                {loyaltyPointsRedeemed > 0 && (
+                  <Button variant="ghost" size="sm" onClick={clearRedeem} className="text-xs">
+                    إلغاء الاستبدال
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openRedeemDialog}
+                  disabled={maxRedeemable <= 0 || grandTotal <= 0}
+                  className="gap-1.5 border-amber-300 dark:border-amber-900/60 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                >
+                  <Gift className="h-4 w-4" />
+                  {loyaltyPointsRedeemed > 0 ? "تعديل الاستبدال" : "استخدام النقاط"}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Redeem Dialog */}
+      <Dialog open={redeemDialogOpen} onOpenChange={setRedeemDialogOpen}>
+        <DialogContent dir="rtl" className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-amber-600" />
+              استخدام نقاط الولاء
+            </DialogTitle>
+            <DialogDescription>
+              رصيد العميل {currentCustomerPoints} نقطة. الحد الأقصى المسموح به على هذه الفاتورة:{" "}
+              <span className="font-mono">{maxRedeemable}</span> نقطة.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-sm">عدد النقاط المراد استخدامها</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min={0}
+                  max={maxRedeemable}
+                  value={redeemDraft}
+                  onChange={(e) => setRedeemDraft(parseInt(e.target.value || "0", 10) || 0)}
+                  className="w-32 font-mono tabular-nums"
+                />
+                <Slider
+                  value={[Math.min(redeemDraft, maxRedeemable)]}
+                  min={0}
+                  max={Math.max(maxRedeemable, 1)}
+                  step={1}
+                  onValueChange={(v) => setRedeemDraft(v[0] || 0)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <div className="p-3 bg-muted/40 rounded-lg text-sm">
+              <div className="flex justify-between mb-1">
+                <span className="text-muted-foreground">قيمة الخصم</span>
+                <span className="font-mono font-semibold">
+                  {formatCurrency(round2(Math.min(Math.max(redeemDraft, 0), maxRedeemable) * pointValue))}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">الإجمالي بعد الخصم</span>
+                <span className="font-mono font-semibold text-primary">
+                  {formatCurrency(
+                    round2(
+                      Math.max(
+                        grandTotal -
+                          Math.min(Math.max(redeemDraft, 0), maxRedeemable) * pointValue,
+                        0,
+                      ),
+                    ),
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex-row-reverse gap-2">
+            <Button onClick={applyRedeem}>تطبيق</Button>
+            <Button variant="outline" onClick={() => setRedeemDialogOpen(false)}>
+              إلغاء
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* ── Items Table Card ── */}
       <div
