@@ -523,6 +523,51 @@ export default function SalesInvoiceForm() {
         }
       }
 
+      // Reverse loyalty points (earned & redeemed) if customer + loyalty enabled
+      if (inv?.customer_id && settings?.loyalty_enabled && (settings?.loyalty_egp_per_point ?? 0) > 0) {
+        const earningBase = Math.max(
+          Number(inv.total || 0) - Number(inv.tax || 0) + Number(inv.loyalty_discount || 0),
+          0,
+        );
+        const earned = Math.floor(earningBase / Number(settings.loyalty_egp_per_point));
+        const redeemed = Number(inv.loyalty_points_redeemed || 0);
+        const delta = redeemed - earned; // reverse: subtract earned, add back redeemed
+        const label = inv.posted_number ?? inv.invoice_number;
+
+        if (earned > 0) {
+          await (supabase.from("loyalty_transactions") as any).insert({
+            customer_id: inv.customer_id,
+            transaction_date: new Date().toISOString().split("T")[0],
+            points: -earned,
+            type: "cancel_earn",
+            reference_type: "sales_invoice",
+            reference_id: id,
+            notes: `إلغاء اكتساب من فاتورة #${label}`,
+          });
+        }
+        if (redeemed > 0) {
+          await (supabase.from("loyalty_transactions") as any).insert({
+            customer_id: inv.customer_id,
+            transaction_date: new Date().toISOString().split("T")[0],
+            points: redeemed,
+            type: "cancel_redeem",
+            reference_type: "sales_invoice",
+            reference_id: id,
+            notes: `إلغاء استبدال من فاتورة #${label}`,
+          });
+        }
+        if (delta !== 0) {
+          const { data: cust } = await (supabase.from("customers") as any)
+            .select("loyalty_points")
+            .eq("id", inv.customer_id)
+            .single();
+          const newBalance = Math.max(Number(cust?.loyalty_points || 0) + delta, 0);
+          await (supabase.from("customers") as any)
+            .update({ loyalty_points: newBalance })
+            .eq("id", inv.customer_id);
+        }
+      }
+
       await (supabase.from("sales_invoices") as any).update({ status: "cancelled" }).eq("id", id);
       toast({
         title: "تم الإلغاء",
