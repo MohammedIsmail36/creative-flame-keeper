@@ -3,14 +3,31 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
-import { Gift, TrendingUp, TrendingDown, Users, Calculator, X } from "lucide-react";
-import { round2 } from "@/lib/utils";
+import { useUserRole } from "@/hooks/use-user-role";
+import {
+  Gift,
+  TrendingUp,
+  TrendingDown,
+  Users,
+  Calculator,
+  X,
+  ArrowUp,
+  ArrowDown,
+  Settings2,
+  Trophy,
+  Medal,
+  Award,
+} from "lucide-react";
+import { round2, cn } from "@/lib/utils";
 import { ExportMenu } from "@/components/ExportMenu";
+import { toast } from "@/hooks/use-toast";
 
 interface TxRow {
   customer_id: string;
@@ -35,8 +52,20 @@ interface TopRow {
   current_balance: number;
 }
 
+function initials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+}
+
 export default function LoyaltyReport() {
   const { settings, formatCurrency } = useSettings();
+  const { data: role } = useUserRole();
+  const isAdmin = role === "admin";
   const today = new Date().toISOString().slice(0, 10);
   const firstOfMonth = today.slice(0, 8) + "01";
 
@@ -132,58 +161,185 @@ export default function LoyaltyReport() {
     return rows.slice(0, 20);
   }, [txs, customers]);
 
+  const maxEarned = useMemo(
+    () => Math.max(1, ...topRows.map((r) => r.earned_in_period)),
+    [topRows],
+  );
+
+  async function applyAdjustment(
+    customer: TopRow,
+    delta: number,
+    reason: string,
+  ): Promise<boolean> {
+    if (!delta || isNaN(delta)) return false;
+    const newBalance = (customer.current_balance || 0) + delta;
+    if (newBalance < 0) {
+      toast({
+        title: "غير مسموح",
+        description: "الرصيد الناتج سيكون سالباً",
+        variant: "destructive",
+      });
+      return false;
+    }
+    try {
+      const { error: txErr } = await (supabase.from("loyalty_transactions") as any).insert({
+        customer_id: customer.id,
+        points: delta,
+        type: "manual_adjust",
+        transaction_date: today,
+        notes: reason || "تعديل يدوي",
+      });
+      if (txErr) throw txErr;
+      const { error: cErr } = await (supabase.from("customers") as any)
+        .update({ loyalty_points: newBalance })
+        .eq("id", customer.id);
+      if (cErr) throw cErr;
+      toast({
+        title: "تم التعديل",
+        description: `${customer.name}: ${delta > 0 ? "+" : ""}${delta} نقطة`,
+      });
+      await load();
+      return true;
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+      return false;
+    }
+  }
+
   const columns: ColumnDef<TopRow, any>[] = [
     {
-      accessorKey: "code",
-      header: "الكود",
-      cell: ({ row }) => <span className="font-mono text-sm">{row.original.code}</span>,
+      id: "rank",
+      header: "#",
+      cell: ({ row }) => {
+        const idx = row.index;
+        const rank = idx + 1;
+        if (rank === 1)
+          return (
+            <div className="h-7 w-7 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 flex items-center justify-center">
+              <Trophy className="h-3.5 w-3.5" />
+            </div>
+          );
+        if (rank === 2)
+          return (
+            <div className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center">
+              <Medal className="h-3.5 w-3.5" />
+            </div>
+          );
+        if (rank === 3)
+          return (
+            <div className="h-7 w-7 rounded-full bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400 flex items-center justify-center">
+              <Award className="h-3.5 w-3.5" />
+            </div>
+          );
+        return (
+          <span className="text-xs font-mono text-muted-foreground tabular-nums">
+            {String(rank).padStart(2, "0")}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "name",
       header: "العميل",
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+            {initials(row.original.name)}
+          </div>
+          <div className="min-w-0">
+            <div className="font-medium text-foreground truncate">{row.original.name}</div>
+            <div className="text-[11px] font-mono text-muted-foreground">{row.original.code}</div>
+          </div>
+        </div>
+      ),
     },
     {
       accessorKey: "earned_in_period",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="مكتسبة في الفترة" />,
-      cell: ({ row }) => (
-        <span className="font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
-          {row.original.earned_in_period}
-        </span>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="مكتسبة" />,
+      cell: ({ row }) => {
+        const v = row.original.earned_in_period;
+        const pct = Math.round((v / maxEarned) * 100);
+        return (
+          <div className="space-y-1 min-w-[110px]">
+            <div className="flex items-center gap-1.5">
+              <ArrowUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+              <span className="font-mono tabular-nums font-semibold text-emerald-700 dark:text-emerald-400">
+                {v.toLocaleString()}
+              </span>
+            </div>
+            <div className="h-1 w-full rounded-full bg-emerald-100 dark:bg-emerald-950/40 overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 dark:bg-emerald-400 rounded-full transition-all"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "redeemed_in_period",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="مستبدلة في الفترة" />,
-      cell: ({ row }) => (
-        <span className="font-mono tabular-nums text-amber-600 dark:text-amber-400">
-          {row.original.redeemed_in_period}
-        </span>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="مستبدلة" />,
+      cell: ({ row }) => {
+        const v = row.original.redeemed_in_period;
+        if (v === 0)
+          return <span className="text-xs text-muted-foreground/50">—</span>;
+        return (
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-900/40">
+            <ArrowDown className="h-3 w-3" />
+            <span className="font-mono tabular-nums text-sm font-semibold">
+              {v.toLocaleString()}
+            </span>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "net_in_period",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="صافي الفترة" />,
-      cell: ({ row }) => (
-        <Badge variant={row.original.net_in_period >= 0 ? "secondary" : "destructive"}>
-          {row.original.net_in_period}
-        </Badge>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="صافي" />,
+      cell: ({ row }) => {
+        const v = row.original.net_in_period;
+        return (
+          <span
+            className={cn(
+              "font-mono tabular-nums font-semibold text-sm",
+              v >= 0 ? "text-foreground" : "text-rose-600 dark:text-rose-400",
+            )}
+          >
+            {v >= 0 ? "+" : ""}
+            {v.toLocaleString()}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "current_balance",
       header: ({ column }) => <DataTableColumnHeader column={column} title="الرصيد الحالي" />,
       cell: ({ row }) => (
-        <span className="font-mono tabular-nums font-semibold">
-          {row.original.current_balance}
-          {pointValue > 0 && (
-            <span className="text-xs text-muted-foreground mr-1">
-              ({formatCurrency(round2(row.original.current_balance * pointValue))})
+        <div className="space-y-0.5">
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-mono tabular-nums text-base font-bold text-foreground">
+              {row.original.current_balance.toLocaleString()}
             </span>
+            <span className="text-[10px] text-muted-foreground font-medium">نقطة</span>
+          </div>
+          {pointValue > 0 && (
+            <div className="text-[11px] text-muted-foreground font-mono">
+              ≈ {formatCurrency(round2(row.original.current_balance * pointValue))}
+            </div>
           )}
-        </span>
+        </div>
       ),
     },
+    ...(isAdmin
+      ? [
+          {
+            id: "actions",
+            header: "",
+            cell: ({ row }: any) => <AdjustPopover customer={row.original} onApply={applyAdjustment} />,
+          } as ColumnDef<TopRow, any>,
+        ]
+      : []),
   ];
 
   function resetFilters() {
@@ -300,9 +456,17 @@ export default function LoyaltyReport() {
       </div>
 
       {/* Top customers */}
-      <div className="bg-card rounded-2xl border shadow-sm">
-        <div className="flex items-center justify-between px-5 py-3 border-b">
-          <h3 className="font-bold text-foreground">أعلى العملاء (Top 20)</h3>
+      <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b bg-muted/20">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <Trophy className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-foreground leading-tight">أعلى العملاء</h3>
+              <p className="text-[11px] text-muted-foreground">Top 20 خلال الفترة المحددة</p>
+            </div>
+          </div>
           <ExportMenu
             config={{
               filenamePrefix: "loyalty-top-customers",
@@ -321,14 +485,145 @@ export default function LoyaltyReport() {
             }}
           />
         </div>
-        <DataTable
-          compactRows
-          columns={columns}
-          data={topRows}
-          emptyMessage="لا توجد حركات نقاط في هذه الفترة"
-        />
+        <div className="p-4">
+          <DataTable
+            columns={columns}
+            data={topRows}
+            emptyMessage="لا توجد حركات نقاط في هذه الفترة"
+            showSearch={false}
+            showColumnToggle={false}
+            showPagination={false}
+          />
+        </div>
       </div>
     </div>
+  );
+}
+
+function AdjustPopover({
+  customer,
+  onApply,
+}: {
+  customer: TopRow;
+  onApply: (c: TopRow, delta: number, reason: string) => Promise<boolean>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"add" | "sub">("add");
+  const [amount, setAmount] = useState<string>("");
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const amt = parseInt(amount, 10);
+  const valid = !isNaN(amt) && amt > 0;
+  const delta = mode === "add" ? amt : -amt;
+  const newBalance = customer.current_balance + (valid ? delta : 0);
+  const willBeNegative = valid && newBalance < 0;
+
+  async function handleSave() {
+    if (!valid || willBeNegative) return;
+    setSaving(true);
+    const ok = await onApply(customer, delta, reason.trim());
+    setSaving(false);
+    if (ok) {
+      setOpen(false);
+      setAmount("");
+      setReason("");
+      setMode("add");
+    }
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل النقاط">
+          <Settings2 className="h-4 w-4 text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 space-y-3" dir="rtl">
+        <div className="space-y-0.5">
+          <p className="text-sm font-semibold">تعديل يدوي للنقاط</p>
+          <p className="text-[11px] text-muted-foreground">
+            الرصيد الحالي: <span className="font-mono font-bold">{customer.current_balance}</span> نقطة
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-1.5 p-1 bg-muted rounded-lg">
+          <button
+            type="button"
+            onClick={() => setMode("add")}
+            className={cn(
+              "py-1.5 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1",
+              mode === "add"
+                ? "bg-emerald-500 text-white shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <ArrowUp className="h-3 w-3" /> إضافة
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("sub")}
+            className={cn(
+              "py-1.5 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1",
+              mode === "sub"
+                ? "bg-amber-500 text-white shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <ArrowDown className="h-3 w-3" /> خصم
+          </button>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[11px] text-muted-foreground font-medium">عدد النقاط</label>
+          <Input
+            type="number"
+            min={1}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="مثال: 50"
+            className="h-9 font-mono"
+            error={willBeNegative}
+          />
+          {willBeNegative && (
+            <p className="text-[11px] text-rose-600 dark:text-rose-400">
+              الرصيد الناتج سيكون سالباً
+            </p>
+          )}
+          {valid && !willBeNegative && (
+            <p className="text-[11px] text-muted-foreground">
+              الرصيد بعد التعديل:{" "}
+              <span className="font-mono font-semibold text-foreground">{newBalance}</span>
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[11px] text-muted-foreground font-medium">السبب (اختياري)</label>
+          <Input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="مثال: تسوية، خطأ، حملة..."
+            className="h-9"
+            maxLength={120}
+          />
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          <Button
+            size="sm"
+            className="flex-1"
+            disabled={!valid || willBeNegative || saving}
+            onClick={handleSave}
+          >
+            {saving ? "جارٍ الحفظ..." : "حفظ"}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+            إلغاء
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
