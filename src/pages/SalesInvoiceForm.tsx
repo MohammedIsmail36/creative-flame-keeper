@@ -770,7 +770,12 @@ export default function SalesInvoiceForm() {
             </Label>
             {isEditable ? (
               <LookupCombobox
-                items={customers}
+                items={customers.map((c: any) => ({
+                  id: c.id,
+                  name: c.name,
+                  searchKeywords: [c.code, c.phone].filter(Boolean).join(" "),
+                  searchFields: { code: c.code || "", name: c.name || "", phone: c.phone || "" },
+                }))}
                 value={customerId}
                 onValueChange={(v) => {
                   setCustomerId(v);
