@@ -61,6 +61,7 @@ export const routeLabels: Record<string, string> = {
   edit: "تعديل",
   import: "استيراد",
   forbidden: "غير مصرح",
+  loyalty: "نقاط الولاء",
 };
 
 export function isUUID(s: string) {
