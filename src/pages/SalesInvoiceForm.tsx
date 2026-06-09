@@ -146,7 +146,10 @@ export default function SalesInvoiceForm() {
 
   async function loadData() {
     const [custRes, prodRes] = await Promise.all([
-      (supabase.from("customers") as any).select("id, code, name, phone, balance, loyalty_points").eq("is_active", true).order("name"),
+      (supabase.from("customers") as any)
+        .select("id, code, name, phone, balance, loyalty_points")
+        .eq("is_active", true)
+        .order("name"),
       supabase.from("products").select(PRODUCT_SELECT_FIELDS).eq("is_active", true).order("name"),
     ]);
     setCustomers(custRes.data || []);
@@ -211,8 +214,7 @@ export default function SalesInvoiceForm() {
   const redeemValue = Number(settings?.loyalty_redeem_value) || 0;
   const pointValue = pointsPerRedeem > 0 ? redeemValue / pointsPerRedeem : 0;
 
-  const currentCustomerPoints =
-    customers.find((c) => c.id === customerId)?.loyalty_points || 0;
+  const currentCustomerPoints = customers.find((c) => c.id === customerId)?.loyalty_points || 0;
   // When editing an existing draft, the customer balance shown already excludes redeemed points only after posting.
   // For UX show: available = currentCustomerPoints (pre-post) - already redeemed on this draft.
   const availablePoints = Math.max(0, currentCustomerPoints - loyaltyPointsRedeemed);
@@ -279,8 +281,7 @@ export default function SalesInvoiceForm() {
         return;
       }
       // Calculate net_total per item (distribute invoice-level discount AND loyalty discount proportionally)
-      const invoiceLevelReduction =
-        (discountMode === "invoice" ? invoiceDiscount : 0) + loyaltyDiscount;
+      const invoiceLevelReduction = (discountMode === "invoice" ? invoiceDiscount : 0) + loyaltyDiscount;
       const discountPercent = subtotal > 0 ? invoiceLevelReduction / subtotal : 0;
       const itemsWithNet = validItems.map((i) => ({
         ...i,
@@ -456,7 +457,9 @@ export default function SalesInvoiceForm() {
     setSaving(true);
     try {
       const { data: inv } = await (supabase.from("sales_invoices") as any)
-        .select("journal_entry_id, customer_id, total, tax, loyalty_discount, loyalty_points_redeemed, invoice_date, posted_number, invoice_number")
+        .select(
+          "journal_entry_id, customer_id, total, tax, loyalty_discount, loyalty_points_redeemed, invoice_date, posted_number, invoice_number",
+        )
         .eq("id", id)
         .single();
 
@@ -489,6 +492,8 @@ export default function SalesInvoiceForm() {
           .eq("product_id", item.product_id);
       }
 
+      await recalculateEntityBalance("customer", customerId);
+
       if (inv?.journal_entry_id) {
         const { data: origLines } = await supabase
           .from("journal_entry_lines")
@@ -497,16 +502,10 @@ export default function SalesInvoiceForm() {
         const totalDebit = (origLines || []).reduce((s: number, l: any) => s + Number(l.debit), 0);
         const totalCredit = (origLines || []).reduce((s: number, l: any) => s + Number(l.credit), 0);
         const postedNumber = await getNextPostedNumber("journal_entries");
-        const invoiceLabel = formatDisplayNumber(
-          settings?.sales_invoice_prefix || "INV-",
-          inv.posted_number ?? null,
-          inv.invoice_number ?? invoiceNumber ?? 0,
-          "posted",
-        );
         const { data: reverseJe } = await supabase
           .from("journal_entries")
           .insert({
-            description: `عكس فاتورة بيع رقم ${invoiceLabel}`,
+            description: `عكس فاتورة بيع رقم ${formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", postedNumber, invoiceNumber || 0, "posted")}`,
             entry_date: new Date().toISOString().split("T")[0],
             total_debit: totalCredit,
             total_credit: totalDebit,
@@ -566,16 +565,11 @@ export default function SalesInvoiceForm() {
             .eq("id", inv.customer_id)
             .single();
           const newBalance = Math.max(Number(cust?.loyalty_points || 0) + delta, 0);
-          await (supabase.from("customers") as any)
-            .update({ loyalty_points: newBalance })
-            .eq("id", inv.customer_id);
+          await (supabase.from("customers") as any).update({ loyalty_points: newBalance }).eq("id", inv.customer_id);
         }
       }
 
       await (supabase.from("sales_invoices") as any).update({ status: "cancelled" }).eq("id", id);
-      if (customerId) {
-        await recalculateEntityBalance("customer", customerId);
-      }
       toast({
         title: "تم الإلغاء",
         description: "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات للمخزون",
@@ -598,12 +592,7 @@ export default function SalesInvoiceForm() {
     await exportInvoicePdf({
       type: "sales_invoice",
       number: invoiceNumber
-        ? formatDisplayNumber(
-            settings?.sales_invoice_prefix || "INV-",
-            postedNumber,
-            invoiceNumber,
-            status,
-          )
+        ? formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", postedNumber, invoiceNumber, status)
         : "جديدة",
       date: invoiceDate,
       partyName: customerName || customers.find((c) => c.id === customerId)?.name || "—",
@@ -768,12 +757,7 @@ export default function SalesInvoiceForm() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">
-              اسم العميل{" "}
-              {status === "draft" ? (
-                <span className="text-xs text-muted-foreground">(اختياري للمسودة — مطلوب عند الترحيل)</span>
-              ) : (
-                <span className="text-red-500">*</span>
-              )}
+              اسم العميل <span className="text-red-500">*</span>
             </Label>
             {isEditable ? (
               <LookupCombobox
@@ -928,13 +912,7 @@ export default function SalesInvoiceForm() {
                 <span className="text-muted-foreground">الإجمالي بعد الخصم</span>
                 <span className="font-mono font-semibold text-primary">
                   {formatCurrency(
-                    round2(
-                      Math.max(
-                        grandTotal -
-                          Math.min(Math.max(redeemDraft, 0), maxRedeemable) * pointValue,
-                        0,
-                      ),
-                    ),
+                    round2(Math.max(grandTotal - Math.min(Math.max(redeemDraft, 0), maxRedeemable) * pointValue, 0)),
                   )}
                 </span>
               </div>
@@ -948,7 +926,6 @@ export default function SalesInvoiceForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
 
       {/* ── Items Table Card ── */}
       <div
