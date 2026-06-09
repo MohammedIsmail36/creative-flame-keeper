@@ -177,6 +177,7 @@ export default function Customers() {
       contact_person: c.contact_person || "",
       notes: c.notes || "",
       opening_balance: "",
+      loyalty_enabled: c.loyalty_enabled !== false,
     });
     setDialogOpen(true);
   }
