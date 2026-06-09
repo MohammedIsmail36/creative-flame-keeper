@@ -55,7 +55,7 @@ export interface LookupComboboxProps {
  * in the combined string but not in the relevant field.
  */
 /** Fields where we match from the start (prefix) vs anywhere (substring) */
-const PREFIX_FIELDS = new Set(["code", "model", "phone"]);
+const PREFIX_FIELDS = new Set(["model"]);
 /** Fields excluded from search filtering (kept for display only) */
 const EXCLUDED_SEARCH_FIELDS = new Set(["barcode"]);
 
