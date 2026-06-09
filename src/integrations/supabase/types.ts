@@ -375,6 +375,7 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          loyalty_enabled: boolean
           loyalty_points: number
           name: string
           notes: string | null
@@ -392,6 +393,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          loyalty_enabled?: boolean
           loyalty_points?: number
           name: string
           notes?: string | null
@@ -409,6 +411,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          loyalty_enabled?: boolean
           loyalty_points?: number
           name?: string
           notes?: string | null
