@@ -571,7 +571,7 @@ export default function PurchaseReturnForm() {
         const { data: reverseJe } = await supabase
           .from("journal_entries")
           .insert({
-            description: `عكس مرتجع شراء رقم ${formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", postedNumber, returnNumber || 0, "posted")}`,
+            description: `عكس مرتجع شراء رقم ${formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", ret?.posted_number, ret?.return_number || 0, "posted")}`,
             entry_date: new Date().toISOString().split("T")[0],
             total_debit: totalCredit,
             total_credit: totalDebit,
