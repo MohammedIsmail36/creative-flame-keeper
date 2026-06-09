@@ -26,6 +26,7 @@ import {
   Award,
 } from "lucide-react";
 import { round2, cn } from "@/lib/utils";
+import { aggregateByCustomer, aggregateTotals } from "@/lib/loyalty-aggregation";
 import { ExportMenu } from "@/components/ExportMenu";
 import { toast } from "@/hooks/use-toast";
 
