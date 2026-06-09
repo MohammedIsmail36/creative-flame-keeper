@@ -671,7 +671,7 @@ export default function SalesReturnForm() {
         const { data: reverseJe } = await supabase
           .from("journal_entries")
           .insert({
-            description: `عكس مرتجع بيع رقم ${formatDisplayNumber(settings?.sales_return_prefix || "SRN-", postedNumber, returnNumber || 0, "posted")}`,
+            description: `عكس مرتجع بيع رقم ${formatDisplayNumber(settings?.sales_return_prefix || "SRN-", ret?.posted_number, ret?.return_number || 0, "posted")}`,
             entry_date: new Date().toISOString().split("T")[0],
             total_debit: totalCredit,
             total_credit: totalDebit,
