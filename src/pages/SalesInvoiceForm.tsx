@@ -148,7 +148,7 @@ export default function SalesInvoiceForm() {
   async function loadData() {
     const [custRes, prodRes] = await Promise.all([
       (supabase.from("customers") as any)
-        .select("id, code, name, phone, balance, loyalty_points")
+        .select("id, code, name, phone, balance, loyalty_points, loyalty_enabled")
         .eq("is_active", true)
         .order("name"),
       supabase.from("products").select(PRODUCT_SELECT_FIELDS).eq("is_active", true).order("name"),
