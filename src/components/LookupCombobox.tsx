@@ -222,7 +222,7 @@ export function LookupCombobox({
                     setOpen(false);
                   }}
                 >
-                  <span className="flex-1 truncate">{item.name}</span>
+                  <span className="flex-1 truncate">{item.label ?? item.name}</span>
                   <Check
                     className={cn(
                       "mr-auto h-4 w-4 shrink-0 text-primary transition-opacity",
