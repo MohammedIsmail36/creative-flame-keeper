@@ -431,7 +431,7 @@ export default function PurchaseInvoiceForm() {
         const { data: reverseJe } = await supabase
           .from("journal_entries")
           .insert({
-            description: `عكس فاتورة شراء رقم ${formatDisplayNumber(settings?.purchase_invoice_prefix || "PUR-", postedNumber, invoiceNumber || 0, "posted")}`,
+            description: `عكس فاتورة شراء رقم ${formatDisplayNumber(settings?.purchase_invoice_prefix || "PUR-", inv?.posted_number, inv?.invoice_number || 0, "posted")}`,
             entry_date: new Date().toISOString().split("T")[0],
             total_debit: totalCredit,
             total_credit: totalDebit,
