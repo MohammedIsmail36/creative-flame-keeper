@@ -160,6 +160,7 @@ export default function Customers() {
       contact_person: "",
       notes: "",
       opening_balance: "",
+      loyalty_enabled: true,
     });
     setDialogOpen(true);
   }
