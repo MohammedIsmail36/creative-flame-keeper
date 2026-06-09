@@ -126,7 +126,7 @@ export default function PurchaseReturnForm() {
 
   async function loadData() {
     const [supRes, prodRes] = await Promise.all([
-      (supabase.from("suppliers") as any).select("id, code, name, balance").eq("is_active", true).order("name"),
+      (supabase.from("suppliers") as any).select("id, code, name, phone, balance").eq("is_active", true).order("name"),
       supabase
         .from("products")
         .select("id, code, name, purchase_price, quantity_on_hand, model_number, brand_id, product_brands(name)")
