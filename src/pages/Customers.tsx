@@ -255,6 +255,7 @@ export default function Customers() {
       tax_number: form.tax_number.trim() || null,
       contact_person: form.contact_person.trim() || null,
       notes: form.notes.trim() || null,
+      loyalty_enabled: form.loyalty_enabled,
     };
     const openingBalance = parseFloat(form.opening_balance) || 0;
     try {
