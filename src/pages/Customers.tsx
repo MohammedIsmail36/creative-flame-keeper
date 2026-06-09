@@ -655,6 +655,22 @@ export default function Customers() {
                 </p>
               </div>
             )}
+            {settings?.loyalty_enabled && (
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="space-y-0.5">
+                  <Label className="cursor-pointer">مشمول ببرنامج الولاء</Label>
+                  <p className="text-xs text-muted-foreground">
+                    عند الإلغاء يجب أن يكون رصيد النقاط صفراً
+                  </p>
+                </div>
+                <Switch
+                  checked={form.loyalty_enabled}
+                  onCheckedChange={(v) =>
+                    setForm((p) => ({ ...p, loyalty_enabled: v }))
+                  }
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label>ملاحظات</Label>
               <Textarea
