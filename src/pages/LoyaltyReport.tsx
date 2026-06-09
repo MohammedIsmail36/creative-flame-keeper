@@ -5,6 +5,7 @@ import { DatePickerInput } from "@/components/DatePickerInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -16,14 +17,15 @@ import {
   TrendingUp,
   TrendingDown,
   Users,
-  Calculator,
-  X,
+  Wallet,
   ArrowUp,
   ArrowDown,
   Settings2,
   Trophy,
-  Medal,
-  Award,
+  Search,
+  SlidersHorizontal,
+  Sparkles,
+  Moon,
 } from "lucide-react";
 import { round2, cn } from "@/lib/utils";
 import { aggregateByCustomer, aggregateTotals } from "@/lib/loyalty-aggregation";
@@ -40,17 +42,20 @@ interface CustomerLite {
   id: string;
   code: string;
   name: string;
+  phone: string | null;
   loyalty_points: number;
 }
 
-interface TopRow {
+interface Row {
   id: string;
   code: string;
   name: string;
+  phone: string | null;
   earned_in_period: number;
   redeemed_in_period: number;
   net_in_period: number;
   current_balance: number;
+  last_activity: string | null;
 }
 
 function initials(name: string) {
@@ -63,15 +68,28 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+type PresetKey = "all" | "year" | "month" | "30d" | "custom";
+
 export default function LoyaltyReport() {
   const { settings, formatCurrency } = useSettings();
   const { data: role } = useUserRole();
   const isAdmin = role === "admin";
   const today = new Date().toISOString().slice(0, 10);
   const firstOfMonth = today.slice(0, 8) + "01";
+  const firstOfYear = today.slice(0, 4) + "-01-01";
+  const last30 = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10);
+  })();
+  const ALL_TIME_FROM = "1900-01-01";
 
-  const [dateFrom, setDateFrom] = useState<string>(firstOfMonth);
+  // Default: all time
+  const [preset, setPreset] = useState<PresetKey>("all");
+  const [dateFrom, setDateFrom] = useState<string>(ALL_TIME_FROM);
   const [dateTo, setDateTo] = useState<string>(today);
+  const [search, setSearch] = useState("");
+  const [activeOnly, setActiveOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [txs, setTxs] = useState<TxRow[]>([]);
   const [customers, setCustomers] = useState<CustomerLite[]>([]);
@@ -79,6 +97,23 @@ export default function LoyaltyReport() {
   const pointsPerRedeem = Number(settings?.loyalty_points_per_redeem) || 100;
   const redeemValue = Number(settings?.loyalty_redeem_value) || 0;
   const pointValue = pointsPerRedeem > 0 ? redeemValue / pointsPerRedeem : 0;
+
+  function applyPreset(p: PresetKey) {
+    setPreset(p);
+    if (p === "all") {
+      setDateFrom(ALL_TIME_FROM);
+      setDateTo(today);
+    } else if (p === "year") {
+      setDateFrom(firstOfYear);
+      setDateTo(today);
+    } else if (p === "month") {
+      setDateFrom(firstOfMonth);
+      setDateTo(today);
+    } else if (p === "30d") {
+      setDateFrom(last30);
+      setDateTo(today);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -93,7 +128,7 @@ export default function LoyaltyReport() {
         .gte("transaction_date", dateFrom)
         .lte("transaction_date", dateTo),
       (supabase.from("customers") as any)
-        .select("id, code, name, loyalty_points")
+        .select("id, code, name, phone, loyalty_points")
         .eq("is_active", true),
     ]);
     setTxs((txRes.data as TxRow[]) || []);
@@ -101,49 +136,99 @@ export default function LoyaltyReport() {
     setLoading(false);
   }
 
-  // KPIs
-  const kpis = useMemo(() => {
+  // Period KPIs
+  const periodKpis = useMemo(() => {
     const totals = aggregateTotals(txs);
     const activeSet = new Set<string>();
     for (const t of txs) activeSet.add(t.customer_id);
     return {
       earned: totals.earned,
       redeemed: totals.redeemed,
-      net: totals.net,
       activeCount: activeSet.size,
     };
   }, [txs]);
 
-  // Top customers in period
-  const topRows = useMemo<TopRow[]>(() => {
+  // System-wide outstanding (all customers, regardless of period filter)
+  const outstanding = useMemo(() => {
+    let total = 0;
+    let holders = 0;
+    for (const c of customers) {
+      const b = c.loyalty_points || 0;
+      if (b > 0) {
+        total += b;
+        holders += 1;
+      }
+    }
+    return { total, holders };
+  }, [customers]);
+
+  // Last activity per customer (within current period window)
+  const lastActivityByCustomer = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of txs) {
+      const prev = m.get(t.customer_id);
+      if (!prev || t.transaction_date > prev) m.set(t.customer_id, t.transaction_date);
+    }
+    return m;
+  }, [txs]);
+
+  // Build full rows: every active customer with activity in period OR with current balance > 0
+  const allRows = useMemo<Row[]>(() => {
     const byCustomer = aggregateByCustomer(txs);
-    const custMap = new Map(customers.map((c) => [c.id, c]));
-    const rows: TopRow[] = [];
-    byCustomer.forEach((v, id) => {
-      const c = custMap.get(id);
-      if (!c) return;
+    const rows: Row[] = [];
+    for (const c of customers) {
+      const agg = byCustomer.get(c.id);
+      const earned = agg?.earned || 0;
+      const redeemed = agg?.redeemed || 0;
+      const balance = c.loyalty_points || 0;
+      const hasActivity = !!agg;
+      if (!hasActivity && balance <= 0) continue;
       rows.push({
-        id,
+        id: c.id,
         code: c.code,
         name: c.name,
-        earned_in_period: v.earned,
-        redeemed_in_period: v.redeemed,
-        net_in_period: v.earned - v.redeemed,
-        current_balance: c.loyalty_points || 0,
+        phone: c.phone,
+        earned_in_period: earned,
+        redeemed_in_period: redeemed,
+        net_in_period: earned - redeemed,
+        current_balance: balance,
+        last_activity: lastActivityByCustomer.get(c.id) || null,
       });
-    });
-    rows.sort((a, b) => b.earned_in_period - a.earned_in_period);
-    return rows.slice(0, 20);
-  }, [txs, customers]);
+    }
+    rows.sort((a, b) => b.current_balance - a.current_balance);
+    return rows;
+  }, [txs, customers, lastActivityByCustomer]);
 
+  // Apply search + activeOnly
+  const filteredRows = useMemo<Row[]>(() => {
+    const q = search.trim().toLowerCase();
+    const qDigits = q.replace(/\D/g, "");
+    return allRows.filter((r) => {
+      if (activeOnly && r.earned_in_period === 0 && r.redeemed_in_period === 0) return false;
+      if (!q) return true;
+      const name = r.name.toLowerCase();
+      const code = r.code.toLowerCase();
+      const phone = (r.phone || "").replace(/\s+/g, "");
+      if (name.includes(q) || code.includes(q)) return true;
+      if (qDigits && phone.includes(qDigits)) return true;
+      return false;
+    });
+  }, [allRows, search, activeOnly]);
 
   const maxEarned = useMemo(
-    () => Math.max(1, ...topRows.map((r) => r.earned_in_period)),
-    [topRows],
+    () => Math.max(1, ...filteredRows.map((r) => r.earned_in_period)),
+    [filteredRows],
   );
 
+  // Dormant threshold (90 days ago)
+  const dormantCutoff = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 90);
+    return d.toISOString().slice(0, 10);
+  })();
+
   async function applyAdjustment(
-    customer: TopRow,
+    customer: Row,
     delta: number,
     reason: string,
   ): Promise<boolean> {
@@ -182,58 +267,56 @@ export default function LoyaltyReport() {
     }
   }
 
-  const columns: ColumnDef<TopRow, any>[] = [
-    {
-      id: "rank",
-      header: "#",
-      cell: ({ row }) => {
-        const idx = row.index;
-        const rank = idx + 1;
-        if (rank === 1)
-          return (
-            <div className="h-7 w-7 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 flex items-center justify-center">
-              <Trophy className="h-3.5 w-3.5" />
-            </div>
-          );
-        if (rank === 2)
-          return (
-            <div className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center">
-              <Medal className="h-3.5 w-3.5" />
-            </div>
-          );
-        if (rank === 3)
-          return (
-            <div className="h-7 w-7 rounded-full bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400 flex items-center justify-center">
-              <Award className="h-3.5 w-3.5" />
-            </div>
-          );
-        return (
-          <span className="text-xs font-mono text-muted-foreground tabular-nums">
-            {String(rank).padStart(2, "0")}
-          </span>
-        );
-      },
-    },
+  const columns: ColumnDef<Row, any>[] = [
     {
       accessorKey: "name",
       header: "العميل",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-            {initials(row.original.name)}
+      cell: ({ row }) => {
+        const r = row.original;
+        const ready = r.current_balance >= pointsPerRedeem && pointsPerRedeem > 0;
+        const dormant =
+          r.last_activity !== null && r.last_activity < dormantCutoff && r.current_balance > 0;
+        const neverActive = r.last_activity === null && r.current_balance > 0;
+        return (
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+              {initials(r.name)}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-medium text-foreground truncate">{r.name}</span>
+                {ready && (
+                  <Badge
+                    variant="outline"
+                    className="h-5 px-1.5 text-[10px] gap-0.5 border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50"
+                  >
+                    <Sparkles className="h-2.5 w-2.5" /> جاهز للاستبدال
+                  </Badge>
+                )}
+                {(dormant || neverActive) && (
+                  <Badge
+                    variant="outline"
+                    className="h-5 px-1.5 text-[10px] gap-0.5 border-slate-300 bg-slate-50 text-slate-600 dark:bg-slate-900/40 dark:text-slate-400 dark:border-slate-700"
+                  >
+                    <Moon className="h-2.5 w-2.5" /> خامل
+                  </Badge>
+                )}
+              </div>
+              <div className="text-[11px] font-mono text-muted-foreground flex items-center gap-2">
+                <span>{r.code}</span>
+                {r.phone && <span className="text-muted-foreground/70">• {r.phone}</span>}
+              </div>
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="font-medium text-foreground truncate">{row.original.name}</div>
-            <div className="text-[11px] font-mono text-muted-foreground">{row.original.code}</div>
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       accessorKey: "earned_in_period",
       header: ({ column }) => <DataTableColumnHeader column={column} title="مكتسبة" />,
       cell: ({ row }) => {
         const v = row.original.earned_in_period;
+        if (v === 0) return <span className="text-xs text-muted-foreground/50">—</span>;
         const pct = Math.round((v / maxEarned) * 100);
         return (
           <div className="space-y-1 min-w-[110px]">
@@ -258,8 +341,7 @@ export default function LoyaltyReport() {
       header: ({ column }) => <DataTableColumnHeader column={column} title="مستبدلة" />,
       cell: ({ row }) => {
         const v = row.original.redeemed_in_period;
-        if (v === 0)
-          return <span className="text-xs text-muted-foreground/50">—</span>;
+        if (v === 0) return <span className="text-xs text-muted-foreground/50">—</span>;
         return (
           <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-900/40">
             <ArrowDown className="h-3 w-3" />
@@ -267,24 +349,6 @@ export default function LoyaltyReport() {
               {v.toLocaleString()}
             </span>
           </div>
-        );
-      },
-    },
-    {
-      accessorKey: "net_in_period",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="صافي" />,
-      cell: ({ row }) => {
-        const v = row.original.net_in_period;
-        return (
-          <span
-            className={cn(
-              "font-mono tabular-nums font-semibold text-sm",
-              v >= 0 ? "text-foreground" : "text-rose-600 dark:text-rose-400",
-            )}
-          >
-            {v >= 0 ? "+" : ""}
-            {v.toLocaleString()}
-          </span>
         );
       },
     },
@@ -307,21 +371,25 @@ export default function LoyaltyReport() {
         </div>
       ),
     },
+    {
+      accessorKey: "last_activity",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="آخر نشاط" />,
+      cell: ({ row }) => {
+        const d = row.original.last_activity;
+        if (!d) return <span className="text-xs text-muted-foreground/50">—</span>;
+        return <span className="text-xs font-mono text-muted-foreground tabular-nums">{d}</span>;
+      },
+    },
     ...(isAdmin
       ? [
           {
             id: "actions",
             header: "",
             cell: ({ row }: any) => <AdjustPopover customer={row.original} onApply={applyAdjustment} />,
-          } as ColumnDef<TopRow, any>,
+          } as ColumnDef<Row, any>,
         ]
       : []),
   ];
-
-  function resetFilters() {
-    setDateFrom(firstOfMonth);
-    setDateTo(today);
-  }
 
   if (!settings?.loyalty_enabled) {
     return (
@@ -340,61 +408,87 @@ export default function LoyaltyReport() {
 
   if (loading) return <PageSkeleton />;
 
+  const presetLabel: Record<PresetKey, string> = {
+    all: "كل الوقت",
+    year: "هذه السنة",
+    month: "هذا الشهر",
+    "30d": "آخر 30 يوم",
+    custom: "فترة مخصصة",
+  };
+
   return (
     <div className="space-y-6" dir="rtl">
       <PageHeader
         icon={Gift}
         title="ولاء العملاء"
-        description="نقاط الولاء المكتسبة والمستبدلة خلال الفترة"
+        description="نقاط الولاء — أرصدة العملاء وحركة الفترة"
       />
 
       {/* Filters */}
-      <div className="bg-card p-4 rounded-2xl border shadow-sm flex flex-wrap items-end gap-3">
-        <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">من تاريخ</label>
-          <DatePickerInput value={dateFrom} onChange={setDateFrom} className="w-40" />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground font-medium">إلى تاريخ</label>
-          <DatePickerInput value={dateTo} onChange={setDateTo} className="w-40" />
-        </div>
-        <div className="flex gap-2">
+      <div className="bg-card p-4 rounded-2xl border shadow-sm flex flex-wrap items-center gap-2">
+        {(["all", "year", "month", "30d"] as PresetKey[]).map((k) => (
           <Button
-            variant="outline"
+            key={k}
+            variant={preset === k ? "default" : "outline"}
             size="sm"
-            onClick={() => {
-              setDateFrom(firstOfMonth);
-              setDateTo(today);
-            }}
+            onClick={() => applyPreset(k)}
           >
-            هذا الشهر
+            {presetLabel[k]}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const d = new Date();
-              setDateFrom(`${d.getFullYear()}-01-01`);
-              setDateTo(today);
-            }}
-          >
-            هذه السنة
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setDateFrom("1900-01-01");
-              setDateTo(today);
-            }}
-          >
-            كل الوقت
-          </Button>
-          {(dateFrom !== firstOfMonth || dateTo !== today) && (
-            <Button variant="ghost" size="sm" onClick={resetFilters} className="gap-1">
-              <X className="h-3.5 w-3.5" />
-              إعادة
+        ))}
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              فلاتر متقدمة
+              {preset === "custom" && (
+                <Badge variant="secondary" className="h-4 px-1 text-[10px] ml-1">
+                  مفعّل
+                </Badge>
+              )}
             </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-80 space-y-3" dir="rtl">
+            <div className="space-y-0.5">
+              <p className="text-sm font-semibold">فترة مخصصة</p>
+              <p className="text-[11px] text-muted-foreground">حدد نطاق تاريخ يدوي</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-[11px] text-muted-foreground font-medium">من تاريخ</label>
+                <DatePickerInput
+                  value={dateFrom}
+                  onChange={(v) => {
+                    setPreset("custom");
+                    setDateFrom(v);
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-muted-foreground font-medium">إلى تاريخ</label>
+                <DatePickerInput
+                  value={dateTo}
+                  onChange={(v) => {
+                    setPreset("custom");
+                    setDateTo(v);
+                  }}
+                />
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" className="w-full" onClick={() => applyPreset("all")}>
+              إعادة إلى «كل الوقت»
+            </Button>
+          </PopoverContent>
+        </Popover>
+
+        <div className="text-[11px] text-muted-foreground mr-auto font-mono">
+          الفترة: {presetLabel[preset]}
+          {preset !== "all" && (
+            <span className="text-muted-foreground/70">
+              {" "}
+              ({dateFrom} ← {dateTo})
+            </span>
           )}
         </div>
       </div>
@@ -402,73 +496,110 @@ export default function LoyaltyReport() {
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <KpiCard
+          icon={Wallet}
+          label="إجمالي الرصيد المعلَّق"
+          value={outstanding.total.toLocaleString()}
+          sub={
+            pointValue > 0
+              ? `≈ ${formatCurrency(round2(outstanding.total * pointValue))} • ${outstanding.holders} عميل`
+              : `${outstanding.holders} عميل`
+          }
+          tone="primary"
+        />
+        <KpiCard
           icon={TrendingUp}
-          label="نقاط مكتسبة"
-          value={kpis.earned.toLocaleString()}
-          sub={pointValue > 0 ? `≈ ${formatCurrency(round2(kpis.earned * pointValue))}` : ""}
+          label="نقاط مكتسبة (الفترة)"
+          value={periodKpis.earned.toLocaleString()}
+          sub={pointValue > 0 ? `≈ ${formatCurrency(round2(periodKpis.earned * pointValue))}` : ""}
           tone="emerald"
         />
         <KpiCard
           icon={TrendingDown}
-          label="نقاط مستبدلة"
-          value={kpis.redeemed.toLocaleString()}
-          sub={pointValue > 0 ? `≈ ${formatCurrency(round2(kpis.redeemed * pointValue))}` : ""}
+          label="نقاط مستبدلة (الفترة)"
+          value={periodKpis.redeemed.toLocaleString()}
+          sub={pointValue > 0 ? `≈ ${formatCurrency(round2(periodKpis.redeemed * pointValue))}` : ""}
           tone="amber"
         />
         <KpiCard
-          icon={Calculator}
-          label="صافي الفترة"
-          value={kpis.net.toLocaleString()}
-          sub={pointValue > 0 ? `≈ ${formatCurrency(round2(kpis.net * pointValue))}` : ""}
-          tone={kpis.net >= 0 ? "primary" : "rose"}
-        />
-        <KpiCard
           icon={Users}
-          label="عملاء نشطون"
-          value={kpis.activeCount.toLocaleString()}
-          sub="في الفترة المحددة"
+          label="عملاء نشطون (الفترة)"
+          value={periodKpis.activeCount.toLocaleString()}
+          sub={`من إجمالي ${outstanding.holders} برصيد`}
           tone="primary"
         />
       </div>
 
-      {/* Top customers */}
+      {/* Customers table */}
       <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b bg-muted/20">
+        <div className="flex items-center justify-between px-5 py-3 border-b bg-muted/20 gap-3 flex-wrap">
           <div className="flex items-center gap-2.5">
             <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <Trophy className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="font-bold text-foreground leading-tight">أعلى العملاء</h3>
-              <p className="text-[11px] text-muted-foreground">Top 20 خلال الفترة المحددة</p>
+              <h3 className="font-bold text-foreground leading-tight">عملاء برنامج الولاء</h3>
+              <p className="text-[11px] text-muted-foreground">
+                {filteredRows.length.toLocaleString()} عميل
+                {search && ` • نتائج البحث عن "${search}"`}
+              </p>
             </div>
           </div>
-          <ExportMenu
-            config={{
-              filenamePrefix: "loyalty-top-customers",
-              sheetName: "Loyalty",
-              pdfTitle: "أعلى العملاء بنقاط الولاء",
-              headers: ["الكود", "العميل", "مكتسبة", "مستبدلة", "صافي", "الرصيد الحالي"],
-              rows: topRows.map((r) => [
-                r.code,
-                r.name,
-                r.earned_in_period,
-                r.redeemed_in_period,
-                r.net_in_period,
-                r.current_balance,
-              ]),
-              settings,
-            }}
-          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Search className="h-3.5 w-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="ابحث بالاسم أو الكود أو الهاتف..."
+                className="h-9 w-64 pr-8"
+              />
+            </div>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+              <Switch checked={activeOnly} onCheckedChange={setActiveOnly} />
+              نشاط فقط
+            </label>
+            <ExportMenu
+              config={{
+                filenamePrefix: "loyalty-customers",
+                sheetName: "Loyalty",
+                pdfTitle: `عملاء برنامج الولاء — ${presetLabel[preset]}`,
+                headers: [
+                  "الكود",
+                  "العميل",
+                  "الهاتف",
+                  "مكتسبة",
+                  "مستبدلة",
+                  "صافي",
+                  "الرصيد الحالي",
+                  "آخر نشاط",
+                ],
+                rows: filteredRows.map((r) => [
+                  r.code,
+                  r.name,
+                  r.phone || "",
+                  r.earned_in_period,
+                  r.redeemed_in_period,
+                  r.net_in_period,
+                  r.current_balance,
+                  r.last_activity || "",
+                ]),
+                settings,
+              }}
+            />
+          </div>
         </div>
         <div className="p-4">
           <DataTable
             columns={columns}
-            data={topRows}
-            emptyMessage="لا توجد حركات نقاط في هذه الفترة"
+            data={filteredRows}
+            emptyMessage={
+              search
+                ? "لا توجد نتائج مطابقة للبحث"
+                : "لا يوجد عملاء برنامج الولاء بهذه الفلاتر"
+            }
             showSearch={false}
             showColumnToggle={false}
-            showPagination={false}
+            showPagination={true}
           />
         </div>
       </div>
@@ -480,8 +611,8 @@ function AdjustPopover({
   customer,
   onApply,
 }: {
-  customer: TopRow;
-  onApply: (c: TopRow, delta: number, reason: string) => Promise<boolean>;
+  customer: Row;
+  onApply: (c: Row, delta: number, reason: string) => Promise<boolean>;
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"add" | "sub">("add");
