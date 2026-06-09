@@ -126,7 +126,7 @@ export default function PurchaseReturnForm() {
 
   async function loadData() {
     const [supRes, prodRes] = await Promise.all([
-      (supabase.from("suppliers") as any).select("id, code, name, balance").eq("is_active", true).order("name"),
+      (supabase.from("suppliers") as any).select("id, code, name, phone, balance").eq("is_active", true).order("name"),
       supabase
         .from("products")
         .select("id, code, name, purchase_price, quantity_on_hand, model_number, brand_id, product_brands(name)")
@@ -794,7 +794,12 @@ export default function PurchaseReturnForm() {
             </Label>
             {isEditable ? (
               <LookupCombobox
-                items={suppliers}
+                items={suppliers.map((s: any) => ({
+                  id: s.id,
+                  name: s.name,
+                  searchKeywords: [s.code, s.phone].filter(Boolean).join(" "),
+                  searchFields: { code: s.code || "", name: s.name || "", phone: s.phone || "" },
+                }))}
                 value={supplierId}
                 onValueChange={(v) => {
                   setSupplierId(v);

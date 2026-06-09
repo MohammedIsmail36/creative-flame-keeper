@@ -152,7 +152,7 @@ export default function SalesReturnForm() {
   async function loadData() {
     const [custRes, prodRes] = await Promise.all([
       (supabase.from("customers") as any)
-        .select("id, code, name, balance")
+        .select("id, code, name, phone, balance")
         .eq("is_active", true)
         .order("name"),
       supabase
@@ -936,7 +936,12 @@ export default function SalesReturnForm() {
             </Label>
             {isEditable ? (
               <LookupCombobox
-                items={customers}
+                items={customers.map((c: any) => ({
+                  id: c.id,
+                  name: c.name,
+                  searchKeywords: [c.code, c.phone].filter(Boolean).join(" "),
+                  searchFields: { code: c.code || "", name: c.name || "", phone: c.phone || "" },
+                }))}
                 value={customerId}
                 onValueChange={(v) => {
                   setCustomerId(v);

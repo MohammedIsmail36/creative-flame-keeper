@@ -128,7 +128,7 @@ export default function PurchaseInvoiceForm() {
 
   async function loadData() {
     const [supRes, prodRes] = await Promise.all([
-      (supabase.from("suppliers" as any) as any).select("id, code, name, balance").eq("is_active", true).order("name"),
+      (supabase.from("suppliers" as any) as any).select("id, code, name, phone, balance").eq("is_active", true).order("name"),
       supabase.from("products").select(PRODUCT_SELECT_FIELDS_BASIC).eq("is_active", true).order("name"),
     ]);
     setSuppliers(supRes.data || []);
@@ -650,7 +650,12 @@ export default function PurchaseInvoiceForm() {
             </Label>
             {isEditable ? (
               <LookupCombobox
-                items={suppliers}
+                items={suppliers.map((s: any) => ({
+                  id: s.id,
+                  name: s.name,
+                  searchKeywords: [s.code, s.phone].filter(Boolean).join(" "),
+                  searchFields: { code: s.code || "", name: s.name || "", phone: s.phone || "" },
+                }))}
                 value={supplierId}
                 onValueChange={(v) => {
                   setSupplierId(v);
