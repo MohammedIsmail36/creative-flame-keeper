@@ -557,6 +557,7 @@ export default function PurchaseReturnForm() {
           .eq("product_id", item.product_id);
       }
 
+      await (supabase.from("purchase_returns") as any).update({ status: "cancelled" }).eq("id", id);
       await recalculateEntityBalance("supplier", supplierId);
 
       // Create reverse journal entry
