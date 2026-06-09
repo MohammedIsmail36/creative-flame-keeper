@@ -393,7 +393,7 @@ export default function PurchaseInvoiceForm() {
     setSaving(true);
     try {
       const { data: inv } = await (supabase.from("purchase_invoices" as any) as any)
-        .select("journal_entry_id")
+        .select("journal_entry_id, posted_number, invoice_number")
         .eq("id", id)
         .single();
 
