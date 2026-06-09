@@ -103,52 +103,20 @@ export default function LoyaltyReport() {
 
   // KPIs
   const kpis = useMemo(() => {
-    let earned = 0;
-    let redeemed = 0;
+    const totals = aggregateTotals(txs);
     const activeSet = new Set<string>();
-    for (const t of txs) {
-      activeSet.add(t.customer_id);
-      if (t.type === "earn") earned += t.points;
-      else if (t.type === "redeem_reversal") earned += t.points;
-      else if (t.type === "redeem") redeemed += Math.abs(t.points);
-      else if (t.type === "reversal") earned -= Math.abs(t.points);
-      else if (t.type === "cancel_earn") earned -= Math.abs(t.points);
-      else if (t.type === "cancel_redeem") redeemed -= Math.abs(t.points);
-      else if (t.type === "manual_adjust") {
-        if (t.points >= 0) earned += t.points;
-        else redeemed += Math.abs(t.points);
-      }
-    }
+    for (const t of txs) activeSet.add(t.customer_id);
     return {
-      earned,
-      redeemed,
-      net: earned - redeemed,
+      earned: totals.earned,
+      redeemed: totals.redeemed,
+      net: totals.net,
       activeCount: activeSet.size,
     };
   }, [txs]);
 
   // Top customers in period
   const topRows = useMemo<TopRow[]>(() => {
-    const byCustomer = new Map<string, { earned: number; redeemed: number }>();
-    for (const t of txs) {
-      const cur = byCustomer.get(t.customer_id) || { earned: 0, redeemed: 0 };
-      if (t.type === "earn" || (t.type === "manual_adjust" && t.points > 0)) {
-        cur.earned += t.points;
-      } else if (t.type === "redeem_reversal") {
-        cur.earned += t.points;
-      } else if (t.type === "redeem") {
-        cur.redeemed += Math.abs(t.points);
-      } else if (t.type === "reversal") {
-        cur.earned -= Math.abs(t.points);
-      } else if (t.type === "cancel_earn") {
-        cur.earned -= Math.abs(t.points);
-      } else if (t.type === "cancel_redeem") {
-        cur.redeemed -= Math.abs(t.points);
-      } else if (t.type === "manual_adjust" && t.points < 0) {
-        cur.redeemed += Math.abs(t.points);
-      }
-      byCustomer.set(t.customer_id, cur);
-    }
+    const byCustomer = aggregateByCustomer(txs);
     const custMap = new Map(customers.map((c) => [c.id, c]));
     const rows: TopRow[] = [];
     byCustomer.forEach((v, id) => {
@@ -167,6 +135,7 @@ export default function LoyaltyReport() {
     rows.sort((a, b) => b.earned_in_period - a.earned_in_period);
     return rows.slice(0, 20);
   }, [txs, customers]);
+
 
   const maxEarned = useMemo(
     () => Math.max(1, ...topRows.map((r) => r.earned_in_period)),
