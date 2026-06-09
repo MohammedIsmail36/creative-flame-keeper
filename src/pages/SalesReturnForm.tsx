@@ -651,6 +651,7 @@ export default function SalesReturnForm() {
           .eq("product_id", item.product_id);
       }
 
+      await (supabase.from("sales_returns") as any).update({ status: "cancelled" }).eq("id", id);
       await recalculateEntityBalance("customer", customerId);
 
       // Create reverse journal entry
