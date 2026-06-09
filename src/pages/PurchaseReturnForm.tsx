@@ -794,7 +794,12 @@ export default function PurchaseReturnForm() {
             </Label>
             {isEditable ? (
               <LookupCombobox
-                items={suppliers}
+                items={suppliers.map((s: any) => ({
+                  id: s.id,
+                  name: s.name,
+                  searchKeywords: [s.code, s.phone].filter(Boolean).join(" "),
+                  searchFields: { code: s.code || "", name: s.name || "", phone: s.phone || "" },
+                }))}
                 value={supplierId}
                 onValueChange={(v) => {
                   setSupplierId(v);
