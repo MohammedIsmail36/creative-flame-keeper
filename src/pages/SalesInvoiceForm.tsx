@@ -209,7 +209,9 @@ export default function SalesInvoiceForm() {
     calcInvoiceTotals({ items, invoiceDiscount, showTax, taxRate });
 
   // ── Loyalty calculations ──
-  const loyaltyEnabled = !!settings?.loyalty_enabled;
+  const selectedCustomer = customers.find((c) => c.id === customerId);
+  const customerLoyaltyEnabled = selectedCustomer ? selectedCustomer.loyalty_enabled !== false : true;
+  const loyaltyEnabled = !!settings?.loyalty_enabled && customerLoyaltyEnabled;
   const egpPerPoint = Number(settings?.loyalty_egp_per_point) || 10;
   const pointsPerRedeem = Number(settings?.loyalty_points_per_redeem) || 100;
   const redeemValue = Number(settings?.loyalty_redeem_value) || 0;
