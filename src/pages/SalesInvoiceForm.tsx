@@ -495,6 +495,8 @@ export default function SalesInvoiceForm() {
           .eq("product_id", item.product_id);
       }
 
+      // Mark cancelled BEFORE recalculating balance so this invoice is excluded
+      await (supabase.from("sales_invoices") as any).update({ status: "cancelled" }).eq("id", id);
       await recalculateEntityBalance("customer", customerId);
 
       if (inv?.journal_entry_id) {
