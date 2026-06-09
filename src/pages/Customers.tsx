@@ -59,6 +59,7 @@ interface Customer {
   notes: string | null;
   balance: number;
   loyalty_points: number;
+  loyalty_enabled: boolean;
   is_active: boolean;
 }
 
