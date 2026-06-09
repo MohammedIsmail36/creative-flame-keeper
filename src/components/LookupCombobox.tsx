@@ -57,7 +57,7 @@ export interface LookupComboboxProps {
 /** Fields where we match from the start (prefix) vs anywhere (substring) */
 const PREFIX_FIELDS = new Set(["code", "model", "phone"]);
 /** Fields excluded from search filtering (kept for display only) */
-const EXCLUDED_SEARCH_FIELDS = new Set(["code", "barcode"]);
+const EXCLUDED_SEARCH_FIELDS = new Set(["barcode"]);
 
 function smartFilter(
   itemValue: string,
