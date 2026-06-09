@@ -625,7 +625,7 @@ export default function SalesReturnForm() {
     setSaving(true);
     try {
       const { data: ret } = await (supabase.from("sales_returns") as any)
-        .select("journal_entry_id")
+        .select("journal_entry_id, posted_number, return_number")
         .eq("id", id)
         .single();
 
