@@ -695,9 +695,7 @@ export default function SalesReturnForm() {
         }
       }
 
-      await (supabase.from("sales_returns") as any)
-        .update({ status: "cancelled" })
-        .eq("id", id);
+      // status already set to cancelled above
       toast({
         title: "تم الإلغاء",
         description: "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون",
