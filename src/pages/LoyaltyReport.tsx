@@ -139,6 +139,10 @@ export default function LoyaltyReport() {
         cur.redeemed += Math.abs(t.points);
       } else if (t.type === "reversal") {
         cur.earned -= Math.abs(t.points);
+      } else if (t.type === "cancel_earn") {
+        cur.earned -= Math.abs(t.points);
+      } else if (t.type === "cancel_redeem") {
+        cur.redeemed -= Math.abs(t.points);
       } else if (t.type === "manual_adjust" && t.points < 0) {
         cur.redeemed += Math.abs(t.points);
       }
