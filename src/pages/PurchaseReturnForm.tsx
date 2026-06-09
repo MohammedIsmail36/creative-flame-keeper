@@ -797,6 +797,7 @@ export default function PurchaseReturnForm() {
                 items={suppliers.map((s: any) => ({
                   id: s.id,
                   name: s.name,
+                  label: `${s.code || ""} - ${s.name || ""}`,
                   searchKeywords: [s.code, s.phone].filter(Boolean).join(" "),
                   searchFields: { code: s.code || "", name: s.name || "", phone: s.phone || "" },
                 }))}
