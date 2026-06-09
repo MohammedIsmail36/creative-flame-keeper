@@ -489,8 +489,6 @@ export default function SalesInvoiceForm() {
           .eq("product_id", item.product_id);
       }
 
-      await recalculateEntityBalance("customer", customerId);
-
       if (inv?.journal_entry_id) {
         const { data: origLines } = await supabase
           .from("journal_entry_lines")
@@ -499,10 +497,16 @@ export default function SalesInvoiceForm() {
         const totalDebit = (origLines || []).reduce((s: number, l: any) => s + Number(l.debit), 0);
         const totalCredit = (origLines || []).reduce((s: number, l: any) => s + Number(l.credit), 0);
         const postedNumber = await getNextPostedNumber("journal_entries");
+        const invoiceLabel = formatDisplayNumber(
+          settings?.sales_invoice_prefix || "INV-",
+          inv.posted_number ?? null,
+          inv.invoice_number ?? invoiceNumber ?? 0,
+          "posted",
+        );
         const { data: reverseJe } = await supabase
           .from("journal_entries")
           .insert({
-            description: `عكس فاتورة بيع رقم ${formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", postedNumber, invoiceNumber || 0, "posted")}`,
+            description: `عكس فاتورة بيع رقم ${invoiceLabel}`,
             entry_date: new Date().toISOString().split("T")[0],
             total_debit: totalCredit,
             total_credit: totalDebit,
@@ -569,6 +573,9 @@ export default function SalesInvoiceForm() {
       }
 
       await (supabase.from("sales_invoices") as any).update({ status: "cancelled" }).eq("id", id);
+      if (customerId) {
+        await recalculateEntityBalance("customer", customerId);
+      }
       toast({
         title: "تم الإلغاء",
         description: "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات للمخزون",
