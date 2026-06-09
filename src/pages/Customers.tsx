@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -59,6 +60,7 @@ interface Customer {
   notes: string | null;
   balance: number;
   loyalty_points: number;
+  loyalty_enabled: boolean;
   is_active: boolean;
 }
 
@@ -91,6 +93,7 @@ export default function Customers() {
     contact_person: "",
     notes: "",
     opening_balance: "",
+    loyalty_enabled: true,
   });
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
 
@@ -158,6 +161,7 @@ export default function Customers() {
       contact_person: "",
       notes: "",
       opening_balance: "",
+      loyalty_enabled: true,
     });
     setDialogOpen(true);
   }
@@ -174,6 +178,7 @@ export default function Customers() {
       contact_person: c.contact_person || "",
       notes: c.notes || "",
       opening_balance: "",
+      loyalty_enabled: c.loyalty_enabled !== false,
     });
     setDialogOpen(true);
   }
@@ -251,6 +256,7 @@ export default function Customers() {
       tax_number: form.tax_number.trim() || null,
       contact_person: form.contact_person.trim() || null,
       notes: form.notes.trim() || null,
+      loyalty_enabled: form.loyalty_enabled,
     };
     const openingBalance = parseFloat(form.opening_balance) || 0;
     try {
@@ -648,6 +654,22 @@ export default function Customers() {
                 <p className="text-xs text-muted-foreground">
                   سيتم إنشاء قيد افتتاحي تلقائياً عند الإدخال
                 </p>
+              </div>
+            )}
+            {settings?.loyalty_enabled && (
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="space-y-0.5">
+                  <Label className="cursor-pointer">مشمول ببرنامج الولاء</Label>
+                  <p className="text-xs text-muted-foreground">
+                    عند الإلغاء يجب أن يكون رصيد النقاط صفراً
+                  </p>
+                </div>
+                <Switch
+                  checked={form.loyalty_enabled}
+                  onCheckedChange={(v) =>
+                    setForm((p) => ({ ...p, loyalty_enabled: v }))
+                  }
+                />
               </div>
             )}
             <div className="space-y-2">

@@ -81,6 +81,7 @@ interface Customer {
   name: string;
   balance?: number;
   loyalty_points?: number;
+  loyalty_enabled?: boolean;
 }
 type Product = ProductWithBrand & {
   selling_price: number;
@@ -147,7 +148,7 @@ export default function SalesInvoiceForm() {
   async function loadData() {
     const [custRes, prodRes] = await Promise.all([
       (supabase.from("customers") as any)
-        .select("id, code, name, phone, balance, loyalty_points")
+        .select("id, code, name, phone, balance, loyalty_points, loyalty_enabled")
         .eq("is_active", true)
         .order("name"),
       supabase.from("products").select(PRODUCT_SELECT_FIELDS).eq("is_active", true).order("name"),
@@ -208,7 +209,9 @@ export default function SalesInvoiceForm() {
     calcInvoiceTotals({ items, invoiceDiscount, showTax, taxRate });
 
   // ── Loyalty calculations ──
-  const loyaltyEnabled = !!settings?.loyalty_enabled;
+  const selectedCustomer = customers.find((c) => c.id === customerId);
+  const customerLoyaltyEnabled = selectedCustomer ? selectedCustomer.loyalty_enabled !== false : true;
+  const loyaltyEnabled = !!settings?.loyalty_enabled && customerLoyaltyEnabled;
   const egpPerPoint = Number(settings?.loyalty_egp_per_point) || 10;
   const pointsPerRedeem = Number(settings?.loyalty_points_per_redeem) || 100;
   const redeemValue = Number(settings?.loyalty_redeem_value) || 0;
