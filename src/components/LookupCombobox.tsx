@@ -19,6 +19,8 @@ import {
 export interface LookupItem {
   id: string;
   name: string;
+  /** Display label (falls back to name). Use to show extra info like code. */
+  label?: string;
   /** Extra keywords for search (won't show in display) */
   searchKeywords?: string;
   /** Structured search fields for smarter filtering */
@@ -154,7 +156,7 @@ export function LookupCombobox({
           )}
         >
           <span className="truncate flex-1 text-right">
-            {selected ? selected.name : placeholder}
+            {selected ? (selected.label ?? selected.name) : placeholder}
           </span>
           <ChevronsUpDown className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
         </Button>
@@ -220,7 +222,7 @@ export function LookupCombobox({
                     setOpen(false);
                   }}
                 >
-                  <span className="flex-1 truncate">{item.name}</span>
+                  <span className="flex-1 truncate">{item.label ?? item.name}</span>
                   <Check
                     className={cn(
                       "mr-auto h-4 w-4 shrink-0 text-primary transition-opacity",
