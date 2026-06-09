@@ -495,6 +495,8 @@ export default function SalesInvoiceForm() {
           .eq("product_id", item.product_id);
       }
 
+      // Mark cancelled BEFORE recalculating balance so this invoice is excluded
+      await (supabase.from("sales_invoices") as any).update({ status: "cancelled" }).eq("id", id);
       await recalculateEntityBalance("customer", customerId);
 
       if (inv?.journal_entry_id) {
@@ -572,7 +574,8 @@ export default function SalesInvoiceForm() {
         }
       }
 
-      await (supabase.from("sales_invoices") as any).update({ status: "cancelled" }).eq("id", id);
+      // status already set to cancelled above
+
       toast({
         title: "تم الإلغاء",
         description: "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات للمخزون",
