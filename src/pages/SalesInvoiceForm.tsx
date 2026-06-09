@@ -81,6 +81,7 @@ interface Customer {
   name: string;
   balance?: number;
   loyalty_points?: number;
+  loyalty_enabled?: boolean;
 }
 type Product = ProductWithBrand & {
   selling_price: number;
