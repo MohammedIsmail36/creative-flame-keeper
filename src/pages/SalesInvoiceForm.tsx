@@ -573,6 +573,9 @@ export default function SalesInvoiceForm() {
       }
 
       await (supabase.from("sales_invoices") as any).update({ status: "cancelled" }).eq("id", id);
+      if (customerId) {
+        await recalculateEntityBalance("customer", customerId);
+      }
       toast({
         title: "تم الإلغاء",
         description: "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات للمخزون",
