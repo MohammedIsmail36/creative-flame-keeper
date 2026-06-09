@@ -453,7 +453,7 @@ export default function PurchaseInvoiceForm() {
         }
       }
 
-      await (supabase.from("purchase_invoices" as any) as any).update({ status: "cancelled" }).eq("id", id);
+      // status already set to cancelled above
       toast({
         title: "تم الإلغاء",
         description: "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات",
