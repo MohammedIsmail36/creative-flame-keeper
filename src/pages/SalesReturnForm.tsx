@@ -939,6 +939,7 @@ export default function SalesReturnForm() {
                 items={customers.map((c: any) => ({
                   id: c.id,
                   name: c.name,
+                  label: `${c.code || ""} - ${c.name || ""}`,
                   searchKeywords: [c.code, c.phone].filter(Boolean).join(" "),
                   searchFields: { code: c.code || "", name: c.name || "", phone: c.phone || "" },
                 }))}
