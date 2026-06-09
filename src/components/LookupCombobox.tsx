@@ -19,6 +19,8 @@ import {
 export interface LookupItem {
   id: string;
   name: string;
+  /** Display label (falls back to name). Use to show extra info like code. */
+  label?: string;
   /** Extra keywords for search (won't show in display) */
   searchKeywords?: string;
   /** Structured search fields for smarter filtering */
