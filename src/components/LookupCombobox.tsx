@@ -156,7 +156,7 @@ export function LookupCombobox({
           )}
         >
           <span className="truncate flex-1 text-right">
-            {selected ? selected.name : placeholder}
+            {selected ? (selected.label ?? selected.name) : placeholder}
           </span>
           <ChevronsUpDown className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
         </Button>
