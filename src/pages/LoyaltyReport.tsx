@@ -111,6 +111,8 @@ export default function LoyaltyReport() {
       else if (t.type === "redeem_reversal") earned += t.points;
       else if (t.type === "redeem") redeemed += Math.abs(t.points);
       else if (t.type === "reversal") earned -= Math.abs(t.points);
+      else if (t.type === "cancel_earn") earned -= Math.abs(t.points);
+      else if (t.type === "cancel_redeem") redeemed -= Math.abs(t.points);
       else if (t.type === "manual_adjust") {
         if (t.points >= 0) earned += t.points;
         else redeemed += Math.abs(t.points);
