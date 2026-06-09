@@ -418,6 +418,7 @@ export default function PurchaseInvoiceForm() {
           .eq("product_id", item.product_id);
       }
 
+      await (supabase.from("purchase_invoices" as any) as any).update({ status: "cancelled" }).eq("id", id);
       await recalculateEntityBalance("supplier", supplierId);
 
       if (inv?.journal_entry_id) {
