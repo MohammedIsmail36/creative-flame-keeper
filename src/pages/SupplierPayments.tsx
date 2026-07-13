@@ -760,13 +760,15 @@ export default function SupplierPayments() {
                 <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleSaveDraft} disabled={saving} variant="outline" className="flex-1">
-                  {saving && <Loader2 className="h-4 w-4 ml-1 animate-spin" />}
-                  {saving ? "جاري الحفظ..." : editTarget ? "تحديث المسودة" : "حفظ كمسودة"}
-                </Button>
+                {!editingPosted && (
+                  <Button onClick={handleSaveDraft} disabled={saving} variant="outline" className="flex-1">
+                    {saving && <Loader2 className="h-4 w-4 ml-1 animate-spin" />}
+                    {saving ? "جاري الحفظ..." : editTarget ? "تحديث المسودة" : "حفظ كمسودة"}
+                  </Button>
+                )}
                 <Button onClick={handleSubmitPosted} disabled={saving} className="flex-1">
                   {saving && <Loader2 className="h-4 w-4 ml-1 animate-spin" />}
-                  {saving ? "جاري الحفظ..." : editTarget ? "تحديث وترحيل" : "حفظ وترحيل"}
+                  {saving ? "جاري الحفظ..." : editingPosted ? "حفظ التعديل" : editTarget ? "تحديث وترحيل" : "حفظ وترحيل"}
                 </Button>
               </div>
             </div>
