@@ -148,7 +148,6 @@ export default function Products() {
     (async () => {
       const { data } = await (supabase.from("product_categories" as any) as any)
         .select("id, name, parent_id, is_active")
-        .eq("is_active", true)
         .order("name");
       setCategories(data || []);
     })();
