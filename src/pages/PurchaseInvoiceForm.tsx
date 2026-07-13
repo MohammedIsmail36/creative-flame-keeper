@@ -1028,7 +1028,7 @@ export default function PurchaseInvoiceForm() {
                 entityId={supplierId}
                 entityName={supplierName || suppliers.find((s) => s.id === supplierId)?.name || ""}
                 invoiceTotal={grandTotal}
-                invoiceNumber={invoiceNumber}
+                invoiceDisplayNumber={displayNumber || ""}
                 onPaymentAdded={loadData}
                 refreshKey={paymentSectionRefreshKey}
               />
