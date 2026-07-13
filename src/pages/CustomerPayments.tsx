@@ -97,10 +97,7 @@ export default function CustomerPayments() {
   // Edit mode (draft) — keeps no preserved posted numbers
   const [editTarget, setEditTarget] = useState<Payment | null>(null);
   // Edit-posted mode — preserves the original posted numbers when re-posting
-  const [editPostedNums, setEditPostedNums] = useState<{
-    paymentPostedNum: number | null;
-    jePostedNum: number | null;
-  } | null>(null);
+  const [editingPosted, setEditingPosted] = useState(false);
 
   // Confirmation dialogs
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
