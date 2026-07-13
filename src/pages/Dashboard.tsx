@@ -576,7 +576,7 @@ export default function Dashboard() {
     setLowStockCount(
       products.filter(
         (p) =>
-          Number(p.quantity_on_hand) <= Number(p.min_stock_level) &&
+          Number(p.quantity_on_hand) < Number(p.min_stock_level) &&
           Number(p.min_stock_level) > 0,
       ).length,
     );
@@ -792,7 +792,7 @@ export default function Dashboard() {
       (data || [])
         .filter(
           (p: any) =>
-            Number(p.quantity_on_hand) <= Number(p.min_stock_level) &&
+            Number(p.quantity_on_hand) < Number(p.min_stock_level) &&
             Number(p.min_stock_level) > 0,
         )
         .map((p: any) => ({
