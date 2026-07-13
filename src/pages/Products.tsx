@@ -153,7 +153,10 @@ export default function Products() {
     })();
   }, []);
 
-  const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
+  const categoryTree = useMemo(
+    () => buildCategoryTree(categories.filter((c) => c.is_active)),
+    [categories],
+  );
 
   const matchingCategoryIds = useMemo(() => {
     if (categoryFilter === "all") return null;
