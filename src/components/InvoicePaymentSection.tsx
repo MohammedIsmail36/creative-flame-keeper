@@ -116,7 +116,7 @@ export default function InvoicePaymentSection({
   entityId,
   entityName,
   invoiceTotal,
-  invoiceNumber,
+  invoiceDisplayNumber,
   onPaymentAdded,
   refreshKey = 0,
 }: Props) {
