@@ -220,8 +220,25 @@ export default function CustomerPayments() {
     if (Object.keys(errors).length > 0) return;
     setSaving(true);
     try {
-      if (editTarget) {
-        // First update the existing draft with new values
+      if (editTarget && editingPosted) {
+        // Atomic overwrite of posted payment via RPC — preserves posted_number and journal entry number
+        const { data, error } = await (supabase as any).rpc("edit_customer_payment", {
+          p_payment_id: editTarget.id,
+          p_customer_id: customerId,
+          p_payment_date: paymentDate,
+          p_amount: amount,
+          p_payment_method: paymentMethod,
+          p_reference: reference.trim() || null,
+          p_notes: notes.trim() || null,
+        });
+        if (error) throw error;
+        const oldCustomerId = (data as any)?.old_customer_id || editTarget.customer_id;
+        await recalculateEntityBalance("customer", oldCustomerId);
+        if (customerId !== oldCustomerId) {
+          await recalculateEntityBalance("customer", customerId);
+        }
+        toast({ title: "تم التحديث", description: "تم تعديل السند بنفس رقم السند ورقم القيد" });
+      } else if (editTarget) {
         await (supabase.from("customer_payments" as any) as any)
           .update({
             customer_id: customerId,
@@ -232,7 +249,6 @@ export default function CustomerPayments() {
             notes: notes.trim() || null,
           })
           .eq("id", editTarget.id);
-        // Then post the existing record (update status + create journal)
         await postPaymentLogic(
           customerId,
           paymentDate,
@@ -241,9 +257,8 @@ export default function CustomerPayments() {
           reference.trim() || null,
           notes.trim() || null,
           editTarget.id,
-          editPostedNums?.paymentPostedNum ?? null,
-          editPostedNums?.jePostedNum ?? null,
         );
+        toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
       } else {
         await postPaymentLogic(
           customerId,
@@ -253,8 +268,8 @@ export default function CustomerPayments() {
           reference.trim() || null,
           notes.trim() || null,
         );
+        toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
       }
-      toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
       setDialogOpen(false);
       resetForm();
       fetchAll();
