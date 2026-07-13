@@ -927,11 +927,11 @@ export default function SupplierPayments() {
               تعديل سند مُرحّل #{editPostedTarget?.posted_number ?? editPostedTarget?.payment_number}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم حذف القيد المحاسبي القديم وإعادة السند إلى حالة "مسودة" لتعديله، مع{" "}
-              <strong>الحفاظ على نفس رقم السند ورقم القيد</strong> ({prefix}
+              سيتم فتح نموذج التعديل مباشرة، وعند الحفظ ستتم إعادة الكتابة فوق نفس السند وقيده المحاسبي كعملية واحدة —{" "}
+              <strong>بنفس رقم السند ورقم القيد</strong> ({prefix}
               {String(editPostedTarget?.posted_number ?? 0).padStart(4, "0")}).
               <br />
-              عند الحفظ والترحيل سيتم إنشاء قيد جديد بنفس الرقم. هل تريد المتابعة؟
+              لن يتم استهلاك أي رقم جديد من التسلسل، ولن يظهر قيد إضافي في اليومية.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row-reverse gap-2">
