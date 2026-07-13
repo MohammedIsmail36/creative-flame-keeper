@@ -92,7 +92,7 @@ interface Props {
   entityId: string;
   entityName: string;
   invoiceTotal: number;
-  invoiceNumber: number | null;
+  invoiceDisplayNumber: string;
   onPaymentAdded: () => void;
   refreshKey?: number;
 }
