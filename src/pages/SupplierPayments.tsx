@@ -85,10 +85,7 @@ export default function SupplierPayments() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [editTarget, setEditTarget] = useState<Payment | null>(null);
-  const [editPostedNums, setEditPostedNums] = useState<{
-    paymentPostedNum: number | null;
-    jePostedNum: number | null;
-  } | null>(null);
+  const [editingPosted, setEditingPosted] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
   const [postTarget, setPostTarget] = useState<Payment | null>(null);
