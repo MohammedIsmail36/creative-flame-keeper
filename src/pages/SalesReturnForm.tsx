@@ -1334,7 +1334,7 @@ export default function SalesReturnForm() {
                   ""
                 }
                 invoiceTotal={grandTotal}
-                invoiceNumber={returnNumber}
+                invoiceDisplayNumber={displayNumber || ""}
                 onPaymentAdded={loadData}
               />
             </div>
