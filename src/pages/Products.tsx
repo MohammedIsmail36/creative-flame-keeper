@@ -148,13 +148,15 @@ export default function Products() {
     (async () => {
       const { data } = await (supabase.from("product_categories" as any) as any)
         .select("id, name, parent_id, is_active")
-        .eq("is_active", true)
         .order("name");
       setCategories(data || []);
     })();
   }, []);
 
-  const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
+  const categoryTree = useMemo(
+    () => buildCategoryTree(categories.filter((c) => c.is_active)),
+    [categories],
+  );
 
   const matchingCategoryIds = useMemo(() => {
     if (categoryFilter === "all") return null;
@@ -387,6 +389,15 @@ export default function Products() {
   // Lazy export with batching + progress
   const fetchAllForExport = async (onProgress?: (loaded: number, total: number) => void): Promise<ProductRow[]> => {
     const { fetchAllPaged } = await import("@/lib/paged-fetch");
+    // Resolve brand IDs matching the search once so it can be reused across pages
+    let brandIds: string[] = [];
+    const s = debouncedSearch.trim();
+    if (s) {
+      const { data: brandRows } = await (supabase.from("product_brands") as any)
+        .select("id")
+        .ilike("name", `%${s}%`);
+      brandIds = (brandRows || []).map((b: any) => b.id);
+    }
     const rows = await fetchAllPaged<ProductRow>(
       () => {
         let q = (supabase.from("products") as any)
@@ -400,6 +411,18 @@ export default function Products() {
         if (stockFilter === "out") q = q.lte("quantity_on_hand", 0);
         if (matchingCategoryIds && matchingCategoryIds.length > 0) {
           q = q.in("category_id", matchingCategoryIds);
+        }
+        if (s) {
+          const orParts = [
+            `name.ilike.%${s}%`,
+            `code.ilike.%${s}%`,
+            `barcode.ilike.%${s}%`,
+            `model_number.ilike.%${s}%`,
+          ];
+          if (brandIds.length > 0) {
+            orParts.push(`brand_id.in.(${brandIds.join(",")})`);
+          }
+          q = q.or(orParts.join(","));
         }
         return q;
       },
