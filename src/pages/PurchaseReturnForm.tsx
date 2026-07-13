@@ -1120,7 +1120,7 @@ export default function PurchaseReturnForm() {
                 entityId={supplierId}
                 entityName={supplierName || suppliers.find((s) => s.id === supplierId)?.name || ""}
                 invoiceTotal={grandTotal}
-                invoiceNumber={returnNumber}
+                invoiceDisplayNumber={displayNumber || ""}
                 onPaymentAdded={loadData}
               />
             </div>
