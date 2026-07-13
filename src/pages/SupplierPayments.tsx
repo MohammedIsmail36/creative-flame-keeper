@@ -207,8 +207,28 @@ export default function SupplierPayments() {
     if (Object.keys(errors).length > 0) return;
     setSaving(true);
     try {
-      if (editTarget) {
-        // First update the existing draft with new values
+      if (editTarget && editingPosted) {
+        // Atomic overwrite of posted payment via RPC — preserves posted_number and journal entry number
+        const { data, error } = await (supabase as any).rpc("edit_supplier_payment", {
+          p_payment_id: editTarget.id,
+          p_supplier_id: supplierId,
+          p_payment_date: paymentDate,
+          p_amount: amount,
+          p_payment_method: paymentMethod,
+          p_reference: reference.trim() || null,
+          p_notes: notes.trim() || null,
+        });
+        if (error) throw error;
+        // Recompute derived cached values (paid_amount was affected because allocations were cleared)
+        // Recalc for both old and new supplier if they changed.
+        const oldSupplierId = (data as any)?.old_supplier_id || editTarget.supplier_id;
+        await recalculateEntityBalance("supplier", oldSupplierId);
+        if (supplierId !== oldSupplierId) {
+          await recalculateEntityBalance("supplier", supplierId);
+        }
+        toast({ title: "تم التحديث", description: "تم تعديل السند بنفس رقم السند ورقم القيد" });
+      } else if (editTarget) {
+        // Draft edit → update then post
         await (supabase.from("supplier_payments" as any) as any)
           .update({
             supplier_id: supplierId,
@@ -219,7 +239,6 @@ export default function SupplierPayments() {
             notes: notes.trim() || null,
           })
           .eq("id", editTarget.id);
-        // Then post the existing record (update status + create journal)
         await postPaymentLogic(
           supplierId,
           paymentDate,
@@ -228,9 +247,8 @@ export default function SupplierPayments() {
           reference.trim() || null,
           notes.trim() || null,
           editTarget.id,
-          editPostedNums?.paymentPostedNum ?? null,
-          editPostedNums?.jePostedNum ?? null,
         );
+        toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
       } else {
         await postPaymentLogic(
           supplierId,
@@ -240,8 +258,8 @@ export default function SupplierPayments() {
           reference.trim() || null,
           notes.trim() || null,
         );
+        toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
       }
-      toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
       setDialogOpen(false);
       resetForm();
       fetchAll();
