@@ -1292,7 +1292,7 @@ export default function SalesInvoiceForm() {
                 entityId={customerId}
                 entityName={customerName || customers.find((c) => c.id === customerId)?.name || ""}
                 invoiceTotal={finalGrandTotal}
-                invoiceNumber={invoiceNumber}
+                invoiceDisplayNumber={displayNumber || ""}
                 onPaymentAdded={loadData}
                 refreshKey={paymentSectionRefreshKey}
               />
