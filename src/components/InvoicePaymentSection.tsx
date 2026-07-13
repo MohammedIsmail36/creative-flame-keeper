@@ -342,17 +342,7 @@ export default function InvoicePaymentSection({
         return;
       }
 
-      const invPrefix =
-        type === "sales"
-          ? "INV-"
-          : type === "purchase"
-            ? "PUR-"
-            : type === "sales_return"
-              ? "SRN-"
-              : "PRN-";
-      const formattedInvNum = invoiceNumber
-        ? `${invPrefix}${String(invoiceNumber).padStart(4, "0")}`
-        : `#${invoiceId.slice(0, 8)}`;
+      const formattedInvNum = invoiceDisplayNumber || `#${invoiceId.slice(0, 8)}`;
       const desc =
         type === "sales"
           ? `تحصيل من عميل - فاتورة ${formattedInvNum}`
