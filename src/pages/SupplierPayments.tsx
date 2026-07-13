@@ -472,8 +472,8 @@ export default function SupplierPayments() {
     setSaving(false);
   }
 
-  async function handleConfirmEditPosted() {
-    if (!editPostedTarget || saving) return;
+  function handleConfirmEditPosted() {
+    if (!editPostedTarget) return;
     const target = editPostedTarget;
     if (settings?.locked_until_date && target.payment_date <= settings.locked_until_date) {
       toast({
@@ -481,6 +481,7 @@ export default function SupplierPayments() {
         description: `لا يمكن تعديل سند بتاريخ ${target.payment_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
         variant: "destructive",
       });
+      setEditPostedTarget(null);
       return;
     }
     if (target.isRefund) {
@@ -489,76 +490,25 @@ export default function SupplierPayments() {
         description: "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.",
         variant: "destructive",
       });
+      setEditPostedTarget(null);
       return;
     }
-    setSaving(true);
-    try {
-      const preservedPaymentNum = target.posted_number;
-      let preservedJeNum: number | null = null;
-      if (target.journal_entry_id) {
-        const { data: je } = await supabase
-          .from("journal_entries")
-          .select("posted_number")
-          .eq("id", target.journal_entry_id)
-          .single();
-        preservedJeNum = (je as any)?.posted_number ?? null;
-      }
-
-      const { data: allocs } = await (supabase.from("supplier_payment_allocations" as any) as any)
-        .select("invoice_id")
-        .eq("payment_id", target.id);
-      const affectedInvoiceIds = ((allocs as any[]) || [])
-        .map((a) => String(a.invoice_id))
-        .filter((v, i, arr) => arr.indexOf(v) === i);
-
-      await (supabase.from("supplier_payment_allocations" as any) as any).delete().eq("payment_id", target.id);
-
-      if (target.journal_entry_id) {
-        await supabase.from("journal_entry_lines").delete().eq("journal_entry_id", target.journal_entry_id);
-        await supabase.from("journal_entries").delete().eq("id", target.journal_entry_id);
-      }
-
-      await (supabase.from("supplier_payments" as any) as any)
-        .update({ status: "draft", journal_entry_id: null })
-        .eq("id", target.id);
-
-      for (const invoiceId of affectedInvoiceIds) {
-        await recalculateInvoicePaidAmount("purchase", invoiceId);
-      }
-      await recalculateEntityBalance("supplier", target.supplier_id);
-
-      setEditPostedNums({
-        paymentPostedNum: preservedPaymentNum,
-        jePostedNum: preservedJeNum,
-      });
-      const reloaded: Payment = { ...target, status: "draft" };
-      setEditTarget(reloaded);
-      setSupplierId(reloaded.supplier_id);
-      setAmount(reloaded.amount);
-      setPaymentDate(reloaded.payment_date);
-      setPaymentMethod(reloaded.payment_method);
-      setReference(reloaded.reference || "");
-      setNotes(reloaded.notes || "");
-      setEditPostedTarget(null);
-      setDialogOpen(true);
-      fetchAll();
-      toast({
-        title: "جاهز للتعديل",
-        description: `سيتم إعادة الترحيل بنفس الرقم ${prefix}${String(preservedPaymentNum ?? 0).padStart(4, "0")}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-    setSaving(false);
+    // Just open the dialog with the posted payment's data. No DB writes here.
+    setEditTarget(target);
+    setEditingPosted(true);
+    setSupplierId(target.supplier_id);
+    setAmount(target.amount);
+    setPaymentDate(target.payment_date);
+    setPaymentMethod(target.payment_method);
+    setReference(target.reference || "");
+    setNotes(target.notes || "");
+    setEditPostedTarget(null);
+    setDialogOpen(true);
   }
 
   function resetForm() {
     setEditTarget(null);
-    setEditPostedNums(null);
+    setEditingPosted(false);
     setSupplierId("");
     setAmount(0);
     setPaymentDate(new Date().toISOString().split("T")[0]);
@@ -566,6 +516,7 @@ export default function SupplierPayments() {
     setReference("");
     setNotes("");
   }
+
 
   const prefix = settings?.supplier_payment_prefix || "SPY-";
 
