@@ -676,7 +676,7 @@ export default function SupplierPayments() {
         >
           <DialogContent className="max-w-md" dir="rtl">
             <DialogHeader dir="rtl">
-              <DialogTitle>{editTarget ? `تعديل الدفعة #${editTarget.payment_number}` : "تسجيل سداد مورد"}</DialogTitle>
+              <DialogTitle>{editingPosted && editTarget ? `تعديل السند المُرحَّل ${prefix}${String(editTarget.posted_number ?? 0).padStart(4, "0")}` : editTarget ? `تعديل الدفعة #${editTarget.payment_number}` : "تسجيل سداد مورد"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
