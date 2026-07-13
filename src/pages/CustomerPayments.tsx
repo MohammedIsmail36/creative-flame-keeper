@@ -618,9 +618,15 @@ export default function CustomerPayments() {
           <div className="flex items-center gap-1">
             {p.status === "draft" && (
               <>
-                <Button variant="ghost" size="sm" onClick={() => openEditDialog(p)} className="gap-1 text-xs h-7 px-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => openEditDialog(p)}
+                  className="h-7 w-7"
+                  title="تعديل"
+                  aria-label="تعديل"
+                >
                   <Pencil className="h-3.5 w-3.5" />
-                  تعديل
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setPostTarget(p)} className="gap-1 text-xs h-7 px-2">
                   <CheckCircle className="h-3.5 w-3.5" />
@@ -642,23 +648,24 @@ export default function CustomerPayments() {
                 {!p.isRefund && (
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={() => setEditPostedTarget(p)}
-                    className="gap-1 text-xs h-7 px-2"
+                    className="h-7 w-7"
                     title="تعديل مع الحفاظ على نفس رقم السند والقيد"
+                    aria-label="تعديل السند المُرحَّل"
                   >
                     <Pencil className="h-3.5 w-3.5" />
-                    تعديل
                   </Button>
                 )}
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   onClick={() => setCancelTarget(p)}
-                  className="gap-1 text-xs h-7 px-2 text-destructive hover:text-destructive"
+                  className="h-7 w-7 text-destructive hover:text-destructive"
+                  title="إلغاء السند"
+                  aria-label="إلغاء السند"
                 >
                   <XCircle className="h-3.5 w-3.5" />
-                  إلغاء
                 </Button>
               </>
             )}
