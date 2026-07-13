@@ -85,10 +85,7 @@ export default function SupplierPayments() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [editTarget, setEditTarget] = useState<Payment | null>(null);
-  const [editPostedNums, setEditPostedNums] = useState<{
-    paymentPostedNum: number | null;
-    jePostedNum: number | null;
-  } | null>(null);
+  const [editingPosted, setEditingPosted] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
   const [postTarget, setPostTarget] = useState<Payment | null>(null);
@@ -210,8 +207,28 @@ export default function SupplierPayments() {
     if (Object.keys(errors).length > 0) return;
     setSaving(true);
     try {
-      if (editTarget) {
-        // First update the existing draft with new values
+      if (editTarget && editingPosted) {
+        // Atomic overwrite of posted payment via RPC — preserves posted_number and journal entry number
+        const { data, error } = await (supabase as any).rpc("edit_supplier_payment", {
+          p_payment_id: editTarget.id,
+          p_supplier_id: supplierId,
+          p_payment_date: paymentDate,
+          p_amount: amount,
+          p_payment_method: paymentMethod,
+          p_reference: reference.trim() || null,
+          p_notes: notes.trim() || null,
+        });
+        if (error) throw error;
+        // Recompute derived cached values (paid_amount was affected because allocations were cleared)
+        // Recalc for both old and new supplier if they changed.
+        const oldSupplierId = (data as any)?.old_supplier_id || editTarget.supplier_id;
+        await recalculateEntityBalance("supplier", oldSupplierId);
+        if (supplierId !== oldSupplierId) {
+          await recalculateEntityBalance("supplier", supplierId);
+        }
+        toast({ title: "تم التحديث", description: "تم تعديل السند بنفس رقم السند ورقم القيد" });
+      } else if (editTarget) {
+        // Draft edit → update then post
         await (supabase.from("supplier_payments" as any) as any)
           .update({
             supplier_id: supplierId,
@@ -222,7 +239,6 @@ export default function SupplierPayments() {
             notes: notes.trim() || null,
           })
           .eq("id", editTarget.id);
-        // Then post the existing record (update status + create journal)
         await postPaymentLogic(
           supplierId,
           paymentDate,
@@ -231,9 +247,8 @@ export default function SupplierPayments() {
           reference.trim() || null,
           notes.trim() || null,
           editTarget.id,
-          editPostedNums?.paymentPostedNum ?? null,
-          editPostedNums?.jePostedNum ?? null,
         );
+        toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
       } else {
         await postPaymentLogic(
           supplierId,
@@ -243,8 +258,8 @@ export default function SupplierPayments() {
           reference.trim() || null,
           notes.trim() || null,
         );
+        toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
       }
-      toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
       setDialogOpen(false);
       resetForm();
       fetchAll();
@@ -457,8 +472,8 @@ export default function SupplierPayments() {
     setSaving(false);
   }
 
-  async function handleConfirmEditPosted() {
-    if (!editPostedTarget || saving) return;
+  function handleConfirmEditPosted() {
+    if (!editPostedTarget) return;
     const target = editPostedTarget;
     if (settings?.locked_until_date && target.payment_date <= settings.locked_until_date) {
       toast({
@@ -466,6 +481,7 @@ export default function SupplierPayments() {
         description: `لا يمكن تعديل سند بتاريخ ${target.payment_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
         variant: "destructive",
       });
+      setEditPostedTarget(null);
       return;
     }
     if (target.isRefund) {
@@ -474,76 +490,25 @@ export default function SupplierPayments() {
         description: "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.",
         variant: "destructive",
       });
+      setEditPostedTarget(null);
       return;
     }
-    setSaving(true);
-    try {
-      const preservedPaymentNum = target.posted_number;
-      let preservedJeNum: number | null = null;
-      if (target.journal_entry_id) {
-        const { data: je } = await supabase
-          .from("journal_entries")
-          .select("posted_number")
-          .eq("id", target.journal_entry_id)
-          .single();
-        preservedJeNum = (je as any)?.posted_number ?? null;
-      }
-
-      const { data: allocs } = await (supabase.from("supplier_payment_allocations" as any) as any)
-        .select("invoice_id")
-        .eq("payment_id", target.id);
-      const affectedInvoiceIds = ((allocs as any[]) || [])
-        .map((a) => String(a.invoice_id))
-        .filter((v, i, arr) => arr.indexOf(v) === i);
-
-      await (supabase.from("supplier_payment_allocations" as any) as any).delete().eq("payment_id", target.id);
-
-      if (target.journal_entry_id) {
-        await supabase.from("journal_entry_lines").delete().eq("journal_entry_id", target.journal_entry_id);
-        await supabase.from("journal_entries").delete().eq("id", target.journal_entry_id);
-      }
-
-      await (supabase.from("supplier_payments" as any) as any)
-        .update({ status: "draft", journal_entry_id: null })
-        .eq("id", target.id);
-
-      for (const invoiceId of affectedInvoiceIds) {
-        await recalculateInvoicePaidAmount("purchase", invoiceId);
-      }
-      await recalculateEntityBalance("supplier", target.supplier_id);
-
-      setEditPostedNums({
-        paymentPostedNum: preservedPaymentNum,
-        jePostedNum: preservedJeNum,
-      });
-      const reloaded: Payment = { ...target, status: "draft" };
-      setEditTarget(reloaded);
-      setSupplierId(reloaded.supplier_id);
-      setAmount(reloaded.amount);
-      setPaymentDate(reloaded.payment_date);
-      setPaymentMethod(reloaded.payment_method);
-      setReference(reloaded.reference || "");
-      setNotes(reloaded.notes || "");
-      setEditPostedTarget(null);
-      setDialogOpen(true);
-      fetchAll();
-      toast({
-        title: "جاهز للتعديل",
-        description: `سيتم إعادة الترحيل بنفس الرقم ${prefix}${String(preservedPaymentNum ?? 0).padStart(4, "0")}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-    setSaving(false);
+    // Just open the dialog with the posted payment's data. No DB writes here.
+    setEditTarget(target);
+    setEditingPosted(true);
+    setSupplierId(target.supplier_id);
+    setAmount(target.amount);
+    setPaymentDate(target.payment_date);
+    setPaymentMethod(target.payment_method);
+    setReference(target.reference || "");
+    setNotes(target.notes || "");
+    setEditPostedTarget(null);
+    setDialogOpen(true);
   }
 
   function resetForm() {
     setEditTarget(null);
-    setEditPostedNums(null);
+    setEditingPosted(false);
     setSupplierId("");
     setAmount(0);
     setPaymentDate(new Date().toISOString().split("T")[0]);
@@ -551,6 +516,7 @@ export default function SupplierPayments() {
     setReference("");
     setNotes("");
   }
+
 
   const prefix = settings?.supplier_payment_prefix || "SPY-";
 
@@ -710,7 +676,7 @@ export default function SupplierPayments() {
         >
           <DialogContent className="max-w-md" dir="rtl">
             <DialogHeader dir="rtl">
-              <DialogTitle>{editTarget ? `تعديل الدفعة #${editTarget.payment_number}` : "تسجيل سداد مورد"}</DialogTitle>
+              <DialogTitle>{editingPosted && editTarget ? `تعديل السند المُرحَّل ${prefix}${String(editTarget.posted_number ?? 0).padStart(4, "0")}` : editTarget ? `تعديل الدفعة #${editTarget.payment_number}` : "تسجيل سداد مورد"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -794,13 +760,15 @@ export default function SupplierPayments() {
                 <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleSaveDraft} disabled={saving} variant="outline" className="flex-1">
-                  {saving && <Loader2 className="h-4 w-4 ml-1 animate-spin" />}
-                  {saving ? "جاري الحفظ..." : editTarget ? "تحديث المسودة" : "حفظ كمسودة"}
-                </Button>
+                {!editingPosted && (
+                  <Button onClick={handleSaveDraft} disabled={saving} variant="outline" className="flex-1">
+                    {saving && <Loader2 className="h-4 w-4 ml-1 animate-spin" />}
+                    {saving ? "جاري الحفظ..." : editTarget ? "تحديث المسودة" : "حفظ كمسودة"}
+                  </Button>
+                )}
                 <Button onClick={handleSubmitPosted} disabled={saving} className="flex-1">
                   {saving && <Loader2 className="h-4 w-4 ml-1 animate-spin" />}
-                  {saving ? "جاري الحفظ..." : editTarget ? "تحديث وترحيل" : "حفظ وترحيل"}
+                  {saving ? "جاري الحفظ..." : editingPosted ? "حفظ التعديل" : editTarget ? "تحديث وترحيل" : "حفظ وترحيل"}
                 </Button>
               </div>
             </div>
@@ -959,11 +927,11 @@ export default function SupplierPayments() {
               تعديل سند مُرحّل #{editPostedTarget?.posted_number ?? editPostedTarget?.payment_number}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم حذف القيد المحاسبي القديم وإعادة السند إلى حالة "مسودة" لتعديله، مع{" "}
-              <strong>الحفاظ على نفس رقم السند ورقم القيد</strong> ({prefix}
+              سيتم فتح نموذج التعديل مباشرة، وعند الحفظ ستتم إعادة الكتابة فوق نفس السند وقيده المحاسبي كعملية واحدة —{" "}
+              <strong>بنفس رقم السند ورقم القيد</strong> ({prefix}
               {String(editPostedTarget?.posted_number ?? 0).padStart(4, "0")}).
               <br />
-              عند الحفظ والترحيل سيتم إنشاء قيد جديد بنفس الرقم. هل تريد المتابعة؟
+              لن يتم استهلاك أي رقم جديد من التسلسل، ولن يظهر قيد إضافي في اليومية.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row-reverse gap-2">
