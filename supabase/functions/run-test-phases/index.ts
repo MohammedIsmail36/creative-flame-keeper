@@ -129,26 +129,8 @@ Deno.serve(async (req) => {
     if (phase === 0) {
       L("═══ Phase 0: Verify System Init ═══");
       
-      // Create lookups
-      const { data: existingUnits } = await supabase.from("product_units").select("id").eq("name", "قطعة");
-      if (!existingUnits || existingUnits.length === 0) {
-        await supabase.from("product_units").insert({ name: "قطعة", symbol: "قطعة" });
-      }
-      const { data: existingBrands } = await supabase.from("product_brands").select("id").eq("name", "HP");
-      if (!existingBrands || existingBrands.length === 0) {
-        await supabase.from("product_brands").insert([
-          { name: "HP", country: "أمريكا" },
-          { name: "سامسونج", country: "كوريا" },
-        ]);
-      }
-      const { data: existingCats } = await supabase.from("product_categories").select("id").eq("name", "إلكترونيات");
-      if (!existingCats || existingCats.length === 0) {
-        await supabase.from("product_categories").insert([
-          { name: "إلكترونيات" },
-          { name: "ملحقات" },
-        ]);
-      }
-      L("✅ Lookups created");
+      // Lookup seeding removed — tests must create their own lookups explicitly.
+      L("✅ Phase 0 (no auto lookups)");
 
       // Verify
       const { count: accCount } = await supabase.from("accounts").select("*", { count: "exact", head: true });

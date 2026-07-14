@@ -1,63 +1,68 @@
-## الحل الدائم
+## المصدر المكتشف
 
-### الإجراءات
+بعد فحص كل الكود، مصدر التصنيفات والوحدات الافتراضية **مصدر واحد فقط**:
 
-**1) حذف ملفَّي الهجرة الوهميَّين نهائياً**
-- `supabase/migrations/20260420160915_85378f56-7fa7-4195-8c87-631c23971ea9.sql`
-- `supabase/migrations/20260420162600_42ae13d5-20f3-454d-b9f0-74874574a61a.sql`
+### 1) ملف الهجرة الأصلي (يعمل مرة واحدة عند إنشاء قاعدة بيانات جديدة)
+`supabase/migrations/20260217121119_6e8b2020-fb5a-4128-991f-960d295d6ae1.sql`
 
-بذلك لن يُدرَج القيد الوهمي (100 ج.م) في أي قاعدة بيانات جديدة مستقبلاً. القواعد التي شغّلت هاتين الهجرتين مسبقاً لن تعيد تشغيلهما (Supabase يُسجِّل الهجرات المنفَّذة).
-
-**2) هجرة تنظيف واحدة دائمة وآمنة (idempotent)**
-تعمل على قاعدتك الحالية وأي بيئة موجودة:
-- تحذف أي قيد يوميّة وصفه = `'قيد تصحيح فرق مرتجع شراء (WAC) - تسوية لمرة واحدة'` (سطوره ثم رأسه).
-- تضمن أن حساب `5103` اسمه `'إيجار'` مع `is_system=false` (استعادة دوره الأصلي).
-- تضمن أن حساب `5108` موجود باسم `'فروقات أسعار مرتجعات الشراء'` مع `is_system=true, is_active=true` — لأن التطبيق يعتمد عليه فعلياً في `PurchaseReturnForm.tsx` و `constants.ts` و `Dashboard.tsx` و `system-defaults.ts`.
-- **لا** تُدرج أي قيد يوميّة إطلاقاً.
-
+يحتوي على:
 ```sql
--- (أ) حذف القيد الوهمي إن وُجد
-DO $$
-DECLARE v_je uuid;
-BEGIN
-  FOR v_je IN
-    SELECT id FROM public.journal_entries
-    WHERE description = 'قيد تصحيح فرق مرتجع شراء (WAC) - تسوية لمرة واحدة'
-  LOOP
-    DELETE FROM public.journal_entry_lines WHERE journal_entry_id = v_je;
-    DELETE FROM public.journal_entries WHERE id = v_je;
-  END LOOP;
-END $$;
+INSERT INTO public.product_categories (name) VALUES
+  ('عام'),('إلكترونيات'),('أثاث'),('مواد غذائية'),
+  ('مستلزمات مكتبية'),('قطع غيار'),('مواد خام'),('أخرى');
 
--- (ب) استعادة 5103 كإيجار في حال بيئة قديمة غيّرته
-UPDATE public.accounts
-SET name = 'إيجار', is_system = false
-WHERE code = '5103';
-
--- (ج) ضمان وجود 5108 صحيحاً (يستخدمه التطبيق)
-DO $$
-DECLARE v_parent uuid;
-BEGIN
-  SELECT id INTO v_parent FROM public.accounts WHERE code = '5' LIMIT 1;
-  IF NOT EXISTS (SELECT 1 FROM public.accounts WHERE code = '5108') THEN
-    INSERT INTO public.accounts (code, name, account_type, is_parent, is_system, parent_id, is_active)
-    VALUES ('5108', 'فروقات أسعار مرتجعات الشراء', 'expense', false, true, v_parent, true);
-  ELSE
-    UPDATE public.accounts
-    SET name = 'فروقات أسعار مرتجعات الشراء', is_system = true, is_active = true
-    WHERE code = '5108';
-  END IF;
-END $$;
+INSERT INTO public.product_units (name, symbol) VALUES
+  ('قطعة','pc'),('كيلو','kg'),('متر','m'),('لتر','L'),
+  ('علبة','box'),('كرتون','ctn'),('طن','ton'),('دزينة','dz');
 ```
 
-**3) فحص `public/full-schema.sql`**
-إذا احتوى على نفس الـ INSERT للقيد الوهمي أُزيله منه أيضاً ليبقى مخطط إعادة البناء نظيفاً (يُتحقَّق أثناء التنفيذ).
+### 2) دالة اختبار (لا تعمل تلقائياً)
+`supabase/functions/run-test-phases/index.ts` — تدرج تصنيف/وحدة عند تشغيل الاختبارات يدوياً فقط. غير مؤثرة في التشغيل العادي.
+
+### أماكن **لا** تُنشئ افتراضيات
+- `seed-system` — لا يلمس التصنيفات/الوحدات/الماركات إطلاقاً.
+- `database-backup` (التصفير) — يحذفها فقط ولا يُعيد إدراج أي منها.
+- `full-schema.sql` — يُنشئ الجداول فقط بدون INSERT.
+
+### متى تظهر تلقائياً؟
+- فقط عند بناء قاعدة بيانات **جديدة** من ملفات الهجرة (لن تتكرر على قاعدتك الحالية لأن Supabase يسجل الهجرات المنفَّذة).
+- لكنها موجودة حالياً في قاعدتك لأنها أُدرجت عند أول إعداد للنظام.
 
 ---
 
-### النتيجة
-- القيد الوهمي يُحذف من قاعدتك فوراً ولا يعود يظهر مجدداً في أي بيئة.
-- المصدر الأصلي للمشكلة (ملفَّا الهجرة) يختفيان نهائياً من المشروع.
-- الوظائف المحاسبية السليمة (حساب 5108 لمرتجعات الشراء بسعر ≠ WAC) تبقى كما هي.
+## خطة الإزالة الدائمة
 
-هل توافق على التنفيذ؟
+**1) تعديل ملف الهجرة `20260217121119`**
+حذف كتلتَي `INSERT INTO public.product_categories` و `INSERT INTO public.product_units` منه فقط، مع إبقاء بقية محتواه (تعريفات RLS وغيرها) كما هو. بذلك أي قاعدة بيانات جديدة تُبنى مستقبلاً لن تحتوي على أي افتراضيات.
+
+**2) هجرة تنظيف idempotent لقاعدتك الحالية**
+تحذف الافتراضيات الموجودة الآن **فقط إذا لم تكن مستخدمة** في أي منتج (حماية من الحذف الخاطئ):
+
+```sql
+DELETE FROM public.product_categories
+WHERE name IN ('عام','إلكترونيات','أثاث','مواد غذائية',
+               'مستلزمات مكتبية','قطع غيار','مواد خام','أخرى')
+  AND NOT EXISTS (
+    SELECT 1 FROM public.products p WHERE p.category_id = product_categories.id
+  );
+
+DELETE FROM public.product_units
+WHERE (name, symbol) IN (
+  ('قطعة','pc'),('كيلو','kg'),('متر','m'),('لتر','L'),
+  ('علبة','box'),('كرتون','ctn'),('طن','ton'),('دزينة','dz')
+) AND NOT EXISTS (
+  SELECT 1 FROM public.products p WHERE p.unit_id = product_units.id
+);
+```
+
+**3) تعديل `run-test-phases`**
+حذف سطور إدراج التصنيف/الوحدة التجريبية منه ليصبح المشروع خالياً تماماً من أي مصدر افتراضيات (اختياري لكنه يضمن نظافة كاملة).
+
+---
+
+## النتيجة
+- لا مصدر لأي تصنيف أو وحدة افتراضية في المشروع بعد التنفيذ.
+- الافتراضيات الحالية غير المستخدمة تُحذف من قاعدتك فوراً.
+- الافتراضيات المستخدمة فعلياً (إن وُجدت) تبقى لتفادي كسر منتجات مرتبطة.
+
+هل توافق على التنفيذ؟ وهل تريدني أن أشمل الخطوة (3) لتنظيف `run-test-phases` أيضاً؟
