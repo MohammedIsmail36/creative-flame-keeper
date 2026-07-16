@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,8 +18,16 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { user, loading: authLoading, mfaRequired } = useAuth();
+
+  // Same-origin relative path only (e.g. "/.lovable/oauth/consent?...").
+  const rawNext = searchParams.get("next");
+  const nextPath =
+    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
+      ? rawNext
+      : "/";
 
   if (authLoading) {
     return (
@@ -34,7 +42,7 @@ export default function Auth() {
   }
 
   if (user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={nextPath} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,7 +55,7 @@ export default function Auth() {
         password,
       });
       if (error) throw error;
-      navigate("/");
+      navigate(nextPath);
     } catch (error: any) {
       toast({
         title: "خطأ",
