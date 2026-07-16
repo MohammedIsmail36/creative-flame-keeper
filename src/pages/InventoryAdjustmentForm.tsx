@@ -756,6 +756,50 @@ export default function InventoryAdjustmentForm() {
           )}
         </>}
         actions={<>
+          {!isNew && items.length > 0 && (
+            <ExportMenu
+              config={{
+                filenamePrefix: `inventory-adjustment-ADJ-${adjustmentNumber ?? ""}`,
+                sheetName: `تسوية ADJ-${adjustmentNumber ?? ""}`,
+                pdfTitle: `تسوية مخزون ADJ-${adjustmentNumber ?? ""}`,
+                pdfOrientation: "landscape",
+                headers: [
+                  "#",
+                  "المنتج",
+                  "كمية النظام",
+                  "الكمية الفعلية",
+                  "الفرق",
+                  "متوسط التكلفة",
+                  "إجمالي الفرق",
+                  "ملاحظات",
+                ],
+                rows: items.map((it, i) => [
+                  i + 1,
+                  it.product_name,
+                  it.system_quantity,
+                  it.actual_quantity,
+                  (it.difference > 0 ? "+" : "") + it.difference,
+                  Number(it.unit_cost).toFixed(2),
+                  Number(it.total_cost).toFixed(2),
+                  it.notes || "—",
+                ]),
+                summaryCards: [
+                  { label: "التاريخ", value: adjustmentDate },
+                  { label: "الحالة", value: statusLabels[status] || status },
+                  { label: "عدد البنود", value: String(items.length) },
+                  { label: "إجمالي العجز", value: formatCurrency(totalLoss) },
+                  { label: "إجمالي الفائض", value: formatCurrency(totalGain) },
+                  {
+                    label: "الصافي",
+                    value:
+                      (netDifference > 0 ? "+" : netDifference < 0 ? "-" : "") +
+                      formatCurrency(Math.abs(netDifference)),
+                  },
+                ],
+                settings,
+              }}
+            />
+          )}
           {!isNew && isDraft && canEdit && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
