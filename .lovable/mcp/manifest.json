@@ -26,21 +26,22 @@
           "openWorldHint": false
         },
         "inputSchema": {
-          "$schema": "http://json-schema.org/draft-07/schema#",
           "type": "object",
           "properties": {
             "search": {
-              "description": "Optional search term (name/code/phone).",
-              "type": "string"
+              "type": "string",
+              "description": "Optional search term (name/code/phone)."
             },
             "limit": {
-              "default": 50,
-              "description": "Max rows to return.",
               "type": "integer",
               "minimum": 1,
-              "maximum": 200
+              "maximum": 200,
+              "default": 50,
+              "description": "Max rows to return."
             }
-          }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
         },
         "outputSchema": null
       },
@@ -54,19 +55,20 @@
           "openWorldHint": false
         },
         "inputSchema": {
-          "$schema": "http://json-schema.org/draft-07/schema#",
           "type": "object",
           "properties": {
             "search": {
               "type": "string"
             },
             "limit": {
-              "default": 50,
               "type": "integer",
               "minimum": 1,
-              "maximum": 200
+              "maximum": 200,
+              "default": 50
             }
-          }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
         },
         "outputSchema": null
       },
@@ -80,23 +82,24 @@
           "openWorldHint": false
         },
         "inputSchema": {
-          "$schema": "http://json-schema.org/draft-07/schema#",
           "type": "object",
           "properties": {
             "search": {
               "type": "string"
             },
             "only_active": {
-              "default": true,
-              "type": "boolean"
+              "type": "boolean",
+              "default": true
             },
             "limit": {
-              "default": 50,
               "type": "integer",
               "minimum": 1,
-              "maximum": 200
+              "maximum": 200,
+              "default": 50
             }
-          }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
         },
         "outputSchema": null
       },
@@ -110,16 +113,15 @@
           "openWorldHint": false
         },
         "inputSchema": {
-          "$schema": "http://json-schema.org/draft-07/schema#",
           "type": "object",
           "properties": {
             "from_date": {
-              "description": "YYYY-MM-DD lower bound (inclusive).",
-              "type": "string"
+              "type": "string",
+              "description": "YYYY-MM-DD lower bound (inclusive)."
             },
             "to_date": {
-              "description": "YYYY-MM-DD upper bound (inclusive).",
-              "type": "string"
+              "type": "string",
+              "description": "YYYY-MM-DD upper bound (inclusive)."
             },
             "status": {
               "type": "string",
@@ -130,12 +132,14 @@
               ]
             },
             "limit": {
-              "default": 50,
               "type": "integer",
               "minimum": 1,
-              "maximum": 200
+              "maximum": 200,
+              "default": 50
             }
-          }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
         },
         "outputSchema": null
       },
@@ -149,7 +153,6 @@
           "openWorldHint": false
         },
         "inputSchema": {
-          "$schema": "http://json-schema.org/draft-07/schema#",
           "type": "object",
           "properties": {
             "from_date": {
@@ -164,7 +167,9 @@
           "required": [
             "from_date",
             "to_date"
-          ]
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
         },
         "outputSchema": null
       }
