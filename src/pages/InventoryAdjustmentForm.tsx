@@ -1173,7 +1173,7 @@ export default function InventoryAdjustmentForm() {
                             u[i].notes = e.target.value;
                             setItems(u);
                           }}
-                          onKeyDown={(e) => handleLastFieldKeyDown(e, i)}
+                          onKeyDown={(e) => handleLastFieldKeyDown(e, i, "notes")}
                           className="text-xs bg-muted/30 border-border rounded-md h-8 w-full"
                           placeholder="ملاحظة..."
                         />
