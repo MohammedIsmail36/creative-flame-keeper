@@ -9,6 +9,7 @@ import { useNavigationGuard } from "@/hooks/use-navigation-guard";
 import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
+import { ExportMenu } from "@/components/ExportMenu";
 import { SectionHeader } from "@/components/SectionHeader";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -152,8 +153,8 @@ export default function InventoryAdjustmentForm() {
   }
 
   function addItem() {
-    setItems([
-      ...items,
+    setItems((prev) => [
+      ...prev,
       {
         product_id: "",
         product_name: "",
@@ -165,6 +166,27 @@ export default function InventoryAdjustmentForm() {
         notes: "",
       },
     ]);
+    // Auto-open the product combobox in the newly added row (matches invoice UX)
+    setTimeout(() => {
+      const rows = document.querySelectorAll("[data-adj-row]");
+      const lastRow = rows[rows.length - 1];
+      const comboBtn = lastRow?.querySelector(
+        "[role='combobox']",
+      ) as HTMLButtonElement | null;
+      comboBtn?.click();
+    }, 50);
+  }
+
+  function handleLastFieldKeyDown(
+    e: React.KeyboardEvent,
+    rowIndex: number,
+  ) {
+    if (rowIndex !== items.length - 1) return;
+    if (e.key !== "Tab" && e.key !== "Enter") return;
+    // Don't add a new row if current row has no product yet
+    if (!items[rowIndex]?.product_id) return;
+    e.preventDefault();
+    addItem();
   }
 
   async function handleProductSelect(idx: number, productId: string) {
@@ -734,6 +756,50 @@ export default function InventoryAdjustmentForm() {
           )}
         </>}
         actions={<>
+          {!isNew && items.length > 0 && (
+            <ExportMenu
+              config={{
+                filenamePrefix: `inventory-adjustment-ADJ-${adjustmentNumber ?? ""}`,
+                sheetName: `تسوية ADJ-${adjustmentNumber ?? ""}`,
+                pdfTitle: `تسوية مخزون ADJ-${adjustmentNumber ?? ""}`,
+                pdfOrientation: "landscape",
+                headers: [
+                  "#",
+                  "المنتج",
+                  "كمية النظام",
+                  "الكمية الفعلية",
+                  "الفرق",
+                  "متوسط التكلفة",
+                  "إجمالي الفرق",
+                  "ملاحظات",
+                ],
+                rows: items.map((it, i) => [
+                  i + 1,
+                  it.product_name,
+                  it.system_quantity,
+                  it.actual_quantity,
+                  (it.difference > 0 ? "+" : "") + it.difference,
+                  Number(it.unit_cost).toFixed(2),
+                  Number(it.total_cost).toFixed(2),
+                  it.notes || "—",
+                ]),
+                summaryCards: [
+                  { label: "التاريخ", value: adjustmentDate },
+                  { label: "الحالة", value: statusLabels[status] || status },
+                  { label: "عدد البنود", value: String(items.length) },
+                  { label: "إجمالي العجز", value: formatCurrency(totalLoss) },
+                  { label: "إجمالي الفائض", value: formatCurrency(totalGain) },
+                  {
+                    label: "الصافي",
+                    value:
+                      (netDifference > 0 ? "+" : netDifference < 0 ? "-" : "") +
+                      formatCurrency(Math.abs(netDifference)),
+                  },
+                ],
+                settings,
+              }}
+            />
+          )}
           {!isNew && isDraft && canEdit && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -999,6 +1065,7 @@ export default function InventoryAdjustmentForm() {
                 items.map((item, i) => (
                   <tr
                     key={i}
+                    data-adj-row
                     className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100"
                   >
                     <td className="py-2 px-3 text-center">
@@ -1012,7 +1079,16 @@ export default function InventoryAdjustmentForm() {
                         <LookupCombobox
                           value={item.product_id}
                           onValueChange={(val) => handleProductSelect(i, val)}
-                          items={productsToLookupItems(products)}
+                          items={productsToLookupItems(
+                            products.filter(
+                              (p) =>
+                                p.id === item.product_id ||
+                                !items.some(
+                                  (other, oi) =>
+                                    oi !== i && other.product_id === p.id,
+                                ),
+                            ),
+                          )}
                           placeholder="اختر المنتج"
                         />
                       ) : (
@@ -1037,6 +1113,7 @@ export default function InventoryAdjustmentForm() {
                           min={0}
                           value={item.actual_quantity}
                           onValueChange={(v) => handleActualQtyChange(i, v)}
+                          onKeyDown={(e) => handleLastFieldKeyDown(e, i)}
                           className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
@@ -1090,6 +1167,7 @@ export default function InventoryAdjustmentForm() {
                             u[i].notes = e.target.value;
                             setItems(u);
                           }}
+                          onKeyDown={(e) => handleLastFieldKeyDown(e, i)}
                           className="text-xs bg-muted/30 border-border rounded-md h-8 w-full"
                           placeholder="ملاحظة..."
                         />
@@ -1104,7 +1182,7 @@ export default function InventoryAdjustmentForm() {
                       <td className="py-2 px-2">
                         <button
                           onClick={() => removeItem(i)}
-                          className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100"
+                          className="p-1 rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all"
                           aria-label="حذف البند"
                         >
                           <X className="h-3.5 w-3.5" />
