@@ -455,21 +455,29 @@ export default function Dashboard() {
     const purchaseReturnItems = prItemsR.data || [];
     const cogsRows = cogsR.data || [];
     const opExpLines = opExpR.data || [];
+    const adjGainLines = adjGainR.data || [];
 
     setTotalSales(sumNet(salesItems));
     setTotalPurchases(sumNet(purchaseItems));
-    // Split operating expenses into: regular operating (5102-5107, 5109+) and system adjustments (5108)
+    // Bucket expense-side lines into: regular operating (5102-5107, 5109+) and system adjustments (5108, 5201).
+    // Then net inventory adjustment gain (4201, revenue) against system adjustments so surplus offsets shortage.
     let opSum = 0;
     let sysSum = 0;
     opExpLines.forEach((l: any) => {
       const code = l.accounts?.code;
       const amt = Number(l.debit || 0) - Number(l.credit || 0);
-      if (code === "5108") sysSum += amt;
+      if (code === "5108" || code === "5201") sysSum += amt;
       else opSum += amt;
     });
+    // 4201 is credit-normal (revenue) → credit - debit is a gain; subtract from system adjustments.
+    const adjustmentGain = adjGainLines.reduce(
+      (s: number, l: any) => s + (Number(l.credit || 0) - Number(l.debit || 0)),
+      0,
+    );
+    sysSum -= adjustmentGain;
     setOperatingExpenses(opSum);
     setSystemAdjustments(sysSum);
-    // Total expenses NOW includes COGS + operating + system adjustments
+    // Total expenses = operating + system adjustments (net of inventory adjustment gain)
     setTotalExpenses(opSum + sysSum);
     setTotalSalesReturns(sumTotal(salesReturnItems));
     setTotalPurchaseReturns(sumTotal(purchaseReturnItems));
