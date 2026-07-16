@@ -153,8 +153,8 @@ export default function InventoryAdjustmentForm() {
   }
 
   function addItem() {
-    setItems([
-      ...items,
+    setItems((prev) => [
+      ...prev,
       {
         product_id: "",
         product_name: "",
@@ -166,6 +166,27 @@ export default function InventoryAdjustmentForm() {
         notes: "",
       },
     ]);
+    // Auto-open the product combobox in the newly added row (matches invoice UX)
+    setTimeout(() => {
+      const rows = document.querySelectorAll("[data-adj-row]");
+      const lastRow = rows[rows.length - 1];
+      const comboBtn = lastRow?.querySelector(
+        "[role='combobox']",
+      ) as HTMLButtonElement | null;
+      comboBtn?.click();
+    }, 50);
+  }
+
+  function handleLastFieldKeyDown(
+    e: React.KeyboardEvent,
+    rowIndex: number,
+  ) {
+    if (rowIndex !== items.length - 1) return;
+    if (e.key !== "Tab" && e.key !== "Enter") return;
+    // Don't add a new row if current row has no product yet
+    if (!items[rowIndex]?.product_id) return;
+    e.preventDefault();
+    addItem();
   }
 
   async function handleProductSelect(idx: number, productId: string) {
