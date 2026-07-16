@@ -19,6 +19,7 @@ const PageTitleUpdater = () => {
 // Eager (small + first-paint critical)
 import Auth from "./pages/Auth";
 import MfaVerify from "./pages/MfaVerify";
+import OAuthConsent from "./pages/OAuthConsent";
 import NotFound from "./pages/NotFound";
 
 // Dashboard is heavy (recharts) — lazy load it
@@ -116,6 +117,7 @@ const App = () => (
             <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/mfa" element={<MfaVerify />} />
+            <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="/" element={<ProtectedRoute><AppLayout>{withSuspense(<Dashboard />)}</AppLayout></ProtectedRoute>} />
             <Route path="/accounts" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<Accounts />)}</AppLayout></ProtectedRoute>} />
             <Route path="/journal" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<Journal />)}</AppLayout></ProtectedRoute>} />
