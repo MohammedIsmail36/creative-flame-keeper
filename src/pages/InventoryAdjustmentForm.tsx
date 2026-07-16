@@ -1065,6 +1065,7 @@ export default function InventoryAdjustmentForm() {
                 items.map((item, i) => (
                   <tr
                     key={i}
+                    data-adj-row
                     className="group border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors duration-100"
                   >
                     <td className="py-2 px-3 text-center">
@@ -1078,7 +1079,16 @@ export default function InventoryAdjustmentForm() {
                         <LookupCombobox
                           value={item.product_id}
                           onValueChange={(val) => handleProductSelect(i, val)}
-                          items={productsToLookupItems(products)}
+                          items={productsToLookupItems(
+                            products.filter(
+                              (p) =>
+                                p.id === item.product_id ||
+                                !items.some(
+                                  (other, oi) =>
+                                    oi !== i && other.product_id === p.id,
+                                ),
+                            ),
+                          )}
                           placeholder="اختر المنتج"
                         />
                       ) : (
