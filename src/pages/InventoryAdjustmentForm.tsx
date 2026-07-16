@@ -771,6 +771,7 @@ export default function InventoryAdjustmentForm() {
                 pdfOrientation: "landscape",
                 headers: [
                   "#",
+                  "كود المنتج",
                   "المنتج",
                   "كمية النظام",
                   "الكمية الفعلية",
@@ -781,6 +782,7 @@ export default function InventoryAdjustmentForm() {
                 ],
                 rows: items.map((it, i) => [
                   i + 1,
+                  products.find((p) => p.id === it.product_id)?.code || "—",
                   it.product_name,
                   it.system_quantity,
                   it.actual_quantity,
