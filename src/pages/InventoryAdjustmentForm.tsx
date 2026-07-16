@@ -891,7 +891,12 @@ export default function InventoryAdjustmentForm() {
               <AlertDialogTrigger asChild>
                 <Button
                   size="sm"
-                  disabled={saving || items.length === 0}
+                  disabled={saving || items.length === 0 || hasZeroDiff}
+                  title={
+                    hasZeroDiff
+                      ? `لا يمكن الاعتماد — يوجد ${zeroDiffCount} بند بفرق صفر`
+                      : undefined
+                  }
                   className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5"
                 >
                   <CheckCircle className="h-4 w-4" />
