@@ -1146,7 +1146,17 @@ export default function InventoryAdjustmentForm() {
                           value={item.actual_quantity}
                           onValueChange={(v) => handleActualQtyChange(i, v)}
                           onKeyDown={(e) => handleLastFieldKeyDown(e, i, "qty")}
-                          className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
+                          title={
+                            item.product_id && item.difference === 0
+                              ? "فرق صفر — لن يُقبل عند الاعتماد"
+                              : undefined
+                          }
+                          className={cn(
+                            "font-mono tabular-nums text-center rounded-md h-8 w-full",
+                            item.product_id && item.difference === 0
+                              ? "bg-amber-50 dark:bg-amber-950/30 border-amber-400 dark:border-amber-600"
+                              : "bg-muted/30 border-border",
+                          )}
                         />
                       ) : (
                         <span className="font-mono tabular-nums text-sm block text-center">
