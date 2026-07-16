@@ -1241,13 +1241,25 @@ export default function InventoryAdjustmentForm() {
         {/* Table Footer */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/10 flex-wrap gap-3">
           {isEditable ? (
-            <button
-              onClick={addItem}
-              className="flex items-center gap-2 text-sm font-semibold text-primary hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-all"
-            >
-              <Plus className="h-4 w-4" />
-              إضافة منتج
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={addItem}
+                className="flex items-center gap-2 text-sm font-semibold text-primary hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-all"
+              >
+                <Plus className="h-4 w-4" />
+                إضافة منتج
+              </button>
+              {hasZeroDiff && (
+                <button
+                  onClick={removeZeroDiffItems}
+                  className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 px-2.5 py-1.5 rounded-lg transition-all"
+                  title="حذف كل البنود ذات الفرق صفر"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  حذف البنود بدون فرق ({zeroDiffCount})
+                </button>
+              )}
+            </div>
           ) : (
             <div />
           )}
