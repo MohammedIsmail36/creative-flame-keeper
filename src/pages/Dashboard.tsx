@@ -366,7 +366,7 @@ export default function Dashboard() {
     const todayLocal = `${cy}-${String(cm + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const ys = `${cy}-01-01`;
     const ye = todayLocal;
-    const [sItemsR, pItemsR, eR, srItemsR, prItemsR, cogsR, opExpR] = await Promise.all(
+    const [sItemsR, pItemsR, eR, srItemsR, prItemsR, cogsR, opExpR, adjGainR] = await Promise.all(
       [
         supabase
           .from("sales_invoice_items")
@@ -417,6 +417,16 @@ export default function Dashboard() {
           )
           .eq("accounts.account_type", "expense")
           .neq("accounts.code", "5101")
+          .in("journal_entries.status", ["posted", "approved"])
+          .gte("journal_entries.entry_date", ys)
+          .lte("journal_entries.entry_date", ye),
+        // Inventory adjustment GAIN (4201, revenue) — netted against system adjustments
+        supabase
+          .from("journal_entry_lines")
+          .select(
+            "debit, credit, accounts!inner(code), journal_entries!inner(entry_date, status)",
+          )
+          .eq("accounts.code", "4201")
           .in("journal_entries.status", ["posted", "approved"])
           .gte("journal_entries.entry_date", ys)
           .lte("journal_entries.entry_date", ye),
