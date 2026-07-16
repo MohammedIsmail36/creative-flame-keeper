@@ -368,8 +368,19 @@ export default function InventoryAdjustmentForm() {
             ACCOUNT_CODES.INVENTORY,
         );
 
-      let lossAccount: { id: string } | null = null;
-      if (totalLoss > 0) {
+      // Post NET only: single-sided JV based on net difference (surplus or shortage).
+      // Inventory movements below remain per-product for detailed audit.
+      const netAbs = Math.abs(netDifference);
+      const lines: {
+        account_id: string;
+        debit: number;
+        credit: number;
+        description: string;
+      }[] = [];
+
+      if (netDifference < 0) {
+        // Net shortage → 5201 Dr / 1104 Cr
+        let lossAccount: { id: string } | null = null;
         const { data } = await supabase
           .from("accounts")
           .select("id")
@@ -389,10 +400,22 @@ export default function InventoryAdjustmentForm() {
             .single();
           lossAccount = created;
         }
-      }
-
-      let gainAccount: { id: string } | null = null;
-      if (totalGain > 0) {
+        if (!lossAccount) throw new Error("تعذر إنشاء حساب عجز المخزون");
+        lines.push({
+          account_id: lossAccount.id,
+          debit: netAbs,
+          credit: 0,
+          description: `تسوية مخزون ADJ-${adjustmentNumber} — صافي عجز`,
+        });
+        lines.push({
+          account_id: invAccount.id,
+          debit: 0,
+          credit: netAbs,
+          description: `تسوية مخزون ADJ-${adjustmentNumber} — تخفيض مخزون (صافي عجز)`,
+        });
+      } else if (netDifference > 0) {
+        // Net surplus → 1104 Dr / 4201 Cr
+        let gainAccount: { id: string } | null = null;
         const { data } = await supabase
           .from("accounts")
           .select("id")
@@ -412,45 +435,21 @@ export default function InventoryAdjustmentForm() {
             .single();
           gainAccount = created;
         }
-      }
-
-      // 2. Build journal entry lines
-      const lines: {
-        account_id: string;
-        debit: number;
-        credit: number;
-        description: string;
-      }[] = [];
-
-      if (totalLoss > 0 && lossAccount) {
-        lines.push({
-          account_id: lossAccount.id,
-          debit: totalLoss,
-          credit: 0,
-          description: "عجز مخزون - تسوية جرد",
-        });
+        if (!gainAccount) throw new Error("تعذر إنشاء حساب فائض المخزون");
         lines.push({
           account_id: invAccount.id,
-          debit: 0,
-          credit: totalLoss,
-          description: "تخفيض مخزون - عجز جرد",
-        });
-      }
-
-      if (totalGain > 0 && gainAccount) {
-        lines.push({
-          account_id: invAccount.id,
-          debit: totalGain,
+          debit: netAbs,
           credit: 0,
-          description: "زيادة مخزون - فائض جرد",
+          description: `تسوية مخزون ADJ-${adjustmentNumber} — زيادة مخزون (صافي فائض)`,
         });
         lines.push({
           account_id: gainAccount.id,
           debit: 0,
-          credit: totalGain,
-          description: "فائض مخزون - تسوية جرد",
+          credit: netAbs,
+          description: `تسوية مخزون ADJ-${adjustmentNumber} — صافي فائض`,
         });
       }
+      // netDifference === 0 → no JV lines; inventory movements still recorded per product.
 
       const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
       const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
