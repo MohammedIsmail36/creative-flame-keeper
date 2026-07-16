@@ -1167,6 +1167,7 @@ export default function InventoryAdjustmentForm() {
                             u[i].notes = e.target.value;
                             setItems(u);
                           }}
+                          onKeyDown={(e) => handleLastFieldKeyDown(e, i)}
                           className="text-xs bg-muted/30 border-border rounded-md h-8 w-full"
                           placeholder="ملاحظة..."
                         />
@@ -1181,7 +1182,7 @@ export default function InventoryAdjustmentForm() {
                       <td className="py-2 px-2">
                         <button
                           onClick={() => removeItem(i)}
-                          className="p-1 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100"
+                          className="p-1 rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all"
                           aria-label="حذف البند"
                         >
                           <X className="h-3.5 w-3.5" />
