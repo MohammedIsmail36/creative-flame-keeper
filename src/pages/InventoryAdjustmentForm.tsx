@@ -332,6 +332,17 @@ export default function InventoryAdjustmentForm() {
 
   async function handleApprove() {
     if (!id || saving) return;
+    const zeroDiffCount = items.filter(
+      (i) => i.product_id && i.difference === 0,
+    ).length;
+    if (zeroDiffCount > 0) {
+      toast({
+        title: "لا يمكن اعتماد التسوية",
+        description: `يوجد ${zeroDiffCount} بند بفرق صفر. احذفها أو عدّل الكميات الفعلية قبل الاعتماد.`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (
       settings?.locked_until_date &&
       adjustmentDate <= settings.locked_until_date
@@ -722,6 +733,14 @@ export default function InventoryAdjustmentForm() {
 
   if (loading) return <PageSkeleton variant="form" />;
 
+  const zeroDiffCount = items.filter(
+    (i) => i.product_id && i.difference === 0,
+  ).length;
+  const hasZeroDiff = zeroDiffCount > 0;
+  function removeZeroDiffItems() {
+    setItems((prev) => prev.filter((i) => !i.product_id || i.difference !== 0));
+  }
+
   const isDraft = status === "draft";
   const isApproved = status === "approved";
   const isCancelled = status === "cancelled";
@@ -872,7 +891,12 @@ export default function InventoryAdjustmentForm() {
               <AlertDialogTrigger asChild>
                 <Button
                   size="sm"
-                  disabled={saving || items.length === 0}
+                  disabled={saving || items.length === 0 || hasZeroDiff}
+                  title={
+                    hasZeroDiff
+                      ? `لا يمكن الاعتماد — يوجد ${zeroDiffCount} بند بفرق صفر`
+                      : undefined
+                  }
                   className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5"
                 >
                   <CheckCircle className="h-4 w-4" />
@@ -1122,7 +1146,17 @@ export default function InventoryAdjustmentForm() {
                           value={item.actual_quantity}
                           onValueChange={(v) => handleActualQtyChange(i, v)}
                           onKeyDown={(e) => handleLastFieldKeyDown(e, i, "qty")}
-                          className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
+                          title={
+                            item.product_id && item.difference === 0
+                              ? "فرق صفر — لن يُقبل عند الاعتماد"
+                              : undefined
+                          }
+                          className={cn(
+                            "font-mono tabular-nums text-center rounded-md h-8 w-full",
+                            item.product_id && item.difference === 0
+                              ? "bg-amber-50 dark:bg-amber-950/30 border-amber-400 dark:border-amber-600"
+                              : "bg-muted/30 border-border",
+                          )}
                         />
                       ) : (
                         <span className="font-mono tabular-nums text-sm block text-center">
@@ -1207,13 +1241,25 @@ export default function InventoryAdjustmentForm() {
         {/* Table Footer */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/10 flex-wrap gap-3">
           {isEditable ? (
-            <button
-              onClick={addItem}
-              className="flex items-center gap-2 text-sm font-semibold text-primary hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-all"
-            >
-              <Plus className="h-4 w-4" />
-              إضافة منتج
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={addItem}
+                className="flex items-center gap-2 text-sm font-semibold text-primary hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-all"
+              >
+                <Plus className="h-4 w-4" />
+                إضافة منتج
+              </button>
+              {hasZeroDiff && (
+                <button
+                  onClick={removeZeroDiffItems}
+                  className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 px-2.5 py-1.5 rounded-lg transition-all"
+                  title="حذف كل البنود ذات الفرق صفر"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  حذف البنود بدون فرق ({zeroDiffCount})
+                </button>
+              )}
+            </div>
           ) : (
             <div />
           )}
