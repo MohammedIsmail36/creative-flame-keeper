@@ -332,6 +332,17 @@ export default function InventoryAdjustmentForm() {
 
   async function handleApprove() {
     if (!id || saving) return;
+    const zeroDiffCount = items.filter(
+      (i) => i.product_id && i.difference === 0,
+    ).length;
+    if (zeroDiffCount > 0) {
+      toast({
+        title: "لا يمكن اعتماد التسوية",
+        description: `يوجد ${zeroDiffCount} بند بفرق صفر. احذفها أو عدّل الكميات الفعلية قبل الاعتماد.`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (
       settings?.locked_until_date &&
       adjustmentDate <= settings.locked_until_date
