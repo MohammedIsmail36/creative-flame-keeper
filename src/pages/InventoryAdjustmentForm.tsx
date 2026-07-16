@@ -180,10 +180,16 @@ export default function InventoryAdjustmentForm() {
   function handleLastFieldKeyDown(
     e: React.KeyboardEvent,
     rowIndex: number,
+    field: "qty" | "notes",
   ) {
     if (rowIndex !== items.length - 1) return;
-    if (e.key !== "Tab" && e.key !== "Enter") return;
-    // Don't add a new row if current row has no product yet
+    // Actual quantity: only Enter adds a new row. Tab keeps default (moves to notes).
+    // Notes: both Enter and Tab add a new row.
+    const shouldAdd =
+      field === "notes"
+        ? e.key === "Enter" || e.key === "Tab"
+        : e.key === "Enter";
+    if (!shouldAdd) return;
     if (!items[rowIndex]?.product_id) return;
     e.preventDefault();
     addItem();
