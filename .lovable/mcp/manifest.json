@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "sdk_version": "0.22.2",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://ejfoidwbeygzzkbonbmq.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "accounting-system-mcp",
+      "version": "0.1.0",
+      "title": "النظام المحاسبي — MCP"
+    },
+    "tools": [
+      {
+        "name": "list_customers",
+        "title": "List customers",
+        "description": "List customers in the accounting system. Optional search filter matches name, code, or phone.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "search": {
+              "description": "Optional search term (name/code/phone).",
+              "type": "string"
+            },
+            "limit": {
+              "default": 50,
+              "description": "Max rows to return.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_suppliers",
+        "title": "List suppliers",
+        "description": "List suppliers. Optional search matches name, code, or phone.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string"
+            },
+            "limit": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_products",
+        "title": "List products",
+        "description": "List products with stock and price. Optional search matches name, code, brand, or model.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string"
+            },
+            "only_active": {
+              "default": true,
+              "type": "boolean"
+            },
+            "limit": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_sales_invoices",
+        "title": "List sales invoices",
+        "description": "List recent sales invoices with totals and status. Filter by date range and/or status.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "from_date": {
+              "description": "YYYY-MM-DD lower bound (inclusive).",
+              "type": "string"
+            },
+            "to_date": {
+              "description": "YYYY-MM-DD upper bound (inclusive).",
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "posted",
+                "cancelled"
+              ]
+            },
+            "limit": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_sales_summary",
+        "title": "Sales summary for a period",
+        "description": "Aggregate posted sales invoices over a date range (count, gross total, net total, paid, outstanding).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "from_date": {
+              "type": "string",
+              "description": "YYYY-MM-DD lower bound (inclusive)."
+            },
+            "to_date": {
+              "type": "string",
+              "description": "YYYY-MM-DD upper bound (inclusive)."
+            }
+          },
+          "required": [
+            "from_date",
+            "to_date"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
