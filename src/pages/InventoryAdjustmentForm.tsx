@@ -733,6 +733,14 @@ export default function InventoryAdjustmentForm() {
 
   if (loading) return <PageSkeleton variant="form" />;
 
+  const zeroDiffCount = items.filter(
+    (i) => i.product_id && i.difference === 0,
+  ).length;
+  const hasZeroDiff = zeroDiffCount > 0;
+  function removeZeroDiffItems() {
+    setItems((prev) => prev.filter((i) => !i.product_id || i.difference !== 0));
+  }
+
   const isDraft = status === "draft";
   const isApproved = status === "approved";
   const isCancelled = status === "cancelled";
