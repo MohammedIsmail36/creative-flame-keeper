@@ -1119,7 +1119,7 @@ export default function InventoryAdjustmentForm() {
                           min={0}
                           value={item.actual_quantity}
                           onValueChange={(v) => handleActualQtyChange(i, v)}
-                          onKeyDown={(e) => handleLastFieldKeyDown(e, i)}
+                          onKeyDown={(e) => handleLastFieldKeyDown(e, i, "qty")}
                           className="font-mono tabular-nums text-center bg-muted/30 border-border rounded-md h-8 w-full"
                         />
                       ) : (
