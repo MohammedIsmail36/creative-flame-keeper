@@ -709,6 +709,12 @@ export default function Accounts() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {editingAccount?.is_system && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary flex items-center gap-2">
+                <Shield className="h-4 w-4 shrink-0" />
+                <span>حساب نظام محمي — التعديل مقصور على الاسم والوصف فقط</span>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="formCode">رمز الحساب</Label>
@@ -719,6 +725,7 @@ export default function Accounts() {
                   placeholder="مثال: 1101"
                   required
                   dir="ltr"
+                  disabled={!!editingAccount?.is_system}
                 />
               </div>
               <div className="space-y-2">
@@ -735,7 +742,11 @@ export default function Accounts() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>نوع الحساب</Label>
-                <Select value={formType} onValueChange={(v) => setFormType(v as AccountType)}>
+                <Select
+                  value={formType}
+                  onValueChange={(v) => setFormType(v as AccountType)}
+                  disabled={!!editingAccount?.is_system}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -750,7 +761,11 @@ export default function Accounts() {
               </div>
               <div className="space-y-2">
                 <Label>الحساب الرئيسي</Label>
-                <Select value={formParentId} onValueChange={setFormParentId}>
+                <Select
+                  value={formParentId}
+                  onValueChange={setFormParentId}
+                  disabled={!!editingAccount?.is_system}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="بدون (حساب رئيسي)" />
                   </SelectTrigger>
@@ -774,6 +789,7 @@ export default function Accounts() {
                 checked={formIsParent}
                 onChange={(e) => setFormIsParent(e.target.checked)}
                 className="rounded border-border"
+                disabled={!!editingAccount?.is_system}
               />
               <Label htmlFor="formIsParent" className="cursor-pointer">
                 حساب رئيسي (يحتوي على حسابات فرعية)
