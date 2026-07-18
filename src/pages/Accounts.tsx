@@ -215,14 +215,21 @@ export default function Accounts() {
     if (!formCode.trim() || !formName.trim()) return;
     setSaving(true);
 
-    const payload = {
-      code: formCode.trim(),
-      name: formName.trim(),
-      account_type: formType,
-      parent_id: formParentId === "none" ? null : formParentId,
-      description: formDescription.trim() || null,
-      is_parent: formIsParent,
-    };
+    const isSystemEdit = !!(editingAccount && editingAccount.is_system);
+
+    const payload = isSystemEdit
+      ? {
+          name: formName.trim(),
+          description: formDescription.trim() || null,
+        }
+      : {
+          code: formCode.trim(),
+          name: formName.trim(),
+          account_type: formType,
+          parent_id: formParentId === "none" ? null : formParentId,
+          description: formDescription.trim() || null,
+          is_parent: formIsParent,
+        };
 
     if (editingAccount) {
       const { error } = await supabase.from("accounts").update(payload).eq("id", editingAccount.id);
