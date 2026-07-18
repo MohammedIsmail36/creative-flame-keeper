@@ -133,6 +133,17 @@ Deno.serve(async (req) => {
     }
     results.push(accountsAdded > 0 ? `✅ تم إضافة ${accountsAdded} حساب جديد` : "ℹ️ شجرة الحسابات موجودة مسبقاً");
 
+    // Self-heal: ensure is_system flag matches SYSTEM_CODES for any pre-existing rows
+    const { data: healedRows } = await supabase
+      .from("accounts")
+      .update({ is_system: true })
+      .in("code", SYSTEM_CODES)
+      .eq("is_system", false)
+      .select("code");
+    if (healedRows && healedRows.length > 0) {
+      results.push(`🔧 تم استعادة صفة "حساب نظام" لـ ${healedRows.length} حساب`);
+    }
+
     // ── 3. إعدادات الشركة (تخطي إذا موجودة) ──
     const { data: existingSettings } = await supabase.from("company_settings").select("id").limit(1);
     if (existingSettings && existingSettings.length > 0) {

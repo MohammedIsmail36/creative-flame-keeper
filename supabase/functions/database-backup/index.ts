@@ -219,6 +219,17 @@ Deno.serve(async (req) => {
     }
     results.push(`✅ تم إضافة ${accountsCount} حساب في شجرة الحسابات`);
 
+    // Self-heal: ensure is_system flag matches SYSTEM_CODES
+    const { data: healedRows } = await supabase
+      .from("accounts")
+      .update({ is_system: true })
+      .in("code", SYSTEM_CODES)
+      .eq("is_system", false)
+      .select("code");
+    if (healedRows && healedRows.length > 0) {
+      results.push(`🔧 تم استعادة صفة "حساب نظام" لـ ${healedRows.length} حساب`);
+    }
+
     // ── Step 7: إعادة إنشاء إعدادات الشركة ──
     const { error: settingsErr } = await supabase
       .from("company_settings")
