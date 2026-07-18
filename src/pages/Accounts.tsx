@@ -406,7 +406,7 @@ export default function Accounts() {
                   <Pencil className="h-4 w-4" />
                 </Button>
               )}
-              {canEdit && account.is_parent && (
+              {canEdit && account.is_parent && !(account.is_system && !account.is_parent) && (
                 <Button
                   variant="ghost"
                   size="icon"
