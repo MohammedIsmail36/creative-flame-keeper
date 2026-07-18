@@ -245,7 +245,7 @@ export default function Accounts() {
         fetchAccounts();
       }
     } else {
-      const { error } = await supabase.from("accounts").insert(payload);
+      const { error } = await supabase.from("accounts").insert(payload as any);
       if (error) {
         toast({
           title: "خطأ",
