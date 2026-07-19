@@ -63,8 +63,6 @@ interface ProductRow {
   min_stock_level: number;
   is_active: boolean;
   created_at: string;
-  category: string | null;
-  unit: string | null;
   brand_id: string | null;
   category_id: string | null;
   unit_id: string | null;
@@ -363,7 +361,7 @@ export default function Products() {
     }
   };
 
-  const getCategoryName = (p: ProductRow) => (p as any).product_categories?.name || p.category || "-";
+  const getCategoryName = (p: ProductRow) => (p as any).product_categories?.name || "-";
   const getBrandName = (p: ProductRow) => (p as any).product_brands?.name || "-";
 
   const getStockBadge = (product: ProductRow) => {
@@ -465,7 +463,7 @@ export default function Products() {
       p.name,
       p.description || "",
       (p.category_id && categoryPathById.get(p.category_id)) || (getCategoryName(p) === "-" ? "" : getCategoryName(p)),
-      (p as any).product_units?.name || p.unit || "",
+      (p as any).product_units?.name || "",
       getBrandName(p) === "-" ? "" : getBrandName(p),
       p.model_number || "",
       p.barcode || "",
@@ -575,7 +573,7 @@ export default function Products() {
         header: ({ column }) => <DataTableColumnHeader column={column} title="الكمية" />,
         cell: ({ row }) => (
           <span className="text-sm text-foreground font-mono">
-            {fmtInt(row.original.quantity_on_hand)} {row.original.product_units?.name || row.original.unit || "وحدة"}
+            {fmtInt(row.original.quantity_on_hand)} {row.original.product_units?.name || "وحدة"}
           </span>
         ),
       },
