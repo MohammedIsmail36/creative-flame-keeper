@@ -311,15 +311,16 @@ export default function ProductImport() {
 
     // Pre-fetch existing products keyed by (brand_id|model_number) for upsert matching
     const { data: existingProds } = await (supabase.from("products") as any)
-      .select("id, code, brand_id, model_number");
+      .select("id, code, barcode, brand_id, model_number");
     const upsertKey = (brandId: string | null, model: string | null) =>
       `${brandId || ""}::${(model || "").trim().toLowerCase()}`;
-    const existingByKey = new Map<string, { id: string; code: string }>();
+    const existingByKey = new Map<string, { id: string; code: string; barcode: string | null }>();
     (existingProds || []).forEach((p: any) => {
       if (p.brand_id && p.model_number) {
         existingByKey.set(upsertKey(p.brand_id, p.model_number), {
           id: p.id,
           code: p.code,
+          barcode: p.barcode ?? null,
         });
       }
     });
