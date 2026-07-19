@@ -11,7 +11,7 @@ export function useProductsLookup() {
       const { data, error } = await supabase
         .from("products")
         .select(
-          "id, code, name, model_number, barcode, brand_id, category_id, unit, selling_price, purchase_price, quantity_on_hand, min_stock_level, is_active"
+          "id, code, name, model_number, barcode, brand_id, category_id, selling_price, purchase_price, quantity_on_hand, min_stock_level, is_active"
         )
         .order("name");
       if (error) throw error;
