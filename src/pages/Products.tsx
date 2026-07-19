@@ -573,7 +573,7 @@ export default function Products() {
         header: ({ column }) => <DataTableColumnHeader column={column} title="الكمية" />,
         cell: ({ row }) => (
           <span className="text-sm text-foreground font-mono">
-            {fmtInt(row.original.quantity_on_hand)} {row.original.product_units?.name || row.original.unit || "وحدة"}
+            {fmtInt(row.original.quantity_on_hand)} {row.original.product_units?.name || "وحدة"}
           </span>
         ),
       },
