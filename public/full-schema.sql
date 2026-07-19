@@ -161,8 +161,6 @@ CREATE TABLE IF NOT EXISTS public.products (
   code text NOT NULL,
   name text NOT NULL,
   description text,
-  category text DEFAULT 'عام',
-  unit text DEFAULT 'قطعة',
   category_id uuid REFERENCES public.product_categories(id),
   unit_id uuid REFERENCES public.product_units(id),
   brand_id uuid REFERENCES public.product_brands(id),
