@@ -63,8 +63,6 @@ interface ProductRow {
   min_stock_level: number;
   is_active: boolean;
   created_at: string;
-  category: string | null;
-  unit: string | null;
   brand_id: string | null;
   category_id: string | null;
   unit_id: string | null;
