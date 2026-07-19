@@ -311,15 +311,16 @@ export default function ProductImport() {
 
     // Pre-fetch existing products keyed by (brand_id|model_number) for upsert matching
     const { data: existingProds } = await (supabase.from("products") as any)
-      .select("id, code, brand_id, model_number");
+      .select("id, code, barcode, brand_id, model_number");
     const upsertKey = (brandId: string | null, model: string | null) =>
       `${brandId || ""}::${(model || "").trim().toLowerCase()}`;
-    const existingByKey = new Map<string, { id: string; code: string }>();
+    const existingByKey = new Map<string, { id: string; code: string; barcode: string | null }>();
     (existingProds || []).forEach((p: any) => {
       if (p.brand_id && p.model_number) {
         existingByKey.set(upsertKey(p.brand_id, p.model_number), {
           id: p.id,
           code: p.code,
+          barcode: p.barcode ?? null,
         });
       }
     });
@@ -383,10 +384,16 @@ export default function ProductImport() {
       let error: any = null;
 
       if (existing) {
-        // UPDATE existing product (preserve code/barcode/quantity — never touch stock on update)
+        // UPDATE existing product (preserve code/quantity — never touch stock on update)
+        // Update barcode only when a new non-empty value is provided and differs
+        const updatePayload = { ...productPayload };
+        const newBarcode = (row.barcode || "").trim();
+        if (newBarcode && newBarcode !== (existing.barcode || "")) {
+          updatePayload.barcode = newBarcode;
+        }
         const { error: updErr } = await supabase
           .from("products")
-          .update(productPayload)
+          .update(updatePayload)
           .eq("id", existing.id);
         error = updErr;
         if (!error) {
