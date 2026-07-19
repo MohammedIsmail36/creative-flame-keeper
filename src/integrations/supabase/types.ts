@@ -927,7 +927,6 @@ export type Database = {
         Row: {
           barcode: string | null
           brand_id: string | null
-          category: string | null
           category_id: string | null
           code: string
           created_at: string
@@ -941,14 +940,12 @@ export type Database = {
           purchase_price: number
           quantity_on_hand: number
           selling_price: number
-          unit: string | null
           unit_id: string | null
           updated_at: string
         }
         Insert: {
           barcode?: string | null
           brand_id?: string | null
-          category?: string | null
           category_id?: string | null
           code: string
           created_at?: string
@@ -962,14 +959,12 @@ export type Database = {
           purchase_price?: number
           quantity_on_hand?: number
           selling_price?: number
-          unit?: string | null
           unit_id?: string | null
           updated_at?: string
         }
         Update: {
           barcode?: string | null
           brand_id?: string | null
-          category?: string | null
           category_id?: string | null
           code?: string
           created_at?: string
@@ -983,7 +978,6 @@ export type Database = {
           purchase_price?: number
           quantity_on_hand?: number
           selling_price?: number
-          unit?: string | null
           unit_id?: string | null
           updated_at?: string
         }
