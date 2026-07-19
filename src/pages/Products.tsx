@@ -361,7 +361,7 @@ export default function Products() {
     }
   };
 
-  const getCategoryName = (p: ProductRow) => (p as any).product_categories?.name || p.category || "-";
+  const getCategoryName = (p: ProductRow) => (p as any).product_categories?.name || "-";
   const getBrandName = (p: ProductRow) => (p as any).product_brands?.name || "-";
 
   const getStockBadge = (product: ProductRow) => {
