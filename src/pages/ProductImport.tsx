@@ -384,10 +384,16 @@ export default function ProductImport() {
       let error: any = null;
 
       if (existing) {
-        // UPDATE existing product (preserve code/barcode/quantity — never touch stock on update)
+        // UPDATE existing product (preserve code/quantity — never touch stock on update)
+        // Update barcode only when a new non-empty value is provided and differs
+        const updatePayload = { ...productPayload };
+        const newBarcode = (row.barcode || "").trim();
+        if (newBarcode && newBarcode !== (existing.barcode || "")) {
+          updatePayload.barcode = newBarcode;
+        }
         const { error: updErr } = await supabase
           .from("products")
-          .update(productPayload)
+          .update(updatePayload)
           .eq("id", existing.id);
         error = updErr;
         if (!error) {
