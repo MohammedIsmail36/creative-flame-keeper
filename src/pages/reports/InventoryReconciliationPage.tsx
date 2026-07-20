@@ -46,6 +46,8 @@ interface Row {
 }
 
 export default function InventoryReconciliationPage() {
+  const { formatCurrency } = useSettings();
+
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
