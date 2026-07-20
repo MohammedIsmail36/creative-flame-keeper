@@ -564,30 +564,19 @@ export default function Dashboard() {
         .filter((s) => Number(s.balance) > 0)
         .reduce((s2, s) => s2 + Number(s.balance), 0),
     );
-    // Inventory Value = صافي قيمة كل حركات المخزون (مطابق لرصيد حساب المخزون 1104)
-    // وارد: purchase, opening_balance, sale_return
-    // صادر: sale, purchase_return
-    // adjustment: يستخدم إشارة quantity (سالب = عجز، موجب = فائض)
-    const productIds = products.map((p: any) => p.id);
+    // Inventory Value = رصيد حساب المخزون (1104) في دفتر الأستاذ
+    // مصدر واحد للحقيقة يطابق ميزان المراجعة ولا يتأثر بحجم الجداول أو حدود PostgREST.
     let invValue = 0;
-    if (productIds.length > 0) {
-      const { data: allMoves } = await supabase
-        .from("inventory_movements")
-        .select("quantity, total_cost, movement_type")
-        .in("product_id", productIds);
-      (allMoves || []).forEach((m: any) => {
-        const c = Number(m.total_cost || 0);
-        const q = Number(m.quantity || 0);
-        const t = m.movement_type;
-        if (t === "purchase" || t === "opening_balance" || t === "sale_return") {
-          invValue += c;
-        } else if (t === "sale" || t === "purchase_return") {
-          invValue -= c;
-        } else if (t === "adjustment") {
-          invValue += q < 0 ? -c : c;
-        }
-      });
-    }
+    const { data: invLines } = await supabase
+      .from("journal_entry_lines")
+      .select(
+        "debit, credit, accounts!inner(code), journal_entries!inner(status)",
+      )
+      .eq("accounts.code", "1104")
+      .in("journal_entries.status", ["posted", "approved"]);
+    (invLines || []).forEach((l: any) => {
+      invValue += Number(l.debit || 0) - Number(l.credit || 0);
+    });
     setInventoryValue(invValue);
 
 
