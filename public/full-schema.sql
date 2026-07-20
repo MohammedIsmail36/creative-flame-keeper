@@ -51,16 +51,32 @@ CREATE TABLE IF NOT EXISTS public.user_roles (
 -- accounts (شجرة الحسابات)
 CREATE TABLE IF NOT EXISTS public.accounts (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  code text NOT NULL,
+  code text NOT NULL UNIQUE,
   name text NOT NULL,
   account_type text NOT NULL,
   description text,
   is_parent boolean NOT NULL DEFAULT false,
   parent_id uuid REFERENCES public.accounts(id),
   is_active boolean NOT NULL DEFAULT true,
+  is_system boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+-- Backfill for pre-existing databases where these were added later
+ALTER TABLE public.accounts ADD COLUMN IF NOT EXISTS is_system boolean NOT NULL DEFAULT false;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'accounts_code_key' AND conrelid = 'public.accounts'::regclass
+  ) THEN
+    BEGIN
+      ALTER TABLE public.accounts ADD CONSTRAINT accounts_code_key UNIQUE (code);
+    EXCEPTION WHEN unique_violation THEN
+      -- Duplicates exist; the dedup migration will handle them then add the constraint
+      NULL;
+    END;
+  END IF;
+END $$;
+
 
 -- company_settings
 CREATE TABLE IF NOT EXISTS public.company_settings (
