@@ -290,6 +290,13 @@ const sections: MenuSection[] = [
         roles: ["admin", "accountant"],
       },
       {
+        title: "تسوية المخزون (تشخيص)",
+        url: "/reports/inventory-reconciliation",
+        icon: Package,
+        roles: ["admin", "accountant"],
+      },
+
+      {
         title: "أعمار الديون",
         url: "/reports/aging",
         icon: Clock,
