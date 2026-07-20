@@ -565,29 +565,31 @@ export default function Dashboard() {
         .reduce((s2, s) => s2 + Number(s.balance), 0),
     );
     // Inventory Value = صافي قيمة كل حركات المخزون (مطابق لرصيد حساب المخزون 1104)
-    // الوارد (purchase, opening_balance, sale_return, adjustment IN) − الصادر (sale, purchase_return, adjustment OUT)
-    // لا يعتمد على products.quantity_on_hand حتى لا يتضخم بسبب أي انحراف بين الجدولين.
+    // وارد: purchase, opening_balance, sale_return
+    // صادر: sale, purchase_return
+    // adjustment: يستخدم إشارة quantity (سالب = عجز، موجب = فائض)
     const productIds = products.map((p: any) => p.id);
     let invValue = 0;
     if (productIds.length > 0) {
       const { data: allMoves } = await supabase
         .from("inventory_movements")
-        .select("total_cost, movement_type")
+        .select("quantity, total_cost, movement_type")
         .in("product_id", productIds);
       (allMoves || []).forEach((m: any) => {
         const c = Number(m.total_cost || 0);
+        const q = Number(m.quantity || 0);
         const t = m.movement_type;
-        if (t === "purchase" || t === "opening_balance" || t === "sale_return" || t === "adjustment_in") {
+        if (t === "purchase" || t === "opening_balance" || t === "sale_return") {
           invValue += c;
-        } else if (t === "sale" || t === "purchase_return" || t === "adjustment_out") {
+        } else if (t === "sale" || t === "purchase_return") {
           invValue -= c;
         } else if (t === "adjustment") {
-          // بعض التسويات القديمة قد تُخزَّن كسجل واحد بقيمة موجبة/سالبة
-          invValue += c;
+          invValue += q < 0 ? -c : c;
         }
       });
     }
     setInventoryValue(invValue);
+
 
     setLowStockCount(
       products.filter(
