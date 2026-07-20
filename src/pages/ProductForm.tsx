@@ -242,6 +242,9 @@ export default function ProductForm() {
     if (sellingPrice < 0 || purchasePrice < 0)
       errors.price = "لا يمكن أن تكون الأسعار سالبة";
     if (quantity < 0) errors.quantity = "لا يمكن أن تكون الكمية سالبة";
+    if (!isEdit && quantity > 0 && (!purchasePrice || purchasePrice <= 0))
+      errors.quantity = "يجب إدخال سعر الشراء عند تسجيل كمية افتتاحية (لضمان توازن المخزون مع الحسابات)";
+
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       toast({

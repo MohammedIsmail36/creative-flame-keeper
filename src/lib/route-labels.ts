@@ -39,6 +39,8 @@ export const routeLabels: Record<string, string> = {
   balances: "أرصدة الحسابات",
   "profit-loss": "الأرباح والخسائر",
   commission: "حاسبة العمولة",
+  "inventory-reconciliation": "تسوية المخزون",
+
   "inventory-turnover": "دوران المخزون",
   dashboard: "لوحة المؤشرات",
   "urgent-actions": "اشترِ الآن",

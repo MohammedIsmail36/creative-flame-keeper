@@ -79,6 +79,8 @@ const ProductAnalyticsPage = lazy(() => import("./pages/reports/ProductAnalytics
 const AccountBalancesPage = lazy(() => import("./pages/reports/AccountBalancesPage"));
 const ProfitLossPage = lazy(() => import("./pages/reports/ProfitLossPage"));
 const CommissionCalculatorPage = lazy(() => import("./pages/reports/CommissionCalculatorPage"));
+const InventoryReconciliationPage = lazy(() => import("./pages/reports/InventoryReconciliationPage"));
+
 const TurnoverLayout = lazy(() => import("./pages/reports/inventory-turnover/TurnoverLayout"));
 const TurnoverDashboardPage = lazy(() => import("./pages/reports/inventory-turnover/TurnoverDashboardPage"));
 const BuyNowPage = lazy(() => import("./pages/reports/inventory-turnover/BuyNowPage"));
@@ -162,6 +164,8 @@ const App = () => (
             <Route path="/reports/balances" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<AccountBalancesPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/profit-loss" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProfitLossPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/commission" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<CommissionCalculatorPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/inventory-reconciliation" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryReconciliationPage />)}</AppLayout></ProtectedRoute>} />
+
             <Route path="/customer-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<CustomerStatement />)}</AppLayout></ProtectedRoute>} />
             <Route path="/supplier-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<SupplierStatement />)}</AppLayout></ProtectedRoute>} />
             <Route path="/inventory-movements" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryMovements />)}</AppLayout></ProtectedRoute>} />
