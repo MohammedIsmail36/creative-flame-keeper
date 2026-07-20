@@ -106,8 +106,11 @@ CREATE TABLE IF NOT EXISTS public.company_settings (
   invoice_footer text DEFAULT '',
   invoice_notes text DEFAULT '',
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  singleton boolean GENERATED ALWAYS AS (true) STORED
 );
+CREATE UNIQUE INDEX IF NOT EXISTS company_settings_singleton_idx
+  ON public.company_settings (singleton);
 
 -- customers
 CREATE TABLE IF NOT EXISTS public.customers (

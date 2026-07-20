@@ -136,6 +136,7 @@ export type Database = {
           sales_tax_account_id: string | null
           show_discount_on_invoice: boolean
           show_tax_on_invoice: boolean
+          singleton: boolean | null
           stock_enforcement_enabled: boolean | null
           supplier_payment_prefix: string
           tax_number: string | null
@@ -181,6 +182,7 @@ export type Database = {
           sales_tax_account_id?: string | null
           show_discount_on_invoice?: boolean
           show_tax_on_invoice?: boolean
+          singleton?: boolean | null
           stock_enforcement_enabled?: boolean | null
           supplier_payment_prefix?: string
           tax_number?: string | null
@@ -226,6 +228,7 @@ export type Database = {
           sales_tax_account_id?: string | null
           show_discount_on_invoice?: boolean
           show_tax_on_invoice?: boolean
+          singleton?: boolean | null
           stock_enforcement_enabled?: boolean | null
           supplier_payment_prefix?: string
           tax_number?: string | null

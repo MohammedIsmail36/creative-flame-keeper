@@ -11,6 +11,7 @@ export function useCompanySettingsQuery() {
       const { data, error } = await supabase
         .from("company_settings")
         .select("*")
+        .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
