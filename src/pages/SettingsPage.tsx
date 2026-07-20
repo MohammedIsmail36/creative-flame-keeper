@@ -150,6 +150,7 @@ export default function SettingsPage() {
     const { data, error } = await supabase
       .from("company_settings")
       .select("*")
+      .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
 
@@ -206,16 +207,30 @@ export default function SettingsPage() {
       }
     }
     setSaving(true);
-    const { id, ...updateData } = settings;
-    const { error } = await supabase
+    // استبعاد الحقول المُدارة من قِبل قاعدة البيانات لتجنّب إرباك التريجرز
+    const { id, ...rest } = settings as any;
+    delete rest.created_at;
+    delete rest.updated_at;
+    delete rest.singleton;
+
+    const { data, error } = await supabase
       .from("company_settings")
-      .update(updateData as any)
-      .eq("id", id);
+      .update(rest)
+      .eq("id", id)
+      .select()
+      .maybeSingle();
 
     if (error) {
-      toast.error("خطأ في حفظ الإعدادات");
+      toast.error("خطأ في حفظ الإعدادات: " + error.message);
       console.error(error);
+    } else if (!data) {
+      // لم يُحدَّث أي صف — غالباً بسبب صلاحيات RLS أو أن السجل غير موجود
+      toast.error(
+        "تعذّر حفظ الإعدادات — تحقق من صلاحياتك (يتطلب دور المدير) ثم أعد المحاولة",
+      );
     } else {
+      // مزامنة الحالة المحلية مع ما حُفظ فعلياً في قاعدة البيانات
+      setSettings(data as CompanySettings);
       toast.success("تم حفظ الإعدادات بنجاح");
       await refetch();
     }
