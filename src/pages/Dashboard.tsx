@@ -564,33 +564,31 @@ export default function Dashboard() {
         .filter((s) => Number(s.balance) > 0)
         .reduce((s2, s) => s2 + Number(s.balance), 0),
     );
-    // Compute Inventory Value using Weighted Average Cost (WAC) from purchase movements
-    // WAC = SUM(total_cost) / SUM(quantity) for movement_type IN ('purchase','opening_balance')
+    // Inventory Value = صافي قيمة كل حركات المخزون (مطابق لرصيد حساب المخزون 1104)
+    // الوارد (purchase, opening_balance, sale_return, adjustment IN) − الصادر (sale, purchase_return, adjustment OUT)
+    // لا يعتمد على products.quantity_on_hand حتى لا يتضخم بسبب أي انحراف بين الجدولين.
     const productIds = products.map((p: any) => p.id);
-    const wacMap = new Map<string, number>();
+    let invValue = 0;
     if (productIds.length > 0) {
-      const { data: moves } = await supabase
+      const { data: allMoves } = await supabase
         .from("inventory_movements")
-        .select("product_id, quantity, total_cost, movement_type")
-        .in("product_id", productIds)
-        .in("movement_type", ["purchase", "opening_balance"]);
-      const agg = new Map<string, { qty: number; cost: number }>();
-      (moves || []).forEach((m: any) => {
-        const cur = agg.get(m.product_id) || { qty: 0, cost: 0 };
-        cur.qty += Number(m.quantity || 0);
-        cur.cost += Number(m.total_cost || 0);
-        agg.set(m.product_id, cur);
-      });
-      agg.forEach((v, k) => {
-        if (v.qty > 0) wacMap.set(k, v.cost / v.qty);
+        .select("total_cost, movement_type")
+        .in("product_id", productIds);
+      (allMoves || []).forEach((m: any) => {
+        const c = Number(m.total_cost || 0);
+        const t = m.movement_type;
+        if (t === "purchase" || t === "opening_balance" || t === "sale_return" || t === "adjustment_in") {
+          invValue += c;
+        } else if (t === "sale" || t === "purchase_return" || t === "adjustment_out") {
+          invValue -= c;
+        } else if (t === "adjustment") {
+          // بعض التسويات القديمة قد تُخزَّن كسجل واحد بقيمة موجبة/سالبة
+          invValue += c;
+        }
       });
     }
-    setInventoryValue(
-      products.reduce((s, p: any) => {
-        const wac = wacMap.get(p.id) ?? Number(p.purchase_price);
-        return s + Number(p.quantity_on_hand) * wac;
-      }, 0),
-    );
+    setInventoryValue(invValue);
+
     setLowStockCount(
       products.filter(
         (p) =>
