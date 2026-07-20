@@ -26,8 +26,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { round2 } from "@/lib/financial-utils";
-import { formatCurrency } from "@/lib/formatting";
+import { round2 } from "@/lib/utils";
+import { useSettings } from "@/contexts/SettingsContext";
+
 
 interface Row {
   id: string;
