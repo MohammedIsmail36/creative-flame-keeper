@@ -84,6 +84,8 @@ export default function ProductForm() {
   const [brandId, setBrandId] = useState("");
   const [modelNumber, setModelNumber] = useState("");
   const [barcode, setBarcode] = useState("");
+  const [barcodeLabel, setBarcodeLabel] = useState("");
+  const [barcodePrice, setBarcodePrice] = useState<string>("");
   const [purchasePrice, setPurchasePrice] = useState(0);
   const [sellingPrice, setSellingPrice] = useState(0);
   const [quantity, setQuantity] = useState(0);
