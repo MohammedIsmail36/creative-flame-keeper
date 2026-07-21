@@ -282,6 +282,9 @@ export default function ProductForm() {
       brand_id: brandId || null,
       model_number: modelNumber.trim() || null,
       barcode: finalBarcode,
+      barcode_label: barcodeLabel.trim() || null,
+      barcode_price:
+        barcodePrice.trim() === "" ? null : Number(barcodePrice) || null,
       purchase_price: purchasePrice,
       selling_price: sellingPrice,
       quantity_on_hand: isEdit ? undefined : quantity,
