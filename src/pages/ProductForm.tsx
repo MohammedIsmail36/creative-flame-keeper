@@ -156,6 +156,10 @@ export default function ProductForm() {
     setBrandId(data.brand_id || "");
     setModelNumber(data.model_number || "");
     setBarcode(data.barcode || "");
+    setBarcodeLabel((data as any).barcode_label || "");
+    setBarcodePrice(
+      (data as any).barcode_price != null ? String((data as any).barcode_price) : "",
+    );
     setPurchasePrice(data.purchase_price);
     setSellingPrice(data.selling_price);
     setQuantity(data.quantity_on_hand);
