@@ -387,12 +387,12 @@ export default function ProductImport() {
         purchase_price: row.purchase_price || 0,
         selling_price: row.selling_price || 0,
         min_stock_level: row.min_stock_level || 0,
-        barcode_label: row.barcode_label ? row.barcode_label : null,
-        barcode_price:
-          row.barcode_price != null && !isNaN(row.barcode_price)
-            ? row.barcode_price
-            : null,
       };
+      const newBarcodeLabel = (row.barcode_label || "").trim();
+      if (newBarcodeLabel) productPayload.barcode_label = newBarcodeLabel;
+      if (row.barcode_price != null && !isNaN(row.barcode_price)) {
+        productPayload.barcode_price = row.barcode_price;
+      }
 
       const idx = updatedRows.findIndex((r) => r === row);
       let error: any = null;
