@@ -387,6 +387,11 @@ export default function ProductImport() {
         purchase_price: row.purchase_price || 0,
         selling_price: row.selling_price || 0,
         min_stock_level: row.min_stock_level || 0,
+        barcode_label: row.barcode_label ? row.barcode_label : null,
+        barcode_price:
+          row.barcode_price != null && !isNaN(row.barcode_price)
+            ? row.barcode_price
+            : null,
       };
 
       const idx = updatedRows.findIndex((r) => r === row);
