@@ -1404,6 +1404,14 @@ export default function ProductView() {
     },
     { label: "الموديل", value: product.model_number || "-" },
     { label: "الباركود", value: product.barcode || "-" },
+    { label: "مسمى الباركود", value: (product as any).barcode_label || "-" },
+    {
+      label: "سعر الباركود",
+      value:
+        (product as any).barcode_price != null
+          ? Number((product as any).barcode_price).toLocaleString("en-US")
+          : "-",
+    },
     {
       label: "وحدة القياس",
       value: `${unitName}${unitSymbol ? ` (${unitSymbol})` : ""}`,
