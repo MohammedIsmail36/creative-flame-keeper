@@ -218,6 +218,13 @@ export default function ProductImport() {
         brand: toStr(row["الماركة"] ?? row["brand"]),
         model_number: toStr(row["رقم الموديل"] ?? row["model_number"]),
         barcode: toStr(row["الباركود"] ?? row["barcode"]),
+        barcode_label: toStr(row["مسمى الباركود"] ?? row["barcode_label"]),
+        barcode_price:
+          row["سعر الباركود"] != null && String(row["سعر الباركود"]).trim() !== ""
+            ? parseFloat(row["سعر الباركود"])
+            : row["barcode_price"] != null && String(row["barcode_price"]).trim() !== ""
+              ? parseFloat(row["barcode_price"])
+              : null,
         purchase_price:
           parseFloat(row["سعر الشراء"] || row["purchase_price"]) || 0,
         selling_price:
