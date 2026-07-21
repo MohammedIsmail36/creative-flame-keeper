@@ -183,7 +183,7 @@ export default function Products() {
 
       let q = (supabase.from("products") as any)
         .select(
-          "id, code, name, description, barcode, model_number, main_image_url, purchase_price, selling_price, quantity_on_hand, min_stock_level, is_active, created_at, brand_id, category_id, unit_id, product_categories(name), product_units(name), product_brands(name)",
+          "id, code, name, description, barcode, barcode_label, barcode_price, model_number, main_image_url, purchase_price, selling_price, quantity_on_hand, min_stock_level, is_active, created_at, brand_id, category_id, unit_id, product_categories(name), product_units(name), product_brands(name)",
           { count: "exact" },
         )
         .order("code")
@@ -400,7 +400,7 @@ export default function Products() {
       () => {
         let q = (supabase.from("products") as any)
           .select(
-            "id, code, name, description, barcode, model_number, main_image_url, purchase_price, selling_price, quantity_on_hand, min_stock_level, is_active, created_at, brand_id, category_id, unit_id, product_categories(name), product_units(name), product_brands(name)",
+            "id, code, name, description, barcode, barcode_label, barcode_price, model_number, main_image_url, purchase_price, selling_price, quantity_on_hand, min_stock_level, is_active, created_at, brand_id, category_id, unit_id, product_categories(name), product_units(name), product_brands(name)",
             { count: "exact" },
           )
           .order("code");
@@ -467,6 +467,8 @@ export default function Products() {
       getBrandName(p) === "-" ? "" : getBrandName(p),
       p.model_number || "",
       p.barcode || "",
+      (p as any).barcode_label || "",
+      (p as any).barcode_price != null ? Number((p as any).barcode_price) : "",
       Number(p.purchase_price || 0),
       Number(p.selling_price || 0),
       Number(p.quantity_on_hand || 0),
@@ -489,6 +491,8 @@ export default function Products() {
       "الماركة",
       "رقم الموديل",
       "الباركود",
+      "مسمى الباركود",
+      "سعر الباركود",
       "سعر الشراء",
       "سعر البيع",
       "الكمية",

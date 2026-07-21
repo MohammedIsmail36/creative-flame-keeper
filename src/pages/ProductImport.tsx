@@ -38,6 +38,8 @@ interface ImportRow {
   brand?: string;
   model_number?: string;
   barcode?: string;
+  barcode_label?: string;
+  barcode_price?: number | null;
   purchase_price?: number;
   selling_price?: number;
   quantity_on_hand?: number;
@@ -216,6 +218,13 @@ export default function ProductImport() {
         brand: toStr(row["الماركة"] ?? row["brand"]),
         model_number: toStr(row["رقم الموديل"] ?? row["model_number"]),
         barcode: toStr(row["الباركود"] ?? row["barcode"]),
+        barcode_label: toStr(row["مسمى الباركود"] ?? row["barcode_label"]),
+        barcode_price:
+          row["سعر الباركود"] != null && String(row["سعر الباركود"]).trim() !== ""
+            ? parseFloat(row["سعر الباركود"])
+            : row["barcode_price"] != null && String(row["barcode_price"]).trim() !== ""
+              ? parseFloat(row["barcode_price"])
+              : null,
         purchase_price:
           parseFloat(row["سعر الشراء"] || row["purchase_price"]) || 0,
         selling_price:
@@ -379,6 +388,11 @@ export default function ProductImport() {
         selling_price: row.selling_price || 0,
         min_stock_level: row.min_stock_level || 0,
       };
+      const newBarcodeLabel = (row.barcode_label || "").trim();
+      if (newBarcodeLabel) productPayload.barcode_label = newBarcodeLabel;
+      if (row.barcode_price != null && !isNaN(row.barcode_price)) {
+        productPayload.barcode_price = row.barcode_price;
+      }
 
       const idx = updatedRows.findIndex((r) => r === row);
       let error: any = null;
@@ -609,6 +623,8 @@ export default function ProductImport() {
         الماركة: "",
         "رقم الموديل": "",
         الباركود: "",
+        "مسمى الباركود": "",
+        "سعر الباركود": "",
         "سعر الشراء": 100,
         "سعر البيع": 150,
         الكمية: 50,
