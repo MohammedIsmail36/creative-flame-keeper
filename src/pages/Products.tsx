@@ -467,6 +467,8 @@ export default function Products() {
       getBrandName(p) === "-" ? "" : getBrandName(p),
       p.model_number || "",
       p.barcode || "",
+      (p as any).barcode_label || "",
+      (p as any).barcode_price != null ? Number((p as any).barcode_price) : "",
       Number(p.purchase_price || 0),
       Number(p.selling_price || 0),
       Number(p.quantity_on_hand || 0),
