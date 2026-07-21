@@ -709,63 +709,6 @@ export default function ProductForm() {
             </div>
           </div>
 
-          {/* SECTION: Barcode Label Settings */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">
-              إعدادات ملصق الباركود
-            </h3>
-            <p className="text-xs text-muted-foreground -mt-2">
-              هذه الحقول تُستخدم فقط عند طباعة ملصق الباركود ولا تؤثر على سعر البيع أو المحاسبة.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <Label className="text-sm font-medium text-foreground/80">
-                    مسمى الباركود
-                  </Label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const brandName = brands.find((b) => b.id === brandId)?.name || "";
-                      const firstWords = name.trim().split(/\s+/).slice(0, 2).join(" ");
-                      const parts = [firstWords, brandName].filter(Boolean).join(" ");
-                      const suffix = modelNumber.trim();
-                      setBarcodeLabel(
-                        suffix ? `${parts} - ${suffix}` : parts,
-                      );
-                    }}
-                    className="text-[11px] text-primary hover:underline font-medium"
-                  >
-                    اقتراح تلقائي
-                  </button>
-                </div>
-                <Input
-                  value={barcodeLabel}
-                  onChange={(e) => setBarcodeLabel(e.target.value)}
-                  placeholder="مثال: قميص فورسيزون - 280"
-                  className="bg-muted/30"
-                  maxLength={120}
-                />
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">
-                  سعر الباركود
-                </Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={barcodePrice}
-                  onChange={(e) => setBarcodePrice(e.target.value)}
-                  placeholder="اتركه فارغاً لاستخدام سعر البيع"
-                  className="font-mono bg-muted/30"
-                />
-              </div>
-            </div>
-          </div>
-
-
-
           {/* SECTION: Classification */}
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">
@@ -985,29 +928,83 @@ export default function ProductForm() {
                 </div>
               );
             })()}
-
-
-            {/* Product Active Status - Edit mode only */}
-            {isEdit && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">
-                  حالة المنتج
-                </h3>
-                <div className="flex items-center justify-between bg-muted/30 rounded-xl p-4">
-                  <div>
-                    <Label className="text-sm font-medium text-foreground">
-                      تفعيل المنتج
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      المنتجات غير النشطة لا تظهر في قوائم البيع أو الشراء أو
-                      التقارير
-                    </p>
-                  </div>
-                  <Switch checked={isActive} onCheckedChange={setIsActive} />
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* SECTION: Barcode Label Settings */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">
+              إعدادات ملصق الباركود
+            </h3>
+            <p className="text-xs text-muted-foreground -mt-2">
+              هذه الحقول تُستخدم فقط عند طباعة ملصق الباركود ولا تؤثر على سعر البيع أو المحاسبة.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-sm font-medium text-foreground/80">
+                    مسمى الباركود
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const brandName = brands.find((b) => b.id === brandId)?.name || "";
+                      const firstWords = name.trim().split(/\s+/).slice(0, 2).join(" ");
+                      const parts = [firstWords, brandName].filter(Boolean).join(" ");
+                      const suffix = modelNumber.trim();
+                      setBarcodeLabel(
+                        suffix ? `${parts} - ${suffix}` : parts,
+                      );
+                    }}
+                    className="text-[11px] text-primary hover:underline font-medium"
+                  >
+                    اقتراح تلقائي
+                  </button>
+                </div>
+                <Input
+                  value={barcodeLabel}
+                  onChange={(e) => setBarcodeLabel(e.target.value)}
+                  placeholder="مثال: قميص فورسيزون - 280"
+                  className="bg-muted/30"
+                  maxLength={120}
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-foreground/80 mb-1.5 block">
+                  سعر الباركود
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={barcodePrice}
+                  onChange={(e) => setBarcodePrice(e.target.value)}
+                  placeholder="اتركه فارغاً لاستخدام سعر البيع"
+                  className="font-mono bg-muted/30"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Product Active Status - Edit mode only */}
+          {isEdit && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-foreground border-b border-border pb-3">
+                حالة المنتج
+              </h3>
+              <div className="flex items-center justify-between bg-muted/30 rounded-xl p-4">
+                <div>
+                  <Label className="text-sm font-medium text-foreground">
+                    تفعيل المنتج
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    المنتجات غير النشطة لا تظهر في قوائم البيع أو الشراء أو
+                    التقارير
+                  </p>
+                </div>
+                <Switch checked={isActive} onCheckedChange={setIsActive} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
