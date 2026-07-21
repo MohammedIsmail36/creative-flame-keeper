@@ -184,6 +184,8 @@ CREATE TABLE IF NOT EXISTS public.products (
   unit_id uuid REFERENCES public.product_units(id),
   brand_id uuid REFERENCES public.product_brands(id),
   barcode text,
+  barcode_label text,
+  barcode_price numeric(12,2),
   model_number text,
   main_image_url text,
   purchase_price numeric NOT NULL DEFAULT 0,
