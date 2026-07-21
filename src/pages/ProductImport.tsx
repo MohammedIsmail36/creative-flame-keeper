@@ -38,6 +38,8 @@ interface ImportRow {
   brand?: string;
   model_number?: string;
   barcode?: string;
+  barcode_label?: string;
+  barcode_price?: number | null;
   purchase_price?: number;
   selling_price?: number;
   quantity_on_hand?: number;
