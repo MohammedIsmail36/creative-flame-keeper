@@ -8,33 +8,43 @@ Deno.serve(async (req) => {
 
   try {
     const dbUrl = Deno.env.get("SUPABASE_DB_URL") || Deno.env.get("DATABASE_URL") || "not-set";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "not-set";
-
-    let connectionResult = "not-tested";
-    let connectionUser = null;
-    let connectionError = null;
+    let result: any = {};
 
     if (dbUrl && dbUrl !== "not-set") {
       try {
         const sql = postgres(dbUrl);
-        const result = await sql`SELECT current_user as u, session_user as s`;
-        connectionResult = "ok";
-        connectionUser = result[0];
+
+        // Test multi-statement
+        const multi = await sql.unsafe("SELECT 1 as a; SELECT 2 as b;");
+
+        // Test copy from stdin
+        let copyResult: any = null;
+        let copyError: string | null = null;
+        try {
+          await sql`CREATE TEMP TABLE tmp_test (id int, name text)`;
+          await sql.unsafe("COPY tmp_test FROM STDIN WITH (FORMAT text)");
+          // postgres doesn't support stdin this way easily
+          copyResult = "skipped-unsafe";
+        } catch (e) {
+          copyError = e.message;
+        }
+
         await sql.end();
+
+        result = {
+          multi_statement: multi,
+          copy_error: copyError,
+          copy_result: copyResult,
+        };
       } catch (e) {
-        connectionResult = "error";
-        connectionError = e.message;
+        result = { error: e.message };
       }
+    } else {
+      result = { error: "DB URL not set" };
     }
 
     return new Response(
-      JSON.stringify({
-        db_url_set: dbUrl !== "not-set" ? "yes" : "no",
-        service_role_set: serviceRoleKey !== "not-set" ? "yes" : "no",
-        connection_result: connectionResult,
-        connection_user: connectionUser,
-        connection_error: connectionError,
-      }),
+      JSON.stringify(result),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
