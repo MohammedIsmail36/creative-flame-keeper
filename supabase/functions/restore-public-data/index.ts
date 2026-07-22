@@ -1,5 +1,5 @@
 import postgres from "npm:postgres@3";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const RESTORE_BUCKET = "restore-backups";
