@@ -12,29 +12,21 @@ Deno.serve(async (req) => {
 
     if (dbUrl && dbUrl !== "not-set") {
       try {
-        const sql = postgres(dbUrl);
+        const sql = postgres(dbUrl, { max: 1, timeout: 5 });
 
         // Test multi-statement
         const multi = await sql.unsafe("SELECT 1 as a; SELECT 2 as b;");
 
-        // Test copy from stdin
-        let copyResult: any = null;
-        let copyError: string | null = null;
-        try {
-          await sql`CREATE TEMP TABLE tmp_test (id int, name text)`;
-          await sql.unsafe("COPY tmp_test FROM STDIN WITH (FORMAT text)");
-          // postgres doesn't support stdin this way easily
-          copyResult = "skipped-unsafe";
-        } catch (e) {
-          copyError = e.message;
-        }
+        // Test simple CREATE TEMP + INSERT
+        await sql`CREATE TEMP TABLE tmp_test2 (id int)`;
+        await sql`INSERT INTO tmp_test2 VALUES (1), (2)`;
+        const rows = await sql`SELECT * FROM tmp_test2`;
 
         await sql.end();
 
         result = {
           multi_statement: multi,
-          copy_error: copyError,
-          copy_result: copyResult,
+          temp_rows: rows,
         };
       } catch (e) {
         result = { error: e.message };
