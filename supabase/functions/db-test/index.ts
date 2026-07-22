@@ -1,3 +1,4 @@
+import postgres from "npm:postgres@3";
 import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
