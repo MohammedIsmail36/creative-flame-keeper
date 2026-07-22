@@ -1,4 +1,3 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
@@ -7,18 +6,33 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const dbUrl = Deno.env.get("SUPABASE_DB_URL") || Deno.env.get("DATABASE_URL") || "not-set";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "not-set";
 
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data, error } = await adminClient.rpc("pg_current_user");
+    let connectionResult = "not-tested";
+    let connectionUser = null;
+    let connectionError = null;
+
+    if (dbUrl && dbUrl !== "not-set") {
+      try {
+        const sql = postgres(dbUrl);
+        const result = await sql`SELECT current_user as u, session_user as s`;
+        connectionResult = "ok";
+        connectionUser = result[0];
+        await sql.end();
+      } catch (e) {
+        connectionResult = "error";
+        connectionError = e.message;
+      }
+    }
 
     return new Response(
       JSON.stringify({
         db_url_set: dbUrl !== "not-set" ? "yes" : "no",
-        current_user: data,
-        error: error?.message || null,
+        service_role_set: serviceRoleKey !== "not-set" ? "yes" : "no",
+        connection_result: connectionResult,
+        connection_user: connectionUser,
+        connection_error: connectionError,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
