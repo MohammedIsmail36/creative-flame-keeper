@@ -316,9 +316,9 @@ Deno.serve(async (req) => {
         const fks = await getAllForeignKeys(tx);
         log(`Found ${fks.length} foreign keys to drop`);
         for (const fk of fks) {
-          await tx`ALTER TABLE ${tx(
-            fk.schema_name
-          )}.${tx(fk.table_name)} DROP CONSTRAINT ${tx(fk.conname)}`;
+          await tx.unsafe(
+            `ALTER TABLE "public"."${fk.table_name}" DROP CONSTRAINT "${fk.conname}"`
+          );
         }
         log("Dropped foreign keys");
 
@@ -330,9 +330,8 @@ Deno.serve(async (req) => {
           ORDER BY table_name;
         `;
         const tableNames = tables.map((t) => t.table_name);
-        await tx`TRUNCATE TABLE ${tableNames.map((name) =>
-          tx("public", name)
-        )} CASCADE`;
+        const tableList = tableNames.map((n) => `"public"."${n}"`).join(", ");
+        await tx.unsafe(`TRUNCATE TABLE ${tableList} CASCADE`);
         log(`Truncated ${tableNames.length} public tables`);
 
         const sequences = await tx<{ seq: string; table_name: string; col: string }[]>`
@@ -346,7 +345,7 @@ Deno.serve(async (req) => {
         `;
         for (const s of sequences) {
           if (s.seq) {
-            await tx`SELECT setval(${s.seq}, 1, false)`;
+            await tx.unsafe(`SELECT setval('${s.seq}', 1, false)`);
           }
         }
         log(`Reset ${sequences.length} sequences`);
@@ -363,15 +362,15 @@ Deno.serve(async (req) => {
               AND column_name = 'created_by'
           `;
           if (cols.length > 0) {
-            await tx`UPDATE ${tx("public", t)} SET created_by = NULL`;
+            await tx.unsafe(`UPDATE "public"."${t}" SET created_by = NULL`);
           }
         }
         log("Cleared created_by references");
 
         for (const fk of fks) {
-          await tx`ALTER TABLE ${tx(fk.schema_name)}.${tx(
-            fk.table_name
-          )} ADD CONSTRAINT ${tx(fk.conname)} ${tx.unsafe(fk.def)}`;
+          await tx.unsafe(
+            `ALTER TABLE "public"."${fk.table_name}" ADD CONSTRAINT "${fk.conname}" ${fk.def}`
+          );
         }
         log("Re-added foreign keys");
 
