@@ -12,24 +12,24 @@ Deno.serve(async (req) => {
 
     if (dbUrl && dbUrl !== "not-set") {
       try {
-        const sql = postgres(dbUrl, { max: 1, timeout: 5 });
+        const sql = postgres(dbUrl, { max: 1, timeout: 10 });
 
-        // Test multi-statement
-        const multi = await sql.unsafe("SELECT 1 as a; SELECT 2 as b;");
+        await sql`CREATE TEMP TABLE tmp_copy (id int, name text)`;
 
-        // Test simple CREATE TEMP + INSERT
-        await sql`CREATE TEMP TABLE tmp_test2 (id int)`;
-        await sql`INSERT INTO tmp_test2 VALUES (1), (2)`;
-        const rows = await sql`SELECT * FROM tmp_test2`;
+        const writable = await sql`COPY tmp_copy FROM STDIN`.writable();
+        const encoder = new TextEncoder();
+        const writer = writable.getWriter();
+        await writer.write(encoder.encode("1\tAlice\n"));
+        await writer.write(encoder.encode("2\tBob\n"));
+        await writer.close();
+
+        const rows = await sql`SELECT * FROM tmp_copy ORDER BY id`;
 
         await sql.end();
 
-        result = {
-          multi_statement: multi,
-          temp_rows: rows,
-        };
+        result = { copy_rows: rows };
       } catch (e) {
-        result = { error: e.message };
+        result = { error: e.message, stack: e.stack?.split("\n")?.slice(0, 5) };
       }
     } else {
       result = { error: "DB URL not set" };
