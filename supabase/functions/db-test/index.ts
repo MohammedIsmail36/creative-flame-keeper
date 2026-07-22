@@ -17,11 +17,11 @@ Deno.serve(async (req) => {
         await sql`CREATE TEMP TABLE tmp_copy (id int, name text)`;
 
         const writable = await sql`COPY tmp_copy FROM STDIN`.writable();
-        const encoder = new TextEncoder();
-        const writer = writable.getWriter();
-        await writer.write(encoder.encode("1\tAlice\n"));
-        await writer.write(encoder.encode("2\tBob\n"));
-        await writer.close();
+        writable.write("1\tAlice\n");
+        writable.write("2\tBob\n");
+        await new Promise<void>((resolve, reject) => {
+          writable.end((err: any) => (err ? reject(err) : resolve()));
+        });
 
         const rows = await sql`SELECT * FROM tmp_copy ORDER BY id`;
 
