@@ -157,16 +157,20 @@ async function createAdminUser(
   const email = "admin@system.com";
   const fullName = "مدير النظام";
 
-  // Remove existing admin user with the same email to avoid conflicts
+  // Remove existing user with the same email to avoid conflicts
   try {
-    const { data: existingUser } = await supabase.auth.admin.getUserByEmail(
-      email
-    );
-    if (existingUser?.user?.id) {
-      await supabase.auth.admin.deleteUser(existingUser.user.id);
+    const { data, error } = await supabase.auth.admin.listUsers({
+      perPage: 100,
+      page: 1,
+    });
+    if (!error && data?.users) {
+      const existing = data.users.find((u) => u.email === email);
+      if (existing?.id) {
+        await supabase.auth.admin.deleteUser(existing.id);
+      }
     }
   } catch {
-    // ignore if lookup/delete fails
+    // ignore lookup/delete errors
   }
 
   const { data, error } = await supabase.auth.admin.createUser({
