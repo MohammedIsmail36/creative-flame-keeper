@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
   };
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("SUPABASE_URL");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const dbUrl = Deno.env.get("SUPABASE_DB_URL") || Deno.env.get("DATABASE_URL");
 
