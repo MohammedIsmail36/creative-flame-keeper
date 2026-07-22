@@ -367,6 +367,9 @@ Deno.serve(async (req) => {
         }
         log("Cleared created_by references");
 
+        // Dump sets search_path to ''; reset it so unqualified FK references work
+        await tx`SET search_path = public`;
+
         for (const fk of fks) {
           await tx.unsafe(
             `ALTER TABLE "public"."${fk.table_name}" ADD CONSTRAINT "${fk.conname}" ${fk.def}`
