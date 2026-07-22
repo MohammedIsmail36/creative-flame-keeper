@@ -7,6 +7,7 @@ const RESTORE_FILE = "public_data_clean.sql";
 
 interface FkConstraint {
   conname: string;
+  schema_name: string;
   table_name: string;
   def: string;
 }
@@ -28,12 +29,15 @@ async function getAllForeignKeys(sql: postgres.Sql): Promise<FkConstraint[]> {
   const rows = await sql<FkConstraint[]>`
     SELECT
       con.conname AS conname,
-      con.conrelid::regclass::text AS table_name,
+      n.nspname AS schema_name,
+      c.relname AS table_name,
       pg_get_constraintdef(con.oid) AS def
     FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.contype = 'f'
-      AND con.connamespace = 'public'::regnamespace
-    ORDER BY con.conrelid::regclass::text, con.conname;
+      AND n.nspname = 'public'
+    ORDER BY c.relname, con.conname;
   `;
   return rows;
 }
@@ -43,40 +47,42 @@ async function executeCopyBlock(
   copyLine: string,
   dataLines: string[]
 ): Promise<void> {
-  // copyLine example: COPY public.accounts (id, ...) FROM stdin;
   const copySql = copyLine.replace(/FROM stdin;?\s*$/, "FROM STDIN");
   const writable = await sql.unsafe(copySql).writable();
 
   await new Promise<void>((resolve, reject) => {
     writable.on("error", reject);
 
-    let pending = 0;
-    let finished = false;
     const data = dataLines.join("");
     const chunkSize = 64 * 1024;
+    let pending = 0;
+    let nextIndex = 0;
 
-    const writeChunk = (start: number) => {
-      if (start >= data.length) {
-        if (pending === 0) {
-          finished = true;
-          writable.end(resolve);
-        }
+    const writeNext = () => {
+      if (nextIndex >= data.length && pending === 0) {
+        writable.end(resolve);
         return;
       }
-      const end = Math.min(start + chunkSize, data.length);
-      const chunk = data.slice(start, end);
-      pending++;
-      writable.write(chunk, (err: any) => {
-        pending--;
-        if (err) {
-          reject(err);
-          return;
+      while (nextIndex < data.length) {
+        const end = Math.min(nextIndex + chunkSize, data.length);
+        const chunk = data.slice(nextIndex, end);
+        nextIndex = end;
+        pending++;
+        writable.write(chunk, (err: any) => {
+          pending--;
+          if (err) {
+            reject(err);
+            return;
+          }
+          writeNext();
+        });
+        if (pending >= 4) {
+          break;
         }
-        writeChunk(end);
-      });
+      }
     };
 
-    writeChunk(0);
+    writeNext();
   });
 }
 
@@ -102,7 +108,9 @@ async function parseAndExecuteSql(
       await sql.unsafe(stmt);
       statementCount++;
     } catch (e: any) {
-      throw new Error(`SQL execution failed at statement #${statementCount}: ${e.message}\n${stmt.slice(0, 200)}`);
+      throw new Error(
+        `SQL execution failed at statement #${statementCount}: ${e.message}\n${stmt.slice(0, 300)}`
+      );
     }
   };
 
@@ -137,7 +145,9 @@ async function parseAndExecuteSql(
   }
 
   await flushNormal();
-  onProgress(`Executed ${statementCount} statements and ${copyCount} COPY blocks`);
+  onProgress(
+    `Executed ${statementCount} statements and ${copyCount} COPY blocks`
+  );
 }
 
 async function createAdminUser(
@@ -146,6 +156,18 @@ async function createAdminUser(
   const password = Deno.env.get("DEFAULT_ADMIN_PASSWORD") || "ChangeMe123!";
   const email = "admin@system.com";
   const fullName = "مدير النظام";
+
+  // Remove existing admin user with the same email to avoid conflicts
+  try {
+    const { data: existingUser } = await supabase.auth.admin.getUserByEmail(
+      email
+    );
+    if (existingUser?.user?.id) {
+      await supabase.auth.admin.deleteUser(existingUser.user.id);
+    }
+  } catch {
+    // ignore if lookup/delete fails
+  }
 
   const { data, error } = await supabase.auth.admin.createUser({
     email,
@@ -160,7 +182,6 @@ async function createAdminUser(
 
   const userId = data.user.id;
 
-  // Create profile and role
   await supabase.from("profiles").upsert({
     id: userId,
     full_name: fullName,
@@ -174,6 +195,62 @@ async function createAdminUser(
   return { id: userId, email };
 }
 
+async function authorizeRequest(
+  req: Request,
+  supabaseUrl: string,
+  serviceClient: ReturnType<typeof createClient>
+): Promise<{ authorized: boolean; error?: string }> {
+  const authHeader = req.headers.get("Authorization");
+  const body = await req.json().catch(() => ({}));
+  const secretKey = body?.secret_key || "";
+
+  // Check admin auth
+  if (authHeader) {
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    const callerClient = createClient(supabaseUrl, anonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data, error } = await callerClient.auth.getUser();
+    if (!error && data?.user) {
+      const { data: role } = await callerClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", data.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (role) {
+        return { authorized: true };
+      }
+    }
+  }
+
+  // Fallback: allow if there are no users and a secret key is provided
+  try {
+    const { data, error } = await serviceClient.auth.admin.listUsers({
+      perPage: 1,
+      page: 1,
+    });
+    if (!error && (data.users.length === 0 || data.users.length === 0)) {
+      const expectedSecret =
+        Deno.env.get("RESTORE_SECRET_KEY") ||
+        Deno.env.get("DEFAULT_ADMIN_PASSWORD") ||
+        "";
+      if (expectedSecret && secretKey === expectedSecret) {
+        return { authorized: true };
+      }
+      return {
+        authorized: false,
+        error: "Database is empty but no valid secret key was provided",
+      };
+    }
+  } catch {
+    // ignore auth check errors
+  }
+
+  return { authorized: false, error: "Admin authorization required" };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -182,7 +259,10 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response(
       JSON.stringify({ error: "Method not allowed" }),
-      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 
@@ -198,15 +278,28 @@ Deno.serve(async (req) => {
     const dbUrl = Deno.env.get("SUPABASE_DB_URL") || Deno.env.get("DATABASE_URL");
 
     if (!supabaseUrl || !serviceRoleKey || !dbUrl) {
-      throw new Error("Missing required environment variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_DB_URL");
+      throw new Error(
+        "Missing required environment variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_DB_URL"
+      );
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    const authz = await authorizeRequest(req, supabaseUrl, serviceClient);
+    if (!authz.authorized) {
+      return new Response(
+        JSON.stringify({ error: authz.error, logs }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     log("Downloading SQL backup from storage...");
-    const sqlText = await readSqlFromStorage(supabase);
+    const sqlText = await readSqlFromStorage(serviceClient);
     log(`Downloaded ${sqlText.length} bytes`);
 
     const sql = postgres(dbUrl, {
@@ -217,19 +310,18 @@ Deno.serve(async (req) => {
 
     try {
       await sql.begin(async (tx) => {
-        // Disable triggers inside the transaction to avoid interference from app triggers
         await tx`SET session_replication_role = replica`;
         log("Disabled triggers (session_replication_role = replica)");
 
-        // Find and drop all public FK constraints
         const fks = await getAllForeignKeys(tx);
         log(`Found ${fks.length} foreign keys to drop`);
         for (const fk of fks) {
-          await tx`ALTER TABLE ${tx(fk.table_name)} DROP CONSTRAINT ${tx(fk.conname)}`;
+          await tx`ALTER TABLE ${tx(
+            fk.schema_name
+          )}.${tx(fk.table_name)} DROP CONSTRAINT ${tx(fk.conname)}`;
         }
         log("Dropped foreign keys");
 
-        // Truncate all public tables in reverse dependency order
         const tables = await tx<{ table_name: string }[]>`
           SELECT table_name
           FROM information_schema.tables
@@ -238,11 +330,11 @@ Deno.serve(async (req) => {
           ORDER BY table_name;
         `;
         const tableNames = tables.map((t) => t.table_name);
-        // Attempt to truncate all tables. CASCADE handles residual references.
-        await tx`TRUNCATE TABLE ${tx(tableNames)} CASCADE`;
+        await tx`TRUNCATE TABLE ${tableNames.map((name) =>
+          tx("public", name)
+        )} CASCADE`;
         log(`Truncated ${tableNames.length} public tables`);
 
-        // Reset sequences for id columns
         const sequences = await tx<{ seq: string; table_name: string; col: string }[]>`
           SELECT
             pg_get_serial_sequence(format('%I.%I', table_schema, table_name), column_name) AS seq,
@@ -259,11 +351,9 @@ Deno.serve(async (req) => {
         }
         log(`Reset ${sequences.length} sequences`);
 
-        // Execute the cleaned SQL dump
         log("Executing SQL dump...");
         await parseAndExecuteSql(tx, sqlText, log);
 
-        // Clear all created_by references because auth users were not restored
         for (const t of tableNames) {
           const cols = await tx<{ column_name: string }[]>`
             SELECT column_name
@@ -273,14 +363,15 @@ Deno.serve(async (req) => {
               AND column_name = 'created_by'
           `;
           if (cols.length > 0) {
-            await tx`UPDATE ${tx(t)} SET created_by = NULL`;
+            await tx`UPDATE ${tx("public", t)} SET created_by = NULL`;
           }
         }
         log("Cleared created_by references");
 
-        // Re-add foreign keys
         for (const fk of fks) {
-          await tx`ALTER TABLE ${tx(fk.table_name)} ADD CONSTRAINT ${tx(fk.conname)} ${tx.unsafe(fk.def)}`;
+          await tx`ALTER TABLE ${tx(fk.schema_name)}.${tx(
+            fk.table_name
+          )} ADD CONSTRAINT ${tx(fk.conname)} ${tx.unsafe(fk.def)}`;
         }
         log("Re-added foreign keys");
 
@@ -292,9 +383,8 @@ Deno.serve(async (req) => {
       await sql.end();
     }
 
-    // Create admin user outside the DB transaction (uses auth API)
     log("Creating admin user...");
-    const admin = await createAdminUser(supabase);
+    const admin = await createAdminUser(serviceClient);
     log(`Created admin user ${admin.email} (${admin.id})`);
 
     return new Response(
@@ -303,9 +393,13 @@ Deno.serve(async (req) => {
         admin_email: admin.email,
         admin_id: admin.id,
         logs,
-        note: "Auth users were not restored from the backup. A fresh admin user has been created. Other users can be recreated from the app.",
+        note:
+          "Auth users were not restored from the backup. A fresh admin user has been created. Other users can be recreated from the app.",
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   } catch (err: any) {
     console.error(err);
@@ -315,7 +409,10 @@ Deno.serve(async (req) => {
         error: err.message,
         logs,
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 });
