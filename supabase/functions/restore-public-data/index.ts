@@ -208,6 +208,16 @@ async function authorizeRequest(
   const body = await req.json().catch(() => ({}));
   const secretKey = body?.secret_key || "";
 
+  const expectedSecret =
+    Deno.env.get("RESTORE_SECRET_KEY") ||
+    Deno.env.get("DEFAULT_ADMIN_PASSWORD") ||
+    "";
+
+  // Secret key grants full restore permission (used when roles are empty or untrusted)
+  if (expectedSecret && secretKey === expectedSecret) {
+    return { authorized: true };
+  }
+
   // Check admin auth
   if (authHeader) {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
@@ -227,29 +237,6 @@ async function authorizeRequest(
         return { authorized: true };
       }
     }
-  }
-
-  // Fallback: allow if there are no users and a secret key is provided
-  try {
-    const { data, error } = await serviceClient.auth.admin.listUsers({
-      perPage: 1,
-      page: 1,
-    });
-    if (!error && (data.users.length === 0 || data.users.length === 0)) {
-      const expectedSecret =
-        Deno.env.get("RESTORE_SECRET_KEY") ||
-        Deno.env.get("DEFAULT_ADMIN_PASSWORD") ||
-        "";
-      if (expectedSecret && secretKey === expectedSecret) {
-        return { authorized: true };
-      }
-      return {
-        authorized: false,
-        error: "Database is empty but no valid secret key was provided",
-      };
-    }
-  } catch {
-    // ignore auth check errors
   }
 
   return { authorized: false, error: "Admin authorization required" };
