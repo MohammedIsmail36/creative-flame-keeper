@@ -150,7 +150,7 @@ export default function ProductForm() {
         description: "لم يتم العثور على المنتج",
         variant: "destructive",
       });
-      navigate("/products");
+      goBackToList();
       return;
     }
     setCode(data.code);
@@ -421,7 +421,7 @@ export default function ProductForm() {
         description: isEdit ? "تم تعديل المنتج بنجاح" : "تم إضافة المنتج بنجاح",
       });
       setIsDirty(false); navGuard.allowNext();
-      navigate("/products");
+      goBackToList();
     } catch (error: any) {
       let msg = error.message;
       if (error.message?.includes("يوجد صنف بنفس الماركة ونفس رقم الموديل")) {
@@ -510,7 +510,7 @@ export default function ProductForm() {
           <>
             <Button
               variant="outline"
-              onClick={() => navigate("/products")}
+              onClick={() => goBackToList()}
               className="border-primary text-primary hover:bg-primary/5 rounded-xl px-6"
             >
               إلغاء
@@ -1017,7 +1017,7 @@ export default function ProductForm() {
       <div className="flex lg:hidden gap-3 pb-6">
         <Button
           variant="outline"
-          onClick={() => navigate("/products")}
+          onClick={() => goBackToList()}
           className="flex-1 py-6 border-primary text-primary rounded-xl font-bold"
         >
           إلغاء
