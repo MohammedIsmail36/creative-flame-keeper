@@ -769,10 +769,7 @@ export default function Products() {
 
   const hasFilters = categoryFilter !== "all" || stockFilter !== "all" || statusFilter !== "active" || search.trim();
   const clearFilters = () => {
-    setCategoryFilter("all");
-    setStockFilter("all");
-    setStatusFilter("active");
-    setSearch("");
+    updateParams({ q: null, cat: null, stock: null, status: null, page: null });
   };
 
   return (
