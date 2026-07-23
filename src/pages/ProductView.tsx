@@ -1336,7 +1336,7 @@ export default function ProductView() {
   useEffect(() => {
     if (error) {
       toast({ title: "خطأ", description: error, variant: "destructive" });
-      navigate("/products");
+      navigate(`/products${returnTo}`);
     }
   }, [error, navigate]);
 
