@@ -595,7 +595,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { formatProductDisplay } from "@/lib/product-utils";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   MOVEMENT_TYPE_LABELS_DETAIL,
   MOVEMENT_TYPE_COLORS,
