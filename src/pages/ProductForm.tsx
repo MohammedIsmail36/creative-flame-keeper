@@ -421,6 +421,9 @@ export default function ProductForm() {
         description: isEdit ? "تم تعديل المنتج بنجاح" : "تم إضافة المنتج بنجاح",
       });
       setIsDirty(false); navGuard.allowNext();
+      queryClient.invalidateQueries({ queryKey: ["products-list"] });
+      queryClient.invalidateQueries({ queryKey: ["products-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["products-usage"] });
       goBackToList();
     } catch (error: any) {
       let msg = error.message;
