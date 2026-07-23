@@ -102,18 +102,51 @@ function renderCategoryOptions(nodes: CategoryNode[], depth = 0): React.ReactNod
 export default function Products() {
   const { role } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
   const { settings } = useSettings();
 
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
-  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
-  const [search, setSearch] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const updateParams = (updates: Record<string, string | null>) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        Object.entries(updates).forEach(([k, v]) => {
+          if (v === null || v === undefined || v === "") next.delete(k);
+          else next.set(k, v);
+        });
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const search = searchParams.get("q") ?? "";
+  const categoryFilter = searchParams.get("cat") ?? "all";
+  const stockFilter = (searchParams.get("stock") as "all" | "low" | "out") || "all";
+  const statusFilter = (searchParams.get("status") as "active" | "inactive" | "all") || "active";
+  const pageIndex = Math.max(0, (parseInt(searchParams.get("page") ?? "1", 10) || 1) - 1);
+  const pageSize = Math.max(1, parseInt(searchParams.get("size") ?? String(PAGE_SIZE), 10) || PAGE_SIZE);
+
+  const setSearch = (v: string) => updateParams({ q: v || null, page: null });
+  const setCategoryFilter = (v: string) => updateParams({ cat: v === "all" ? null : v, page: null });
+  const setStockFilter = (v: "all" | "low" | "out") => updateParams({ stock: v === "all" ? null : v, page: null });
+  const setStatusFilter = (v: "active" | "inactive" | "all") =>
+    updateParams({ status: v === "active" ? null : v, page: null });
+
   const debouncedSearch = useDebouncedValue(search, 300);
 
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: PAGE_SIZE,
-  });
+  const pagination: PaginationState = { pageIndex, pageSize };
+  const setPagination = (
+    updater: PaginationState | ((p: PaginationState) => PaginationState),
+  ) => {
+    const next = typeof updater === "function" ? (updater as any)(pagination) : updater;
+    updateParams({
+      page: next.pageIndex === 0 ? null : String(next.pageIndex + 1),
+      size: next.pageSize === PAGE_SIZE ? null : String(next.pageSize),
+    });
+  };
 
   const [categories, setCategories] = useState<
     { id: string; name: string; parent_id: string | null; is_active: boolean }[]
