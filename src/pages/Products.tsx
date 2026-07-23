@@ -890,6 +890,23 @@ export default function Products() {
                 <SelectItem value="out">نفذت الكمية</SelectItem>
               </SelectContent>
             </Select>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) =>
+                setPagination({ pageIndex: 0, pageSize: parseInt(v, 10) || PAGE_SIZE })
+              }
+            >
+              <SelectTrigger className="w-28 bg-card border-border h-8 text-sm shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50, 100].map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n} / صفحة
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {hasFilters && (
               <Button
                 variant="outline"
