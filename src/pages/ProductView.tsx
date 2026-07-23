@@ -1450,7 +1450,7 @@ export default function ProductView() {
             {canEdit && (
               <div className="flex items-center justify-start gap-3 mb-6">
                 <Button
-                  onClick={() => navigate(`/products/${id}/edit`)}
+                  onClick={() => navigate(`/products/${id}/edit`, { state: { returnTo } })}
                   className="gap-2 font-bold shadow-sm"
                 >
                   <Pencil className="h-4 w-4" />
