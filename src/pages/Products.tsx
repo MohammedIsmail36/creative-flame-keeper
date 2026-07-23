@@ -939,7 +939,9 @@ export default function Products() {
               showSearch={false}
               isLoading={isLoading}
               emptyMessage="لا توجد منتجات"
-              onRowClick={(p) => navigate(`/products/${p.id}`)}
+              onRowClick={(p) =>
+                navigate(`/products/${p.id}`, { state: { returnTo: location.search } })
+              }
               globalFilter={search}
               onGlobalFilterChange={setSearch}
               manualPagination
@@ -947,7 +949,7 @@ export default function Products() {
               totalRows={totalCount}
               pagination={pagination}
               onPaginationChange={setPagination}
-              pageSize={PAGE_SIZE}
+              pageSize={pageSize}
               toolbarContent={toolbar}
             />
           );
@@ -969,8 +971,12 @@ export default function Products() {
               usageMap={usageMap as Record<string, number>}
               canEdit={canEdit}
               isAdmin={isAdmin}
-              onView={(p) => navigate(`/products/${p.id}`)}
-              onEdit={(p) => navigate(`/products/${p.id}/edit`)}
+              onView={(p) =>
+                navigate(`/products/${p.id}`, { state: { returnTo: location.search } })
+              }
+              onEdit={(p) =>
+                navigate(`/products/${p.id}/edit`, { state: { returnTo: location.search } })
+              }
               onToggleStatus={(p) => toggleProductStatus(p as any)}
               onDelete={(p) => hardDeleteProduct(p as any)}
               pagination={pagination}
