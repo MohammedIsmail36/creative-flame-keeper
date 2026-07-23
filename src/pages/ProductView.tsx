@@ -595,7 +595,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { formatProductDisplay } from "@/lib/product-utils";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   MOVEMENT_TYPE_LABELS_DETAIL,
   MOVEMENT_TYPE_COLORS,
@@ -1110,7 +1110,9 @@ export default function ProductView() {
   const { role } = useAuth();
   const { settings } = useSettings();
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
+  const returnTo = (location.state as any)?.returnTo || "";
   const currency = settings?.default_currency ?? "EGP";
 
   const {
@@ -1334,7 +1336,7 @@ export default function ProductView() {
   useEffect(() => {
     if (error) {
       toast({ title: "خطأ", description: error, variant: "destructive" });
-      navigate("/products");
+      navigate(`/products${returnTo}`);
     }
   }, [error, navigate]);
 
@@ -1448,7 +1450,7 @@ export default function ProductView() {
             {canEdit && (
               <div className="flex items-center justify-start gap-3 mb-6">
                 <Button
-                  onClick={() => navigate(`/products/${id}/edit`)}
+                  onClick={() => navigate(`/products/${id}/edit`, { state: { returnTo } })}
                   className="gap-2 font-bold shadow-sm"
                 >
                   <Pencil className="h-4 w-4" />

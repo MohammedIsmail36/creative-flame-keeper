@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -101,18 +102,51 @@ function renderCategoryOptions(nodes: CategoryNode[], depth = 0): React.ReactNod
 export default function Products() {
   const { role } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
   const { settings } = useSettings();
 
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
-  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
-  const [search, setSearch] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const updateParams = (updates: Record<string, string | null>) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        Object.entries(updates).forEach(([k, v]) => {
+          if (v === null || v === undefined || v === "") next.delete(k);
+          else next.set(k, v);
+        });
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const search = searchParams.get("q") ?? "";
+  const categoryFilter = searchParams.get("cat") ?? "all";
+  const stockFilter = (searchParams.get("stock") as "all" | "low" | "out") || "all";
+  const statusFilter = (searchParams.get("status") as "active" | "inactive" | "all") || "active";
+  const pageIndex = Math.max(0, (parseInt(searchParams.get("page") ?? "1", 10) || 1) - 1);
+  const pageSize = Math.max(1, parseInt(searchParams.get("size") ?? String(PAGE_SIZE), 10) || PAGE_SIZE);
+
+  const setSearch = (v: string) => updateParams({ q: v || null, page: null });
+  const setCategoryFilter = (v: string) => updateParams({ cat: v === "all" ? null : v, page: null });
+  const setStockFilter = (v: "all" | "low" | "out") => updateParams({ stock: v === "all" ? null : v, page: null });
+  const setStatusFilter = (v: "active" | "inactive" | "all") =>
+    updateParams({ status: v === "active" ? null : v, page: null });
+
   const debouncedSearch = useDebouncedValue(search, 300);
 
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: PAGE_SIZE,
-  });
+  const pagination: PaginationState = { pageIndex, pageSize };
+  const setPagination = (
+    updater: PaginationState | ((p: PaginationState) => PaginationState),
+  ) => {
+    const next = typeof updater === "function" ? (updater as any)(pagination) : updater;
+    updateParams({
+      page: next.pageIndex === 0 ? null : String(next.pageIndex + 1),
+      size: next.pageSize === PAGE_SIZE ? null : String(next.pageSize),
+    });
+  };
 
   const [categories, setCategories] = useState<
     { id: string; name: string; parent_id: string | null; is_active: boolean }[]
@@ -265,9 +299,7 @@ export default function Products() {
     },
   });
 
-  React.useEffect(() => {
-    setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [statusFilter, stockFilter, categoryFilter, debouncedSearch]);
+  // (page reset is handled inside each filter setter; no effect needed)
 
   const toggleProductStatus = async (product: ProductRow) => {
     const newStatus = !product.is_active;
@@ -737,10 +769,7 @@ export default function Products() {
 
   const hasFilters = categoryFilter !== "all" || stockFilter !== "all" || statusFilter !== "active" || search.trim();
   const clearFilters = () => {
-    setCategoryFilter("all");
-    setStockFilter("all");
-    setStatusFilter("active");
-    setSearch("");
+    updateParams({ q: null, cat: null, stock: null, status: null, page: null });
   };
 
   return (
@@ -861,6 +890,23 @@ export default function Products() {
                 <SelectItem value="out">نفذت الكمية</SelectItem>
               </SelectContent>
             </Select>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) =>
+                setPagination({ pageIndex: 0, pageSize: parseInt(v, 10) || PAGE_SIZE })
+              }
+            >
+              <SelectTrigger className="w-28 bg-card border-border h-8 text-sm shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50, 100].map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n} / صفحة
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {hasFilters && (
               <Button
                 variant="outline"
@@ -893,7 +939,9 @@ export default function Products() {
               showSearch={false}
               isLoading={isLoading}
               emptyMessage="لا توجد منتجات"
-              onRowClick={(p) => navigate(`/products/${p.id}`)}
+              onRowClick={(p) =>
+                navigate(`/products/${p.id}`, { state: { returnTo: location.search } })
+              }
               globalFilter={search}
               onGlobalFilterChange={setSearch}
               manualPagination
@@ -901,7 +949,7 @@ export default function Products() {
               totalRows={totalCount}
               pagination={pagination}
               onPaginationChange={setPagination}
-              pageSize={PAGE_SIZE}
+              pageSize={pageSize}
               toolbarContent={toolbar}
             />
           );
@@ -923,8 +971,12 @@ export default function Products() {
               usageMap={usageMap as Record<string, number>}
               canEdit={canEdit}
               isAdmin={isAdmin}
-              onView={(p) => navigate(`/products/${p.id}`)}
-              onEdit={(p) => navigate(`/products/${p.id}/edit`)}
+              onView={(p) =>
+                navigate(`/products/${p.id}`, { state: { returnTo: location.search } })
+              }
+              onEdit={(p) =>
+                navigate(`/products/${p.id}/edit`, { state: { returnTo: location.search } })
+              }
               onToggleStatus={(p) => toggleProductStatus(p as any)}
               onDelete={(p) => hardDeleteProduct(p as any)}
               pagination={pagination}

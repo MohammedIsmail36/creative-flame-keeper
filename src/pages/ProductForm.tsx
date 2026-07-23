@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigationGuard } from "@/hooks/use-navigation-guard";
 import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { FormFieldError } from "@/components/FormFieldError";
@@ -54,6 +55,10 @@ interface CategoryItem {
 export default function ProductForm() {
   const { role } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const returnTo = (location.state as any)?.returnTo || "";
+  const goBackToList = () => navigate(`/products${returnTo}`);
   const { id } = useParams();
   const isEdit = !!id;
   const { settings } = useSettings();
@@ -145,7 +150,7 @@ export default function ProductForm() {
         description: "لم يتم العثور على المنتج",
         variant: "destructive",
       });
-      navigate("/products");
+      goBackToList();
       return;
     }
     setCode(data.code);
@@ -416,7 +421,10 @@ export default function ProductForm() {
         description: isEdit ? "تم تعديل المنتج بنجاح" : "تم إضافة المنتج بنجاح",
       });
       setIsDirty(false); navGuard.allowNext();
-      navigate("/products");
+      queryClient.invalidateQueries({ queryKey: ["products-list"] });
+      queryClient.invalidateQueries({ queryKey: ["products-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["products-usage"] });
+      goBackToList();
     } catch (error: any) {
       let msg = error.message;
       if (error.message?.includes("يوجد صنف بنفس الماركة ونفس رقم الموديل")) {
@@ -505,7 +513,7 @@ export default function ProductForm() {
           <>
             <Button
               variant="outline"
-              onClick={() => navigate("/products")}
+              onClick={() => goBackToList()}
               className="border-primary text-primary hover:bg-primary/5 rounded-xl px-6"
             >
               إلغاء
@@ -1012,7 +1020,7 @@ export default function ProductForm() {
       <div className="flex lg:hidden gap-3 pb-6">
         <Button
           variant="outline"
-          onClick={() => navigate("/products")}
+          onClick={() => goBackToList()}
           className="flex-1 py-6 border-primary text-primary rounded-xl font-bold"
         >
           إلغاء
