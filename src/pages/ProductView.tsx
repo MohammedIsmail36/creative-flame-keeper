@@ -1110,7 +1110,9 @@ export default function ProductView() {
   const { role } = useAuth();
   const { settings } = useSettings();
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
+  const returnTo = (location.state as any)?.returnTo || "";
   const currency = settings?.default_currency ?? "EGP";
 
   const {
