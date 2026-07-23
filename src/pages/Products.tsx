@@ -299,9 +299,7 @@ export default function Products() {
     },
   });
 
-  React.useEffect(() => {
-    setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [statusFilter, stockFilter, categoryFilter, debouncedSearch]);
+  // (page reset is handled inside each filter setter; no effect needed)
 
   const toggleProductStatus = async (product: ProductRow) => {
     const newStatus = !product.is_active;
