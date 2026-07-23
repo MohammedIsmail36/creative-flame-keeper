@@ -55,6 +55,10 @@ interface CategoryItem {
 export default function ProductForm() {
   const { role } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const returnTo = (location.state as any)?.returnTo || "";
+  const goBackToList = () => navigate(`/products${returnTo}`);
   const { id } = useParams();
   const isEdit = !!id;
   const { settings } = useSettings();
