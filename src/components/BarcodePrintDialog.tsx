@@ -52,10 +52,7 @@ export function BarcodePrintDialog({ open, onOpenChange, products }: Props) {
     return PRESET_SIZES[sizeKey] ?? PRESET_SIZES[DEFAULT_SIZE_KEY];
   }, [sizeKey, customW, customH]);
 
-  const opts = useMemo(
-    () => ({ size, showName, showPrice, showCode, currency }),
-    [size, showName, showPrice, showCode, currency],
-  );
+  const opts = { size, showName, showPrice, showCode, currency };
 
   const previewHtml = useMemo(() => {
     if (!products.length) return "";
