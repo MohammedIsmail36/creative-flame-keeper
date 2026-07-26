@@ -328,7 +328,7 @@ function generateBarcodeSvg(value: string): string {
         margin: 0,
         marginLeft: 6,
         marginRight: 6,
-        height: 80,
+        height: 60,
         width: 2.8,
       });
       svg.setAttribute("preserveAspectRatio", "none");
@@ -337,17 +337,17 @@ function generateBarcodeSvg(value: string): string {
         "style",
         "width:100%;height:100%;max-height:100%;display:block;overflow:visible;shape-rendering:crispEdges;",
       );
-      // Fine-tune the human-readable line: pull guard digits closer to the
-      // bars and add letter-spacing to the two 5-digit middle groups.
+      // Pull guard digits closer to bars and space out the inner 5-digit groups.
       const texts = svg.querySelectorAll("text");
       if (texts.length >= 4) {
         const first = texts[0] as SVGTextElement;
-        first.setAttribute("x", String(parseFloat(first.getAttribute("x") || "0") + 6));
+        first.setAttribute("x", String(parseFloat(first.getAttribute("x") || "0") + 12));
         const last = texts[texts.length - 1] as SVGTextElement;
-        last.setAttribute("x", String(parseFloat(last.getAttribute("x") || "0") - 6));
+        last.setAttribute("x", String(parseFloat(last.getAttribute("x") || "0") - 12));
         for (let i = 1; i <= texts.length - 2; i++) {
-          (texts[i] as SVGTextElement).setAttribute("letter-spacing", "2");
+          (texts[i] as SVGTextElement).setAttribute("letter-spacing", "5");
         }
+      }
       }
       return new XMLSerializer().serializeToString(svg);
     }
