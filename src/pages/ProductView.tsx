@@ -638,7 +638,9 @@ import {
   Info,
   ExternalLink,
   X as XIcon,
+  Printer,
 } from "lucide-react";
+import { BarcodePrintDialog } from "@/components/BarcodePrintDialog";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
