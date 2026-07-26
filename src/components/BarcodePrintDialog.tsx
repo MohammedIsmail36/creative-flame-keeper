@@ -55,7 +55,7 @@ export function BarcodePrintDialog({ open, onOpenChange, products }: Props) {
     return PRESET_SIZES[sizeKey] || PRESET_SIZES[DEFAULT_SIZE_KEY];
   }, [sizeKey, customW, customH]);
 
-  const currency = (settings as any)?.currency_symbol || "EGP";
+  const currency = (settings as any)?.default_currency || "EGP";
 
   const opts = { size, showName, showPrice, showCode, currency };
 
