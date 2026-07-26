@@ -160,7 +160,7 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
   const titleFs = Math.max(2, Math.min(3.2, (widthMm * 1.55) / Math.max(name.length, 1)));
   const codeFs = Math.max(1.9, Math.min(2.4, heightMm * 0.08));
   const priceFs = Math.max(2.8, Math.min(3.8, heightMm * 0.12));
-  const currencyFs = Math.max(1.7, Math.min(2.1, heightMm * 0.067));
+  const currencyFs = Math.max(2.4, Math.min(3.0, heightMm * 0.095));
 
   return `
     <div class="lbl" style="width:${widthMm}mm;height:${heightMm}mm;background:white;padding:2.2mm;overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;color:black;font-family:'Tajawal',system-ui,sans-serif;page-break-after:always;page-break-inside:avoid;">
@@ -173,9 +173,9 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
       <div class="lbl-bottom" style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:1.2mm;flex-shrink:0;direction:rtl;">
         ${
           opts.showPrice
-            ? `<div class="lbl-price" style="text-align:right;line-height:1;display:flex;align-items:baseline;gap:.6mm;direction:rtl;">
-               <span class="lbl-currency" style="writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:${currencyFs}mm;font-weight:700;letter-spacing:.2mm;">${escapeHtml(opts.currency)}</span>
-               <span class="lbl-value" style="direction:ltr;font-size:${priceFs}mm;font-weight:800;">${formatPrice(price)}</span>
+            ? `<div class="lbl-price" style="text-align:right;line-height:1;display:flex;align-items:center;gap:.8mm;direction:rtl;">
+               <span class="lbl-currency" style="writing-mode:vertical-rl;text-orientation:mixed;font-size:${currencyFs}mm;font-weight:800;letter-spacing:.15mm;line-height:1;">${escapeHtml(opts.currency)}</span>
+               <span class="lbl-value" style="direction:ltr;font-size:${priceFs}mm;font-weight:800;line-height:1;">${formatPrice(price)}</span>
              </div>`
             : `<div></div>`
         }
