@@ -803,6 +803,15 @@ export default function Products() {
         description="عرض وتتبع كافة الأصناف المتوفرة في المخازن."
         actions={
           <>
+            <Button
+              variant="outline"
+              className="gap-2 shadow-sm"
+              onClick={() => openPrintFor(products.filter((p) => !!p.barcode))}
+              disabled={isLoading || products.filter((p) => !!p.barcode).length === 0}
+            >
+              <Printer className="h-4 w-4" />
+              طباعة الباركود
+            </Button>
             {canEdit && (
               <>
                 <Button variant="outline" className="gap-2 shadow-sm" onClick={() => navigate("/products/import")}>
