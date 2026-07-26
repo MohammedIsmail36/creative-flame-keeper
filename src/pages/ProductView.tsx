@@ -1450,8 +1450,8 @@ export default function ProductView() {
                 {product.description}
               </p>
             )}
-            {canEdit && (
-              <div className="flex items-center justify-start gap-3 mb-6">
+            <div className="flex items-center justify-start gap-3 mb-6">
+              {canEdit && (
                 <Button
                   onClick={() => navigate(`/products/${id}/edit`, { state: { returnTo } })}
                   className="gap-2 font-bold shadow-sm"
@@ -1459,8 +1459,16 @@ export default function ProductView() {
                   <Pencil className="h-4 w-4" />
                   تعديل
                 </Button>
-              </div>
-            )}
+              )}
+              <Button
+                variant="outline"
+                onClick={() => setPrintOpen(true)}
+                className="gap-2 font-bold shadow-sm"
+              >
+                <Printer className="h-4 w-4" />
+                طباعة الباركود
+              </Button>
+            </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
