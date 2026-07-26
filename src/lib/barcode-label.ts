@@ -47,16 +47,17 @@ function generateBarcodeSvg(value: string, widthMm: number, heightMm: number): s
     const svg = bwipjs.toSVG({
       bcid: isEan13 ? "ean13" : "code128",
       text: cleaned || "0000000000000",
-      scale: 2,
+      scale: 3,
       height: heightMm,
       width: widthMm,
       includetext: true,
-      textxalign: "center",
+      textxalign: isEan13 ? undefined : "center",
+      textfont: "OCR-B",
+      textsize: isEan13 ? 12 : 10,
+      textyoffset: 1.5,
       guardwhitespace: isEan13,
-      textsize: 10,
-      textyoffset: 1,
       backgroundcolor: "FFFFFF",
-    });
+    } as any);
     return svg;
   } catch {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30"><text x="50" y="20" text-anchor="middle" font-size="10" fill="#999">no barcode</text></svg>`;
@@ -109,15 +110,15 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
         }
         <div class="lbl-barcode" style="height:${barcodeH}mm;">${svg}</div>
         <div class="lbl-footer" style="font-size:${smallFs}mm;">
-          <span class="lbl-code">${opts.showCode ? escapeHtml(p.code || "") : ""}</span>
           ${
             opts.showPrice
               ? `<span class="lbl-price" style="font-size:${priceFs}mm;">
                    <span class="lbl-price-num">${formatPrice(price)}</span>
                    <span class="lbl-currency">${escapeHtml(opts.currency)}</span>
                  </span>`
-              : ""
+              : `<span></span>`
           }
+          <span class="lbl-code">${opts.showCode ? escapeHtml(p.code || "") : ""}</span>
         </div>
       </div>
     </div>
@@ -183,13 +184,12 @@ export function buildPrintHtml(
   .lbl-name {
     font-weight: 900;
     text-align: center;
-    line-height: 1.05;
-    max-height: 30%;
+    line-height: 1.1;
+    white-space: nowrap;
     overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
     direction: rtl;
+    width: 100%;
   }
   .lbl-barcode {
     flex: 0 0 auto;
