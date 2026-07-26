@@ -166,6 +166,14 @@ export default function Products() {
     window.localStorage.setItem("products-view-mode", viewMode);
   }, [viewMode]);
 
+  // Barcode print dialog
+  const [printOpen, setPrintOpen] = useState(false);
+  const [printProducts, setPrintProducts] = useState<ProductRow[]>([]);
+  const openPrintFor = (rows: ProductRow[]) => {
+    setPrintProducts(rows);
+    setPrintOpen(true);
+  };
+
   // KPI Summary (RPC)
   const { data: summary, refetch: refetchSummary } = useQuery({
     queryKey: ["products-summary"],
