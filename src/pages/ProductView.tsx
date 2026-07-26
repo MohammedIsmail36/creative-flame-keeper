@@ -1132,6 +1132,7 @@ export default function ProductView() {
 
   const [selectedGalleryIdx, setSelectedGalleryIdx] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [printOpen, setPrintOpen] = useState(false);
   const canEdit = role === "admin" || role === "accountant";
 
   // ── Movements table filters ──
