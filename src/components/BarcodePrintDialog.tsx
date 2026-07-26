@@ -21,7 +21,7 @@ import { Printer } from "lucide-react";
 import {
   buildPrintHtml,
   DEFAULT_SIZE_KEY,
-  openPrintWindow,
+  printLabels,
   PRESET_SIZES,
   renderLabelHtml,
   type LabelProduct,
