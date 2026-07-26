@@ -21,7 +21,7 @@ import { Printer } from "lucide-react";
 import {
   buildPrintHtml,
   DEFAULT_SIZE_KEY,
-  openPrintWindow,
+  printLabels,
   PRESET_SIZES,
   renderLabelHtml,
   type LabelProduct,
@@ -63,7 +63,7 @@ export function BarcodePrintDialog({ open, onOpenChange, products }: Props) {
     if (!products.length) return;
     const items = products.map((product) => ({ product, copies: Math.max(1, copies) }));
     const html = buildPrintHtml(items, opts);
-    openPrintWindow(html);
+    printLabels(html);
   };
 
   return (
