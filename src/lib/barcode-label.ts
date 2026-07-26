@@ -434,7 +434,7 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
     <div class="lbl" style="width:${widthMm}mm;height:${heightMm}mm;background:white;padding:2.2mm;overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;color:black;font-family:'Tajawal',system-ui,sans-serif;page-break-after:always;page-break-inside:avoid;">
       ${
         opts.showName
-          ? `<div class="lbl-title" style="text-align:center;font-size:${titleFs}mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:0.3mm;flex-shrink:0;direction:rtl;line-height:1.1;">${escapeHtml(name)}</div>`
+          ? `<div class="lbl-title" style="text-align:center;font-size:2.9523809523809526mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2.3mm;flex-shrink:0;direction:rtl;line-height:1.1;font-weight:700;">${escapeHtml(name)}</div>`
           : ""
       }
       <div class="lbl-barcode" style="display:flex;justify-content:center;align-items:center;flex:1;min-height:${barcodeMinHeightMm}mm;overflow:visible;">${svg}</div>
