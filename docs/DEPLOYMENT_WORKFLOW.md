@@ -102,8 +102,9 @@ echo "✅ Alibea deployed"
 
 ## 6) مشاكل شائعة وحلولها
 
-### `npm ci` يفشل بسبب اختلاف `package-lock.json`
-- تأكد أن الـ pull تم بنجاح.
+### `npm ci` يفشل بسبب `package-lock.json`
+- تأكد أن الملف `package-lock.json` موجود في المستودع بعد الـ pull.
+- هذا المشروع يعتمد على `npm ci` في السيرفير، لذلك لا تعتمد على `bun.lock` في النشر.
 - لا تعدّل `package.json` يدوياً على السيرفير — استخدم `npm install <pkg>` محلياً وارفع `package-lock.json` مع التغيير.
 
 ### VS Code لا يتعرف على أنواع TypeScript الجديدة بعد الميجريشن
