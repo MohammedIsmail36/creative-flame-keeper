@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Lovable temporary files
+.lovable/
+bun.lock
+bun.lockb
