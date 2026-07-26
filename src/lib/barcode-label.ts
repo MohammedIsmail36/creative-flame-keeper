@@ -167,12 +167,12 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
   const currencyFs = Math.max(1.7, Math.min(2.1, heightMm * 0.067));
 
   return `
-    <div class="lbl" style="width:${widthMm}mm;height:${heightMm}mm;background:white;padding:1.6mm;overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;color:black;font-family:'Tajawal',system-ui,sans-serif;page-break-after:always;page-break-inside:avoid;">
+    <div class="lbl" style="width:${widthMm}mm;height:${heightMm}mm;background:white;padding:1.2mm;overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;color:black;font-family:'Tajawal',system-ui,sans-serif;page-break-after:always;page-break-inside:avoid;">
       ${opts.showName
-        ? `<div class="lbl-title" style="text-align:center;font-size:${titleFs}mm;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1mm;flex-shrink:0;direction:rtl;line-height:1.15;">${escapeHtml(name)}</div>`
+        ? `<div class="lbl-title" style="text-align:center;font-size:${titleFs}mm;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:0.3mm;flex-shrink:0;direction:rtl;line-height:1.1;">${escapeHtml(name)}</div>`
         : ""}
       <div class="lbl-barcode" style="display:flex;justify-content:center;align-items:stretch;flex:1;min-height:0;overflow:visible;">${svg}</div>
-      <div class="lbl-bottom" style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:.8mm;flex-shrink:0;direction:rtl;">
+      <div class="lbl-bottom" style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:0.2mm;flex-shrink:0;direction:rtl;">
         ${opts.showPrice
           ? `<div class="lbl-price" style="text-align:right;line-height:1;display:flex;align-items:baseline;gap:.6mm;direction:rtl;">
                <span class="lbl-currency" style="writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:${currencyFs}mm;font-weight:700;letter-spacing:.2mm;">${escapeHtml(opts.currency)}</span>
