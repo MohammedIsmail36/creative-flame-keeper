@@ -18,13 +18,13 @@ git status
 
 ## 2) حفظ التعديلات المحلية ثم سحب تعديلات Lovable
 
-يحفظ تعديلاتك في `stash`، يزيل الملفات المؤقتة التي قد تسبب تعارضاً (`.lovable/`)، يسحب آخر تحديث، ثم يعيد تطبيق تعديلاتك.
+يحفظ تعديلاتك في `stash`، يزيل الملفات المؤقتة التي قد تسبب تعارضاً (`.lovable/`) **قبل** الحفظ، يسحب آخر تحديث، ثم يعيد تطبيق تعديلاتك.
 
 ```bash
 cd /opt/accounting-app && \
+rm -rf .lovable && \
 git add -A && \
 git stash push -m "local-$(date +%F-%H%M)" && \
-rm -rf .lovable && \
 git pull --rebase && \
 (git stash list | grep -q "local-" && git stash pop || echo "لا توجد تعديلات محلية")
 ```
