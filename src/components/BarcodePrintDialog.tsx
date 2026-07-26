@@ -36,8 +36,8 @@ interface Props {
 }
 
 export function BarcodePrintDialog({ open, onOpenChange, products }: Props) {
-  const { settings } = useCompanySettings();
-  const currency = settings?.currency_symbol || "ج.م";
+  const { data: settings } = useCompanySettingsQuery();
+  const currency = (settings as any)?.currency_symbol || "ج.م";
 
   const [sizeKey, setSizeKey] = useState<string>(DEFAULT_SIZE_KEY);
   const [customW, setCustomW] = useState<number>(40);
