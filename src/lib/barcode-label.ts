@@ -87,7 +87,7 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
   const { widthMm, heightMm } = opts.size;
   const name = displayName(p);
   const price = displayPrice(p);
-  const barcodeValue = p.barcode || "";
+  const barcodeValue = (p.barcode && p.barcode.trim()) || p.code || "";
   // Barcode occupies ~45% of height; give SVG a fraction of the label
   const barcodeH = Math.max(6, heightMm * 0.45);
   const barcodeW = widthMm - 4;
