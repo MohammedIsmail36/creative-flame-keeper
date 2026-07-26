@@ -94,12 +94,11 @@ export function BarcodePrintDialog({ open, onOpenChange, products }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="30x40">30 × 40 مم (رول)</SelectItem>
                   <SelectItem value="40x30">40 × 30 مم (رول)</SelectItem>
                   <SelectItem value="50x30">50 × 30 مم (رول)</SelectItem>
-                  <SelectItem value="50x40">50 × 40 مم (رول)</SelectItem>
-                  <SelectItem value="60x40">60 × 40 مم (رول)</SelectItem>
-                  <SelectItem value="100x50">100 × 50 مم (رول)</SelectItem>
+                  <SelectItem value="50x25">50 × 25 مم (رول)</SelectItem>
+                  <SelectItem value="58x40">58 × 40 مم (رول)</SelectItem>
+                  <SelectItem value="80x50">80 × 50 مم (رول)</SelectItem>
                   <SelectItem value="custom">مقاس مخصص…</SelectItem>
                 </SelectContent>
               </Select>
