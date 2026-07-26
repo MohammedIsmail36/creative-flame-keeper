@@ -638,7 +638,9 @@ import {
   Info,
   ExternalLink,
   X as XIcon,
+  Printer,
 } from "lucide-react";
+import { BarcodePrintDialog } from "@/components/BarcodePrintDialog";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
@@ -1130,6 +1132,7 @@ export default function ProductView() {
 
   const [selectedGalleryIdx, setSelectedGalleryIdx] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [printOpen, setPrintOpen] = useState(false);
   const canEdit = role === "admin" || role === "accountant";
 
   // ── Movements table filters ──
@@ -1447,8 +1450,8 @@ export default function ProductView() {
                 {product.description}
               </p>
             )}
-            {canEdit && (
-              <div className="flex items-center justify-start gap-3 mb-6">
+            <div className="flex items-center justify-start gap-3 mb-6">
+              {canEdit && (
                 <Button
                   onClick={() => navigate(`/products/${id}/edit`, { state: { returnTo } })}
                   className="gap-2 font-bold shadow-sm"
@@ -1456,8 +1459,16 @@ export default function ProductView() {
                   <Pencil className="h-4 w-4" />
                   تعديل
                 </Button>
-              </div>
-            )}
+              )}
+              <Button
+                variant="outline"
+                onClick={() => setPrintOpen(true)}
+                className="gap-2 font-bold shadow-sm"
+              >
+                <Printer className="h-4 w-4" />
+                طباعة الباركود
+              </Button>
+            </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1957,6 +1968,25 @@ export default function ProductView() {
           images={allImages}
           initialIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
+        />
+      )}
+
+      {product && (
+        <BarcodePrintDialog
+          open={printOpen}
+          onOpenChange={setPrintOpen}
+          products={[
+            {
+              id: product.id,
+              code: product.code,
+              name: product.name,
+              barcode: product.barcode ?? null,
+              barcode_label: (product as any).barcode_label ?? null,
+              barcode_price: (product as any).barcode_price ?? null,
+              selling_price: product.selling_price,
+              model_number: product.model_number ?? null,
+            },
+          ]}
         />
       )}
     </div>

@@ -39,7 +39,9 @@ import {
   List,
   LayoutGrid,
   Search,
+  Printer,
 } from "lucide-react";
+import { BarcodePrintDialog } from "@/components/BarcodePrintDialog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Input } from "@/components/ui/input";
 import { ProductsGrid } from "@/components/products/ProductsGrid";
@@ -163,6 +165,14 @@ export default function Products() {
   React.useEffect(() => {
     window.localStorage.setItem("products-view-mode", viewMode);
   }, [viewMode]);
+
+  // Barcode print dialog
+  const [printOpen, setPrintOpen] = useState(false);
+  const [printProducts, setPrintProducts] = useState<ProductRow[]>([]);
+  const openPrintFor = (rows: ProductRow[]) => {
+    setPrintProducts(rows);
+    setPrintOpen(true);
+  };
 
   // KPI Summary (RPC)
   const { data: summary, refetch: refetchSummary } = useQuery({
@@ -631,6 +641,17 @@ export default function Products() {
           const canToggle = canEdit && (!row.original.is_active || (usage > 0 && qty === 0));
           return (
             <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              {row.original.barcode && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="طباعة الباركود"
+                  className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                  onClick={() => openPrintFor([row.original])}
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+              )}
               {canToggle && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -700,7 +721,9 @@ export default function Products() {
                   </AlertDialogContent>
                 </AlertDialog>
               )}
-              {!canToggle && !canHardDelete && <span className="text-xs text-muted-foreground px-2">—</span>}
+              {!canToggle && !canHardDelete && !row.original.barcode && (
+                <span className="text-xs text-muted-foreground px-2">—</span>
+              )}
             </div>
           );
         },
@@ -780,6 +803,15 @@ export default function Products() {
         description="عرض وتتبع كافة الأصناف المتوفرة في المخازن."
         actions={
           <>
+            <Button
+              variant="outline"
+              className="gap-2 shadow-sm"
+              onClick={() => openPrintFor(products.filter((p) => !!p.barcode))}
+              disabled={isLoading || products.filter((p) => !!p.barcode).length === 0}
+            >
+              <Printer className="h-4 w-4" />
+              طباعة الباركود
+            </Button>
             {canEdit && (
               <>
                 <Button variant="outline" className="gap-2 shadow-sm" onClick={() => navigate("/products/import")}>
@@ -987,6 +1019,21 @@ export default function Products() {
           </div>
         );
       })()}
+
+      <BarcodePrintDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        products={printProducts.map((p) => ({
+          id: p.id,
+          code: p.code,
+          name: p.name,
+          barcode: p.barcode ?? null,
+          barcode_label: (p as any).barcode_label ?? null,
+          barcode_price: (p as any).barcode_price ?? null,
+          selling_price: p.selling_price,
+          model_number: p.model_number ?? null,
+        }))}
+      />
     </div>
   );
 }
