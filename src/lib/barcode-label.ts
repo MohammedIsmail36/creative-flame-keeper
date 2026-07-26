@@ -109,7 +109,10 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
     : "";
 
   // Font sizes tuned for common roll sizes
-  const nameFs = Math.max(2.2, Math.min(widthMm, heightMm) * 0.13);
+  // Auto-shrink name to fit one line based on label width and character count
+  const nameLen = Math.max(6, name.length);
+  const nameFsRaw = (widthMm - 4) * 1.6 / nameLen; // mm, heuristic width/char
+  const nameFs = Math.max(1.8, Math.min(widthMm, heightMm) * 0.11, Math.min(nameFsRaw, Math.min(widthMm, heightMm) * 0.13));
   const priceFs = Math.max(2.5, Math.min(widthMm, heightMm) * 0.14);
   const smallFs = Math.max(1.8, Math.min(widthMm, heightMm) * 0.07);
 
