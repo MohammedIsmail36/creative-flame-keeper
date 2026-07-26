@@ -474,23 +474,78 @@ export function buildPrintHtml(items: Array<{ product: LabelProduct; copies: num
 </head>
 <body>
 ${labels.join("\n")}
-<script>
-  window.addEventListener('load', function () {
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(function () { setTimeout(function () { window.print(); }, 200); });
-    } else {
-      setTimeout(function () { window.print(); }, 500);
-    }
-  });
-</script>
 </body>
 </html>`;
 }
 
-export function openPrintWindow(html: string) {
-  const win = window.open("", "_blank", "width=700,height=800");
-  if (!win) return;
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+/**
+ * Print labels via a hidden iframe (no popup window).
+ * Auto-closes/cleans up after print or cancel.
+ */
+export function printLabels(html: string) {
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.style.visibility = "hidden";
+  document.body.appendChild(iframe);
+
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    setTimeout(() => {
+      try {
+        iframe.parentNode?.removeChild(iframe);
+      } catch {}
+    }, 200);
+  };
+
+  const triggerPrint = () => {
+    const win = iframe.contentWindow;
+    if (!win) {
+      cleanup();
+      return;
+    }
+    try {
+      win.addEventListener("afterprint", cleanup);
+    } catch {}
+    const doPrint = () => {
+      try {
+        win.focus();
+        win.print();
+      } catch {
+        cleanup();
+      }
+    };
+    const doc = iframe.contentDocument;
+    if (doc && (doc as any).fonts && (doc as any).fonts.ready) {
+      (doc as any).fonts.ready.then(() => setTimeout(doPrint, 100)).catch(() => doPrint());
+    } else {
+      setTimeout(doPrint, 300);
+    }
+    // Fallback cleanup after 2 minutes in case afterprint never fires
+    setTimeout(cleanup, 120000);
+  };
+
+  iframe.onload = triggerPrint;
+
+  const doc = iframe.contentDocument;
+  if (!doc) {
+    cleanup();
+    return;
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
 }
+
+/** @deprecated Use printLabels instead. Kept for backwards compatibility. */
+export function openPrintWindow(html: string) {
+  printLabels(html);
+}
+
