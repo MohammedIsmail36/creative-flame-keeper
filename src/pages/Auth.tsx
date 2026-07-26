@@ -22,7 +22,7 @@ export default function Auth() {
   const { toast } = useToast();
   const { user, loading: authLoading, mfaRequired } = useAuth();
 
-  // Same-origin relative path only (e.g. "/.lovable/oauth/consent?...").
+  // Same-origin relative path only.
   const rawNext = searchParams.get("next");
   const nextPath =
     rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
