@@ -328,7 +328,7 @@ function generateBarcodeSvg(value: string): string {
         margin: 0,
         marginLeft: 6,
         marginRight: 6,
-        height: 70,
+        height: 50,
         width: 2.8,
       });
       svg.setAttribute("preserveAspectRatio", "none");
