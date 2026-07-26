@@ -641,6 +641,17 @@ export default function Products() {
           const canToggle = canEdit && (!row.original.is_active || (usage > 0 && qty === 0));
           return (
             <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              {row.original.barcode && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="طباعة الباركود"
+                  className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                  onClick={() => openPrintFor([row.original])}
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+              )}
               {canToggle && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
