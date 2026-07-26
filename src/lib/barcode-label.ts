@@ -200,17 +200,14 @@ export function buildPrintHtml(
     gap: 0.5mm;
   }
   .lbl-name {
-    font-weight: 900;
+    font-weight: 800;
     text-align: center;
-    line-height: 1.15;
+    line-height: 1.1;
     direction: rtl;
     width: 100%;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: clip;
   }
   .lbl-barcode {
     flex: 0 0 auto;
