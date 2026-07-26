@@ -1,6 +1,6 @@
 # خطة النشر (Deployment Workflow)
 
-دليل موحّد لسحب تعديلات Lovable ودمجها مع التعديلات اليدوية على السيرفير، ثم البناء والنشر لكل من **Farida** و **Alibea**، وتطبيق ميجريشن قواعد البيانات.
+دليل موحّد لسحب تعديلات المستودع ودمجها مع التعديلات اليدوية على السيرفير، ثم البناء والنشر لكل من **Farida** و **Alibea**، وتطبيق ميجريشن قواعد البيانات.
 
 ---
 
@@ -16,13 +16,12 @@ git status
 
 ---
 
-## 2) حفظ التعديلات المحلية ثم سحب تعديلات Lovable
+## 2) حفظ التعديلات المحلية ثم سحب آخر التحديثات
 
-يحفظ تعديلاتك في `stash`، يزيل الملفات المؤقتة التي قد تسبب تعارضاً (`.lovable/`) **قبل** الحفظ، يسحب آخر تحديث، ثم يعيد تطبيق تعديلاتك.
+يحفظ تعديلاتك في `stash`، يسحب آخر تحديث، ثم يعيد تطبيق تعديلاتك.
 
 ```bash
 cd /opt/accounting-app && \
-rm -rf .lovable && \
 git add -A && \
 git stash push -m "local-$(date +%F-%H%M)" && \
 git pull --rebase && \
@@ -103,14 +102,9 @@ echo "✅ Alibea deployed"
 
 ## 6) مشاكل شائعة وحلولها
 
-### `untracked files would be overwritten` (مثل `.lovable/plan.md`)
-```bash
-cd /opt/accounting-app && rm -rf .lovable && git stash pop && git pull
-```
-
 ### `npm ci` يفشل بسبب اختلاف `package-lock.json`
 - تأكد أن الـ pull تم بنجاح.
-- لا تعدّل `package.json` يدوياً على السيرفير — التعديلات تأتي من Lovable مع `package-lock.json` متطابق.
+- لا تعدّل `package.json` يدوياً على السيرفير — استخدم `npm install <pkg>` محلياً وارفع `package-lock.json` مع التغيير.
 
 ### VS Code لا يتعرف على أنواع TypeScript الجديدة بعد الميجريشن
 ```
