@@ -27,7 +27,7 @@ import {
   type LabelProduct,
   type LabelSize,
 } from "@/lib/barcode-label";
-import { useCompanySettings } from "@/hooks/use-company-settings";
+import { useCompanySettingsQuery } from "@/hooks/use-company-settings";
 
 interface Props {
   open: boolean;
