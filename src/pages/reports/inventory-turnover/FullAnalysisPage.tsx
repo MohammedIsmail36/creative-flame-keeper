@@ -188,7 +188,7 @@ export default function FullAnalysisPage() {
         accessorKey: "productName",
         header: "المنتج",
         cell: ({ getValue }) => (
-          <span className="text-xs font-medium truncate max-w-[160px] block">
+          <span className="text-xs font-medium whitespace-normal break-words leading-snug block min-w-[220px] max-w-[320px]">
             {getValue() as string}
           </span>
         ),
