@@ -735,6 +735,7 @@ function useProductData(id: string) {
   const [loadingMovements, setLoadingMovements] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [movementsError, setMovementsError] = useState<string | null>(null);
+  const [printOpen, setPrintOpen] = useState(false);
 
   const fetchProduct = useCallback(async () => {
     setLoading(true);
