@@ -426,9 +426,9 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
   const codeFs = Math.max(1.9, Math.min(2.4, heightMm * 0.08));
   const priceFs = Math.max(2.8, Math.min(3.8, heightMm * 0.12));
   const currencyFs = Math.max(1.7, Math.min(2.1, heightMm * 0.067));
-  // Make the barcode area 70% of the label height so the bars fill the label
-  // clearly without excessive white space around them.
-  const barcodeMinHeightMm = Math.max(10, heightMm * 0.70);
+  // Keep the barcode area compact while still leaving enough space for the
+  // title and price/footer rows to be clearly readable.
+  const barcodeMinHeightMm = Math.max(10, heightMm * 0.50);
 
   return `
     <div class="lbl" style="width:${widthMm}mm;height:${heightMm}mm;background:white;padding:2.2mm;overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;color:black;font-family:'Tajawal',system-ui,sans-serif;page-break-after:always;page-break-inside:avoid;">
