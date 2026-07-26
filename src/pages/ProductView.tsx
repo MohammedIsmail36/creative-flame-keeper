@@ -1970,6 +1970,25 @@ export default function ProductView() {
           onClose={() => setLightboxIndex(null)}
         />
       )}
+
+      {product && (
+        <BarcodePrintDialog
+          open={printOpen}
+          onOpenChange={setPrintOpen}
+          products={[
+            {
+              id: product.id,
+              code: product.code,
+              name: product.name,
+              barcode: product.barcode ?? null,
+              barcode_label: (product as any).barcode_label ?? null,
+              barcode_price: (product as any).barcode_price ?? null,
+              selling_price: product.selling_price,
+              model_number: product.model_number ?? null,
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }
