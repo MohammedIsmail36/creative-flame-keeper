@@ -323,29 +323,28 @@ function generateBarcodeSvg(value: string): string {
         displayValue: true,
         font: "Tajawal",
         fontOptions: "bold",
-        fontSize: 26,
-        textMargin: 2,
+        fontSize: 24,
+        textMargin: 1,
         margin: 0,
-        marginLeft: 18,
-        marginRight: 18,
-        height: 55,
-        width: 2.6,
+        marginLeft: 6,
+        marginRight: 6,
+        height: 80,
+        width: 2.8,
       });
-      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+      svg.setAttribute("preserveAspectRatio", "none");
       svg.setAttribute("shape-rendering", "crispEdges");
       svg.setAttribute(
         "style",
-        "width:92%;height:100%;max-height:100%;display:block;overflow:visible;shape-rendering:crispEdges;",
+        "width:100%;height:100%;max-height:100%;display:block;overflow:visible;shape-rendering:crispEdges;",
       );
       // Fine-tune the human-readable line: pull guard digits closer to the
       // bars and add letter-spacing to the two 5-digit middle groups.
-      // JsBarcode renders UPC as 4 <text> nodes: [firstGuard, left5, right5, lastGuard].
       const texts = svg.querySelectorAll("text");
       if (texts.length >= 4) {
         const first = texts[0] as SVGTextElement;
-        first.setAttribute("x", String(parseFloat(first.getAttribute("x") || "0") + 15));
+        first.setAttribute("x", String(parseFloat(first.getAttribute("x") || "0") + 6));
         const last = texts[texts.length - 1] as SVGTextElement;
-        last.setAttribute("x", String(parseFloat(last.getAttribute("x") || "0") - 15));
+        last.setAttribute("x", String(parseFloat(last.getAttribute("x") || "0") - 6));
         for (let i = 1; i <= texts.length - 2; i++) {
           (texts[i] as SVGTextElement).setAttribute("letter-spacing", "2");
         }
@@ -388,7 +387,7 @@ function generateFallbackBarcodeSvg(value: string): string {
 function withBarcodeSvgStyle(svg: string): string {
   return svg.replace(
     "<svg ",
-    '<svg shape-rendering="crispEdges" style="width:92%;height:100%;max-height:100%;display:block;overflow:visible;shape-rendering:crispEdges;" preserveAspectRatio="xMidYMid meet" ',
+    '<svg shape-rendering="crispEdges" style="width:100%;height:100%;max-height:100%;display:block;overflow:visible;shape-rendering:crispEdges;" preserveAspectRatio="none" ',
   );
 }
 
