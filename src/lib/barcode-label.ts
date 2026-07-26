@@ -348,7 +348,6 @@ function generateBarcodeSvg(value: string): string {
           (texts[i] as SVGTextElement).setAttribute("letter-spacing", "5");
         }
       }
-      }
       return new XMLSerializer().serializeToString(svg);
     }
 
