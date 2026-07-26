@@ -44,7 +44,9 @@ function generateBarcodeSvg(value: string, widthMm: number, heightMm: number): s
   if (!cleaned) {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30"><text x="50" y="20" text-anchor="middle" font-size="10" fill="#999">no barcode</text></svg>`;
   }
-  const isEan13 = /^\d{12,13}$/.test(cleaned);
+  const digits = cleaned.replace(/\D/g, "");
+  const isUpcA = digits.length === 11 || digits.length === 12;
+  const isEan13 = digits.length === 12 || digits.length === 13;
 
   const tryRender = (bcid: string, text: string) =>
     bwipjs.toSVG({
@@ -54,21 +56,20 @@ function generateBarcodeSvg(value: string, widthMm: number, heightMm: number): s
       height: heightMm,
       width: widthMm,
       includetext: true,
-      textxalign: bcid === "ean13" ? undefined : "center",
+      textxalign: bcid === "upca" || bcid === "ean13" ? undefined : "center",
       textfont: "OCR-B",
-      textsize: bcid === "ean13" ? 12 : 10,
+      textsize: bcid === "upca" || bcid === "ean13" ? 12 : 10,
       textyoffset: 1.5,
-      guardwhitespace: bcid === "ean13",
+      guardwhitespace: bcid === "upca" || bcid === "ean13",
       backgroundcolor: "FFFFFF",
     } as any);
 
   try {
+    if (isUpcA) {
+      try { return tryRender("upca", digits); } catch { /* fall through */ }
+    }
     if (isEan13) {
-      try {
-        return tryRender("ean13", cleaned);
-      } catch {
-        // Invalid EAN check digit → fall through to code128
-      }
+      try { return tryRender("ean13", digits); } catch { /* fall through */ }
     }
     return tryRender("code128", cleaned);
   } catch {
@@ -108,7 +109,12 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
     : "";
 
   // Font sizes tuned for common roll sizes
-  const nameFs = Math.max(2.2, Math.min(widthMm, heightMm) * 0.13);
+  // Auto-shrink name to fit on a single line.
+  // Approx Cairo bold char width ≈ 0.55 × font-size.
+  const nameLen = Math.max(6, name.length);
+  const nameMax = Math.min(widthMm, heightMm) * 0.13;
+  const nameFit = (widthMm - 3) / (nameLen * 0.55);
+  const nameFs = Math.max(1.6, Math.min(nameMax, nameFit));
   const priceFs = Math.max(2.5, Math.min(widthMm, heightMm) * 0.14);
   const smallFs = Math.max(1.8, Math.min(widthMm, heightMm) * 0.07);
 
@@ -194,17 +200,14 @@ export function buildPrintHtml(
     gap: 0.5mm;
   }
   .lbl-name {
-    font-weight: 900;
+    font-weight: 800;
     text-align: center;
-    line-height: 1.15;
+    line-height: 1.1;
     direction: rtl;
     width: 100%;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: clip;
   }
   .lbl-barcode {
     flex: 0 0 auto;
