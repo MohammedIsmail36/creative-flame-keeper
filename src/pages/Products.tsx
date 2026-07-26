@@ -1019,6 +1019,21 @@ export default function Products() {
           </div>
         );
       })()}
+
+      <BarcodePrintDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        products={printProducts.map((p) => ({
+          id: p.id,
+          code: p.code,
+          name: p.name,
+          barcode: p.barcode ?? null,
+          barcode_label: (p as any).barcode_label ?? null,
+          barcode_price: (p as any).barcode_price ?? null,
+          selling_price: p.selling_price,
+          model_number: p.model_number ?? null,
+        }))}
+      />
     </div>
   );
 }
