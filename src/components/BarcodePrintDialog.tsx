@@ -1,189 +1,175 @@
-import JsBarcode from "jsbarcode";
+import { useMemo, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Printer } from "lucide-react";
+import {
+  buildPrintHtml,
+  DEFAULT_SIZE_KEY,
+  openPrintWindow,
+  PRESET_SIZES,
+  renderLabelHtml,
+  type LabelProduct,
+  type LabelSize,
+} from "@/lib/barcode-label";
+import { useCompanySettingsQuery } from "@/hooks/use-company-settings";
 
-export interface LabelSize {
-  widthMm: number;
-  heightMm: number;
+interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  products: LabelProduct[];
 }
 
-export interface LabelProduct {
-  id?: string | number;
-  name: string;
-  price: number;
-  /** القيمة التي يتم ترميزها في الباركود (كود المنتج / SKU) */
-  code: string;
-}
+export function BarcodePrintDialog({ open, onOpenChange, products }: Props) {
+  const { data: settings } = useCompanySettingsQuery();
+  const currency = (settings as any)?.currency_symbol || "ج.م";
 
-export interface LabelRenderOptions {
-  size: LabelSize;
-  showName: boolean;
-  showPrice: boolean;
-  showCode: boolean;
-  currency: string;
-}
+  const [sizeKey, setSizeKey] = useState<string>(DEFAULT_SIZE_KEY);
+  const [customW, setCustomW] = useState<number>(40);
+  const [customH, setCustomH] = useState<number>(30);
+  const [showName, setShowName] = useState(true);
+  const [showPrice, setShowPrice] = useState(true);
+  const [showCode, setShowCode] = useState(true);
+  const [copies, setCopies] = useState<number>(1);
 
-export interface PrintItem {
-  product: LabelProduct;
-  copies: number;
-}
+  const size: LabelSize = useMemo(() => {
+    if (sizeKey === "custom") return { widthMm: customW, heightMm: customH };
+    return PRESET_SIZES[sizeKey] ?? PRESET_SIZES[DEFAULT_SIZE_KEY];
+  }, [sizeKey, customW, customH]);
 
-export const PRESET_SIZES: Record<string, LabelSize> = {
-  "40x30": { widthMm: 40, heightMm: 30 },
-  "50x30": { widthMm: 50, heightMm: 30 },
-  "50x25": { widthMm: 50, heightMm: 25 },
-  "58x40": { widthMm: 58, heightMm: 40 },
-  "80x50": { widthMm: 80, heightMm: 50 },
-};
+  const opts = { size, showName, showPrice, showCode, currency };
 
-export const DEFAULT_SIZE_KEY = "40x30";
+  const previewHtml = useMemo(() => {
+    if (!products.length) return "";
+    return renderLabelHtml(products[0], opts);
+  }, [products, opts]);
 
-const FONT_LINK =
-  '<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">';
-
-/**
- * يولّد الباركود كـ SVG ثابت (بدون أي <script> وقت التشغيل) باستخدام مكتبة
- * jsbarcode مباشرة. هذا يضمن ظهور نفس الباركود بالضبط في:
- *  1) المعاينة داخل الـ Dialog (عبر dangerouslySetInnerHTML) — والتي لا تُنفّذ
- *     أي وسوم <script> محقونة، لذلك أي حل يعتمد على سكريبت خارجي فيها لن يعمل.
- *  2) نافذة الطباعة — بنفس الـ markup تماماً، فلا يوجد احتمال لطباعة باركود
- *     غير مكتمل بسبب تأخر تحميل مكتبة من CDN.
- */
-function generateBarcodeSvg(code: string, opts: LabelRenderOptions): string {
-  const safeCode = (code || "").trim() || "0000000000000";
-  const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-
-  try {
-    JsBarcode(svgEl, safeCode, {
-      format: "CODE128",
-      displayValue: opts.showCode,
-      font: "Tajawal, sans-serif",
-      textAlign: "center",
-      textPosition: "bottom",
-      textMargin: 2,
-      fontSize: Math.max(9, Math.round(opts.size.heightMm * 1.05)),
-      margin: 0,
-      height: Math.max(18, Math.round(opts.size.heightMm * 1.5)),
-      width: 1.5,
-    });
-  } catch {
-    // كود لا يمكن ترميزه بصيغة CODE128 (رموز غير مدعومة مثلاً) — نعرض بديل نصي بدل كسر الصفحة
-    svgEl.setAttribute("width", "10");
-    svgEl.setAttribute("height", "10");
-  }
-
-  return svgEl.outerHTML;
-}
-
-function escapeHtml(v: string | number): string {
-  return String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-function formatPrice(v: number): string {
-  return Number(v || 0).toLocaleString("ar-EG", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-/**
- * يبني HTML ملصق واحد (يُستخدم في المعاينة وفي الطباعة بنفس الدالة تماماً،
- * فلا يوجد أي فرق بين ما يُعاين وما يُطبع).
- */
-export function renderLabelHtml(product: LabelProduct, opts: LabelRenderOptions): string {
-  const { size, showName, showPrice, currency } = opts;
-  const barcodeSvg = generateBarcodeSvg(product.code, opts);
-
-  return `
-<div class="barcode-label" style="
-  width:${size.widthMm}mm;
-  height:${size.heightMm}mm;
-  box-sizing:border-box;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:1mm;
-  padding:1mm;
-  font-family:'Tajawal', sans-serif;
-  direction:rtl;
-  overflow:hidden;
-  background:#fff;
-  color:#111;
-">
-  ${
-    showName
-      ? `<div style="font-size:${Math.max(7, size.heightMm * 0.4)}px;font-weight:700;line-height:1.15;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${escapeHtml(
-          product.name,
-        )}</div>`
-      : ""
-  }
-  <div style="max-width:100%; display:flex; justify-content:center;">${barcodeSvg}</div>
-  ${
-    showPrice
-      ? `<div style="font-size:${Math.max(8, size.heightMm * 0.48)}px;font-weight:700;">${formatPrice(
-          product.price,
-        )} ${escapeHtml(currency)}</div>`
-      : ""
-  }
-</div>`;
-}
-
-/**
- * يبني مستند HTML كامل جاهز للطباعة، بمقاس صفحة (@page) مطابق تماماً لمقاس
- * الملصق بالمليمتر (بدون هوامش)، مع تكرار كل منتج بعدد النسخ المطلوب،
- * وفاصل صفحة بعد كل ملصق فيما عدا الأخير.
- */
-export function buildPrintHtml(items: PrintItem[], opts: LabelRenderOptions): string {
-  const { size } = opts;
-
-  const labelsHtml = items
-    .flatMap(({ product, copies }) => Array.from({ length: Math.max(1, copies) }, () => renderLabelHtml(product, opts)))
-    .join("\n");
-
-  return `<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-${FONT_LINK}
-<title>طباعة ملصقات الباركود</title>
-<style id="page-size-style">
-  @page {
-    size: ${size.widthMm}mm ${size.heightMm}mm;
-    margin: 0;
-  }
-  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  .barcode-label {
-    page-break-after: always;
-    break-after: page;
-  }
-  .barcode-label:last-child {
-    page-break-after: auto;
-    break-after: auto;
-  }
-</style>
-</head>
-<body>
-${labelsHtml}
-</body>
-</html>`;
-}
-
-/**
- * يفتح نافذة طباعة جديدة ويكتب المستند بداخلها، وينتظر تحميل الخط قبل
- * استدعاء الطباعة تلقائياً (لتفادي قص النصوص أو اختلاف القياسات).
- */
-export function openPrintWindow(html: string): void {
-  const printWindow = window.open("", "_blank", "width=800,height=600");
-  if (!printWindow) return;
-
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
-
-  printWindow.onload = () => {
-    printWindow.focus();
-    printWindow.print();
+  const handlePrint = () => {
+    if (!products.length) return;
+    const items = products.map((product) => ({ product, copies: Math.max(1, copies) }));
+    const html = buildPrintHtml(items, opts);
+    openPrintWindow(html);
   };
-  printWindow.onafterprint = () => printWindow.close();
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>طباعة ملصقات الباركود</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>مقاس الملصق</Label>
+              <Select value={sizeKey} onValueChange={setSizeKey}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.keys(PRESET_SIZES).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {k} مم
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="custom">مخصص…</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {sizeKey === "custom" && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label>العرض (مم)</Label>
+                  <Input
+                    type="number"
+                    min={10}
+                    value={customW}
+                    onChange={(e) => setCustomW(Number(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>الارتفاع (مم)</Label>
+                  <Input
+                    type="number"
+                    min={10}
+                    value={customH}
+                    onChange={(e) => setCustomH(Number(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label>عدد النسخ لكل منتج</Label>
+              <Input
+                type="number"
+                min={1}
+                value={copies}
+                onChange={(e) => setCopies(Math.max(1, Number(e.target.value) || 1))}
+              />
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center justify-between">
+                <Label>إظهار الاسم</Label>
+                <Switch checked={showName} onCheckedChange={setShowName} />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label>إظهار السعر</Label>
+                <Switch checked={showPrice} onCheckedChange={setShowPrice} />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label>إظهار كود المنتج</Label>
+                <Switch checked={showCode} onCheckedChange={setShowCode} />
+              </div>
+            </div>
+
+            <div className="text-xs text-muted-foreground pt-2">
+              عدد المنتجات: {products.length} — إجمالي الملصقات:{" "}
+              {products.length * Math.max(1, copies)}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>معاينة (بالحجم الطبيعي)</Label>
+            <div className="border rounded-md p-3 bg-muted/30 flex items-center justify-center overflow-auto min-h-[180px]">
+              {previewHtml ? (
+                <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+              ) : (
+                <span className="text-sm text-muted-foreground">لا توجد منتجات</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            إلغاء
+          </Button>
+          <Button onClick={handlePrint} disabled={!products.length}>
+            <Printer className="w-4 h-4 ml-2" />
+            طباعة
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
+
+export default BarcodePrintDialog;
