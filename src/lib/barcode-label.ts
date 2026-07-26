@@ -1,4 +1,5 @@
 import bwipjs from "bwip-js/browser";
+import JsBarcode from "jsbarcode";
 
 export interface LabelSize {
   widthMm: number;
@@ -25,6 +26,7 @@ export interface LabelProduct {
 }
 
 export const PRESET_SIZES: Record<string, LabelSize> = {
+  "30x40": { widthMm: 30, heightMm: 40 },
   "40x30": { widthMm: 40, heightMm: 30 },
   "50x30": { widthMm: 50, heightMm: 30 },
   "50x25": { widthMm: 50, heightMm: 25 },
@@ -35,18 +37,18 @@ export const PRESET_SIZES: Record<string, LabelSize> = {
 export const DEFAULT_SIZE_KEY = "40x30";
 
 /**
- * Generate a scannable barcode as inline SVG.
- * Prefers UPC-A (11/12 digits) then EAN-13 (12/13 digits) then Code128.
- * Uses bwip-js which draws the standard guard-digit layout under the bars.
+ * Generate a UPC-A barcode as inline SVG using the same engine/options as the
+ * reference template. Falls back to Code128 only when the stored value cannot
+ * be represented as UPC-A, so the label never renders a broken "no barcode".
  */
 function generateBarcodeSvg(value: string): string {
   const cleaned = (value || "").trim();
   if (!cleaned) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30"><text x="50" y="20" text-anchor="middle" font-size="8" fill="#c0392b">no barcode</text></svg>`;
+    return generateFallbackBarcodeSvg("00000000000");
   }
   const digits = cleaned.replace(/\D/g, "");
 
-  const render = (bcid: string, text: string) =>
+  const renderFallback = (bcid: string, text: string) =>
     bwipjs.toSVG({
       bcid,
       text,
@@ -64,16 +66,63 @@ function generateBarcodeSvg(value: string): string {
     } as any);
 
   try {
+    if (typeof document !== "undefined" && (digits.length === 11 || digits.length === 12)) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      JsBarcode(svg, digits, {
+        format: "UPC",
+        displayValue: true,
+        font: "Tajawal",
+        fontOptions: "bold",
+        fontSize: 26,
+        textMargin: 2,
+        margin: 0,
+        marginLeft: 14,
+        marginRight: 14,
+        height: 55,
+        width: 2.2,
+      });
+      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+      svg.setAttribute("style", "width:92%;height:100%;max-height:100%;display:block;overflow:visible;");
+      return new XMLSerializer().serializeToString(svg);
+    }
+
     if (digits.length === 11 || digits.length === 12) {
-      try { return render("upca", digits); } catch { /* fall through */ }
+      return withBarcodeSvgStyle(renderFallback("upca", digits));
     }
-    if (digits.length === 12 || digits.length === 13) {
-      try { return render("ean13", digits); } catch { /* fall through */ }
-    }
-    return render("code128", cleaned);
+
+    return withBarcodeSvgStyle(renderFallback("code128", cleaned));
   } catch {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30"><text x="50" y="20" text-anchor="middle" font-size="8" fill="#c0392b">invalid</text></svg>`;
+    return generateFallbackBarcodeSvg(cleaned || "00000000000");
   }
+}
+
+function generateFallbackBarcodeSvg(value: string): string {
+  try {
+    return withBarcodeSvgStyle(
+      bwipjs.toSVG({
+        bcid: "code128",
+        text: value,
+        scale: 3,
+        height: 18,
+        includetext: true,
+        textxalign: "center",
+        textfont: "OCR-B",
+        textsize: 11,
+        backgroundcolor: "FFFFFF",
+        paddingwidth: 0,
+        paddingheight: 0,
+      } as any),
+    );
+  } catch {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30" style="width:92%;height:100%;display:block"><text x="50" y="20" text-anchor="middle" font-size="8" fill="black">${escapeHtml(value)}</text></svg>`;
+  }
+}
+
+function withBarcodeSvgStyle(svg: string): string {
+  return svg.replace(
+    "<svg ",
+    '<svg style="width:92%;height:100%;max-height:100%;display:block;overflow:visible;" preserveAspectRatio="xMidYMid meet" ',
+  );
 }
 
 function displayName(p: LabelProduct): string {
@@ -112,26 +161,25 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
   const barcodeValue = (p.barcode && p.barcode.trim()) || p.code || "";
   const svg = generateBarcodeSvg(barcodeValue);
 
-  // Font sizes proportional to label height (mm), matching the reference template
-  const titleFs = Math.max(2.2, heightMm * 0.11);      // ~3.2mm on 30mm label
-  const codeFs = Math.max(1.8, heightMm * 0.08);       // ~2.4mm
-  const priceFs = Math.max(2.6, heightMm * 0.12);      // ~3.6mm
-  const currencyFs = Math.max(1.5, heightMm * 0.067);  // ~2mm
+  const titleFs = Math.max(2, Math.min(3.2, (widthMm * 1.55) / Math.max(name.length, 1)));
+  const codeFs = Math.max(1.9, Math.min(2.4, heightMm * 0.08));
+  const priceFs = Math.max(2.8, Math.min(3.8, heightMm * 0.12));
+  const currencyFs = Math.max(1.7, Math.min(2.1, heightMm * 0.067));
 
   return `
-    <div class="lbl" style="--w:${widthMm}mm;--h:${heightMm}mm;">
+    <div class="lbl" style="width:${widthMm}mm;height:${heightMm}mm;background:white;padding:1.6mm;overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;color:black;font-family:'Tajawal',system-ui,sans-serif;page-break-after:always;page-break-inside:avoid;">
       ${opts.showName
-        ? `<div class="lbl-title" style="font-size:${titleFs}mm;">${escapeHtml(name)}</div>`
+        ? `<div class="lbl-title" style="text-align:center;font-size:${titleFs}mm;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1mm;flex-shrink:0;direction:rtl;line-height:1.15;">${escapeHtml(name)}</div>`
         : ""}
-      <div class="lbl-barcode">${svg}</div>
-      <div class="lbl-bottom">
-        <div class="lbl-code" style="font-size:${codeFs}mm;">${opts.showCode ? escapeHtml(p.code || "") : ""}</div>
+      <div class="lbl-barcode" style="display:flex;justify-content:center;align-items:stretch;flex:1;min-height:0;overflow:visible;">${svg}</div>
+      <div class="lbl-bottom" style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:.8mm;flex-shrink:0;direction:rtl;">
         ${opts.showPrice
-          ? `<div class="lbl-price">
-               <span class="lbl-value" style="font-size:${priceFs}mm;">${formatPrice(price)}</span>
-               <span class="lbl-currency" style="font-size:${currencyFs}mm;">${escapeHtml(opts.currency)}</span>
+          ? `<div class="lbl-price" style="text-align:right;line-height:1;display:flex;align-items:baseline;gap:.6mm;direction:rtl;">
+               <span class="lbl-currency" style="writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:${currencyFs}mm;font-weight:700;letter-spacing:.2mm;">${escapeHtml(opts.currency)}</span>
+               <span class="lbl-value" style="direction:ltr;font-size:${priceFs}mm;font-weight:800;">${formatPrice(price)}</span>
              </div>`
           : `<div></div>`}
+        <div class="lbl-code" style="direction:ltr;font-size:${codeFs}mm;color:black;font-weight:400;">${opts.showCode ? escapeHtml(p.code || "") : ""}</div>
       </div>
     </div>
   `;
@@ -163,70 +211,7 @@ export function buildPrintHtml(
   @page { size: ${widthMm}mm ${heightMm}mm; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: #fff; font-family: 'Tajawal', system-ui, sans-serif; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .lbl {
-    width: var(--w);
-    height: var(--h);
-    background: #fff;
-    padding: 1.6mm;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    page-break-after: always;
-    page-break-inside: avoid;
-  }
   .lbl:last-child { page-break-after: auto; }
-  .lbl-title {
-    text-align: center;
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 1mm;
-    flex-shrink: 0;
-    direction: rtl;
-  }
-  .lbl-barcode {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex: 1;
-    min-height: 0;
-  }
-  .lbl-barcode svg {
-    width: 92%;
-    height: 100%;
-    max-height: 100%;
-    display: block;
-  }
-  .lbl-bottom {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    margin-top: 0.8mm;
-    flex-shrink: 0;
-  }
-  .lbl-code {
-    direction: ltr;
-    color: #000;
-    font-weight: 500;
-  }
-  .lbl-price {
-    display: flex;
-    align-items: baseline;
-    gap: 0.6mm;
-    line-height: 1;
-  }
-  .lbl-value {
-    direction: ltr;
-    font-weight: 800;
-  }
-  .lbl-currency {
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    transform: rotate(180deg);
-    font-weight: 700;
-    letter-spacing: 0.2mm;
-  }
   @media screen {
     body { background: #d8d8d8; padding: 20px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
     .lbl { box-shadow: 0 0 6px rgba(0,0,0,0.25); }
