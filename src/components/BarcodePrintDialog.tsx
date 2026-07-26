@@ -203,4 +203,33 @@ export function BarcodePrintDialog({ open, onOpenChange, products }: Props) {
               
               <div className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-200/50 dark:bg-slate-950 p-6 flex items-center justify-center min-h-[260px] relative overflow-hidden shadow-inner group">
                 {previewProduct ? (
-                  /* تم استخدام الـ style لتمثيل الحجم الفعلي الحقيقي للملصق بالنسبة العادية ملم */
+                  <div
+                    className="bg-white shadow-md rounded-sm overflow-hidden"
+                    dangerouslySetInnerHTML={{ __html: previewHtml }}
+                  />
+                ) : (
+                  <div className="text-xs text-muted-foreground">لا توجد منتجات للطباعة</div>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground text-center flex items-center justify-center gap-1">
+                <Info className="w-3 h-3" />
+                معاينة بالحجم الطبيعي: {size.widthMm}×{size.heightMm} مم
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="flex-row-reverse gap-2 p-4 border-t bg-background">
+          <Button onClick={handlePrint} className="gap-2" disabled={products.length === 0}>
+            <Printer className="h-4 w-4" />
+            طباعة {totalLabels} ملصق
+          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            إلغاء
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
