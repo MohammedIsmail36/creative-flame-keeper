@@ -387,7 +387,7 @@ function generateFallbackBarcodeSvg(value: string): string {
 function withBarcodeSvgStyle(svg: string): string {
   return svg.replace(
     "<svg ",
-    '<svg shape-rendering="crispEdges" style="width:92%;height:100%;max-height:100%;display:block;overflow:visible;shape-rendering:crispEdges;" preserveAspectRatio="xMidYMid meet" ',
+    '<svg shape-rendering="crispEdges" style="width:100%;height:100%;max-height:100%;display:block;overflow:visible;shape-rendering:crispEdges;" preserveAspectRatio="none" ',
   );
 }
 
