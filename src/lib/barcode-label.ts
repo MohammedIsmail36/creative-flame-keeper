@@ -109,10 +109,12 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
     : "";
 
   // Font sizes tuned for common roll sizes
-  // Auto-shrink name to fit one line based on label width and character count
+  // Auto-shrink name to fit on a single line.
+  // Approx Cairo bold char width ≈ 0.55 × font-size.
   const nameLen = Math.max(6, name.length);
-  const nameFsRaw = (widthMm - 4) * 1.6 / nameLen; // mm, heuristic width/char
-  const nameFs = Math.max(1.8, Math.min(widthMm, heightMm) * 0.11, Math.min(nameFsRaw, Math.min(widthMm, heightMm) * 0.13));
+  const nameMax = Math.min(widthMm, heightMm) * 0.13;
+  const nameFit = (widthMm - 3) / (nameLen * 0.55);
+  const nameFs = Math.max(1.6, Math.min(nameMax, nameFit));
   const priceFs = Math.max(2.5, Math.min(widthMm, heightMm) * 0.14);
   const smallFs = Math.max(1.8, Math.min(widthMm, heightMm) * 0.07);
 
