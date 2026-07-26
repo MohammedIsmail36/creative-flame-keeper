@@ -110,15 +110,15 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
         }
         <div class="lbl-barcode" style="height:${barcodeH}mm;">${svg}</div>
         <div class="lbl-footer" style="font-size:${smallFs}mm;">
-          <span class="lbl-code">${opts.showCode ? escapeHtml(p.code || "") : ""}</span>
           ${
             opts.showPrice
               ? `<span class="lbl-price" style="font-size:${priceFs}mm;">
                    <span class="lbl-price-num">${formatPrice(price)}</span>
                    <span class="lbl-currency">${escapeHtml(opts.currency)}</span>
                  </span>`
-              : ""
+              : `<span></span>`
           }
+          <span class="lbl-code">${opts.showCode ? escapeHtml(p.code || "") : ""}</span>
         </div>
       </div>
     </div>
