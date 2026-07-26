@@ -184,13 +184,12 @@ export function buildPrintHtml(
   .lbl-name {
     font-weight: 900;
     text-align: center;
-    line-height: 1.05;
-    max-height: 30%;
+    line-height: 1.1;
+    white-space: nowrap;
     overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
     direction: rtl;
+    width: 100%;
   }
   .lbl-barcode {
     flex: 0 0 auto;
