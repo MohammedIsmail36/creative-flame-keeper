@@ -182,7 +182,6 @@ export function BarcodePrintDialog({ open, onOpenChange, products }: Props) {
               {previewProduct ? (
                 <div
                   className="bg-white shadow-md rounded-sm overflow-hidden"
-                  style={{ transform: "scale(2)", transformOrigin: "center" }}
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
               ) : (
@@ -190,7 +189,7 @@ export function BarcodePrintDialog({ open, onOpenChange, products }: Props) {
               )}
             </div>
             <p className="text-[11px] text-muted-foreground text-center">
-              المعاينة مكبّرة ×2. الأبعاد الفعلية عند الطباعة: {size.widthMm}×{size.heightMm} مم.
+              معاينة بالحجم الطبيعي: {size.widthMm}×{size.heightMm} مم.
             </p>
           </div>
         </div>

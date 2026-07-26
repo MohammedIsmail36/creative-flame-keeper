@@ -41,26 +41,38 @@ export const DEFAULT_SIZE_KEY = "30x40";
  */
 function generateBarcodeSvg(value: string, widthMm: number, heightMm: number): string {
   const cleaned = (value || "").trim();
+  if (!cleaned) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30"><text x="50" y="20" text-anchor="middle" font-size="10" fill="#999">no barcode</text></svg>`;
+  }
   const isEan13 = /^\d{12,13}$/.test(cleaned);
 
-  try {
-    const svg = bwipjs.toSVG({
-      bcid: isEan13 ? "ean13" : "code128",
-      text: cleaned || "0000000000000",
+  const tryRender = (bcid: string, text: string) =>
+    bwipjs.toSVG({
+      bcid,
+      text,
       scale: 3,
       height: heightMm,
       width: widthMm,
       includetext: true,
-      textxalign: isEan13 ? undefined : "center",
+      textxalign: bcid === "ean13" ? undefined : "center",
       textfont: "OCR-B",
-      textsize: isEan13 ? 12 : 10,
+      textsize: bcid === "ean13" ? 12 : 10,
       textyoffset: 1.5,
-      guardwhitespace: isEan13,
+      guardwhitespace: bcid === "ean13",
       backgroundcolor: "FFFFFF",
     } as any);
-    return svg;
+
+  try {
+    if (isEan13) {
+      try {
+        return tryRender("ean13", cleaned);
+      } catch {
+        // Invalid EAN check digit → fall through to code128
+      }
+    }
+    return tryRender("code128", cleaned);
   } catch {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30"><text x="50" y="20" text-anchor="middle" font-size="10" fill="#999">no barcode</text></svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30"><text x="50" y="20" text-anchor="middle" font-size="10" fill="#999">${escapeHtml(cleaned)}</text></svg>`;
   }
 }
 
@@ -87,7 +99,7 @@ export function renderLabelHtml(p: LabelProduct, opts: LabelOptions): string {
   const { widthMm, heightMm } = opts.size;
   const name = displayName(p);
   const price = displayPrice(p);
-  const barcodeValue = p.barcode || "";
+  const barcodeValue = (p.barcode && p.barcode.trim()) || p.code || "";
   // Barcode occupies ~45% of height; give SVG a fraction of the label
   const barcodeH = Math.max(6, heightMm * 0.45);
   const barcodeW = widthMm - 4;
@@ -184,12 +196,15 @@ export function buildPrintHtml(
   .lbl-name {
     font-weight: 900;
     text-align: center;
-    line-height: 1.1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.15;
     direction: rtl;
     width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .lbl-barcode {
     flex: 0 0 auto;
