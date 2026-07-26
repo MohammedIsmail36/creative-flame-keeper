@@ -47,16 +47,17 @@ function generateBarcodeSvg(value: string, widthMm: number, heightMm: number): s
     const svg = bwipjs.toSVG({
       bcid: isEan13 ? "ean13" : "code128",
       text: cleaned || "0000000000000",
-      scale: 2,
+      scale: 3,
       height: heightMm,
       width: widthMm,
       includetext: true,
-      textxalign: "center",
+      textxalign: isEan13 ? undefined : "center",
+      textfont: "OCR-B",
+      textsize: isEan13 ? 12 : 10,
+      textyoffset: 1.5,
       guardwhitespace: isEan13,
-      textsize: 10,
-      textyoffset: 1,
       backgroundcolor: "FFFFFF",
-    });
+    } as any);
     return svg;
   } catch {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30"><text x="50" y="20" text-anchor="middle" font-size="10" fill="#999">no barcode</text></svg>`;
