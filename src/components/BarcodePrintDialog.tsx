@@ -63,7 +63,7 @@ export function BarcodePrintDialog({ open, onOpenChange, products }: Props) {
     if (!products.length) return;
     const items = products.map((product) => ({ product, copies: Math.max(1, copies) }));
     const html = buildPrintHtml(items, opts);
-    openPrintWindow(html);
+    printLabels(html);
   };
 
   return (
