@@ -1202,7 +1202,6 @@ export default function Dashboard() {
                         <CartesianGrid
                           strokeDasharray="3 3"
                           stroke="hsl(var(--border))"
-                          vertical={false}
                           opacity={0.5}
                         />
                         <XAxis dataKey="name" fontSize={11} axisLine={false} tickLine={false} reversed />
@@ -1235,7 +1234,6 @@ export default function Dashboard() {
                         <CartesianGrid
                           strokeDasharray="3 3"
                           stroke="hsl(var(--border))"
-                          vertical={false}
                           opacity={0.5}
                         />
                         <XAxis dataKey="name" fontSize={11} axisLine={false} tickLine={false} reversed />
