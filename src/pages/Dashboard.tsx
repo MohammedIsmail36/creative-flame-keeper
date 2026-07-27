@@ -1198,8 +1198,9 @@ export default function Dashboard() {
                     <Skeleton className="h-[240px] w-full" />
                   ) : (
                     <ResponsiveContainer width="100%" height={240}>
-                      <BarChart dir="rtl" data={monthlyData.slice(-6)} barSize={28}>
+                      <BarChart data={monthlyData.slice(-6)} barSize={28}>
                         <CartesianGrid
+                          dir="ltr"
                           strokeDasharray="3 3"
                           stroke="hsl(var(--border))"
                           vertical={false}
