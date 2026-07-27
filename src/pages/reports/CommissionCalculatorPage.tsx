@@ -241,6 +241,8 @@ export default function CommissionCalculatorPage() {
     });
   };
 
+  return (
+    <div className="space-y-6" dir="rtl">
 
       <PageHeader
         icon={Calculator}
