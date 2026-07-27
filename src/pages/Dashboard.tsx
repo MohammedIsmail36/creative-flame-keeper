@@ -1653,7 +1653,7 @@ export default function Dashboard() {
                               {formatCurrency(currentMonthSales)}
                             </span>
                           </div>
-                          <Progress value={progress} className="h-2" />
+                          <Progress value={progress} rtl className="h-2" />
                           <div className="flex items-center justify-between text-xs text-muted-foreground">
                             <span>الهدف: {formatCurrency(target)}</span>
                             <span
