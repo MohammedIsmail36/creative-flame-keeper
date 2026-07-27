@@ -1253,8 +1253,25 @@ export default function Dashboard() {
                           stroke="hsl(var(--border))"
                           opacity={0.5}
                         />
-                        <XAxis dataKey="name" fontSize={11} axisLine={false} tickLine={false} reversed />
-                        <YAxis fontSize={10} axisLine={false} tickLine={false} orientation="right" />
+                        <XAxis
+                          dataKey="name"
+                          fontSize={11}
+                          axisLine={false}
+                          tickLine={false}
+                          reversed
+                          tick={{ textAnchor: "middle", direction: "rtl" } as any}
+                        />
+                        <YAxis
+                          fontSize={10}
+                          axisLine={false}
+                          tickLine={false}
+                          orientation="right"
+                          width={48}
+                          tick={{ textAnchor: "start", direction: "ltr" } as any}
+                          tickFormatter={(v: number) =>
+                            new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(v)
+                          }
+                        />
                         <Tooltip
                           contentStyle={{
                             borderRadius: "8px",
