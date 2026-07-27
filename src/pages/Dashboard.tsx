@@ -1239,7 +1239,7 @@ export default function Dashboard() {
                   <CardTitle className="text-sm font-semibold">المصروفات الشهرية</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6" style={{ minHeight: "330px" }}>
-                  {loadingCharts ?
+                  {loadingCharts ? (
                     <Skeleton className="h-[180px] w-full" />
                   ) : (
                     <ResponsiveContainer width="100%" height={274}>
