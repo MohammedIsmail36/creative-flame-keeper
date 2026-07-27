@@ -1206,7 +1206,7 @@ export default function Dashboard() {
                           opacity={0.5}
                         />
                         <XAxis dataKey="name" fontSize={11} axisLine={false} tickLine={false} reversed />
-                        <YAxis fontSize={10} axisLine={false} tickLine={false} reversed />
+                        <YAxis fontSize={10} axisLine={false} tickLine={false} orientation="right" />
                         <Tooltip
                           contentStyle={{
                             borderRadius: "8px",
