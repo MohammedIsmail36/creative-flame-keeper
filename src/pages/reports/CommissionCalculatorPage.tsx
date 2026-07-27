@@ -192,8 +192,56 @@ export default function CommissionCalculatorPage() {
   const progressColor =
     achievement >= 120 ? "bg-primary" : achievement >= 100 ? "bg-orange-500" : "bg-destructive";
 
-  return (
-    <div className="space-y-6" dir="rtl">
+  const monthLabel = monthOptions.find((m) => m.value === month)?.label ?? month;
+
+  const handlePrint = async () => {
+    const statusLine = netSales === 0
+      ? "لا توجد مبيعات مسجّلة خلال الفترة"
+      : !reachedTarget
+        ? "غير مستحقة — لم يتم بلوغ الهدف"
+        : !marginOk
+          ? `غير مستحقة — هامش الربح (${fmtPct(margin)}) أقل من الحد الأدنى (${fmtPct(prefs.minMargin)})`
+          : "مستحقة";
+
+    await exportReportPdf({
+      filename: `commission-${month}`,
+      title: `تقرير عمولة البائع — ${monthLabel}`,
+      settings,
+      orientation: "portrait",
+      summaryCards: [
+        { label: "الهدف الشهري", value: formatCurrency(target) },
+        { label: "صافي المبيعات", value: formatCurrency(netSales) },
+        { label: "هامش الربح", value: fmtPct(margin) },
+        { label: "نسبة الإنجاز", value: fmtPct(achievement) },
+        { label: "الشريحة المطبَّقة", value: canEarn ? tierLabel : "—" },
+        { label: "نسبة العمولة", value: canEarn ? `${rate}%` : "—" },
+        { label: "الفرق الخاضع للعمولة", value: canEarn && diff > 0 ? formatCurrency(diff) : "—" },
+        { label: "العمولة الإجمالية", value: formatCurrency(commission) },
+      ],
+      methodologyTitle: "المعايير وشرائح العمولة",
+      methodologyLines: [
+        `الشهر: ${monthLabel}`,
+        `الهدف الشهري: ${formatCurrency(target)}`,
+        `الحد الأدنى لهامش الربح: ${fmtPct(prefs.minMargin)}`,
+        `الشريحة الأولى (100% – 119%): ${prefs.c1}%`,
+        `الشريحة الثانية (120% – 139%): ${prefs.c2}%`,
+        `الشريحة الثالثة (140%+): ${prefs.c3}%`,
+        `حالة الاستحقاق: ${statusLine}`,
+        "قاعدة الحساب: (صافي المبيعات − الهدف) × نسبة الشريحة",
+      ],
+      tableTitle: "تفصيل الحساب",
+      headers: ["البند", "القيمة", "النسبة", "العمولة"],
+      rows: canEarn && diff > 0
+        ? [
+            ["إجمالي المبيعات", formatCurrency(netSales), "—", "—"],
+            ["الهدف المطلوب", formatCurrency(target), "—", "—"],
+            ["الفرق الخاضع للعمولة", formatCurrency(diff), `${rate}%`, formatCurrency(commission)],
+          ]
+        : [["—", "لا توجد عمولة لعرض تفصيلها", "—", "—"]],
+    });
+  };
+
+
       <PageHeader
         icon={Calculator}
         title="حاسبة عمولة البائع"
