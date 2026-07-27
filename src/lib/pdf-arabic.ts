@@ -845,6 +845,10 @@ export interface ReportPdfOptions {
   tableTitle?: string;
   footerNoteTitle?: string;
   footerNoteLines?: string[];
+  footerNoteBlocks?: {
+    label: string;
+    segments: { text: string; highlight?: boolean }[];
+  }[];
   orientation?: "portrait" | "landscape";
   filename: string;
 }
