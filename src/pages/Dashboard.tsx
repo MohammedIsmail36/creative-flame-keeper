@@ -1200,14 +1200,13 @@ export default function Dashboard() {
                     <ResponsiveContainer width="100%" height={240}>
                       <BarChart data={monthlyData.slice(-6)} barSize={28}>
                         <CartesianGrid
-                          dir="ltr"
                           strokeDasharray="3 3"
                           stroke="hsl(var(--border))"
                           vertical={false}
                           opacity={0.5}
                         />
                         <XAxis dataKey="name" fontSize={11} axisLine={false} tickLine={false} reversed />
-                        <YAxis fontSize={10} axisLine={false} tickLine={false} orientation="right" />
+                        <YAxis fontSize={10} axisLine={false} tickLine={false} reversed />
                         <Tooltip
                           contentStyle={{
                             borderRadius: "8px",
