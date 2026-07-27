@@ -845,6 +845,10 @@ export interface ReportPdfOptions {
   tableTitle?: string;
   footerNoteTitle?: string;
   footerNoteLines?: string[];
+  footerNoteBlocks?: {
+    label: string;
+    segments: { text: string; highlight?: boolean }[];
+  }[];
   orientation?: "portrait" | "landscape";
   filename: string;
 }
@@ -898,6 +902,7 @@ function ReportDocument(
     tableTitle,
     footerNoteTitle,
     footerNoteLines,
+    footerNoteBlocks,
     orientation = "portrait",
     logoData,
   } = props;
@@ -1020,6 +1025,45 @@ function ReportDocument(
       textAlign: "right" as const,
       lineHeight: 1.7,
       marginBottom: 2,
+    },
+    footerNoteBlock: {
+      flexDirection: "row" as const,
+      justifyContent: "flex-end" as const,
+      alignItems: "center" as const,
+      marginBottom: 3,
+      flexWrap: "wrap" as const,
+    },
+    footerNoteBlockLabel: {
+      fontSize: 8,
+      fontWeight: 700,
+      color: accent,
+      textAlign: "right" as const,
+      marginLeft: 6,
+    },
+    footerNoteSegment: {
+      fontSize: 8,
+      color: C.ink4,
+      textAlign: "center" as const,
+      paddingHorizontal: 5,
+      paddingVertical: 2,
+      borderRadius: 3,
+      backgroundColor: "transparent",
+    },
+    footerNoteSegmentHighlight: {
+      fontSize: 8,
+      fontWeight: 700,
+      color: accent,
+      backgroundColor: `${accent}15`,
+      textAlign: "center" as const,
+      paddingHorizontal: 5,
+      paddingVertical: 2,
+      borderRadius: 3,
+    },
+    footerNoteSeparator: {
+      fontSize: 8,
+      color: C.ink6,
+      textAlign: "center" as const,
+      paddingHorizontal: 2,
     },
     // ── Section headers ──
     // sectionHeader: {
@@ -1570,7 +1614,7 @@ function ReportDocument(
       ),
 
       // ── Footer note (compact summary at end of report) ──
-      footerNoteLines?.length
+      (footerNoteLines?.length || footerNoteBlocks?.length)
         ? React.createElement(
             View,
             { style: { ...rpt.methodologyBox, marginTop: 8 } },
@@ -1586,6 +1630,39 @@ function ReportDocument(
                 Text,
                 { key: `footnote-${index}`, style: rpt.methodologyLine },
                 line,
+              ),
+            ),
+            ...footerNoteBlocks.map((block, index) =>
+              React.createElement(
+                View,
+                { key: `footblock-${index}`, style: rpt.footerNoteBlock },
+                ...block.segments.flatMap((segment, segIndex) => {
+                  const isLast = segIndex === block.segments.length - 1;
+                  const segmentEl = React.createElement(
+                    Text,
+                    {
+                      key: `seg-${segIndex}`,
+                      style: segment.highlight
+                        ? rpt.footerNoteSegmentHighlight
+                        : rpt.footerNoteSegment,
+                    },
+                    segment.text,
+                  );
+                  if (isLast) return [segmentEl];
+                  return [
+                    segmentEl,
+                    React.createElement(
+                      Text,
+                      { key: `sep-${segIndex}`, style: rpt.footerNoteSeparator },
+                      "•",
+                    ),
+                  ];
+                }),
+                React.createElement(
+                  Text,
+                  { style: rpt.footerNoteBlockLabel },
+                  block.label,
+                ),
               ),
             ),
           )

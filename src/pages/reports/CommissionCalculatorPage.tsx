@@ -223,10 +223,6 @@ export default function CommissionCalculatorPage() {
       ["الأساس الخاضع للعمولة", canEarn && diff > 0 ? formatCurrency(diff) : "—", "قيمة العمولة", formatCurrency(commission)],
     ];
 
-    const activeTierNote = canEarn
-      ? ` — الشريحة المطبَّقة: ${tierLabel} (${rate}%)`
-      : "";
-
     await exportReportPdf({
       filename: `commission-${month}`,
       title: `تقرير عمولة البائع — ${monthLabel}`,
@@ -249,10 +245,24 @@ export default function CommissionCalculatorPage() {
       rows: detailRows,
       footerNoteTitle: "ملخص آلية احتساب العمولة",
       footerNoteLines: [
-        "• تُحتسب العمولة على الفرق بين صافي المبيعات والهدف الشهري، وليس على كامل المبيعات.",
-        "• المعادلة: (صافي المبيعات − الهدف الشهري) × نسبة الشريحة المطبَّقة.",
-        `• شروط الاستحقاق: بلوغ 100% من الهدف + تحقيق هامش ربح لا يقل عن ${fmtPct(prefs.minMargin)}.`,
-        `• الشرائح المرجعية: ${tiers.map((t) => `${t.range} → ${t.val}%`).join("  •  ")}${activeTierNote}.`,
+        "تُحتسب العمولة على الفرق بين صافي المبيعات والهدف الشهري، وليس على كامل المبيعات.",
+        "المعادلة: (صافي المبيعات − الهدف الشهري) × نسبة الشريحة المطبَّقة.",
+      ],
+      footerNoteBlocks: [
+        {
+          label: "شروط الاستحقاق:",
+          segments: [
+            { text: "بلوغ 100% من الهدف" },
+            { text: `هامش ربح ≥ ${fmtPct(prefs.minMargin)}` },
+          ],
+        },
+        {
+          label: "الشرائح المرجعية:",
+          segments: tiers.map((t) => ({
+            text: `${t.range} : ${t.val}%`,
+            highlight: t.idx === tierIdx,
+          })),
+        },
       ],
     });
   };
