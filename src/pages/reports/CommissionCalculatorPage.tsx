@@ -203,6 +203,26 @@ export default function CommissionCalculatorPage() {
           ? `غير مستحقة — هامش الربح (${fmtPct(margin)}) أقل من الحد الأدنى (${fmtPct(prefs.minMargin)})`
           : "مستحقة";
 
+    const eligibilityValue = canEarn
+      ? "مستحقّة"
+      : netSales === 0
+        ? "لا توجد مبيعات"
+        : !reachedTarget
+          ? "غير مستحقّة — الهدف"
+          : "غير مستحقّة — الهامش";
+
+    const detailRows: (string | number)[][] = [
+      // صف 1: الأداء مقابل الهدف
+      ["الهدف الشهري", formatCurrency(target), "صافي المبيعات", formatCurrency(netSales)],
+      ["نسبة الإنجاز", fmtPct(achievement), "الفرق (المبيعات − الهدف)", formatCurrency(diff)],
+      // صف 2: هامش الربح والاستحقاق
+      ["الحد الأدنى لهامش الربح", fmtPct(prefs.minMargin), "هامش الربح المحقق", fmtPct(margin)],
+      ["حالة الاستحقاق", eligibilityValue, "الشهر", monthLabel],
+      // صف 3: نتيجة العمولة
+      ["الشريحة المطبَّقة", canEarn ? tierLabel : "—", "نسبة العمولة", canEarn ? `${rate}%` : "—"],
+      ["الأساس الخاضع للعمولة", canEarn && diff > 0 ? formatCurrency(diff) : "—", "قيمة العمولة", formatCurrency(commission)],
+    ];
+
     await exportReportPdf({
       filename: `commission-${month}`,
       title: `تقرير عمولة البائع — ${monthLabel}`,
@@ -211,46 +231,33 @@ export default function CommissionCalculatorPage() {
       summaryCards: [
         { label: "الهدف الشهري", value: formatCurrency(target) },
         { label: "صافي المبيعات", value: formatCurrency(netSales) },
-        { label: "هامش الربح", value: fmtPct(margin) },
         { label: "نسبة الإنجاز", value: fmtPct(achievement) },
+        { label: "هامش الربح المطلوب", value: fmtPct(prefs.minMargin) },
+        { label: "هامش الربح المحقق", value: fmtPct(margin) },
+        { label: "حالة الاستحقاق", value: eligibilityValue },
         { label: "الشريحة المطبَّقة", value: canEarn ? tierLabel : "—" },
         { label: "نسبة العمولة", value: canEarn ? `${rate}%` : "—" },
-        { label: "الفرق الخاضع للعمولة", value: canEarn && diff > 0 ? formatCurrency(diff) : "—" },
-        { label: "العمولة الإجمالية", value: formatCurrency(commission) },
+        { label: "قيمة العمولة", value: formatCurrency(commission) },
       ],
-      methodologyTitle: "قاعدة احتساب العمولة",
-      methodologyLines: [
-        "المعادلة: (صافي المبيعات − الهدف الشهري) × نسبة الشريحة المطبَّقة.",
-        `شرط الاستحقاق الأول: بلوغ 100% من الهدف الشهري (${formatCurrency(target)}).`,
-        `شرط الاستحقاق الثاني: تحقيق هامش ربح لا يقل عن ${fmtPct(prefs.minMargin)}.`,
-        "تُحدَّد نسبة الشريحة تلقائياً بحسب نسبة الإنجاز الموضّحة في الجدول أدناه.",
-        `حالة الاستحقاق لهذه الفترة: ${statusLine}.`,
-      ],
-      reconciliationTitle: "شرائح العمولة",
+      reconciliationTitle: "شرائح العمولة المرجعية",
       reconciliationRows: tiers.map((t) => ({
         label: `${t.label} — نسبة الإنجاز ${t.range}`,
         value: `${t.val}%${tierIdx === t.idx && canEarn ? "  ✓ مطبَّقة" : ""}`,
         tone: tierIdx === t.idx && canEarn ? "primary" : "neutral",
       })),
-      tableTitle: "تفصيل الحساب",
-      headers: ["البند", "القيمة", "النسبة", "العمولة"],
-      rows: canEarn && diff > 0
-        ? [
-            ["صافي المبيعات", formatCurrency(netSales), "—", "—"],
-            ["الهدف الشهري", formatCurrency(target), "—", "—"],
-            ["نسبة الإنجاز", fmtPct(achievement), "—", "—"],
-            ["هامش الربح", fmtPct(margin), "—", "—"],
-            ["الفرق الخاضع للعمولة", formatCurrency(diff), `${rate}%`, formatCurrency(commission)],
-          ]
-        : [
-            ["صافي المبيعات", formatCurrency(netSales), "—", "—"],
-            ["الهدف الشهري", formatCurrency(target), "—", "—"],
-            ["نسبة الإنجاز", fmtPct(achievement), "—", "—"],
-            ["هامش الربح", fmtPct(margin), "—", "—"],
-            ["الحالة", statusLine, "—", "—"],
-          ],
+      tableTitle: "تفاصيل الحساب",
+      headers: ["البند", "القيمة", "البند", "القيمة"],
+      rows: [
+        ...detailRows,
+        ["—", "—", "—", "—"],
+        ["كيف تُحتسب العمولة؟", "تُحتسب على الفرق بين صافي المبيعات والهدف الشهري، وليس على كامل المبيعات.", "", ""],
+        ["المعادلة", "(صافي المبيعات − الهدف الشهري) × نسبة الشريحة المطبَّقة", "", ""],
+        ["شروط الاستحقاق", `بلوغ 100% من الهدف + تحقيق هامش ربح لا يقل عن ${fmtPct(prefs.minMargin)}`, "", ""],
+        ["تحديد الشريحة", "تُحدَّد النسبة تلقائياً بحسب نسبة الإنجاز وفق الشرائح المرجعية أعلاه.", "", ""],
+      ],
     });
   };
+
 
   return (
     <div className="space-y-6" dir="rtl">
