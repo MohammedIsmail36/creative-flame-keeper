@@ -1182,7 +1182,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Charts — 2 columns */}
             <div className="lg:col-span-2 space-y-4">
-              <Card className="border-border/60 shadow-sm min-h-[330px]">
+              <Card className="border-border/60 shadow-sm" style={{ minHeight: "335px" }}>
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <div>
                     <CardTitle className="text-sm font-semibold">المبيعات مقابل المشتريات</CardTitle>
