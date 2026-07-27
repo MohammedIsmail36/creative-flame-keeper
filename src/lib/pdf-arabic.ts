@@ -1027,7 +1027,8 @@ function ReportDocument(
       marginBottom: 2,
     },
     footerNoteBlock: {
-      flexDirection: "row-reverse" as const,
+      flexDirection: "row" as const,
+      justifyContent: "flex-end" as const,
       alignItems: "center" as const,
       marginBottom: 3,
       flexWrap: "wrap" as const,
