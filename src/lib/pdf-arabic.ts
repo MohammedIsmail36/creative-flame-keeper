@@ -1569,6 +1569,29 @@ function ReportDocument(
         `إجمالي السجلات: ${rows.length}`,
       ),
 
+      // ── Footer note (compact summary at end of report) ──
+      footerNoteLines?.length
+        ? React.createElement(
+            View,
+            { style: { ...rpt.methodologyBox, marginTop: 8 } },
+            footerNoteTitle
+              ? React.createElement(
+                  Text,
+                  { style: rpt.methodologyTitle },
+                  footerNoteTitle,
+                )
+              : null,
+            ...footerNoteLines.map((line, index) =>
+              React.createElement(
+                Text,
+                { key: `footnote-${index}`, style: rpt.methodologyLine },
+                line,
+              ),
+            ),
+          )
+        : null,
+
+
       // ── Footer ──
       React.createElement(
         View,
