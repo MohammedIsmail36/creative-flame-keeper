@@ -1193,7 +1193,7 @@ export default function Dashboard() {
                     {new Date().getFullYear()}
                   </Badge>
                 </CardHeader>
-                <CardContent style={{ minHeight: "335px" }}>
+                <CardContent className="pt-6" style={{ minHeight: "330px" }}>
                   {loadingCharts ? (
                     <Skeleton className="h-[240px] w-full" />
                   ) : (
