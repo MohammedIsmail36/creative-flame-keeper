@@ -1636,11 +1636,6 @@ function ReportDocument(
               React.createElement(
                 View,
                 { key: `footblock-${index}`, style: rpt.footerNoteBlock },
-                React.createElement(
-                  Text,
-                  { style: rpt.footerNoteBlockLabel },
-                  block.label,
-                ),
                 ...block.segments.flatMap((segment, segIndex) => {
                   const isLast = segIndex === block.segments.length - 1;
                   const segmentEl = React.createElement(
@@ -1663,6 +1658,11 @@ function ReportDocument(
                     ),
                   ];
                 }),
+                React.createElement(
+                  Text,
+                  { style: rpt.footerNoteBlockLabel },
+                  block.label,
+                ),
               ),
             ),
           )
