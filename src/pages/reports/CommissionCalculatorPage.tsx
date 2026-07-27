@@ -223,6 +223,10 @@ export default function CommissionCalculatorPage() {
       ["الأساس الخاضع للعمولة", canEarn && diff > 0 ? formatCurrency(diff) : "—", "قيمة العمولة", formatCurrency(commission)],
     ];
 
+    const activeTierNote = canEarn
+      ? ` — الشريحة المطبَّقة: ${tierLabel} (${rate}%)`
+      : "";
+
     await exportReportPdf({
       filename: `commission-${month}`,
       title: `تقرير عمولة البائع — ${monthLabel}`,
@@ -239,21 +243,16 @@ export default function CommissionCalculatorPage() {
         { label: "نسبة العمولة", value: canEarn ? `${rate}%` : "—" },
         { label: "قيمة العمولة", value: formatCurrency(commission) },
       ],
-      reconciliationTitle: "شرائح العمولة المرجعية",
-      reconciliationRows: tiers.map((t) => ({
-        label: `${t.label} — نسبة الإنجاز ${t.range}`,
-        value: `${t.val}%${tierIdx === t.idx && canEarn ? "  ✓ مطبَّقة" : ""}`,
-        tone: tierIdx === t.idx && canEarn ? "primary" : "neutral",
-      })),
+      summaryColumns: 3,
       tableTitle: "تفاصيل الحساب",
       headers: ["البند", "القيمة", "البند", "القيمة"],
-      rows: [
-        ...detailRows,
-        ["—", "—", "—", "—"],
-        ["كيف تُحتسب العمولة؟", "تُحتسب على الفرق بين صافي المبيعات والهدف الشهري، وليس على كامل المبيعات.", "", ""],
-        ["المعادلة", "(صافي المبيعات − الهدف الشهري) × نسبة الشريحة المطبَّقة", "", ""],
-        ["شروط الاستحقاق", `بلوغ 100% من الهدف + تحقيق هامش ربح لا يقل عن ${fmtPct(prefs.minMargin)}`, "", ""],
-        ["تحديد الشريحة", "تُحدَّد النسبة تلقائياً بحسب نسبة الإنجاز وفق الشرائح المرجعية أعلاه.", "", ""],
+      rows: detailRows,
+      footerNoteTitle: "ملخص آلية احتساب العمولة",
+      footerNoteLines: [
+        "• تُحتسب العمولة على الفرق بين صافي المبيعات والهدف الشهري، وليس على كامل المبيعات.",
+        "• المعادلة: (صافي المبيعات − الهدف الشهري) × نسبة الشريحة المطبَّقة.",
+        `• شروط الاستحقاق: بلوغ 100% من الهدف + تحقيق هامش ربح لا يقل عن ${fmtPct(prefs.minMargin)}.`,
+        `• الشرائح المرجعية: ${tiers.map((t) => `${t.range} → ${t.val}%`).join("  •  ")}${activeTierNote}.`,
       ],
     });
   };
