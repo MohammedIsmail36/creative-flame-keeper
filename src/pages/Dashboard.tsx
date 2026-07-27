@@ -1238,7 +1238,7 @@ export default function Dashboard() {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold">المصروفات الشهرية</CardTitle>
                 </CardHeader>
-                <CardContent className="pt-6" style={{ minHeight: "410" }}>
+                <CardContent className="pt-6" style={{ minHeight: "410px" }}>
                   {loadingCharts ? (
                     <Skeleton className="h-[180px] w-full" />
                   ) : (
@@ -1251,7 +1251,7 @@ export default function Dashboard() {
                           axisLine={false}
                           tickLine={false}
                           reversed
-                          tick={{ textAnchor: "middle", direction: "rtl" } as any}
+                          tick={{ textAnchor: "middle", direction: "ltr" } as any}
                         />
                         <YAxis
                           fontSize={10}
