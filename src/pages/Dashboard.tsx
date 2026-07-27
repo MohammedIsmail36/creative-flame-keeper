@@ -1407,6 +1407,7 @@ export default function Dashboard() {
                           fontSize={11}
                           axisLine={false}
                           tickLine={false}
+                          reversed
                         />
                         <YAxis
                           fontSize={10}
@@ -1459,6 +1460,7 @@ export default function Dashboard() {
                           fontSize={11}
                           axisLine={false}
                           tickLine={false}
+                          reversed
                         />
                         <YAxis
                           fontSize={10}
