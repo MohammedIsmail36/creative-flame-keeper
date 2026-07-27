@@ -218,26 +218,37 @@ export default function CommissionCalculatorPage() {
         { label: "الفرق الخاضع للعمولة", value: canEarn && diff > 0 ? formatCurrency(diff) : "—" },
         { label: "العمولة الإجمالية", value: formatCurrency(commission) },
       ],
-      methodologyTitle: "المعايير وشرائح العمولة",
+      methodologyTitle: "قاعدة احتساب العمولة",
       methodologyLines: [
-        `الشهر: ${monthLabel}`,
-        `الهدف الشهري: ${formatCurrency(target)}`,
-        `الحد الأدنى لهامش الربح: ${fmtPct(prefs.minMargin)}`,
-        `الشريحة الأولى (100% – 119%): ${prefs.c1}%`,
-        `الشريحة الثانية (120% – 139%): ${prefs.c2}%`,
-        `الشريحة الثالثة (140%+): ${prefs.c3}%`,
-        `حالة الاستحقاق: ${statusLine}`,
-        "قاعدة الحساب: (صافي المبيعات − الهدف) × نسبة الشريحة",
+        "المعادلة: (صافي المبيعات − الهدف الشهري) × نسبة الشريحة المطبَّقة.",
+        `شرط الاستحقاق الأول: بلوغ 100% من الهدف الشهري (${formatCurrency(target)}).`,
+        `شرط الاستحقاق الثاني: تحقيق هامش ربح لا يقل عن ${fmtPct(prefs.minMargin)}.`,
+        "تُحدَّد نسبة الشريحة تلقائياً بحسب نسبة الإنجاز الموضّحة في الجدول أدناه.",
+        `حالة الاستحقاق لهذه الفترة: ${statusLine}.`,
       ],
+      reconciliationTitle: "شرائح العمولة",
+      reconciliationRows: tiers.map((t) => ({
+        label: `${t.label} — نسبة الإنجاز ${t.range}`,
+        value: `${t.val}%${tierIdx === t.idx && canEarn ? "  ✓ مطبَّقة" : ""}`,
+        tone: tierIdx === t.idx && canEarn ? "primary" : "neutral",
+      })),
       tableTitle: "تفصيل الحساب",
       headers: ["البند", "القيمة", "النسبة", "العمولة"],
       rows: canEarn && diff > 0
         ? [
-            ["إجمالي المبيعات", formatCurrency(netSales), "—", "—"],
-            ["الهدف المطلوب", formatCurrency(target), "—", "—"],
+            ["صافي المبيعات", formatCurrency(netSales), "—", "—"],
+            ["الهدف الشهري", formatCurrency(target), "—", "—"],
+            ["نسبة الإنجاز", fmtPct(achievement), "—", "—"],
+            ["هامش الربح", fmtPct(margin), "—", "—"],
             ["الفرق الخاضع للعمولة", formatCurrency(diff), `${rate}%`, formatCurrency(commission)],
           ]
-        : [["—", "لا توجد عمولة لعرض تفصيلها", "—", "—"]],
+        : [
+            ["صافي المبيعات", formatCurrency(netSales), "—", "—"],
+            ["الهدف الشهري", formatCurrency(target), "—", "—"],
+            ["نسبة الإنجاز", fmtPct(achievement), "—", "—"],
+            ["هامش الربح", fmtPct(margin), "—", "—"],
+            ["الحالة", statusLine, "—", "—"],
+          ],
     });
   };
 
