@@ -1613,7 +1613,7 @@ function ReportDocument(
       ),
 
       // ── Footer note (compact summary at end of report) ──
-      footerNoteLines?.length
+      (footerNoteLines?.length || footerNoteBlocks?.length)
         ? React.createElement(
             View,
             { style: { ...rpt.methodologyBox, marginTop: 8 } },
@@ -1629,6 +1629,39 @@ function ReportDocument(
                 Text,
                 { key: `footnote-${index}`, style: rpt.methodologyLine },
                 line,
+              ),
+            ),
+            ...footerNoteBlocks.map((block, index) =>
+              React.createElement(
+                View,
+                { key: `footblock-${index}`, style: rpt.footerNoteBlock },
+                React.createElement(
+                  Text,
+                  { style: rpt.footerNoteBlockLabel },
+                  block.label,
+                ),
+                ...block.segments.flatMap((segment, segIndex) => {
+                  const isLast = segIndex === block.segments.length - 1;
+                  const segmentEl = React.createElement(
+                    Text,
+                    {
+                      key: `seg-${segIndex}`,
+                      style: segment.highlight
+                        ? rpt.footerNoteSegmentHighlight
+                        : rpt.footerNoteSegment,
+                    },
+                    segment.text,
+                  );
+                  if (isLast) return [segmentEl];
+                  return [
+                    segmentEl,
+                    React.createElement(
+                      Text,
+                      { key: `sep-${segIndex}`, style: rpt.footerNoteSeparator },
+                      "•",
+                    ),
+                  ];
+                }),
               ),
             ),
           )
