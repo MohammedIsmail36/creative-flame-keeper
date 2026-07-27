@@ -1206,7 +1206,7 @@ export default function Dashboard() {
                           axisLine={false}
                           tickLine={false}
                           reversed
-                          tick={{ textAnchor: "middle", direction: "rtl" } as any}
+                          tick={{ textAnchor: "middle", direction: "ltr" } as any}
                         />
                         <YAxis
                           fontSize={10}
