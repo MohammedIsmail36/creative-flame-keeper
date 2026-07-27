@@ -259,7 +259,7 @@ export default function CommissionCalculatorPage() {
         {
           label: "الشرائح المرجعية:",
           segments: tiers.map((t) => ({
-            text: `${t.range} → ${t.val}%`,
+            text: `${t.range} : ${t.val}%`,
             highlight: t.idx === tierIdx,
           })),
         },
