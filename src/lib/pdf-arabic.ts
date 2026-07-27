@@ -833,6 +833,7 @@ export interface ReportPdfOptions {
   headers: string[];
   rows: (string | number)[][];
   summaryCards?: { label: string; value: string }[];
+  summaryColumns?: number;
   methodologyTitle?: string;
   methodologyLines?: string[];
   reconciliationTitle?: string;
@@ -842,6 +843,8 @@ export interface ReportPdfOptions {
     tone?: "neutral" | "positive" | "negative" | "primary";
   }[];
   tableTitle?: string;
+  footerNoteTitle?: string;
+  footerNoteLines?: string[];
   orientation?: "portrait" | "landscape";
   filename: string;
 }
@@ -887,11 +890,14 @@ function ReportDocument(
     headers,
     rows,
     summaryCards,
+    summaryColumns,
     methodologyTitle,
     methodologyLines,
     reconciliationTitle,
     reconciliationRows,
     tableTitle,
+    footerNoteTitle,
+    footerNoteLines,
     orientation = "portrait",
     logoData,
   } = props;
@@ -1045,7 +1051,10 @@ function ReportDocument(
     },
     summaryCard: {
       flexGrow: 1,
-      flexBasis: "23%",
+      flexBasis:
+        summaryColumns && summaryColumns > 0
+          ? `${Math.floor((100 - (summaryColumns - 1) * 1) / summaryColumns) - 1}%`
+          : "23%",
       backgroundColor: C.bgSoft,
       borderWidth: 1,
       borderColor: C.slate200,
@@ -1559,6 +1568,29 @@ function ReportDocument(
         { style: rpt.recordCount },
         `إجمالي السجلات: ${rows.length}`,
       ),
+
+      // ── Footer note (compact summary at end of report) ──
+      footerNoteLines?.length
+        ? React.createElement(
+            View,
+            { style: { ...rpt.methodologyBox, marginTop: 8 } },
+            footerNoteTitle
+              ? React.createElement(
+                  Text,
+                  { style: rpt.methodologyTitle },
+                  footerNoteTitle,
+                )
+              : null,
+            ...footerNoteLines.map((line, index) =>
+              React.createElement(
+                Text,
+                { key: `footnote-${index}`, style: rpt.methodologyLine },
+                line,
+              ),
+            ),
+          )
+        : null,
+
 
       // ── Footer ──
       React.createElement(
