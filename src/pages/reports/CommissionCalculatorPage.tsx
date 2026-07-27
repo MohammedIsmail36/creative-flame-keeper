@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Calculator, Info, RefreshCw } from "lucide-react";
+import { Calculator, Info, RefreshCw, Printer } from "lucide-react";
+import { exportReportPdf } from "@/lib/report-pdf";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
