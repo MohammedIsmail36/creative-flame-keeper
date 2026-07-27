@@ -1437,13 +1437,6 @@ export default function Dashboard() {
               <Card className="border-border/60 shadow-sm">
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <CardTitle className="text-sm font-semibold">أحدث الحركات</CardTitle>
-                  <button
-                    onClick={() => navigate("/sales")}
-                    className="text-xs text-primary/80 hover:text-primary font-medium flex items-center gap-0.5 transition-colors"
-                  >
-                    عرض الكل
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
                 </CardHeader>
                 <CardContent className="px-3 pb-3 space-y-0.5">
                   {loadingRight ? (
