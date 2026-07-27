@@ -833,6 +833,7 @@ export interface ReportPdfOptions {
   headers: string[];
   rows: (string | number)[][];
   summaryCards?: { label: string; value: string }[];
+  summaryColumns?: number;
   methodologyTitle?: string;
   methodologyLines?: string[];
   reconciliationTitle?: string;
@@ -842,6 +843,8 @@ export interface ReportPdfOptions {
     tone?: "neutral" | "positive" | "negative" | "primary";
   }[];
   tableTitle?: string;
+  footerNoteTitle?: string;
+  footerNoteLines?: string[];
   orientation?: "portrait" | "landscape";
   filename: string;
 }
