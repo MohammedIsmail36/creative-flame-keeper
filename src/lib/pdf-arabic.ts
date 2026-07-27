@@ -1051,7 +1051,10 @@ function ReportDocument(
     },
     summaryCard: {
       flexGrow: 1,
-      flexBasis: "23%",
+      flexBasis:
+        summaryColumns && summaryColumns > 0
+          ? `${Math.floor((100 - (summaryColumns - 1) * 1) / summaryColumns) - 1}%`
+          : "23%",
       backgroundColor: C.bgSoft,
       borderWidth: 1,
       borderColor: C.slate200,
