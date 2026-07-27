@@ -1182,7 +1182,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Charts — 2 columns */}
             <div className="lg:col-span-2 space-y-4">
-              <Card className="border-border/60 shadow-sm">
+              <Card className="border-border/60 shadow-sm min-h-[330px]">
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <div>
                     <CardTitle className="text-sm font-semibold">المبيعات مقابل المشتريات</CardTitle>
@@ -1199,11 +1199,7 @@ export default function Dashboard() {
                   ) : (
                     <ResponsiveContainer width="100%" height={240}>
                       <BarChart data={monthlyData.slice(-6)} barSize={28}>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke="hsl(var(--border))"
-                          opacity={0.5}
-                        />
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
                         <XAxis
                           dataKey="name"
                           fontSize={11}
@@ -1248,11 +1244,7 @@ export default function Dashboard() {
                   ) : (
                     <ResponsiveContainer width="100%" height={274}>
                       <LineChart data={monthlyExpenses.slice(-6)}>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke="hsl(var(--border))"
-                          opacity={0.5}
-                        />
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
                         <XAxis
                           dataKey="name"
                           fontSize={11}
