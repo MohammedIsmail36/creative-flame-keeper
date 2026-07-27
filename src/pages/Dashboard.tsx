@@ -1839,7 +1839,7 @@ export default function Dashboard() {
                               {c.percentage}%
                             </span>
                           </div>
-                          <Progress value={c.percentage} className="h-1.5" />
+                          <Progress value={c.percentage} rtl className="h-1.5" />
                         </div>
                       </div>
                     ))}
