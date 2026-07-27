@@ -902,6 +902,7 @@ function ReportDocument(
     tableTitle,
     footerNoteTitle,
     footerNoteLines,
+    footerNoteBlocks,
     orientation = "portrait",
     logoData,
   } = props;
