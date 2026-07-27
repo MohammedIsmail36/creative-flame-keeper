@@ -251,7 +251,11 @@ export default function CommissionCalculatorPage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={handlePrint} disabled={isLoading}>
+              <Printer className="h-4 w-4 ml-2" />
+              طباعة PDF
+            </Button>
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
               <RefreshCw className={cn("h-4 w-4 ml-2", isFetching && "animate-spin")} />
               تحديث البيانات
