@@ -1522,7 +1522,7 @@ export default function Dashboard() {
                       <Clock className="w-4 h-4 text-amber-500" />
                       أعمار الذمم المدينة
                     </CardTitle>
-                    <SectionLink label="تقرير مفصل" to="/reports/debt-aging" />
+                    <SectionLink label="تقرير مفصل" to="/reports/aging" />
                   </CardHeader>
                   <CardContent className="pt-0 pb-3">
                     <div className="grid grid-cols-4 gap-2">
