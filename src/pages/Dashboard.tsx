@@ -1413,6 +1413,7 @@ export default function Dashboard() {
                           fontSize={10}
                           axisLine={false}
                           tickLine={false}
+                          orientation="right"
                         />
                         <Tooltip
                           contentStyle={{
@@ -1466,6 +1467,7 @@ export default function Dashboard() {
                           fontSize={10}
                           axisLine={false}
                           tickLine={false}
+                          orientation="right"
                         />
                         <Tooltip
                           contentStyle={{
