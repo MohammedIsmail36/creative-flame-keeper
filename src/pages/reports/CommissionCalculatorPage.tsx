@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Calculator, Info, RefreshCw } from "lucide-react";
+import { Calculator, Info, RefreshCw, Printer } from "lucide-react";
+import { exportReportPdf } from "@/lib/report-pdf";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -191,8 +192,58 @@ export default function CommissionCalculatorPage() {
   const progressColor =
     achievement >= 120 ? "bg-primary" : achievement >= 100 ? "bg-orange-500" : "bg-destructive";
 
+  const monthLabel = monthOptions.find((m) => m.value === month)?.label ?? month;
+
+  const handlePrint = async () => {
+    const statusLine = netSales === 0
+      ? "لا توجد مبيعات مسجّلة خلال الفترة"
+      : !reachedTarget
+        ? "غير مستحقة — لم يتم بلوغ الهدف"
+        : !marginOk
+          ? `غير مستحقة — هامش الربح (${fmtPct(margin)}) أقل من الحد الأدنى (${fmtPct(prefs.minMargin)})`
+          : "مستحقة";
+
+    await exportReportPdf({
+      filename: `commission-${month}`,
+      title: `تقرير عمولة البائع — ${monthLabel}`,
+      settings,
+      orientation: "portrait",
+      summaryCards: [
+        { label: "الهدف الشهري", value: formatCurrency(target) },
+        { label: "صافي المبيعات", value: formatCurrency(netSales) },
+        { label: "هامش الربح", value: fmtPct(margin) },
+        { label: "نسبة الإنجاز", value: fmtPct(achievement) },
+        { label: "الشريحة المطبَّقة", value: canEarn ? tierLabel : "—" },
+        { label: "نسبة العمولة", value: canEarn ? `${rate}%` : "—" },
+        { label: "الفرق الخاضع للعمولة", value: canEarn && diff > 0 ? formatCurrency(diff) : "—" },
+        { label: "العمولة الإجمالية", value: formatCurrency(commission) },
+      ],
+      methodologyTitle: "المعايير وشرائح العمولة",
+      methodologyLines: [
+        `الشهر: ${monthLabel}`,
+        `الهدف الشهري: ${formatCurrency(target)}`,
+        `الحد الأدنى لهامش الربح: ${fmtPct(prefs.minMargin)}`,
+        `الشريحة الأولى (100% – 119%): ${prefs.c1}%`,
+        `الشريحة الثانية (120% – 139%): ${prefs.c2}%`,
+        `الشريحة الثالثة (140%+): ${prefs.c3}%`,
+        `حالة الاستحقاق: ${statusLine}`,
+        "قاعدة الحساب: (صافي المبيعات − الهدف) × نسبة الشريحة",
+      ],
+      tableTitle: "تفصيل الحساب",
+      headers: ["البند", "القيمة", "النسبة", "العمولة"],
+      rows: canEarn && diff > 0
+        ? [
+            ["إجمالي المبيعات", formatCurrency(netSales), "—", "—"],
+            ["الهدف المطلوب", formatCurrency(target), "—", "—"],
+            ["الفرق الخاضع للعمولة", formatCurrency(diff), `${rate}%`, formatCurrency(commission)],
+          ]
+        : [["—", "لا توجد عمولة لعرض تفصيلها", "—", "—"]],
+    });
+  };
+
   return (
     <div className="space-y-6" dir="rtl">
+
       <PageHeader
         icon={Calculator}
         title="حاسبة عمولة البائع"
@@ -250,7 +301,11 @@ export default function CommissionCalculatorPage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={handlePrint} disabled={isLoading}>
+              <Printer className="h-4 w-4 ml-2" />
+              طباعة PDF
+            </Button>
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
               <RefreshCw className={cn("h-4 w-4 ml-2", isFetching && "animate-spin")} />
               تحديث البيانات
