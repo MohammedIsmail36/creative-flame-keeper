@@ -1184,7 +1184,7 @@ export default function Dashboard() {
             <div className="lg:col-span-2 space-y-4">
               <Card className="border-border/60 shadow-sm">
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                  <div style={{ minHeight: "335px" }}>
+                  <div>
                     <CardTitle className="text-sm font-semibold">المبيعات مقابل المشتريات</CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">آخر 6 أشهر</p>
                   </div>
@@ -1193,7 +1193,7 @@ export default function Dashboard() {
                     {new Date().getFullYear()}
                   </Badge>
                 </CardHeader>
-                <CardContent>
+                <CardContent style={{ minHeight: "335px" }}>
                   {loadingCharts ? (
                     <Skeleton className="h-[240px] w-full" />
                   ) : (
