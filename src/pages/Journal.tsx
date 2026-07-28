@@ -96,6 +96,8 @@ export default function Journal() {
           "id, entry_number, posted_number, entry_date, description, status, total_debit, total_credit, created_at",
           { count: "exact" },
         )
+        .order("posted_number", { ascending: false, nullsFirst: true })
+        .order("entry_date", { ascending: false })
         .order("entry_number", { ascending: false })
         .range(from, to);
 
