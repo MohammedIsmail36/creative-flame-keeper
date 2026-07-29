@@ -39,7 +39,7 @@ import {
   List,
   LayoutGrid,
   Search,
-  Printer,
+  Barcode,
 } from "lucide-react";
 import { BarcodePrintDialog } from "@/components/BarcodePrintDialog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
