@@ -648,15 +648,22 @@ export default function Products() {
           return (
             <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
               {row.original.barcode && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="طباعة الباركود"
-                  className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
-                  onClick={() => openPrintFor([row.original])}
-                >
-                  <Printer className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="طباعة ملصق الباركود"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                      onClick={() => openPrintFor([row.original])}
+                    >
+                      <Barcode className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>طباعة ملصق الباركود</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
               {canToggle && (
                 <AlertDialog>
@@ -809,15 +816,6 @@ export default function Products() {
         description="عرض وتتبع كافة الأصناف المتوفرة في المخازن."
         actions={
           <>
-            <Button
-              variant="outline"
-              className="gap-2 shadow-sm"
-              onClick={() => openPrintFor(products.filter((p) => !!p.barcode))}
-              disabled={isLoading || products.filter((p) => !!p.barcode).length === 0}
-            >
-              <Printer className="h-4 w-4" />
-              طباعة الباركود
-            </Button>
             {canEdit && (
               <>
                 <Button variant="outline" className="gap-2 shadow-sm" onClick={() => navigate("/products/import")}>
