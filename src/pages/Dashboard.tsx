@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatProductDisplay } from "@/lib/product-utils";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
+import { fetchAllPaged } from "@/lib/paged-fetch";
 import { useSettings } from "@/contexts/SettingsContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageHeader } from "@/components/PageHeader";
