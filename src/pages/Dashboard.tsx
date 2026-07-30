@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatProductDisplay } from "@/lib/product-utils";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
+import { fetchAllPaged } from "@/lib/paged-fetch";
 import { useSettings } from "@/contexts/SettingsContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageHeader } from "@/components/PageHeader";
@@ -560,30 +561,39 @@ export default function Dashboard() {
   };
 
   const fetchLiquidity = async () => {
-    const [aR, lR] = await Promise.all([
-      supabase.from("accounts").select("id, code, name").eq("is_active", true),
-      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entry_id"),
-    ]);
-    if (!aR.data || !lR.data) return;
-    const cash = aR.data.filter((a) => a.code.startsWith("1101"));
-    const bank = aR.data.filter((a) => a.code.startsWith("1102"));
-    const allIds = new Set([...cash, ...bank].map((a) => a.id));
-    const eIds = [...new Set(lR.data.map((l: any) => l.journal_entry_id))];
-    if (!eIds.length) return;
-    const { data: entries } = await supabase.from("journal_entries").select("id").in("id", eIds).eq("status", "posted");
-    const posted = new Set((entries || []).map((e) => e.id));
-    const cIds = new Set(cash.map((a) => a.id));
-    const bIds = new Set(bank.map((a) => a.id));
+    const { data: accs } = await supabase
+      .from("accounts")
+      .select("id, code")
+      .eq("is_active", true);
+    if (!accs) return;
+    const cIds = new Set(accs.filter((a) => a.code.startsWith("1101")).map((a) => a.id));
+    const bIds = new Set(accs.filter((a) => a.code.startsWith("1102")).map((a) => a.id));
+    const allIds = [...cIds, ...bIds];
+    if (!allIds.length) {
+      setLiquidity({ total: 0, cash: 0, bank: 0 });
+      return;
+    }
+
+    // Filter server-side (posted entries only) and page through results,
+    // avoiding oversized URLs / 502 responses on large datasets.
+    const lines = await fetchAllPaged<any>(() =>
+      supabase
+        .from("journal_entry_lines")
+        .select("account_id, debit, credit, journal_entries!inner(status)", { count: "exact" })
+        .in("account_id", allIds)
+        .eq("journal_entries.status", "posted"),
+    );
+
     let cb = 0,
       bb = 0;
-    lR.data.forEach((l: any) => {
-      if (!posted.has(l.journal_entry_id) || !allIds.has(l.account_id)) return;
+    lines.forEach((l: any) => {
       const net = Number(l.debit) - Number(l.credit);
       if (cIds.has(l.account_id)) cb += net;
-      if (bIds.has(l.account_id)) bb += net;
+      else if (bIds.has(l.account_id)) bb += net;
     });
     setLiquidity({ total: cb + bb, cash: cb, bank: bb });
   };
+
 
   const fetchExpensesByType = async () => {
     const [eR, tR] = await Promise.all([
@@ -709,23 +719,23 @@ export default function Dashboard() {
   };
 
   const fetchBalances = async () => {
-    const [aR, lR] = await Promise.all([
+    const [aR, lines] = await Promise.all([
       supabase
         .from("accounts")
         .select("id, code, name, account_type")
         .eq("is_active", true)
         .eq("is_parent", false)
         .order("code"),
-      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entry_id"),
+      fetchAllPaged<any>(() =>
+        supabase
+          .from("journal_entry_lines")
+          .select("account_id, debit, credit, journal_entries!inner(status)", { count: "exact" })
+          .eq("journal_entries.status", "posted"),
+      ),
     ]);
-    if (!aR.data || !lR.data) return;
-    const eIds = [...new Set(lR.data.map((l: any) => l.journal_entry_id))];
-    if (!eIds.length) return;
-    const { data: entries } = await supabase.from("journal_entries").select("id").in("id", eIds).eq("status", "posted");
-    const posted = new Set((entries || []).map((e) => e.id));
+    if (!aR.data) return;
     const bm = new Map<string, { debit: number; credit: number }>();
-    lR.data.forEach((l: any) => {
-      if (!posted.has(l.journal_entry_id)) return;
+    lines.forEach((l: any) => {
       const c = bm.get(l.account_id) || { debit: 0, credit: 0 };
       c.debit += Number(l.debit);
       c.credit += Number(l.credit);
@@ -747,29 +757,28 @@ export default function Dashboard() {
   };
 
   const fetchTopCategories = async () => {
-    const { data: items } = await (supabase.from("sales_invoice_items") as any).select(
-      "product_id, quantity, total, net_total, invoice_id",
+    const items = await fetchAllPaged<any>(() =>
+      (supabase.from("sales_invoice_items") as any).select(
+        "product_id, quantity, total, net_total, invoice_id, sales_invoices!inner(status)",
+        { count: "exact" },
+      ).eq("sales_invoices.status", "posted"),
     );
-    if (!items?.length) {
+    if (!items.length) {
       setTopCategories([]);
       return;
     }
-    const iIds = [...new Set(items.map((i: any) => i.invoice_id))] as string[];
-    const { data: invs } = await supabase.from("sales_invoices").select("id").in("id", iIds).eq("status", "posted");
-    const posted = new Set((invs || []).map((i) => i.id));
-    const pIds = [
-      ...new Set(items.filter((i: any) => i.product_id && posted.has(i.invoice_id)).map((i: any) => i.product_id)),
-    ] as string[];
+    const posted = new Set(items.map((i: any) => i.invoice_id));
+    const pIds = [...new Set(items.filter((i: any) => i.product_id).map((i: any) => i.product_id))] as string[];
     if (!pIds.length) {
       setTopCategories([]);
       return;
     }
-    const { data: prods } = await supabase
-      .from("products")
-      .select("id, category_id, purchase_price")
-      .in("id", pIds as string[]);
+    const prods = await fetchAllPaged<any>(() =>
+      supabase.from("products").select("id, category_id, purchase_price", { count: "exact" }),
+    );
     const { data: cats } = await supabase.from("product_categories").select("id, name");
     const pm = new Map((prods || []).map((p) => [p.id, p]));
+
     const cm = new Map((cats || []).map((c) => [c.id, c.name]));
     const g = new Map<string, { sales: number; profit: number }>();
     items.forEach((item: any) => {
