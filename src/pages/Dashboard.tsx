@@ -560,30 +560,39 @@ export default function Dashboard() {
   };
 
   const fetchLiquidity = async () => {
-    const [aR, lR] = await Promise.all([
-      supabase.from("accounts").select("id, code, name").eq("is_active", true),
-      supabase.from("journal_entry_lines").select("account_id, debit, credit, journal_entry_id"),
-    ]);
-    if (!aR.data || !lR.data) return;
-    const cash = aR.data.filter((a) => a.code.startsWith("1101"));
-    const bank = aR.data.filter((a) => a.code.startsWith("1102"));
-    const allIds = new Set([...cash, ...bank].map((a) => a.id));
-    const eIds = [...new Set(lR.data.map((l: any) => l.journal_entry_id))];
-    if (!eIds.length) return;
-    const { data: entries } = await supabase.from("journal_entries").select("id").in("id", eIds).eq("status", "posted");
-    const posted = new Set((entries || []).map((e) => e.id));
-    const cIds = new Set(cash.map((a) => a.id));
-    const bIds = new Set(bank.map((a) => a.id));
+    const { data: accs } = await supabase
+      .from("accounts")
+      .select("id, code")
+      .eq("is_active", true);
+    if (!accs) return;
+    const cIds = new Set(accs.filter((a) => a.code.startsWith("1101")).map((a) => a.id));
+    const bIds = new Set(accs.filter((a) => a.code.startsWith("1102")).map((a) => a.id));
+    const allIds = [...cIds, ...bIds];
+    if (!allIds.length) {
+      setLiquidity({ total: 0, cash: 0, bank: 0 });
+      return;
+    }
+
+    // Filter server-side (posted entries only) and page through results,
+    // avoiding oversized URLs / 502 responses on large datasets.
+    const lines = await fetchAllPaged<any>(() =>
+      supabase
+        .from("journal_entry_lines")
+        .select("account_id, debit, credit, journal_entries!inner(status)", { count: "exact" })
+        .in("account_id", allIds)
+        .eq("journal_entries.status", "posted"),
+    );
+
     let cb = 0,
       bb = 0;
-    lR.data.forEach((l: any) => {
-      if (!posted.has(l.journal_entry_id) || !allIds.has(l.account_id)) return;
+    lines.forEach((l: any) => {
       const net = Number(l.debit) - Number(l.credit);
       if (cIds.has(l.account_id)) cb += net;
-      if (bIds.has(l.account_id)) bb += net;
+      else if (bIds.has(l.account_id)) bb += net;
     });
     setLiquidity({ total: cb + bb, cash: cb, bank: bb });
   };
+
 
   const fetchExpensesByType = async () => {
     const [eR, tR] = await Promise.all([
