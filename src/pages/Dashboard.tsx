@@ -719,42 +719,29 @@ export default function Dashboard() {
   };
 
   const fetchBalances = async () => {
-    const [aR, lines] = await Promise.all([
-      supabase
-        .from("accounts")
-        .select("id, code, name, account_type")
-        .eq("is_active", true)
-        .eq("is_parent", false)
-        .order("code"),
-      fetchAllPaged<any>(() =>
-        supabase
-          .from("journal_entry_lines")
-          .select("account_id, debit, credit, journal_entries!inner(status)", { count: "exact" })
-          .eq("journal_entries.status", "posted"),
-      ),
-    ]);
-    if (!aR.data) return;
-    const bm = new Map<string, { debit: number; credit: number }>();
-    lines.forEach((l: any) => {
-      const c = bm.get(l.account_id) || { debit: 0, credit: 0 };
-      c.debit += Number(l.debit);
-      c.credit += Number(l.credit);
-      bm.set(l.account_id, c);
+    // Aggregate server-side via RPC (no huge row transfers → no 502 / timeouts)
+    const { data, error } = await (supabase.rpc as any)("get_account_balances", {
+      p_only_with_activity: true,
     });
+    if (error) {
+      console.error("fetchBalances failed", error);
+      setAccountBalances([]);
+      return;
+    }
+    const rows: any[] = (data?.rows as any[]) || [];
     setAccountBalances(
-      aR.data
-        .filter((a: any) => bm.has(a.id))
-        .map((a: any) => {
-          const b = bm.get(a.id)!;
-          return {
-            ...a,
-            debit: b.debit,
-            credit: b.credit,
-            balance: b.debit - b.credit,
-          };
-        }),
+      rows.map((r: any) => ({
+        id: r.id,
+        code: r.code,
+        name: r.name,
+        account_type: r.account_type,
+        debit: Number(r.debit) || 0,
+        credit: Number(r.credit) || 0,
+        balance: Number(r.balance) || 0,
+      })),
     );
   };
+
 
   const fetchTopCategories = async () => {
     const items = await fetchAllPaged<any>(() =>
