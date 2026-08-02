@@ -1689,7 +1689,7 @@ function ReportDocument(
       (footerNoteLines?.length || footerNoteBlocks?.length)
         ? React.createElement(
             View,
-            { style: { ...rpt.methodologyBox, marginTop: 8 } },
+            { style: { ...rpt.methodologyBox, marginTop: 8 }, wrap: false },
             footerNoteTitle
               ? React.createElement(
                   Text,
