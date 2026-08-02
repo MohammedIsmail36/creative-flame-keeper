@@ -401,13 +401,8 @@ export default function BalanceSheet() {
         {
           label: "الأرصدة بين قوسين",
           segments: [
-            { text: "رصيد معاكس لطبيعة الحساب ويستوجب المراجعة" },
+            { text: "رصيد معاكس لطبيعة الحساب" },
             { text: `عدد الحسابات: ${contraRows.length}`, highlight: true },
-          ],
-        },
-        {
-          label: "التاريخ",
-          segments: [
             { text: "الأرصدة كما في" },
             { text: asOfLabel, highlight: true },
           ],
