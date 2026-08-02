@@ -1958,6 +1958,15 @@ export type Database = {
         }
         Returns: Json
       }
+      edit_journal_entry: {
+        Args: {
+          p_description: string
+          p_entry_date: string
+          p_entry_id: string
+          p_lines: Json
+        }
+        Returns: string
+      }
       edit_supplier_payment: {
         Args: {
           p_amount: number
