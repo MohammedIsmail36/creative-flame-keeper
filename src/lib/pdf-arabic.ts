@@ -832,6 +832,8 @@ export interface ReportPdfOptions {
   settings: CompanySettings | null;
   headers: string[];
   rows: (string | number)[][];
+  /** تمييز صفوف الإجماليات: نفس ترتيب rows؛ undefined = صف عادي */
+  rowEmphasis?: (undefined | "subtotal" | "total")[];
   summaryCards?: { label: string; value: string }[];
   summaryColumns?: number;
   methodologyTitle?: string;
@@ -893,6 +895,7 @@ function ReportDocument(
     settings,
     headers,
     rows,
+    rowEmphasis,
     summaryCards,
     summaryColumns,
     methodologyTitle,
@@ -1144,6 +1147,51 @@ function ReportDocument(
     },
     tableRowEven: { backgroundColor: C.white },
     tableRowOdd: { backgroundColor: "#fafafa" },
+    // صفوف الإجماليات: أوضح وأغمق
+    tableRowSubtotal: {
+      backgroundColor: C.slate100,
+      borderBottomWidth: 1,
+      borderBottomColor: C.slate200,
+    },
+    tableRowTotal: {
+      backgroundColor: "#fdf1e7",
+      borderTopWidth: 1,
+      borderTopColor: accent,
+      borderBottomWidth: 1,
+      borderBottomColor: accent,
+    },
+    tableCellSubtotal: {
+      fontSize: 9.5,
+      fontWeight: 700,
+      color: C.ink,
+      textAlign: "center" as const,
+      paddingVertical: 7,
+      paddingHorizontal: 4,
+    },
+    tableCellSubtotalName: {
+      fontSize: 9.5,
+      fontWeight: 700,
+      color: C.ink,
+      textAlign: "right" as const,
+      paddingVertical: 7,
+      paddingHorizontal: 6,
+    },
+    tableCellTotal: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: accent,
+      textAlign: "center" as const,
+      paddingVertical: 8,
+      paddingHorizontal: 4,
+    },
+    tableCellTotalName: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: accent,
+      textAlign: "right" as const,
+      paddingVertical: 8,
+      paddingHorizontal: 6,
+    },
     tableCell: {
       fontSize: 8.5,
       color: C.ink4,
@@ -1343,14 +1391,21 @@ function ReportDocument(
     ),
   );
 
-  const tableBodyEls = rows.map((row, ri) =>
-    React.createElement(
+  const tableBodyEls = rows.map((row, ri) => {
+    const emphasis = rowEmphasis?.[ri];
+    return React.createElement(
       View,
       {
         key: `r-${ri}`,
         style: {
           ...rpt.tableRow,
-          ...(ri % 2 === 0 ? rpt.tableRowEven : rpt.tableRowOdd),
+          ...(emphasis === "total"
+            ? rpt.tableRowTotal
+            : emphasis === "subtotal"
+              ? rpt.tableRowSubtotal
+              : ri % 2 === 0
+                ? rpt.tableRowEven
+                : rpt.tableRowOdd),
         },
       },
       ...row.map((cell, ci) => {
@@ -1358,22 +1413,39 @@ function ReportDocument(
         const isLast = ci === row.length - 1;
         const numColor =
           colType !== "wide" ? getNumericCellColor(cell) : undefined;
-        const baseStyle = isLast
-          ? { ...rpt.tableCellBold, width: colWidths[ci] }
-          : colType === "wide"
-            ? { ...rpt.tableCellName, width: colWidths[ci] }
-            : { ...rpt.tableCell, width: colWidths[ci] };
-        const finalStyle = numColor
-          ? { ...baseStyle, color: numColor }
-          : baseStyle;
+        let baseStyle: Record<string, unknown>;
+        if (emphasis) {
+          const isTotal = emphasis === "total";
+          baseStyle =
+            colType === "wide"
+              ? {
+                  ...(isTotal
+                    ? rpt.tableCellTotalName
+                    : rpt.tableCellSubtotalName),
+                  width: colWidths[ci],
+                }
+              : {
+                  ...(isTotal ? rpt.tableCellTotal : rpt.tableCellSubtotal),
+                  width: colWidths[ci],
+                };
+        } else {
+          baseStyle = isLast
+            ? { ...rpt.tableCellBold, width: colWidths[ci] }
+            : colType === "wide"
+              ? { ...rpt.tableCellName, width: colWidths[ci] }
+              : { ...rpt.tableCell, width: colWidths[ci] };
+        }
+        const finalStyle =
+          numColor && !emphasis ? { ...baseStyle, color: numColor } : baseStyle;
         return React.createElement(
           Text,
           { key: `c-${ri}-${ci}`, style: finalStyle },
           String(cell),
         );
       }),
-    ),
-  );
+    );
+  });
+
 
   // ── Footer contact info ──
   const contactParts: string[] = [];
@@ -1617,7 +1689,7 @@ function ReportDocument(
       (footerNoteLines?.length || footerNoteBlocks?.length)
         ? React.createElement(
             View,
-            { style: { ...rpt.methodologyBox, marginTop: 8 } },
+            { style: { ...rpt.methodologyBox, marginTop: 8 }, wrap: false },
             footerNoteTitle
               ? React.createElement(
                   Text,
