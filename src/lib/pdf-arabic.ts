@@ -895,6 +895,7 @@ function ReportDocument(
     settings,
     headers,
     rows,
+    rowEmphasis,
     summaryCards,
     summaryColumns,
     methodologyTitle,
