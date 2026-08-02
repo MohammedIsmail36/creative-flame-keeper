@@ -542,7 +542,14 @@ export default function JournalEntryForm() {
         }
       />
 
+      {isEditable && !isDraft && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-700">
+          أنت تعدّل قيداً معتمداً — سيتم تحديث الأرصدة فوراً مع الاحتفاظ برقم القيد {displayNumber}.
+        </div>
+      )}
+
       {/* Entry Details Card */}
+
       <div className="bg-card rounded-2xl border border-border shadow-sm p-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Entry Number (read-only) */}
