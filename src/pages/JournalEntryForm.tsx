@@ -254,7 +254,46 @@ export default function JournalEntryForm() {
     setSaving(false);
   }
 
+  async function handleSavePosted() {
+    if (!id || saving) return;
+    const errors: Record<string, string> = {};
+    if (!description.trim()) errors.description = "يرجى إدخال وصف القيد";
+    if (lines.some((l) => !l.account_id)) errors.lines = "يرجى اختيار الحساب لكل سطر";
+    const validLines = lines.filter((l) => l.account_id && (l.debit > 0 || l.credit > 0));
+    if (validLines.length < 2) errors.lines = "يجب إضافة سطرين على الأقل";
+    if (!isBalanced) errors.lines = "القيد غير متوازن";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast({ title: "تنبيه", description: Object.values(errors)[0], variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await (supabase.rpc as any)("edit_journal_entry", {
+        p_entry_id: id,
+        p_entry_date: entryDate,
+        p_description: description.trim(),
+        p_lines: validLines.map((l) => ({
+          account_id: l.account_id,
+          debit: Number(l.debit) || 0,
+          credit: Number(l.credit) || 0,
+          description: l.description || null,
+        })),
+      });
+      if (error) throw error;
+      toast({ title: "تم التحديث", description: "تم تعديل القيد المعتمد بنجاح" });
+      setIsDirty(false);
+      navGuard.allowNext();
+      setEditMode(false);
+      loadData();
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message || "حدث خطأ", variant: "destructive" });
+    }
+    setSaving(false);
+  }
+
   async function handlePost() {
+
     if (!id || saving) return;
     const validLines = lines.filter((l) => l.account_id && (l.debit > 0 || l.credit > 0));
     if (validLines.length < 2) {
