@@ -306,7 +306,8 @@ export default function BalanceSheet() {
   const handleExportPDF = async () => {
     const { exportReportPdf } = await import("@/lib/pdf-arabic");
     const allRows: (string | number)[][] = [];
-    const pushRow = (r: BalanceRow, section: string) =>
+    const rowEmphasis: (undefined | "subtotal" | "total")[] = [];
+    const pushRow = (r: BalanceRow, section: string) => {
       allRows.push([
         r.account.code,
         r.account.name,
@@ -314,8 +315,16 @@ export default function BalanceSheet() {
         actualSide(r.account.account_type, r.balance),
         formatNum(r.balance),
       ]);
-    const pushTotal = (label: string, value: number) =>
+      rowEmphasis.push(undefined);
+    };
+    const pushTotal = (
+      label: string,
+      value: number,
+      level: "subtotal" | "total" = "subtotal",
+    ) => {
       allRows.push(["", label, "", "", formatNum(value)]);
+      rowEmphasis.push(level);
+    };
 
     currentAssets.forEach((r) => pushRow(r, "أصول متداولة"));
     if (currentAssets.length)
@@ -323,7 +332,7 @@ export default function BalanceSheet() {
     nonCurrentAssets.forEach((r) => pushRow(r, "أصول غير متداولة"));
     if (nonCurrentAssets.length)
       pushTotal("إجمالي الأصول غير المتداولة", totalNonCurrentAssets);
-    pushTotal("إجمالي الأصول", totalAssets);
+    pushTotal("إجمالي الأصول", totalAssets, "total");
 
     shortTermLiabilities.forEach((r) => pushRow(r, "التزامات قصيرة الأجل"));
     if (shortTermLiabilities.length)
@@ -331,10 +340,10 @@ export default function BalanceSheet() {
     longTermLiabilities.forEach((r) => pushRow(r, "التزامات طويلة الأجل"));
     if (longTermLiabilities.length)
       pushTotal("إجمالي الالتزامات طويلة الأجل", totalLongTermLiabilities);
-    pushTotal("إجمالي الالتزامات", totalLiabilities);
+    pushTotal("إجمالي الالتزامات", totalLiabilities, "total");
 
     equityRows.forEach((r) => pushRow(r, "حقوق ملكية"));
-    if (netIncome !== 0)
+    if (netIncome !== 0) {
       allRows.push([
         "",
         netIncome >= 0 ? "صافي ربح الفترة" : "صافي خسارة الفترة",
@@ -342,7 +351,9 @@ export default function BalanceSheet() {
         netIncome >= 0 ? "دائن" : "مدين",
         formatNum(netIncome),
       ]);
-    pushTotal("إجمالي حقوق الملكية", totalEquity);
+      rowEmphasis.push(undefined);
+    }
+    pushTotal("إجمالي حقوق الملكية", totalEquity, "total");
 
     await exportReportPdf({
       title: "الميزانية العمومية",
@@ -355,6 +366,7 @@ export default function BalanceSheet() {
         `المبلغ (${currency})`,
       ],
       rows: allRows,
+      rowEmphasis,
       summaryCards: [
         { label: "إجمالي الأصول", value: formatCurrency(totalAssets) },
         { label: "إجمالي الالتزامات", value: formatCurrency(totalLiabilities) },
