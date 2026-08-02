@@ -390,20 +390,15 @@ export default function BalanceSheet() {
       footerNoteTitle: "قواعد عرض الأرصدة",
       footerNoteBlocks: [
         {
-          label: "طبيعة الحساب",
+          label: "قواعد العرض",
           segments: [
             { text: "الأصول" },
             { text: "مدين", highlight: true },
             { text: "الالتزامات وحقوق الملكية" },
             { text: "دائن", highlight: true },
-          ],
-        },
-        {
-          label: "الأرصدة بين قوسين",
-          segments: [
-            { text: "رصيد معاكس لطبيعة الحساب" },
-            { text: `عدد الحسابات: ${contraRows.length}`, highlight: true },
-            { text: "الأرصدة كما في" },
+            { text: "الأرقام بين قوسين رصيد معاكس" },
+            { text: `عددها: ${contraRows.length}`, highlight: true },
+            { text: "كما في" },
             { text: asOfLabel, highlight: true },
           ],
         },
