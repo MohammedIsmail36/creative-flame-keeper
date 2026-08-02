@@ -254,7 +254,46 @@ export default function JournalEntryForm() {
     setSaving(false);
   }
 
+  async function handleSavePosted() {
+    if (!id || saving) return;
+    const errors: Record<string, string> = {};
+    if (!description.trim()) errors.description = "يرجى إدخال وصف القيد";
+    if (lines.some((l) => !l.account_id)) errors.lines = "يرجى اختيار الحساب لكل سطر";
+    const validLines = lines.filter((l) => l.account_id && (l.debit > 0 || l.credit > 0));
+    if (validLines.length < 2) errors.lines = "يجب إضافة سطرين على الأقل";
+    if (!isBalanced) errors.lines = "القيد غير متوازن";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast({ title: "تنبيه", description: Object.values(errors)[0], variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await (supabase.rpc as any)("edit_journal_entry", {
+        p_entry_id: id,
+        p_entry_date: entryDate,
+        p_description: description.trim(),
+        p_lines: validLines.map((l) => ({
+          account_id: l.account_id,
+          debit: Number(l.debit) || 0,
+          credit: Number(l.credit) || 0,
+          description: l.description || null,
+        })),
+      });
+      if (error) throw error;
+      toast({ title: "تم التحديث", description: "تم تعديل القيد المعتمد بنجاح" });
+      setIsDirty(false);
+      navGuard.allowNext();
+      setEditMode(false);
+      loadData();
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message || "حدث خطأ", variant: "destructive" });
+    }
+    setSaving(false);
+  }
+
   async function handlePost() {
+
     if (!id || saving) return;
     const validLines = lines.filter((l) => l.account_id && (l.debit > 0 || l.credit > 0));
     if (validLines.length < 2) {
@@ -348,7 +387,9 @@ export default function JournalEntryForm() {
   if (loading) return <PageSkeleton variant="form" />;
 
   const isDraft = status === "draft";
-  const isEditable = editMode && isDraft && canEdit;
+  const canEditPosted = status === "posted" && !isLinked && canEdit;
+  const isEditable = editMode && canEdit && (isDraft || canEditPosted);
+
 
   return (
     <div className="space-y-8" dir="rtl" onInput={() => !isDirty && setIsDirty(true)}>
@@ -433,7 +474,7 @@ export default function JournalEntryForm() {
                 إلغاء القيد
               </Button>
             )}
-            {!isNew && isDraft && canEdit && !editMode && (
+            {!isNew && (isDraft || canEditPosted) && canEdit && !editMode && (
               <Button variant="outline" onClick={() => setEditMode(true)} className="gap-2">
                 <Pencil className="h-4 w-4" />
                 تعديل
@@ -450,12 +491,42 @@ export default function JournalEntryForm() {
                 اعتماد
               </Button>
             )}
-            {isEditable && (
+            {isEditable && isDraft && (
               <Button onClick={() => handleSave(false)} disabled={saving || !isBalanced} className="gap-2">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 {saving ? "جاري الحفظ..." : "حفظ"}
               </Button>
             )}
+            {isEditable && !isDraft && (
+              <>
+                <Button variant="ghost" onClick={() => { setEditMode(false); loadData(); }} className="gap-2">
+                  <X className="h-4 w-4" />
+                  تراجع
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button disabled={saving || !isBalanced} className="gap-2">
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      {saving ? "جاري الحفظ..." : "حفظ التعديلات"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent dir="rtl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>تعديل قيد معتمد {displayNumber}</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        سيتم استبدال سطور القيد بالسطور الجديدة وتحديث الأرصدة فوراً، مع الاحتفاظ برقم القيد. هل تريد
+                        المتابعة؟
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-row-reverse gap-2">
+                      <AlertDialogCancel>تراجع</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleSavePosted}>تأكيد التعديل</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
+
             {isNew && (
               <Button
                 onClick={() => handleSave(true)}
@@ -471,7 +542,14 @@ export default function JournalEntryForm() {
         }
       />
 
+      {isEditable && !isDraft && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-700">
+          أنت تعدّل قيداً معتمداً — سيتم تحديث الأرصدة فوراً مع الاحتفاظ برقم القيد {displayNumber}.
+        </div>
+      )}
+
       {/* Entry Details Card */}
+
       <div className="bg-card rounded-2xl border border-border shadow-sm p-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Entry Number (read-only) */}
