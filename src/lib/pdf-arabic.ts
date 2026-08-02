@@ -1391,14 +1391,21 @@ function ReportDocument(
     ),
   );
 
-  const tableBodyEls = rows.map((row, ri) =>
-    React.createElement(
+  const tableBodyEls = rows.map((row, ri) => {
+    const emphasis = rowEmphasis?.[ri];
+    return React.createElement(
       View,
       {
         key: `r-${ri}`,
         style: {
           ...rpt.tableRow,
-          ...(ri % 2 === 0 ? rpt.tableRowEven : rpt.tableRowOdd),
+          ...(emphasis === "total"
+            ? rpt.tableRowTotal
+            : emphasis === "subtotal"
+              ? rpt.tableRowSubtotal
+              : ri % 2 === 0
+                ? rpt.tableRowEven
+                : rpt.tableRowOdd),
         },
       },
       ...row.map((cell, ci) => {
@@ -1406,22 +1413,39 @@ function ReportDocument(
         const isLast = ci === row.length - 1;
         const numColor =
           colType !== "wide" ? getNumericCellColor(cell) : undefined;
-        const baseStyle = isLast
-          ? { ...rpt.tableCellBold, width: colWidths[ci] }
-          : colType === "wide"
-            ? { ...rpt.tableCellName, width: colWidths[ci] }
-            : { ...rpt.tableCell, width: colWidths[ci] };
-        const finalStyle = numColor
-          ? { ...baseStyle, color: numColor }
-          : baseStyle;
+        let baseStyle: Record<string, unknown>;
+        if (emphasis) {
+          const isTotal = emphasis === "total";
+          baseStyle =
+            colType === "wide"
+              ? {
+                  ...(isTotal
+                    ? rpt.tableCellTotalName
+                    : rpt.tableCellSubtotalName),
+                  width: colWidths[ci],
+                }
+              : {
+                  ...(isTotal ? rpt.tableCellTotal : rpt.tableCellSubtotal),
+                  width: colWidths[ci],
+                };
+        } else {
+          baseStyle = isLast
+            ? { ...rpt.tableCellBold, width: colWidths[ci] }
+            : colType === "wide"
+              ? { ...rpt.tableCellName, width: colWidths[ci] }
+              : { ...rpt.tableCell, width: colWidths[ci] };
+        }
+        const finalStyle =
+          numColor && !emphasis ? { ...baseStyle, color: numColor } : baseStyle;
         return React.createElement(
           Text,
           { key: `c-${ri}-${ci}`, style: finalStyle },
           String(cell),
         );
       }),
-    ),
-  );
+    );
+  });
+
 
   // ── Footer contact info ──
   const contactParts: string[] = [];
