@@ -435,7 +435,7 @@ export default function JournalEntryForm() {
                 إلغاء القيد
               </Button>
             )}
-            {!isNew && isDraft && canEdit && !editMode && (
+            {!isNew && (isDraft || canEditPosted) && canEdit && !editMode && (
               <Button variant="outline" onClick={() => setEditMode(true)} className="gap-2">
                 <Pencil className="h-4 w-4" />
                 تعديل
@@ -452,12 +452,42 @@ export default function JournalEntryForm() {
                 اعتماد
               </Button>
             )}
-            {isEditable && (
+            {isEditable && isDraft && (
               <Button onClick={() => handleSave(false)} disabled={saving || !isBalanced} className="gap-2">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 {saving ? "جاري الحفظ..." : "حفظ"}
               </Button>
             )}
+            {isEditable && !isDraft && (
+              <>
+                <Button variant="ghost" onClick={() => { setEditMode(false); loadData(); }} className="gap-2">
+                  <X className="h-4 w-4" />
+                  تراجع
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button disabled={saving || !isBalanced} className="gap-2">
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      {saving ? "جاري الحفظ..." : "حفظ التعديلات"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent dir="rtl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>تعديل قيد معتمد {displayNumber}</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        سيتم استبدال سطور القيد بالسطور الجديدة وتحديث الأرصدة فوراً، مع الاحتفاظ برقم القيد. هل تريد
+                        المتابعة؟
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-row-reverse gap-2">
+                      <AlertDialogCancel>تراجع</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleSavePosted}>تأكيد التعديل</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
+
             {isNew && (
               <Button
                 onClick={() => handleSave(true)}
