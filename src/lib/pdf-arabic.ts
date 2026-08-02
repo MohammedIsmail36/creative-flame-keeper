@@ -832,6 +832,8 @@ export interface ReportPdfOptions {
   settings: CompanySettings | null;
   headers: string[];
   rows: (string | number)[][];
+  /** تمييز صفوف الإجماليات: نفس ترتيب rows؛ undefined = صف عادي */
+  rowEmphasis?: (undefined | "subtotal" | "total")[];
   summaryCards?: { label: string; value: string }[];
   summaryColumns?: number;
   methodologyTitle?: string;
