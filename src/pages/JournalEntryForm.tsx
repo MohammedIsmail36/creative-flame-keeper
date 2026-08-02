@@ -348,7 +348,9 @@ export default function JournalEntryForm() {
   if (loading) return <PageSkeleton variant="form" />;
 
   const isDraft = status === "draft";
-  const isEditable = editMode && isDraft && canEdit;
+  const canEditPosted = status === "posted" && !isLinked && canEdit;
+  const isEditable = editMode && canEdit && (isDraft || canEditPosted);
+
 
   return (
     <div className="space-y-8" dir="rtl" onInput={() => !isDirty && setIsDirty(true)}>
