@@ -1625,14 +1625,14 @@ function ReportDocument(
                   footerNoteTitle,
                 )
               : null,
-            ...footerNoteLines.map((line, index) =>
+            ...(footerNoteLines ?? []).map((line, index) =>
               React.createElement(
                 Text,
                 { key: `footnote-${index}`, style: rpt.methodologyLine },
                 line,
               ),
             ),
-            ...footerNoteBlocks.map((block, index) =>
+            ...(footerNoteBlocks ?? []).map((block, index) =>
               React.createElement(
                 View,
                 { key: `footblock-${index}`, style: rpt.footerNoteBlock },
