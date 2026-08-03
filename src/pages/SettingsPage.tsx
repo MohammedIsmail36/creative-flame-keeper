@@ -118,6 +118,8 @@ interface AccountOption {
 
 export default function SettingsPage() {
   const { settings: globalSettings, refetch } = useSettings();
+  const { data: role } = useUserRole();
+
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
