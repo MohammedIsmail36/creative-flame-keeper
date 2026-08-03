@@ -1968,6 +1968,7 @@ export type Database = {
           id: string
           is_enabled: boolean
           message_template: string
+          price_source: string
           show_price: boolean
           show_stock: boolean
           updated_at: string
@@ -1980,6 +1981,7 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           message_template?: string
+          price_source?: string
           show_price?: boolean
           show_stock?: boolean
           updated_at?: string
@@ -1992,6 +1994,7 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           message_template?: string
+          price_source?: string
           show_price?: boolean
           show_stock?: boolean
           updated_at?: string
