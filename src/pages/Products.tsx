@@ -665,6 +665,17 @@ export default function Products() {
                   </TooltipContent>
                 </Tooltip>
               )}
+              <TelegramPublishButton
+                product={{
+                  id: row.original.id,
+                  name: row.original.name,
+                  code: row.original.code,
+                  main_image_url: row.original.main_image_url,
+                  quantity_on_hand: row.original.quantity_on_hand,
+                  is_active: row.original.is_active,
+                }}
+              />
+
               {canToggle && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
