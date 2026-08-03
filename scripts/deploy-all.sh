@@ -109,19 +109,53 @@ fi
 # ------------------------------------------------------------
 # 3) نشر Edge Functions لكل شركة
 # ------------------------------------------------------------
+# يبحث عن مجلد يحتوي ملف compose فعلي (قد يكون داخل docker/ أو supabase/docker/)
+find_compose_dir() {
+  local base="$1" d
+  for d in "$base" "$base/docker" "$base/supabase/docker" "$base/supabase"; do
+    for f in docker-compose.yml docker-compose.yaml compose.yml compose.yaml; do
+      [[ -f "$d/$f" ]] && { echo "$d"; return 0; }
+    done
+  done
+  return 1
+}
+
+# يجد حاوية الدوال: أولاً عبر compose، وإن تعذّر فعبر اسم الحاوية
+find_functions_container() {
+  local compose_dir="$1" base="$2" cid=""
+  if [[ -n "$compose_dir" ]]; then
+    cid="$(cd "$compose_dir" && sudo docker compose ps -q functions 2>/dev/null | head -1)"
+  fi
+  if [[ -z "$cid" ]]; then
+    local pat
+    pat="$(basename "$base")"
+    cid="$(sudo docker ps -q --filter "name=functions" 2>/dev/null | while read -r c; do
+      n="$(sudo docker inspect --format '{{.Name}}' "$c")"
+      case "$n" in *"$pat"*) echo "$c";; esac
+    done | head -1)"
+  fi
+  if [[ -z "$cid" ]]; then
+    cid="$(sudo docker ps -q --filter "name=edge-functions" 2>/dev/null | head -1)"
+  fi
+  echo "$cid"
+}
+
 deploy_functions() {
   local name="$1" docker_dir="$2"
-  local target container_id mounted_target
+  local target container_id mounted_target compose_dir=""
 
   if [[ ! -d "$docker_dir" ]]; then
     warn "[$name] مجلد Supabase غير موجود: $docker_dir — تخطي الدوال"
     return 0
   fi
 
-  # اكتشاف مسار الـ volume الفعلي بدلاً من افتراض أن docker_dir/volumes/functions
-  # هو المسار المركّب داخل الحاوية. هذا يمنع نسخ الملفات إلى مجلد لا تقرؤه الخدمة.
-  container_id="$(cd "$docker_dir" && sudo docker compose ps -q functions)"
-  [[ -n "$container_id" ]] || die "[$name] حاوية functions غير موجودة أو متوقفة"
+  compose_dir="$(find_compose_dir "$docker_dir" || true)"
+  [[ -n "$compose_dir" ]] && log "[$name] ملف compose في: $compose_dir" \
+    || warn "[$name] لم أجد ملف compose — سأتعامل مع الحاوية مباشرة"
+
+  container_id="$(find_functions_container "$compose_dir" "$docker_dir")"
+  [[ -n "$container_id" ]] || die "[$name] حاوية functions غير موجودة أو متوقفة.
+تحقق: sudo docker ps --format '{{.Names}}' | grep -i function"
 
   mounted_target="$(sudo docker inspect --format '{{range .Mounts}}{{if eq .Destination "/home/deno/functions"}}{{.Source}}{{end}}{{end}}' "$container_id")"
   [[ -n "$mounted_target" ]] || die "[$name] لا يوجد volume مربوط إلى /home/deno/functions داخل حاوية functions"
@@ -138,10 +172,15 @@ deploy_functions() {
   [[ -f "$target/telegram-publish/index.ts" ]] \
     || die "[$name] فشل نسخ telegram-publish/index.ts"
 
-  ( cd "$docker_dir" && sudo docker compose restart functions >/dev/null ) \
-    || die "[$name] فشل إعادة تشغيل خدمة functions — تحقق: cd $docker_dir && docker compose logs functions"
+  if [[ -n "$compose_dir" ]]; then
+    ( cd "$compose_dir" && sudo docker compose restart functions >/dev/null ) \
+      || die "[$name] فشل إعادة تشغيل خدمة functions — تحقق: cd $compose_dir && docker compose logs functions"
+    container_id="$(find_functions_container "$compose_dir" "$docker_dir")"
+  else
+    sudo docker restart "$container_id" >/dev/null \
+      || die "[$name] فشل إعادة تشغيل حاوية functions"
+  fi
 
-  container_id="$(cd "$docker_dir" && sudo docker compose ps -q functions)"
   for _ in {1..20}; do
     if sudo docker inspect --format '{{.State.Running}}' "$container_id" 2>/dev/null | grep -q true; then
       break
@@ -155,6 +194,7 @@ deploy_functions() {
     || die "[$name] telegram-publish/index.ts غير ظاهر داخل الحاوية"
   ok "[$name] Edge Functions محدّثة"
 }
+
 
 # ------------------------------------------------------------
 # 4) البناء والنشر
