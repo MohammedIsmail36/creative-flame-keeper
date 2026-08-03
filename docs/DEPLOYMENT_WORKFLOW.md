@@ -4,6 +4,36 @@
 
 ---
 
+## 0) الطريقة السريعة — سكربت واحد لكل شيء ⭐
+
+يقوم بكل الخطوات أدناه تلقائياً: سحب التحديثات (مع حفظ تعديلاتك المحلية)، الميجريشن، نشر Edge Functions لكل شركة، ثم البناء والنشر للشركتين.
+
+```bash
+cd /opt/accounting-app
+git pull                                  # أول مرة فقط لجلب السكربت
+chmod +x scripts/deploy-all.sh
+./scripts/deploy-all.sh
+```
+
+خيارات:
+
+```bash
+./scripts/deploy-all.sh --baseline-db        # أول مرة على قاعدة بيانات قائمة
+./scripts/deploy-all.sh --skip-db            # بدون ميجريشن
+./scripts/deploy-all.sh --skip-functions     # بدون نشر Edge Functions
+./scripts/deploy-all.sh --only farida        # شركة واحدة فقط (farida | alibea)
+./scripts/deploy-all.sh --no-pull            # بناء ونشر بدون سحب تحديثات
+```
+
+ملاحظات:
+- إن حدث تعارض عند إعادة تطبيق تعديلاتك المحلية، يتوقف السكربت ويطبع الأوامر اللازمة لحلّه.
+- مسارات Supabase المستخدمة: `/opt/supabase-farida` و `/opt/supabase-alibea`، والدوال تُنسخ إلى `volumes/functions` ثم تُعاد تشغيل خدمة `functions`.
+- إن ظهر تحذير عن `main/index.ts` ناقص، انسخ راوتر الدوال الافتراضي من نسخة supabase docker الأصلية.
+
+باقي الملف يشرح نفس الخطوات يدوياً إن أردت التحكم خطوة بخطوة.
+
+---
+
 ## 1) قبل البدء — تحقق سريع
 
 ```bash
