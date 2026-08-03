@@ -48,6 +48,8 @@ import {
   Barcode,
 } from "lucide-react";
 import { BarcodePrintDialog } from "@/components/BarcodePrintDialog";
+import { TelegramPublishButton } from "@/components/products/TelegramPublishButton";
+
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Input } from "@/components/ui/input";
 import { ProductsGrid } from "@/components/products/ProductsGrid";
