@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Send, Loader2, Save, Info, PlugZap } from "lucide-react";
 import { FunctionsHttpError } from "@supabase/supabase-js";
@@ -18,10 +19,11 @@ interface Row {
   message_template: string;
   show_price: boolean;
   show_stock: boolean;
+  price_source: string | null;
 }
 
 const DEFAULT_TEMPLATE =
-  "<b>{name}</b>\n\nالكود: {code}\nالماركة: {brand}\nالموديل: {model}\nالسعر: {price}\nالمتاح: {stock}\n\n{description}";
+  "🛍 <b>{name}</b>\n\n🏷 الماركة: <b>{brand}</b>\n🔢 الموديل: <code>{model}</code>\n📦 الكود: <code>{code}</code>\n💰 السعر: <b>{price}</b>\n✅ المتاح: {stock}\n\n{description}";
 
 export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
   const queryClient = useQueryClient();
@@ -35,10 +37,11 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
   const [showPrice, setShowPrice] = useState(true);
   const [showStock, setShowStock] = useState(false);
+  const [priceSource, setPriceSource] = useState<"selling" | "barcode">("selling");
 
   const load = async () => {
     const { data } = await (supabase.from("telegram_settings" as any) as any)
-      .select("id, bot_token_hint, channel_id, is_enabled, message_template, show_price, show_stock")
+      .select("id, bot_token_hint, channel_id, is_enabled, message_template, show_price, show_stock, price_source")
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
@@ -49,6 +52,7 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
     setTemplate(r?.message_template ?? DEFAULT_TEMPLATE);
     setShowPrice(r?.show_price ?? true);
     setShowStock(r?.show_stock ?? false);
+    setPriceSource(r?.price_source === "barcode" ? "barcode" : "selling");
     setLoading(false);
   };
 
@@ -73,6 +77,7 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
       message_template: template,
       show_price: showPrice,
       show_stock: showStock,
+      price_source: priceSource,
     };
     if (newToken.trim()) payload.bot_token = newToken.trim();
 
@@ -187,6 +192,21 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
             <Label className="text-sm font-bold">إظهار السعر في المنشور</Label>
             <Switch checked={showPrice} onCheckedChange={setShowPrice} />
           </div>
+          <div className="space-y-2 p-3 bg-muted/20 rounded-xl border border-border md:col-span-2">
+            <Label className="text-sm font-bold">السعر المنشور</Label>
+            <Select value={priceSource} onValueChange={(v) => setPriceSource(v as "selling" | "barcode")} disabled={!showPrice}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="selling">سعر البيع</SelectItem>
+                <SelectItem value="barcode">سعر الباركود</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              في حال اختيار سعر الباركود ولم يكن محدداً للمنتج، يُستخدم سعر البيع تلقائياً.
+            </p>
+          </div>
           <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border">
             <Label className="text-sm font-bold">إظهار الكمية المتاحة</Label>
             <Switch checked={showStock} onCheckedChange={setShowStock} />
@@ -200,7 +220,7 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
             <span>
               المتغيرات المتاحة: {"{name}"} {"{code}"} {"{brand}"} {"{model}"} {"{price}"} {"{stock}"}{" "}
-              {"{description}"} — يدعم وسوم HTML البسيطة مثل &lt;b&gt; و &lt;i&gt;.
+              {"{description}"} — يدعم وسوم HTML البسيطة مثل &lt;b&gt; و &lt;i&gt; و &lt;code&gt;. تتم محاذاة كل الأسطر من اليمين لليسار تلقائياً.
             </span>
           </div>
         </div>
