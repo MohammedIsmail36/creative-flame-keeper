@@ -27,8 +27,8 @@ chmod +x scripts/deploy-all.sh
 
 ملاحظات:
 - إن حدث تعارض عند إعادة تطبيق تعديلاتك المحلية، يتوقف السكربت ويطبع الأوامر اللازمة لحلّه.
-- مسارات Supabase المستخدمة: `/opt/supabase-farida` و `/opt/supabase-alibea`، والدوال تُنسخ إلى `volumes/functions` ثم تُعاد تشغيل خدمة `functions`.
-- إن ظهر تحذير عن `main/index.ts` ناقص، انسخ راوتر الدوال الافتراضي من نسخة supabase docker الأصلية.
+- مسارات Supabase المستخدمة: `/opt/supabase-farida` و `/opt/supabase-alibea`. يكتشف السكربت تلقائياً مسار الـ volume المركّب فعلياً على `/home/deno/functions`، ثم ينسخ الدوال ويعيد تشغيل خدمة `functions`.
+- يتضمن المستودع `main/index.ts` الخاص براوتر الدوال، ويتحقق السكربت من ظهوره وظهور `telegram-publish/index.ts` داخل الحاوية قبل إعلان نجاح النشر.
 
 باقي الملف يشرح نفس الخطوات يدوياً إن أردت التحكم خطوة بخطوة.
 
