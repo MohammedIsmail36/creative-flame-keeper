@@ -194,7 +194,11 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
           </div>
           <div className="space-y-2 p-3 bg-muted/20 rounded-xl border border-border md:col-span-2">
             <Label className="text-sm font-bold">السعر المنشور</Label>
-            <Select value={priceSource} onValueChange={(v) => setPriceSource(v as "selling" | "barcode")} disabled={!showPrice}>
+            <Select
+              value={priceSource}
+              onValueChange={(v) => setPriceSource(v as "selling" | "barcode")}
+              disabled={!showPrice}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -213,14 +217,20 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2" dir="rtl">
           <Label className="text-sm font-bold">قالب نص المنشور</Label>
-          <Textarea rows={8} value={template} onChange={(e) => setTemplate(e.target.value)} className="font-mono text-xs" />
+          <Textarea
+            rows={8}
+            value={template}
+            onChange={(e) => setTemplate(e.target.value)}
+            className="font-mono text-xs"
+          />
           <div className="flex items-start gap-2 text-[11px] text-muted-foreground">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
             <span>
-              المتغيرات المتاحة: {"{name}"} {"{code}"} {"{brand}"} {"{model}"} {"{price}"} {"{stock}"}{" "}
-              {"{description}"} — يدعم وسوم HTML البسيطة مثل &lt;b&gt; و &lt;i&gt; و &lt;code&gt;. تتم محاذاة كل الأسطر من اليمين لليسار تلقائياً.
+              المتغيرات المتاحة: {"{name}"} {"{code}"} {"{brand}"} {"{model}"} {"{price}"} {"{stock}"} {"{description}"}{" "}
+              — يدعم وسوم HTML البسيطة مثل &lt;b&gt; و &lt;i&gt; و &lt;code&gt;. تتم محاذاة كل الأسطر من اليمين لليسار
+              تلقائياً.
             </span>
           </div>
         </div>
