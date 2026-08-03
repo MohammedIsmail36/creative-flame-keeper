@@ -1908,6 +1908,96 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_post_log: {
+        Row: {
+          channel_id: string | null
+          created_at: string
+          created_by: string | null
+          error: string | null
+          id: string
+          images_count: number
+          message_id: number | null
+          product_id: string
+          status: string
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          images_count?: number
+          message_id?: number | null
+          product_id: string
+          status?: string
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          images_count?: number
+          message_id?: number | null
+          product_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_post_log_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telegram_post_log_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telegram_settings: {
+        Row: {
+          bot_token: string | null
+          bot_token_hint: string | null
+          channel_id: string | null
+          created_at: string
+          id: string
+          is_enabled: boolean
+          message_template: string
+          show_price: boolean
+          show_stock: boolean
+          updated_at: string
+        }
+        Insert: {
+          bot_token?: string | null
+          bot_token_hint?: string | null
+          channel_id?: string | null
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          message_template?: string
+          show_price?: boolean
+          show_stock?: boolean
+          updated_at?: string
+        }
+        Update: {
+          bot_token?: string | null
+          bot_token_hint?: string | null
+          channel_id?: string | null
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          message_template?: string
+          show_price?: boolean
+          show_stock?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

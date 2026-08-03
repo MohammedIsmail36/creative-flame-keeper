@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/select";
 import { AccountCombobox } from "@/components/AccountCombobox";
 import { toast } from "sonner";
+import { useUserRole } from "@/hooks/use-user-role";
+import { TelegramSettingsTab } from "@/components/settings/TelegramSettingsTab";
 import { z } from "zod";
 
 const prefixSchema = z
@@ -116,6 +118,8 @@ interface AccountOption {
 
 export default function SettingsPage() {
   const { settings: globalSettings, refetch } = useSettings();
+  const { data: role } = useUserRole();
+
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -357,6 +361,12 @@ export default function SettingsPage() {
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent px-0 pb-4 font-bold text-sm"
           >
             ولاء العملاء
+          </TabsTrigger>
+          <TabsTrigger
+            value="telegram"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent px-0 pb-4 font-bold text-sm"
+          >
+            تيليجرام
           </TabsTrigger>
         </TabsList>
 
@@ -1125,6 +1135,11 @@ export default function SettingsPage() {
               )}
             </div>
           </SectionCard>
+        </TabsContent>
+
+        {/* ── Telegram Tab ── */}
+        <TabsContent value="telegram" className="space-y-6 mt-0">
+          <TelegramSettingsTab isAdmin={role === "admin"} />
         </TabsContent>
       </Tabs>
     </div>

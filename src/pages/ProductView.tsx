@@ -641,6 +641,7 @@ import {
   Printer,
 } from "lucide-react";
 import { BarcodePrintDialog } from "@/components/BarcodePrintDialog";
+import { TelegramPublishButton } from "@/components/products/TelegramPublishButton";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
@@ -1468,7 +1469,20 @@ export default function ProductView() {
                 <Printer className="h-4 w-4" />
                 طباعة الباركود
               </Button>
+              <TelegramPublishButton
+                variant="button"
+                imagesCount={allImages.length}
+                product={{
+                  id: product.id,
+                  name: product.name,
+                  code: product.code,
+                  main_image_url: product.main_image_url,
+                  quantity_on_hand: product.quantity_on_hand,
+                  is_active: (product as any).is_active ?? true,
+                }}
+              />
             </div>
+
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

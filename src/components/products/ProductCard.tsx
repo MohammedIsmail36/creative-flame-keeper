@@ -20,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Eye, Pencil, MoreVertical, Package, CheckCircle2, Archive, Trash2 } from "lucide-react";
+import { TelegramPublishButton } from "./TelegramPublishButton";
 
 export interface ProductCardData {
   id: string;
@@ -122,7 +123,19 @@ export function ProductCard({
         </div>
 
         {/* Actions menu */}
-        <div className="absolute top-2 left-2" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute top-2 left-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-full bg-background/90 shadow-sm">
+            <TelegramPublishButton
+              product={{
+                id: p.id,
+                name: p.name,
+                code: p.code,
+                main_image_url: p.main_image_url,
+                quantity_on_hand: p.quantity_on_hand,
+                is_active: p.is_active,
+              }}
+            />
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
