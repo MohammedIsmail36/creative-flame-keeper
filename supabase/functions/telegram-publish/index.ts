@@ -13,18 +13,24 @@ const json = (body: unknown, status = 200) =>
 
 const MAX_IMAGES = 10;
 
+const RLM = "\u200F"; // Right-to-Left Mark: forces RTL rendering per line in Telegram
+
 function buildCaption(
   template: string,
   p: any,
-  opts: { show_price: boolean; show_stock: boolean; currency: string },
+  opts: { show_price: boolean; show_stock: boolean; currency: string; price_source: string },
 ) {
   const esc = (v: unknown) =>
     String(v ?? "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
+  const rawPrice =
+    opts.price_source === "barcode"
+      ? (p.barcode_price != null ? Number(p.barcode_price) : Number(p.selling_price || 0))
+      : Number(p.selling_price || 0);
   const price = opts.show_price
-    ? `${Number(p.selling_price || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${opts.currency}`
+    ? `${rawPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${opts.currency}`
     : "";
   const stock = opts.show_stock ? String(Number(p.quantity_on_hand || 0)) : "";
   let text = (template || "{name}")
@@ -42,8 +48,14 @@ function buildCaption(
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+  // Force right-to-left alignment for every non-empty line
+  text = text
+    .split("\n")
+    .map((line) => (line.trim() ? RLM + line.replace(new RegExp(RLM, "g"), "") : line))
+    .join("\n");
   return text.slice(0, 1024);
 }
+
 
 async function tg(token: string, method: string, body: unknown) {
   const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
@@ -133,7 +145,7 @@ Deno.serve(async (req) => {
     const { data: product, error: prodError } = await supabase
       .from("products")
       .select(
-        "id, code, name, description, model_number, main_image_url, selling_price, quantity_on_hand, is_active, product_brands(name)",
+        "id, code, name, description, model_number, main_image_url, selling_price, barcode_price, quantity_on_hand, is_active, product_brands(name)",
       )
       .eq("id", productId)
       .maybeSingle();
@@ -169,6 +181,7 @@ Deno.serve(async (req) => {
       show_price: settings.show_price !== false,
       show_stock: settings.show_stock === true,
       currency: (appSettings as any)?.default_currency || "EGP",
+      price_source: (settings as any)?.price_source === "barcode" ? "barcode" : "selling",
     });
 
     const sendImages = images.slice(0, MAX_IMAGES);
