@@ -220,6 +220,7 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
         <div className="space-y-2" dir="rtl">
           <Label className="text-sm font-bold">قالب نص المنشور</Label>
           <Textarea
+            dir="rtl"
             rows={8}
             value={template}
             onChange={(e) => setTemplate(e.target.value)}
