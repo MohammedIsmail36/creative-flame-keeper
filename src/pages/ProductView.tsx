@@ -641,6 +641,7 @@ import {
   Printer,
 } from "lucide-react";
 import { BarcodePrintDialog } from "@/components/BarcodePrintDialog";
+import { TelegramPublishButton } from "@/components/products/TelegramPublishButton";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
@@ -1477,7 +1478,7 @@ export default function ProductView() {
                   code: product.code,
                   main_image_url: product.main_image_url,
                   quantity_on_hand: product.quantity_on_hand,
-                  is_active: product.is_active,
+                  is_active: (product as any).is_active ?? true,
                 }}
               />
             </div>
