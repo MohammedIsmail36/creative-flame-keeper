@@ -747,9 +747,6 @@ export default function Products() {
                   </AlertDialogContent>
                 </AlertDialog>
               )}
-              {!canToggle && !canHardDelete && !row.original.barcode && (
-                <span className="text-xs text-muted-foreground px-2">—</span>
-              )}
             </div>
           );
         },
