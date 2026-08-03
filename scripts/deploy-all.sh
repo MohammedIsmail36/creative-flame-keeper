@@ -111,25 +111,48 @@ fi
 # ------------------------------------------------------------
 deploy_functions() {
   local name="$1" docker_dir="$2"
-  local target="$docker_dir/volumes/functions"
+  local target container_id mounted_target
 
   if [[ ! -d "$docker_dir" ]]; then
     warn "[$name] مجلد Supabase غير موجود: $docker_dir — تخطي الدوال"
     return 0
   fi
 
+  # اكتشاف مسار الـ volume الفعلي بدلاً من افتراض أن docker_dir/volumes/functions
+  # هو المسار المركّب داخل الحاوية. هذا يمنع نسخ الملفات إلى مجلد لا تقرؤه الخدمة.
+  container_id="$(cd "$docker_dir" && sudo docker compose ps -q functions)"
+  [[ -n "$container_id" ]] || die "[$name] حاوية functions غير موجودة أو متوقفة"
+
+  mounted_target="$(sudo docker inspect --format '{{range .Mounts}}{{if eq .Destination "/home/deno/functions"}}{{.Source}}{{end}}{{end}}' "$container_id")"
+  [[ -n "$mounted_target" ]] || die "[$name] لا يوجد volume مربوط إلى /home/deno/functions داخل حاوية functions"
+  target="$mounted_target"
+
+  log "[$name] نسخ الدوال إلى المسار الفعلي: $target"
   sudo mkdir -p "$target"
-  # نسخ كل الدوال + الملفات المشتركة (بدون حذف main إن كان مخصصاً)
+  # main/index.ts موجود في المستودع وهو الراوتر المطلوب لتشغيل الدوال الذاتية.
   sudo cp -r supabase/functions/. "$target"/
   sudo chmod -R a+rX "$target"
 
-  if [[ ! -f "$target/main/index.ts" ]]; then
-    warn "[$name] لا يوجد main/index.ts في $target — الدوال لن تعمل في النسخة الذاتية.
-انسخ راوتر الدوال الافتراضي من نسخة supabase docker الأصلية إلى $target/main/index.ts"
-  fi
+  [[ -f "$target/main/index.ts" ]] \
+    || die "[$name] فشل نسخ راوتر الدوال main/index.ts"
+  [[ -f "$target/telegram-publish/index.ts" ]] \
+    || die "[$name] فشل نسخ telegram-publish/index.ts"
 
   ( cd "$docker_dir" && sudo docker compose restart functions >/dev/null ) \
-    || warn "[$name] فشل إعادة تشغيل خدمة functions — تحقق: cd $docker_dir && docker compose logs functions"
+    || die "[$name] فشل إعادة تشغيل خدمة functions — تحقق: cd $docker_dir && docker compose logs functions"
+
+  container_id="$(cd "$docker_dir" && sudo docker compose ps -q functions)"
+  for _ in {1..20}; do
+    if sudo docker inspect --format '{{.State.Running}}' "$container_id" 2>/dev/null | grep -q true; then
+      break
+    fi
+    sleep 1
+  done
+
+  sudo docker exec "$container_id" test -f /home/deno/functions/main/index.ts \
+    || die "[$name] main/index.ts غير ظاهر داخل الحاوية"
+  sudo docker exec "$container_id" test -f /home/deno/functions/telegram-publish/index.ts \
+    || die "[$name] telegram-publish/index.ts غير ظاهر داخل الحاوية"
   ok "[$name] Edge Functions محدّثة"
 }
 
