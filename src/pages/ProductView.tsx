@@ -1468,7 +1468,20 @@ export default function ProductView() {
                 <Printer className="h-4 w-4" />
                 طباعة الباركود
               </Button>
+              <TelegramPublishButton
+                variant="button"
+                imagesCount={allImages.length}
+                product={{
+                  id: product.id,
+                  name: product.name,
+                  code: product.code,
+                  main_image_url: product.main_image_url,
+                  quantity_on_hand: product.quantity_on_hand,
+                  is_active: product.is_active,
+                }}
+              />
             </div>
+
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
