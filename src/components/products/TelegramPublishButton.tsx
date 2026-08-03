@@ -102,7 +102,7 @@ export function TelegramPublishButton({ product, imagesCount, variant = "icon" }
 
   const outOfStock = Number(product.quantity_on_hand ?? 0) <= 0;
   const hasMain = !!product.main_image_url;
-  const noImages = !hasMain && (count ?? 0) === 0 && imagesCount !== undefined && imagesCount === 0;
+  const noImages = imagesCount !== undefined && imagesCount === 0;
   const configured = !!settings?.channel_id && !!settings?.bot_token_hint && settings?.is_enabled === true;
 
   const disabledReason = outOfStock
