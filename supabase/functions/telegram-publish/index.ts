@@ -181,6 +181,7 @@ Deno.serve(async (req) => {
       show_price: settings.show_price !== false,
       show_stock: settings.show_stock === true,
       currency: (appSettings as any)?.default_currency || "EGP",
+      price_source: (settings as any)?.price_source === "barcode" ? "barcode" : "selling",
     });
 
     const sendImages = images.slice(0, MAX_IMAGES);
