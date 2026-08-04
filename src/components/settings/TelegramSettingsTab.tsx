@@ -22,8 +22,17 @@ interface Row {
   price_source: string | null;
 }
 
-const DEFAULT_TEMPLATE =
-  "🛍 <b>{name}</b>\n\n🏷 الماركة: <b>{brand}</b>\n🔢 الموديل: <code>{model}</code>\n📦 الكود: <code>{code}</code>\n💰 السعر: <b>{price}</b>\n✅ المتاح: {stock}\n\n{description}";
+const DEFAULT_TEMPLATE = [
+  "🛍 <b>{name}</b>",
+  "──────────────",
+  "🏷 العلامة التجارية: <b>{brand}</b>",
+  "🔖 رقم الموديل: <code>{model}</code>",
+  "🆔 كود المنتج: <code>{code}</code>",
+  "💰 السعر: <b>{price}</b>",
+  "📦 المتوفر: <b>{stock}</b>",
+  "──────────────",
+  "📝 {description}",
+].join("\n");
 
 export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
   const queryClient = useQueryClient();
