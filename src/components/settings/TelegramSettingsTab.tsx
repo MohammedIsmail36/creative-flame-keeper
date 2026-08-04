@@ -23,15 +23,13 @@ interface Row {
 }
 
 const DEFAULT_TEMPLATE = [
-  "المنتج: <b>{name}</b> 🛍️",
-  "",
-  "العلامة التجارية: <b>{brand}</b> 🏷️",
-  "رقم الموديل: <code>{model}</code> 🔖",
-  "كود المنتج: <code>{code}</code> 🆔",
-  "السعر: <b>{price}</b> 💰",
-  "المتوفر: <b>{stock}</b> 📦",
-  "",
-  "الوصف: {description} 📝",
+  "المنتج: <b>{name}</b>",
+  "العلامة التجارية: <b>{brand}</b>",
+  "رقم الموديل: <code>{model}</code>",
+  "كود المنتج: <code>{code}</code>",
+  "السعر: <b>{price}</b>",
+  "المتوفر: <b>{stock}</b>",
+  "الوصف: {description}",
 ].join("\n");
 
 export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
