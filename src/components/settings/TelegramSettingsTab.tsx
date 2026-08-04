@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Loader2, Save, Info, PlugZap } from "lucide-react";
+import { Send, Loader2, Save, Info, PlugZap, RotateCcw } from "lucide-react";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 
 interface Row {
@@ -23,15 +23,15 @@ interface Row {
 }
 
 const DEFAULT_TEMPLATE = [
-  "🛍 <b>{name}</b>",
-  "──────────────",
-  "🏷 العلامة التجارية: <b>{brand}</b>",
-  "🔖 رقم الموديل: <code>{model}</code>",
-  "🆔 كود المنتج: <code>{code}</code>",
-  "💰 السعر: <b>{price}</b>",
-  "📦 المتوفر: <b>{stock}</b>",
-  "──────────────",
-  "📝 {description}",
+  "المنتج: <b>{name}</b> 🛍️",
+  "",
+  "العلامة التجارية: <b>{brand}</b> 🏷️",
+  "رقم الموديل: <code>{model}</code> 🔖",
+  "كود المنتج: <code>{code}</code> 🆔",
+  "السعر: <b>{price}</b> 💰",
+  "المتوفر: <b>{stock}</b> 📦",
+  "",
+  "الوصف: {description} 📝",
 ].join("\n");
 
 export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
@@ -227,7 +227,19 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
         </div>
 
         <div className="space-y-2" dir="rtl">
-          <Label className="text-sm font-bold">قالب نص المنشور</Label>
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-sm font-bold">قالب نص المنشور</Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-2 text-xs"
+              onClick={() => setTemplate(DEFAULT_TEMPLATE)}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              استعادة القالب المقترح
+            </Button>
+          </div>
           <Textarea
             dir="rtl"
             rows={8}
@@ -239,8 +251,8 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
             <span>
               المتغيرات المتاحة: {"{name}"} {"{code}"} {"{brand}"} {"{model}"} {"{price}"} {"{stock}"} {"{description}"}{" "}
-              — يدعم وسوم HTML البسيطة مثل &lt;b&gt; و &lt;i&gt; و &lt;code&gt;. تتم محاذاة كل الأسطر من اليمين لليسار
-              تلقائياً.
+              — يدعم وسوم HTML البسيطة مثل &lt;b&gt; و &lt;i&gt; و &lt;code&gt;. يبدأ القالب المقترح كل سطر بكلمة عربية
+              لضمان اتجاه ثابت على تطبيق تيليجرام للموبايل دون رموز اتجاه مخفية.
             </span>
           </div>
         </div>

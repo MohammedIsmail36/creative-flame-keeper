@@ -13,19 +13,7 @@ const json = (body: unknown, status = 200) =>
 
 const MAX_IMAGES = 10;
 
-// Bidi control characters
-const RLE = "\u202B"; // Right-to-Left Embedding (forces whole line RTL)
-const PDF = "\u202C"; // Pop Directional Formatting
-const LRI = "\u2066"; // Left-to-Right Isolate (for latin/numeric values)
-const PDI = "\u2069"; // Pop Directional Isolate
 const BIDI_CHARS = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
-
-// Isolate values that are latin/numeric so they don't flip inside Arabic lines
-const iso = (v: string) => {
-  const s = v.trim();
-  if (!s) return "";
-  return /[A-Za-z0-9]/.test(s) && !/[\u0600-\u06FF]/.test(s) ? `${LRI}${s}${PDI}` : s;
-};
 
 function buildCaption(
   template: string,
@@ -46,33 +34,27 @@ function buildCaption(
     ? `${rawPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${opts.currency}`
     : "";
   const stock = opts.show_stock ? String(Number(p.quantity_on_hand || 0)) : "";
-  let text = (template || "{name}")
-    .replace(BIDI_CHARS, "")
+  let source = (template || "المنتج: <b>{name}</b>").replace(BIDI_CHARS, "");
+
+  // Remove optional fields before substitution so an empty label is never sent.
+  if (!opts.show_price) source = source.split("\n").filter((line) => !line.includes("{price}")).join("\n");
+  if (!opts.show_stock) source = source.split("\n").filter((line) => !line.includes("{stock}")).join("\n");
+
+  let text = source
     .replace(/\{name\}/g, esc(p.name))
-    .replace(/\{code\}/g, iso(esc(p.code)))
-    .replace(/\{brand\}/g, iso(esc(p.product_brands?.name || "")))
-    .replace(/\{model\}/g, iso(esc(p.model_number || "")))
-    .replace(/\{price\}/g, iso(esc(price)))
-    .replace(/\{stock\}/g, iso(esc(stock)))
+    .replace(/\{code\}/g, esc(p.code))
+    .replace(/\{brand\}/g, esc(p.product_brands?.name || ""))
+    .replace(/\{model\}/g, esc(p.model_number || ""))
+    .replace(/\{price\}/g, esc(price))
+    .replace(/\{stock\}/g, esc(stock))
     .replace(/\{description\}/g, esc(p.description || ""));
 
-  const lines = text
+  text = text
     .split("\n")
-    .map((line) => {
-      // keep decorative separators short so they never wrap on mobile
-      if (/^[\s─━—_=•·.*-]+$/.test(line) && line.trim()) return "──────────────";
-      return line;
-    })
-    // drop lines whose value placeholder resolved to empty (e.g. "📦 المتوفر:")
-    .filter((line) => !/:\s*$/.test(line) || !line.trim());
-
-  text = lines
+    .map((line) => line.trim())
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
-    .trim()
-    .split("\n")
-    .map((line) => (line.trim() ? RLE + line.trim() + PDF : ""))
-    .join("\n");
+    .trim();
   return text.slice(0, 1024);
 }
 
