@@ -13,7 +13,19 @@ const json = (body: unknown, status = 200) =>
 
 const MAX_IMAGES = 10;
 
-const RLM = "\u200F"; // Right-to-Left Mark: forces RTL rendering per line in Telegram
+// Bidi control characters
+const RLE = "\u202B"; // Right-to-Left Embedding (forces whole line RTL)
+const PDF = "\u202C"; // Pop Directional Formatting
+const LRI = "\u2066"; // Left-to-Right Isolate (for latin/numeric values)
+const PDI = "\u2069"; // Pop Directional Isolate
+const BIDI_CHARS = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+
+// Isolate values that are latin/numeric so they don't flip inside Arabic lines
+const iso = (v: string) => {
+  const s = v.trim();
+  if (!s) return "";
+  return /[A-Za-z0-9]/.test(s) && !/[\u0600-\u06FF]/.test(s) ? `${LRI}${s}${PDI}` : s;
+};
 
 function buildCaption(
   template: string,
@@ -22,6 +34,7 @@ function buildCaption(
 ) {
   const esc = (v: unknown) =>
     String(v ?? "")
+      .replace(BIDI_CHARS, "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
@@ -34,27 +47,35 @@ function buildCaption(
     : "";
   const stock = opts.show_stock ? String(Number(p.quantity_on_hand || 0)) : "";
   let text = (template || "{name}")
+    .replace(BIDI_CHARS, "")
     .replace(/\{name\}/g, esc(p.name))
-    .replace(/\{code\}/g, esc(p.code))
-    .replace(/\{brand\}/g, esc(p.product_brands?.name || ""))
-    .replace(/\{model\}/g, esc(p.model_number || ""))
-    .replace(/\{price\}/g, esc(price))
-    .replace(/\{stock\}/g, esc(stock))
+    .replace(/\{code\}/g, iso(esc(p.code)))
+    .replace(/\{brand\}/g, iso(esc(p.product_brands?.name || "")))
+    .replace(/\{model\}/g, iso(esc(p.model_number || "")))
+    .replace(/\{price\}/g, iso(esc(price)))
+    .replace(/\{stock\}/g, iso(esc(stock)))
     .replace(/\{description\}/g, esc(p.description || ""));
-  // Drop lines whose value placeholder resolved to empty
-  text = text
+
+  const lines = text
     .split("\n")
-    .filter((line) => !/^\s*[^:]{1,30}:\s*$/.test(line))
+    .map((line) => {
+      // keep decorative separators short so they never wrap on mobile
+      if (/^[\s─━—_=•·.*-]+$/.test(line) && line.trim()) return "──────────────";
+      return line;
+    })
+    // drop lines whose value placeholder resolved to empty (e.g. "📦 المتوفر:")
+    .filter((line) => !/:\s*$/.test(line) || !line.trim());
+
+  text = lines
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
-    .trim();
-  // Force right-to-left alignment for every non-empty line
-  text = text
+    .trim()
     .split("\n")
-    .map((line) => (line.trim() ? RLM + line.replace(new RegExp(RLM, "g"), "") : line))
+    .map((line) => (line.trim() ? RLE + line.trim() + PDF : ""))
     .join("\n");
   return text.slice(0, 1024);
 }
+
 
 
 async function tg(token: string, method: string, body: unknown) {
