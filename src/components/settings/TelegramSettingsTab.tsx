@@ -224,7 +224,7 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
           </div>
         </div>
 
-        <div className="space-y-2" dir="rtl">
+        <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <Label className="text-sm font-bold">قالب نص المنشور</Label>
             <Button
@@ -239,20 +239,11 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
             </Button>
           </div>
           <Textarea
-            dir="rtl"
             rows={8}
             value={template}
             onChange={(e) => setTemplate(e.target.value)}
             className="font-mono text-xs"
           />
-          <div className="flex items-start gap-2 text-[11px] text-muted-foreground">
-            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <span>
-              المتغيرات المتاحة: {"{name}"} {"{code}"} {"{brand}"} {"{model}"} {"{price}"} {"{stock}"} {"{description}"}{" "}
-              — يدعم وسوم HTML البسيطة مثل &lt;b&gt; و &lt;i&gt; و &lt;code&gt;. يبدأ القالب المقترح كل سطر بكلمة عربية
-              لضمان اتجاه ثابت على تطبيق تيليجرام للموبايل دون رموز اتجاه مخفية.
-            </span>
-          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border">
