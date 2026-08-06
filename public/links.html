@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{/* <!DOCTYPE html>
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
@@ -388,5 +388,808 @@
 
       <footer>© Farida Store</footer>
     </main>
+  </body>
+</html>
+*/}
+
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#c2185b" />
+    <meta name="robots" content="noindex" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>علي بيه | روابط التواصل</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ── tokens (الألوان الأصلية) ── */
+      :root {
+        --rose: #d4186a;
+        --rose-lt: #f06aaa;
+        --rose-dk: #a01250;
+        --plum: #fceef5;
+        --card-bg: rgba(255, 255, 255, 0.55);
+        --border: rgba(210, 80, 140, 0.18);
+        --text: #3a0a22;
+        --muted: rgba(80, 20, 50, 0.62);
+        --logo-size: clamp(96px, 24vw, 116px);
+        --h1-size: clamp(22px, 6vw, 30px);
+        --sub-size: clamp(13px, 3.5vw, 15px);
+        --link-h: clamp(62px, 16vw, 72px);
+        --link-fs: clamp(15px, 4.2vw, 18px);
+        --icon-size: clamp(40px, 10vw, 48px);
+        --gap: clamp(10px, 2.5vw, 14px);
+        --pad-x: clamp(16px, 5vw, 24px);
+        --pad-top: clamp(28px, 8vw, 44px);
+        --radius: clamp(16px, 4.5vw, 22px);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+
+      body {
+        font-family: "Tajawal", system-ui, sans-serif;
+        min-height: 100dvh;
+        color: var(--text);
+        background: var(--plum);
+        -webkit-font-smoothing: antialiased;
+        -webkit-tap-highlight-color: transparent;
+        overflow-x: hidden;
+        padding-bottom: env(safe-area-inset-bottom);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* ── background ── */
+      .bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background:
+          radial-gradient(
+            ellipse 80% 60% at 10% 0%,
+            #f9c6df 0%,
+            transparent 60%
+          ),
+          radial-gradient(
+            ellipse 70% 50% at 90% 20%,
+            #fbd4eb 0%,
+            transparent 55%
+          ),
+          radial-gradient(
+            ellipse 60% 70% at 50% 110%,
+            #ffe0f0 0%,
+            transparent 60%
+          ),
+          linear-gradient(160deg, #fdf0f7 0%, #fceef5 50%, #fff5fa 100%);
+        animation: bgPulse 8s ease-in-out infinite alternate;
+      }
+      @keyframes bgPulse {
+        from {
+          filter: brightness(1);
+        }
+        to {
+          filter: brightness(1.12);
+        }
+      }
+
+      /* orbs */
+      .orb {
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(60px);
+        opacity: 0.32;
+        pointer-events: none;
+        z-index: 0;
+        animation: orbFloat linear infinite;
+      }
+      .orb-1 {
+        width: clamp(160px, 45vw, 300px);
+        height: clamp(160px, 45vw, 300px);
+        background: #f48cb8;
+        top: -60px;
+        right: -60px;
+        animation-duration: 14s;
+      }
+      .orb-2 {
+        width: clamp(120px, 32vw, 200px);
+        height: clamp(120px, 32vw, 200px);
+        background: #e8a0d0;
+        bottom: 8%;
+        left: -50px;
+        animation-duration: 18s;
+        animation-delay: -5s;
+      }
+      .orb-3 {
+        width: clamp(100px, 28vw, 180px);
+        height: clamp(100px, 28vw, 180px);
+        background: #f9b8d4;
+        bottom: 28%;
+        right: 4%;
+        animation-duration: 22s;
+        animation-delay: -9s;
+      }
+      @keyframes orbFloat {
+        0%,
+        100% {
+          transform: translateY(0) scale(1);
+        }
+        33% {
+          transform: translateY(-24px) scale(1.04);
+        }
+        66% {
+          transform: translateY(16px) scale(0.97);
+        }
+      }
+
+      /* sparks */
+      .sparks {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        overflow: hidden;
+      }
+      .spark {
+        position: absolute;
+        border-radius: 50%;
+        opacity: 0;
+        animation: sparkFly linear infinite;
+      }
+      @keyframes sparkFly {
+        0% {
+          opacity: 0;
+          transform: translateY(0) scale(0);
+        }
+        10% {
+          opacity: 0.7;
+        }
+        90% {
+          opacity: 0.2;
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-110vh) scale(1.4);
+        }
+      }
+
+      /* ── layout ── */
+      .wrap {
+        position: relative;
+        z-index: 1;
+        max-width: 480px;
+        width: 100%;
+        margin: 0 auto;
+        padding: var(--pad-top) var(--pad-x) clamp(32px, 8vw, 48px);
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      /* ── header ── */
+      .header {
+        text-align: center;
+        margin-bottom: clamp(22px, 6vw, 34px);
+        opacity: 0;
+        animation: fadeDown 0.65s ease forwards 0.1s;
+      }
+
+      .logo-ring {
+        position: relative;
+        width: var(--logo-size);
+        height: var(--logo-size);
+        margin: 0 auto clamp(12px, 3.5vw, 18px);
+      }
+      .logo-ring svg.ring {
+        position: absolute;
+        inset: 0;
+        animation: spin 10s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .logo-inner {
+        position: absolute;
+        inset: 7px;
+        border-radius: 50%;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        box-shadow:
+          0 0 28px rgba(233, 30, 140, 0.5),
+          inset 0 2px 4px rgba(255, 255, 255, 0.2);
+        padding: 14px;
+      }
+      .logo-inner svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      h1 {
+        font-size: var(--h1-size);
+        font-weight: 900;
+        letter-spacing: 0.5px;
+        line-height: 1.2;
+        background: linear-gradient(
+          90deg,
+          #3a0a22 0%,
+          #a01250 55%,
+          #d4186a 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 5px;
+      }
+      .subtitle {
+        font-size: var(--sub-size);
+        color: var(--muted);
+        font-weight: 500;
+        line-height: 1.6;
+      }
+      .badge {
+        display: inline-block;
+        margin-top: 9px;
+        padding: 4px 14px;
+        border-radius: 30px;
+        font-size: clamp(11px, 3vw, 13px);
+        font-weight: 700;
+        background: rgba(212, 24, 106, 0.1);
+        border: 1px solid rgba(212, 24, 106, 0.35);
+        color: #a01250;
+        letter-spacing: 0.4px;
+      }
+
+      /* ── divider ── */
+      .divider {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: clamp(14px, 4vw, 20px);
+        opacity: 0;
+        animation: fadeDown 0.6s ease forwards 0.28s;
+      }
+      .divider span {
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .divider::before,
+      .divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(180, 30, 100, 0.3),
+          transparent
+        );
+      }
+
+      /* ── links ── */
+      .links {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap);
+      }
+
+      .link {
+        display: flex;
+        align-items: center;
+        gap: clamp(10px, 3vw, 14px);
+        min-height: var(--link-h);
+        padding: 0 clamp(14px, 4vw, 18px);
+        border-radius: var(--radius);
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        backdrop-filter: blur(14px) saturate(130%);
+        -webkit-backdrop-filter: blur(14px) saturate(130%);
+        text-decoration: none;
+        color: var(--text);
+        font-weight: 700;
+        font-size: var(--link-fs);
+        position: relative;
+        overflow: hidden;
+        will-change: transform;
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.18s ease,
+          border-color 0.18s ease;
+        opacity: 0;
+        animation: fadeUp 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .link:nth-child(1) {
+        animation-delay: 0.32s;
+      }
+      .link:nth-child(2) {
+        animation-delay: 0.41s;
+      }
+      .link:nth-child(3) {
+        animation-delay: 0.5s;
+      }
+      .link:nth-child(4) {
+        animation-delay: 0.59s;
+      }
+      .link:nth-child(5) {
+        animation-delay: 0.68s;
+      }
+      .link:nth-child(6) {
+        animation-delay: 0.77s;
+      }
+
+      .link::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          100deg,
+          transparent 30%,
+          rgba(255, 255, 255, 0.07) 50%,
+          transparent 70%
+        );
+        transform: translateX(-100%);
+        transition: transform 0.45s ease;
+      }
+      .link:hover::before {
+        transform: translateX(100%);
+      }
+
+      .link::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 15%;
+        right: 15%;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 110, 196, 0.55),
+          transparent
+        );
+        opacity: 0;
+        transition: opacity 0.22s;
+      }
+      .link:hover::after {
+        opacity: 1;
+      }
+
+      @media (hover: hover) and (pointer: fine) {
+        .link:hover {
+          transform: translateY(-2px) scale(1.01);
+          border-color: rgba(233, 30, 140, 0.48);
+          box-shadow: 0 8px 30px rgba(233, 30, 140, 0.28);
+        }
+      }
+      .link:active {
+        transform: scale(0.96) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28) !important;
+        transition-duration: 0.08s !important;
+      }
+
+      .icon-wrap {
+        width: var(--icon-size);
+        height: var(--icon-size);
+        border-radius: clamp(11px, 3vw, 14px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        background: rgba(255, 255, 255, 0.09);
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        transition: transform 0.22s ease;
+      }
+      .link:hover .icon-wrap {
+        transform: scale(1.1) rotate(-3deg);
+      }
+      .icon-wrap svg {
+        width: clamp(22px, 6vw, 27px);
+        height: clamp(22px, 6vw, 27px);
+      }
+
+      .label {
+        flex: 1;
+      }
+
+      .arrow {
+        font-size: clamp(15px, 4vw, 18px);
+        color: rgba(255, 255, 255, 0.32);
+        transition:
+          transform 0.18s ease,
+          color 0.18s ease;
+        font-style: normal;
+      }
+      .link:hover .arrow {
+        transform: translateX(-5px);
+        color: rgba(255, 110, 196, 0.9);
+      }
+
+      /* ── footer ── */
+      footer {
+        text-align: center;
+        font-size: clamp(11px, 3vw, 13px);
+        color: var(--muted);
+        margin-top: clamp(20px, 5vw, 28px);
+        font-weight: 500;
+        opacity: 0;
+        animation: fadeUp 0.5s ease forwards 1s;
+      }
+      footer span {
+        color: rgba(233, 30, 140, 0.55);
+      }
+
+      /* ── keyframes ── */
+      @keyframes fadeDown {
+        from {
+          opacity: 0;
+          transform: translateY(-16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      @media (max-width: 360px) {
+        :root {
+          --link-h: 58px;
+          --link-fs: 14px;
+          --icon-size: 38px;
+        }
+      }
+
+      @media (max-height: 500px) and (orientation: landscape) {
+        .header {
+          margin-bottom: 14px;
+        }
+        .logo-ring {
+          width: 72px;
+          height: 72px;
+        }
+        h1 {
+          font-size: 20px;
+        }
+        .subtitle,
+        .badge {
+          display: none;
+        }
+        .divider {
+          margin-bottom: 10px;
+        }
+        :root {
+          --link-h: 52px;
+          --gap: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="sparks" id="sparks"></div>
+
+    <main class="wrap">
+      <header class="header">
+        <div class="logo-ring">
+          <svg class="ring" viewBox="0 0 116 116" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle
+              cx="58"
+              cy="58"
+              r="54"
+              stroke="url(#rg)"
+              stroke-width="2"
+              stroke-dasharray="8 5"
+              stroke-linecap="round"
+            />
+            <defs>
+              <linearGradient id="rg" x1="0" y1="0" x2="116" y2="116" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#ff6ec4" />
+                <stop offset="1" stop-color="#9c0a5e" stop-opacity="0.25" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="logo-inner">
+            <!-- شعار علي بيه SVG -->
+            <svg
+              version="1.0"
+              xmlns="http://www.w3.org/2000/svg"
+              width="221.000000pt"
+              height="215.000000pt"
+              viewBox="0 0 221.000000 215.000000"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <g transform="translate(0.000000,215.000000) scale(0.100000,-0.100000)" fill="#d4186a" stroke="none">
+                <path
+                  d="M996 2129 c-318 -46 -597 -233 -759 -509 -99 -168 -141 -323 -141
+            -525 0 -155 19 -257 73 -385 l28 -69 -26 -24 c-35 -34 -92 -67 -113 -67 -10 0
+            -18 -7 -18 -15 0 -12 19 -15 108 -15 l109 0 51 -64 c156 -192 346 -318 570
+            -378 99 -26 321 -36 430 -18 346 56 650 292 789 612 19 44 46 123 60 176 22
+            83 26 118 26 247 0 129 -4 163 -26 247 -111 420 -439 721 -854 783 -106 16
+            -214 17 -307 4z m417 -73 c184 -55 313 -133 443 -267 97 -101 132 -152 189
+            -272 77 -162 90 -225 89 -427 0 -160 -2 -182 -27 -262 -95 -310 -308 -549
+            -590 -662 -335 -134 -695 -84 -986 135 -76 56 -201 187 -201 209 0 5 33 10 73
+            12 l72 3 -47 27 c-60 36 -93 99 -85 164 11 103 103 234 222 320 63 44 206 116
+            256 128 l26 6 38 -198 c71 -371 91 -435 157 -501 111 -114 357 -122 551 -18
+            110 58 183 150 213 267 33 131 0 269 -88 365 -27 30 -47 55 -44 55 4 0 26 -10
+            49 -21 62 -32 179 -154 211 -222 l28 -57 -26 -21 c-31 -25 -35 -76 -8 -107 45
+            -54 122 -24 122 48 0 21 -6 43 -15 50 -8 6 -33 51 -56 98 -76 159 -222 277
+            -395 321 l-68 17 36 22 c60 37 134 126 154 184 56 161 -15 338 -161 407 -92
+            43 -230 61 -349 45 -40 -6 -46 -10 -46 -30 0 -20 5 -24 28 -24 51 0 120 -31
+            162 -72 79 -79 102 -236 51 -354 -26 -60 -90 -127 -145 -149 -21 -9 -88 -20
+            -150 -25 -235 -20 -368 -56 -516 -144 -41 -24 -77 -42 -78 -41 -5 5 251 514
+            258 514 3 1 20 -72 38 -161 18 -89 35 -164 36 -166 2 -2 41 4 86 12 45 9 99
+            16 120 16 70 0 70 -2 44 123 -91 440 -123 589 -126 592 -2 2 -14 2 -26 -2 -25
+            -6 -39 -32 -277 -493 -358 -696 -418 -810 -425 -810 -12 0 -57 130 -75 216
+            -22 103 -22 275 0 378 84 401 381 701 781 790 51 11 111 15 229 12 138 -3 172
+            -7 248 -30z m-130 -876 c177 -66 269 -282 206 -485 -33 -108 -147 -210 -198
+            -178 -22 14 -31 49 -95 369 -31 154 -59 290 -62 303 -5 23 -4 24 46 17 29 -4
+            75 -16 103 -26z"
+                />
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <h1>علي بيه</h1>
+        <p class="subtitle">الأناقة والجودة في الملابس البيتية</p>
+        <span class="badge">✦ تواصل معنا الآن</span>
+      </header>
+
+      <div class="divider"><span>روابط التواصل</span></div>
+
+      <nav class="links" aria-label="روابط التواصل">
+        <!-- 1. الموقع -->
+        <a class="link" href="https://maps.app.goo.gl/X18XvuaVMRreEKjf6" target="_blank" rel="noopener">
+          <span class="icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+              <path
+                fill="#48b564"
+                d="M35.76,26.36h0.01c0,0-3.77,5.53-6.94,9.64c-2.74,3.55-3.54,6.59-3.77,8.06C24.97,44.6,24.53,45,24,45s-0.97-0.4-1.06-0.94c-0.23-1.47-1.03-4.51-3.77-8.06c-0.42-0.55-0.85-1.12-1.28-1.7L28.24,22l8.33-9.88C37.49,14.05,38,16.21,38,18.5C38,21.4,37.17,24.09,35.76,26.36z"
+              />
+              <path
+                fill="#fcc60e"
+                d="M28.24,22L17.89,34.3c-2.82-3.78-5.66-7.94-5.66-7.94h0.01c-0.3-0.48-0.57-0.97-0.8-1.48L19.76,15c-0.79,0.95-1.26,2.17-1.26,3.5c0,3.04,2.46,5.5,5.5,5.5C25.71,24,27.24,23.22,28.24,22z"
+              />
+              <path
+                fill="#2c85eb"
+                d="M28.4,4.74l-8.57,10.18L13.27,9.2C15.83,6.02,19.69,4,24,4C25.54,4,27.02,4.26,28.4,4.74z"
+              />
+              <path
+                fill="#ed5748"
+                d="M19.83,14.92L19.76,15l-8.32,9.88C10.52,22.95,10,20.79,10,18.5c0-3.54,1.23-6.79,3.27-9.3L19.83,14.92z"
+              />
+              <path
+                fill="#5695f6"
+                d="M28.24,22c0.79-0.95,1.26-2.17,1.26-3.5c0-3.04-2.46-5.5-5.5-5.5c-1.71,0-3.24,0.78-4.24,2L28.4,4.74c3.59,1.22,6.53,3.91,8.17,7.38L28.24,22z"
+              />
+            </svg>
+          </span>
+          <span class="label">موقع المحل على الخريطة</span>
+          <i class="arrow">←</i>
+        </a>
+
+        <!-- 2. واتساب -->
+        <a class="link" href="https://wa.me/966XXXXXXXXX" target="_blank" rel="noopener">
+          <span class="icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+              <path
+                fill="#40c351"
+                d="M35.176,12.832c-2.98-2.982-6.941-4.625-11.157-4.626c-8.704,0-15.783,7.076-15.787,15.774c-0.001,2.981,0.833,5.883,2.413,8.396l0.376,0.597l-1.595,5.821l5.973-1.566l0.577,0.342c2.422,1.438,5.2,2.198,8.032,2.199h0.006c8.698,0,15.777-7.077,15.78-15.776C39.795,19.778,38.156,15.814,35.176,12.832z"
+              />
+              <path
+                fill="#fff"
+                fill-rule="evenodd"
+                d="M19.268,16.045c-0.355-0.79-0.729-0.806-1.068-0.82c-0.277-0.012-0.593-0.011-0.909-0.011c-0.316,0-0.83,0.119-1.265,0.594c-0.435,0.475-1.661,1.622-1.661,3.956c0,2.334,1.7,4.59,1.937,4.906c0.237,0.316,3.282,5.259,8.104,7.161c4.007,1.58,4.823,1.266,5.693,1.187c0.87-0.079,2.807-1.147,3.202-2.255c0.395-1.108,0.395-2.057,0.277-2.255c-0.119-0.198-0.435-0.316-0.909-0.554s-2.807-1.385-3.242-1.543c-0.435-0.158-0.751-0.237-1.068,0.238c-0.316,0.474-1.225,1.543-1.502,1.859c-0.277,0.317-0.554,0.357-1.028,0.119c-0.474-0.238-2.002-0.738-3.815-2.354c-1.41-1.257-2.362-2.81-2.639-3.285c-0.277-0.474-0.03-0.731,0.208-0.968c0.213-0.213,0.474-0.554,0.712-0.831c0.237-0.277,0.316-0.475,0.474-0.791c0.158-0.317,0.079-0.594-0.04-0.831C20.612,19.329,19.69,16.983,19.268,16.045z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </span>
+          <span class="label">راسلنا على واتساب</span>
+          <i class="arrow">←</i>
+        </a>
+
+        <!-- 3. تليجرام -->
+        <a class="link" href="https://t.me/your_account" target="_blank" rel="noopener">
+          <span class="icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+              <path fill="#29b6f6" d="M24 4A20 20 0 1 0 24 44A20 20 0 1 0 24 4Z" />
+              <path
+                fill="#fff"
+                d="M33.95,15l-3.746,19.126c0,0-0.161,0.874-1.245,0.874c-0.576,0-0.873-0.274-0.873-0.274l-8.114-6.733l-3.97-2.001l-5.095-1.355c0,0-0.907-0.262-0.907-1.012c0-0.625,0.933-0.923,0.933-0.923l21.316-8.468c-0.001-0.001,0.651-0.235,1.126-0.234C33.667,14,34,14.125,34,14.5C34,14.75,33.95,15,33.95,15z"
+              />
+              <path
+                fill="#cfd8dc"
+                d="M23,30.505l-3.426,3.374c0,0-0.149,0.115-0.348,0.12c-0.069,0.002-0.143-0.009-0.219-0.043l0.964-5.965L23,30.505z"
+              />
+              <path
+                fill="#b0bec5"
+                d="M29.897,18.196c-0.169-0.22-0.481-0.26-0.701-0.093L16,26c0,0,2.106,5.892,2.427,6.912c0.322,1.021,0.58,1.045,0.58,1.045l0.964-5.965l9.832-9.096C30.023,18.729,30.064,18.416,29.897,18.196z"
+              />
+            </svg>
+          </span>
+          <span class="label">انضم لقناتنا على تيليجرام</span>
+          <i class="arrow">←</i>
+        </a>
+
+        <!-- 4. فيسبوك -->
+        <a class="link" href="https://facebook.com/your_account" target="_blank" rel="noopener">
+          <span class="icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+              <path fill="#3f51b5" d="M24 4A20 20 0 1 0 24 44A20 20 0 1 0 24 4Z" />
+              <path
+                fill="#fff"
+                d="M29.368,24H26v12h-5V24h-3v-4h3v-2.41c0.002-3.508,1.459-5.59,5.592-5.59H30v4h-2.287C26.104,16,26,16.6,26,17.723V20h4L29.368,24z"
+              />
+            </svg>
+          </span>
+          <span class="label">صفحتنا على فيسبوك</span>
+          <i class="arrow">←</i>
+        </a>
+
+        <!-- 5. انستجرام -->
+        <a class="link" href="https://instagram.com/your_account" target="_blank" rel="noopener">
+          <span class="icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+              <radialGradient id="ig1" cx="19.38" cy="42.035" r="44.899" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#fd5" />
+                <stop offset=".328" stop-color="#ff543f" />
+                <stop offset=".504" stop-color="#e64771" />
+                <stop offset=".761" stop-color="#cc39a4" />
+                <stop offset=".841" stop-color="#c837ab" />
+              </radialGradient>
+              <path
+                fill="url(#ig1)"
+                d="M34.017,41.99l-20,0.019c-4.4,0.004-8.003-3.592-8.008-7.992l-0.019-20c-0.004-4.4,3.592-8.003,7.992-8.008l20-0.019c4.4-0.004,8.003,3.592,8.008,7.992l0.019,20C42.014,38.383,38.417,41.986,34.017,41.99z"
+              />
+              <radialGradient id="ig2" cx="11.786" cy="5.54" r="29.813" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#4168c9" />
+                <stop offset=".999" stop-color="#4168c9" stop-opacity="0" />
+              </radialGradient>
+              <path
+                fill="url(#ig2)"
+                d="M34.017,41.99l-20,0.019c-4.4,0.004-8.003-3.592-8.008-7.992l-0.019-20c-0.004-4.4,3.592-8.003,7.992-8.008l20-0.019c4.4-0.004,8.003,3.592,8.008,7.992l0.019,20C42.014,38.383,38.417,41.986,34.017,41.99z"
+              />
+              <path
+                fill="#fff"
+                d="M24,31c-3.859,0-7-3.14-7-7s3.141-7,7-7s7,3.14,7,7S27.859,31,24,31z M24,19c-2.757,0-5,2.243-5,5s2.243,5,5,5s5-2.243,5-5S26.757,19,24,19z"
+              />
+              <circle cx="31.5" cy="16.5" r="1.5" fill="#fff" />
+              <path
+                fill="#fff"
+                d="M30,37H18c-3.859,0-7-3.14-7-7V18c0-3.86,3.141-7,7-7h12c3.859,0,7,3.14,7,7v12C37,33.86,33.859,37,30,37z M18,13c-2.757,0-5,2.243-5,5v12c0,2.757,2.243,5,5,5h12c2.757,0,5-2.243,5-5V18c0-2.757-2.243-5-5-5H18z"
+              />
+            </svg>
+          </span>
+          <span class="label">تابعنا على انستجرام</span>
+          <i class="arrow">←</i>
+        </a>
+
+        <!-- 6. تيك توك -->
+        <a class="link" href="https://tiktok.com/@your_account" target="_blank" rel="noopener">
+          <span class="icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+              <path
+                fill="#212121"
+                fill-rule="evenodd"
+                d="M10.904,6h26.191C39.804,6,42,8.196,42,10.904v26.191C42,39.804,39.804,42,37.096,42H10.904C8.196,42,6,39.804,6,37.096V10.904C6,8.196,8.196,6,10.904,6z"
+                clip-rule="evenodd"
+              />
+              <path
+                fill="#ec407a"
+                fill-rule="evenodd"
+                d="M29.208,20.607c1.576,1.126,3.507,1.788,5.592,1.788v-4.011c-0.395,0-0.788-0.041-1.174-0.123v3.157c-2.085,0-4.015-0.663-5.592-1.788v8.184c0,4.094-3.321,7.413-7.417,7.413c-1.528,0-2.949-0.462-4.129-1.254c1.347,1.376,3.225,2.23,5.303,2.23c4.096,0,7.417-3.319,7.417-7.413L29.208,20.607z"
+                clip-rule="evenodd"
+              />
+              <path
+                fill="#fff"
+                fill-rule="evenodd"
+                d="M28.034,19.63c1.576,1.126,3.507,1.788,5.592,1.788v-3.157c-1.164-0.248-2.194-0.856-2.969-1.701c-1.326-0.827-2.281-2.191-2.561-3.788h-2.923v16.018c-0.007,1.867-1.523,3.379-3.393,3.379c-1.102,0-2.081-0.525-2.701-1.338c-1.107-0.558-1.866-1.705-1.866-3.029c0-1.873,1.519-3.391,3.393-3.391c0.359,0,0.705,0.056,1.03,0.159V21.38c-4.024,0.083-7.26,3.369-7.26,7.411c0,2.018,0.806,3.847,2.114,5.183c1.18,0.792,2.601,1.254,4.129,1.254c4.096,0,7.417-3.319,7.417-7.413L28.034,19.63z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </span>
+          <span class="label">شاهد مقاطعنا على تيك توك</span>
+          <i class="arrow">←</i>
+        </a>
+      </nav>
+
+      <footer>© 2026 علي بيه <span>✦</span> جميع الحقوق محفوظة</footer>
+    </main>
+
+    <script>
+        // sparks
+        const sparksEl = document.getElementById("sparks");
+        for (let i = 0; i < 18; i++) {
+          const s = document.createElement("div");
+          s.className = "spark";
+          const size = 2 + Math.random() * 3;
+          s.style.cssText = `
+        left:${Math.random() * 100}%;
+        top:${75 + Math.random() * 35}%;
+        width:${size}px; height:${size}px;
+        animation-delay:${Math.random() * 7}s;
+        animation-duration:${4 + Math.random() * 5}s;
+        background:hsl(${320 + Math.random() * 40},100%,${68 + Math.random() * 20}%);
+      `;
+          sparksEl.appendChild(s);
+        }
+
+        // ripple
+        document.querySelectorAll(".link").forEach((el) => {
+          el.addEventListener("pointerdown", (e) => {
+            const r = document.createElement("span");
+            const rect = el.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height) * 1.6;
+            r.style.cssText = `
+          position:absolute; border-radius:50%;
+          background:rgba(255,255,255,0.13);
+          width:${size}px; height:${size}px;
+          left:${e.clientX - rect.left - size / 2}px;
+          top:${e.clientY - rect.top - size / 2}px;
+          pointer-events:none; transform:scale(0);
+          animation:ripple 0.48s ease-out forwards;
+        `;
+            el.appendChild(r);
+            setTimeout(() => r.remove(), 500);
+          });
+        });
+
+        const st = document.createElement("style");
+        st.textContent = `@keyframes ripple { to { transform:scale(1); opacity:0; } }`;
+        document.head.appendChild(st);
+    </script>
   </body>
 </html>
