@@ -203,25 +203,45 @@ Deno.serve(async (req) => {
     });
 
     const sendImages = images.slice(0, MAX_IMAGES);
+    const mainImage = sendImages[0];
+    const galleryImages = sendImages.slice(1);
     let messageId: number | null = null;
 
-    if (sendImages.length === 1) {
+    if (galleryImages.length === 0) {
+      // صورة أساسية فقط: رسالة واحدة مع القالب
       const res = await tg(token, "sendPhoto", {
         chat_id: channelId,
-        photo: sendImages[0],
+        photo: mainImage,
         caption,
         parse_mode: "HTML",
       });
       messageId = res?.message_id ?? null;
     } else {
-      const media = sendImages.map((url, i) => ({
-        type: "photo",
-        media: url,
-        ...(i === 0 ? { caption, parse_mode: "HTML" } : {}),
-      }));
-      const res = await tg(token, "sendMediaGroup", { chat_id: channelId, media });
-      messageId = Array.isArray(res) ? (res[0]?.message_id ?? null) : null;
+      // الرسالة الأولى: الصورة الأساسية كبيرة بدون نص
+      const first = await tg(token, "sendPhoto", {
+        chat_id: channelId,
+        photo: mainImage,
+      });
+      messageId = first?.message_id ?? null;
+
+      // الرسالة الثانية: صور المعرض مع القالب
+      if (galleryImages.length === 1) {
+        await tg(token, "sendPhoto", {
+          chat_id: channelId,
+          photo: galleryImages[0],
+          caption,
+          parse_mode: "HTML",
+        });
+      } else {
+        const media = galleryImages.map((url, i) => ({
+          type: "photo",
+          media: url,
+          ...(i === 0 ? { caption, parse_mode: "HTML" } : {}),
+        }));
+        await tg(token, "sendMediaGroup", { chat_id: channelId, media });
+      }
     }
+
 
     await supabase.from("telegram_post_log").insert({
       product_id: productId,
