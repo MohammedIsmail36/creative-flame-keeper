@@ -2162,6 +2162,8 @@ export type Database = {
       post_sales_invoice: { Args: { p_invoice_id: string }; Returns: Json }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      unpost_purchase_invoice: { Args: { p_invoice_id: string }; Returns: Json }
+      unpost_sales_invoice: { Args: { p_invoice_id: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "accountant" | "sales"
