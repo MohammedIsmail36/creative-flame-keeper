@@ -60,40 +60,52 @@ export async function postExpense(
     throw new Error("تأكد من وجود حساب الصندوق/البنك في شجرة الحسابات");
   }
 
-  // Clean up old JE if this is a re-post
-  if (input.oldJournalEntryId) {
-    await supabase
-      .from("journal_entry_lines")
-      .delete()
-      .eq("journal_entry_id", input.oldJournalEntryId);
-    await supabase
-      .from("journal_entries")
-      .delete()
-      .eq("id", input.oldJournalEntryId);
-  }
-
   const expPostedNum =
     input.reusePostedNumber ?? (await getNextPostedNumber("expenses" as any));
-  const jePostedNum = await getNextPostedNumber("journal_entries");
   const prefix = input.expensePrefix || "EXP-";
   const displayNum = `${prefix}${String(expPostedNum).padStart(4, "0")}`;
   const desc = `سند مصروف رقم ${displayNum} - ${input.expenseTypeName}${
     input.description?.trim() ? ` - ${input.description.trim()}` : ""
   }`;
 
-  const { data: je, error: jeError } = await supabase
-    .from("journal_entries")
-    .insert({
-      description: desc,
-      entry_date: input.expenseDate,
-      total_debit: input.amount,
-      total_credit: input.amount,
-      status: "posted",
-      posted_number: jePostedNum,
-    } as any)
-    .select("id")
-    .single();
-  if (jeError) throw jeError;
+  let jeId: string;
+
+  if (input.oldJournalEntryId) {
+    // Reuse the SAME journal entry: rebuild its lines in place (never delete it)
+    jeId = input.oldJournalEntryId;
+    const { error: delErr } = await supabase
+      .from("journal_entry_lines")
+      .delete()
+      .eq("journal_entry_id", jeId);
+    if (delErr) throw delErr;
+    const { error: updJeErr } = await supabase
+      .from("journal_entries")
+      .update({
+        description: desc,
+        entry_date: input.expenseDate,
+        total_debit: input.amount,
+        total_credit: input.amount,
+      } as any)
+      .eq("id", jeId);
+    if (updJeErr) throw updJeErr;
+  } else {
+    const jePostedNum = await getNextPostedNumber("journal_entries");
+    const { data: je, error: jeError } = await supabase
+      .from("journal_entries")
+      .insert({
+        description: desc,
+        entry_date: input.expenseDate,
+        total_debit: input.amount,
+        total_credit: input.amount,
+        status: "draft",
+        posted_number: jePostedNum,
+      } as any)
+      .select("id")
+      .single();
+    if (jeError) throw jeError;
+    jeId = je.id;
+  }
+  const je = { id: jeId };
 
   const { error: linesErr } = await supabase
     .from("journal_entry_lines")
