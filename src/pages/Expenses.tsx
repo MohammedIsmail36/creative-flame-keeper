@@ -334,6 +334,8 @@ export default function Expenses() {
         expenseDate: postTarget.expense_date,
         description: postTarget.description,
         expensePrefix: (settings as any)?.expense_prefix || "EXP-",
+        reusePostedNumber: postTarget.posted_number ?? null,
+        oldJournalEntryId: postTarget.journal_entry_id ?? null,
       });
 
       toast({ title: "تم الترحيل", description: `تم ترحيل المصروف ${displayNumber}` });

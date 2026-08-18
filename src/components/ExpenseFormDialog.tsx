@@ -261,8 +261,8 @@ export function ExpenseFormDialog({
         targetId = (data as any).id;
       }
 
-      const wasPosted =
-        isEdit && existingStatus === "posted" && !!existingJeId;
+      // Reuse the existing journal entry whenever one is linked (posted or reset-to-draft)
+      const reuseJe = isEdit && !!existingJeId;
 
       const { displayNumber } = await postExpense({
         expenseId: targetId!,
@@ -275,7 +275,7 @@ export function ExpenseFormDialog({
         description,
         reusePostedNumber: reusePostedNum ?? existingPostedNum ?? null,
         expensePrefix: (settings as any)?.expense_prefix || "EXP-",
-        oldJournalEntryId: wasPosted ? existingJeId : null,
+        oldJournalEntryId: reuseJe ? existingJeId : null,
       });
 
       toast({
