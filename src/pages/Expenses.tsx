@@ -267,18 +267,23 @@ export default function Expenses() {
       const oldPostedNum = target.posted_number;
       const oldJeId = target.journal_entry_id;
 
+      // Odoo-style: the journal entry is NEVER deleted — it becomes a draft entry
+      // (excluded from every report) and its lines are rebuilt on re-post.
       if (oldJeId) {
-        await supabase.from("journal_entry_lines").delete().eq("journal_entry_id", oldJeId);
-        await supabase.from("journal_entries").delete().eq("id", oldJeId);
+        const { error: jeErr } = await supabase
+          .from("journal_entries")
+          .update({ status: "draft" } as any)
+          .eq("id", oldJeId);
+        if (jeErr) throw jeErr;
       }
 
       const { error } = await (supabase.from("expenses") as any)
-        .update({ status: "draft", journal_entry_id: null })
+        .update({ status: "draft" })
         .eq("id", target.id);
       if (error) throw error;
 
       await (supabase.from("audit_log" as any) as any).insert({
-        action: "expense_revert_to_draft",
+        action: "expense_reset_to_draft",
         table_name: "expenses",
         record_id: target.id,
         old_data: {
@@ -286,8 +291,13 @@ export default function Expenses() {
           journal_entry_id: oldJeId,
           posted_number: oldPostedNum,
         },
-        new_data: { status: "draft", journal_entry_id: null },
+        new_data: {
+          status: "draft",
+          journal_entry_id: oldJeId,
+          posted_number: oldPostedNum,
+        },
       });
+
 
       toast({
         title: "تم التحويل لمسودة",
