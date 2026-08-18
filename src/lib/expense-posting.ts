@@ -16,7 +16,11 @@ export interface PostExpenseInput {
   reusePostedNumber?: number | null;
   /** Settings prefix (default EXP-) */
   expensePrefix?: string;
-  /** If updating an existing posted record, delete its old JE first */
+  /**
+   * When re-posting a record that already has a journal entry, that SAME entry is
+   * reused: its lines are rebuilt and it is switched back to posted (Odoo-style).
+   * The entry is never deleted, so an empty/orphan JV can no longer be created.
+   */
   oldJournalEntryId?: string | null;
 }
 
