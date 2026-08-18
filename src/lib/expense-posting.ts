@@ -105,20 +105,19 @@ export async function postExpense(
     if (jeError) throw jeError;
     jeId = je.id;
   }
-  const je = { id: jeId };
 
   const { error: linesErr } = await supabase
     .from("journal_entry_lines")
     .insert([
       {
-        journal_entry_id: je.id,
+        journal_entry_id: jeId,
         account_id: input.accountId,
         debit: input.amount,
         credit: 0,
         description: desc,
       },
       {
-        journal_entry_id: je.id,
+        journal_entry_id: jeId,
         account_id: cashBankAcc.id,
         debit: 0,
         credit: input.amount,
@@ -127,17 +126,24 @@ export async function postExpense(
     ] as any);
   if (linesErr) throw linesErr;
 
+  // Lines exist and are balanced → the entry can now be posted
+  const { error: postErr } = await supabase
+    .from("journal_entries")
+    .update({ status: "posted" } as any)
+    .eq("id", jeId);
+  if (postErr) throw postErr;
+
   const { error: updErr } = await (supabase.from("expenses" as any) as any)
     .update({
       status: "posted",
-      journal_entry_id: je.id,
+      journal_entry_id: jeId,
       posted_number: expPostedNum,
     })
     .eq("id", input.expenseId);
   if (updErr) throw updErr;
 
   return {
-    journalEntryId: je.id,
+    journalEntryId: jeId,
     expensePostedNumber: expPostedNum,
     displayNumber: displayNum,
   };
