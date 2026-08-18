@@ -972,9 +972,10 @@ export default function Expenses() {
       <AlertDialog open={!!revertTarget} onOpenChange={() => !saving && setRevertTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>إعادة المصروف لمسودة</AlertDialogTitle>
+            <AlertDialogTitle>إعادة تعيين المصروف كمسودة</AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم تحويل المصروف إلى مسودة وحذف القيد المحاسبي المرتبط به مع الاحتفاظ بنفس الرقم التسلسلي. ستفتح نافذة
+              سيتحول المصروف إلى مسودة، ويتحول القيد المحاسبي المرتبط به إلى مسودة أيضاً فيخرج من التقارير وميزان
+              المراجعة دون حذفه. عند إعادة الترحيل تُبنى سطور نفس القيد من جديد بنفس الرقم التسلسلي. ستفتح نافذة
               التعديل تلقائياً بعد التأكيد. هل تريد المتابعة؟
             </AlertDialogDescription>
           </AlertDialogHeader>
