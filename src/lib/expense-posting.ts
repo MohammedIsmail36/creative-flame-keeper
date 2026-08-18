@@ -16,7 +16,11 @@ export interface PostExpenseInput {
   reusePostedNumber?: number | null;
   /** Settings prefix (default EXP-) */
   expensePrefix?: string;
-  /** If updating an existing posted record, delete its old JE first */
+  /**
+   * When re-posting a record that already has a journal entry, that SAME entry is
+   * reused: its lines are rebuilt and it is switched back to posted (Odoo-style).
+   * The entry is never deleted, so an empty/orphan JV can no longer be created.
+   */
   oldJournalEntryId?: string | null;
 }
 
@@ -56,53 +60,64 @@ export async function postExpense(
     throw new Error("تأكد من وجود حساب الصندوق/البنك في شجرة الحسابات");
   }
 
-  // Clean up old JE if this is a re-post
-  if (input.oldJournalEntryId) {
-    await supabase
-      .from("journal_entry_lines")
-      .delete()
-      .eq("journal_entry_id", input.oldJournalEntryId);
-    await supabase
-      .from("journal_entries")
-      .delete()
-      .eq("id", input.oldJournalEntryId);
-  }
-
   const expPostedNum =
     input.reusePostedNumber ?? (await getNextPostedNumber("expenses" as any));
-  const jePostedNum = await getNextPostedNumber("journal_entries");
   const prefix = input.expensePrefix || "EXP-";
   const displayNum = `${prefix}${String(expPostedNum).padStart(4, "0")}`;
   const desc = `سند مصروف رقم ${displayNum} - ${input.expenseTypeName}${
     input.description?.trim() ? ` - ${input.description.trim()}` : ""
   }`;
 
-  const { data: je, error: jeError } = await supabase
-    .from("journal_entries")
-    .insert({
-      description: desc,
-      entry_date: input.expenseDate,
-      total_debit: input.amount,
-      total_credit: input.amount,
-      status: "posted",
-      posted_number: jePostedNum,
-    } as any)
-    .select("id")
-    .single();
-  if (jeError) throw jeError;
+  let jeId: string;
+
+  if (input.oldJournalEntryId) {
+    // Reuse the SAME journal entry: rebuild its lines in place (never delete it)
+    jeId = input.oldJournalEntryId;
+    const { error: delErr } = await supabase
+      .from("journal_entry_lines")
+      .delete()
+      .eq("journal_entry_id", jeId);
+    if (delErr) throw delErr;
+    const { error: updJeErr } = await supabase
+      .from("journal_entries")
+      .update({
+        description: desc,
+        entry_date: input.expenseDate,
+        total_debit: input.amount,
+        total_credit: input.amount,
+      } as any)
+      .eq("id", jeId);
+    if (updJeErr) throw updJeErr;
+  } else {
+    const jePostedNum = await getNextPostedNumber("journal_entries");
+    const { data: je, error: jeError } = await supabase
+      .from("journal_entries")
+      .insert({
+        description: desc,
+        entry_date: input.expenseDate,
+        total_debit: input.amount,
+        total_credit: input.amount,
+        status: "draft",
+        posted_number: jePostedNum,
+      } as any)
+      .select("id")
+      .single();
+    if (jeError) throw jeError;
+    jeId = je.id;
+  }
 
   const { error: linesErr } = await supabase
     .from("journal_entry_lines")
     .insert([
       {
-        journal_entry_id: je.id,
+        journal_entry_id: jeId,
         account_id: input.accountId,
         debit: input.amount,
         credit: 0,
         description: desc,
       },
       {
-        journal_entry_id: je.id,
+        journal_entry_id: jeId,
         account_id: cashBankAcc.id,
         debit: 0,
         credit: input.amount,
@@ -111,17 +126,24 @@ export async function postExpense(
     ] as any);
   if (linesErr) throw linesErr;
 
+  // Lines exist and are balanced → the entry can now be posted
+  const { error: postErr } = await supabase
+    .from("journal_entries")
+    .update({ status: "posted" } as any)
+    .eq("id", jeId);
+  if (postErr) throw postErr;
+
   const { error: updErr } = await (supabase.from("expenses" as any) as any)
     .update({
       status: "posted",
-      journal_entry_id: je.id,
+      journal_entry_id: jeId,
       posted_number: expPostedNum,
     })
     .eq("id", input.expenseId);
   if (updErr) throw updErr;
 
   return {
-    journalEntryId: je.id,
+    journalEntryId: jeId,
     expensePostedNumber: expPostedNum,
     displayNumber: displayNum,
   };
