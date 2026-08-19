@@ -456,7 +456,6 @@ export default function SalesInvoiceForm() {
     }
   }
 
-  async function handleCancelPosted() {
   async function handleResetToDraft() {
     if (saving || !id) return;
     setSaving(true);
