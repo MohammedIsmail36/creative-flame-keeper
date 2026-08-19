@@ -41,6 +41,7 @@ import {
   StickyNote,
   ArrowLeftRight,
   Loader2,
+  Undo2,
 } from "lucide-react";
 import {
   AlertDialog,
