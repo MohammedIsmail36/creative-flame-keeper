@@ -41,6 +41,7 @@ import {
   StickyNote,
   ArrowLeftRight,
   Loader2,
+  Undo2,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -388,6 +389,34 @@ export default function PurchaseInvoiceForm() {
     }
   }
 
+  async function handleResetToDraft() {
+    if (saving || !id) return;
+    setSaving(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("unpost_purchase_invoice", {
+        p_invoice_id: id,
+      });
+      if (error) throw error;
+      const res = data as { success: boolean; error?: string };
+      if (!res?.success) {
+        toast({ title: "غير مسموح", description: res?.error || "تعذر إعادة التعيين", variant: "destructive" });
+        return;
+      }
+      if (supplierId) await recalculateEntityBalance("supplier", supplierId);
+      toast({
+        title: "تم إعادة التعيين كمسودة",
+        description: "أصبحت الفاتورة قابلة للتعديل، والقيد المحاسبي أصبح مسودة ولن يظهر في التقارير",
+      });
+      setIsDirty(false);
+      navGuard.allowNext();
+      window.location.reload();
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleCancelPosted() {
     if (saving) return;
     setSaving(true);
@@ -597,6 +626,31 @@ export default function PurchaseInvoiceForm() {
                     >
                       إلغاء الفاتورة
                     </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
+            {!isNew && status === "posted" && role === "admin" && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Undo2 className="h-4 w-4" />
+                    إعادة كمسودة
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent dir="rtl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>إعادة تعيين الفاتورة كمسودة</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      ستعود الفاتورة لحالة المسودة ليمكن تعديلها، ويتحول قيدها المحاسبي إلى مسودة (يخرج من التقارير دون
+                      حذفه)، وتُسحب كميات الفاتورة من المخزون. يظل رقم الفاتورة كما هو ويُعاد استخدام نفس القيد عند
+                      الترحيل مرة أخرى. غير مسموح إن وُجد سداد أو مرتجع مرتبط بالفاتورة.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="flex-row-reverse gap-2">
+                    <AlertDialogCancel>تراجع</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleResetToDraft}>تأكيد</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
