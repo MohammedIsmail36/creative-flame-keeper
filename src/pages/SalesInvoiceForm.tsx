@@ -457,6 +457,35 @@ export default function SalesInvoiceForm() {
   }
 
   async function handleCancelPosted() {
+  async function handleResetToDraft() {
+    if (saving || !id) return;
+    setSaving(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("unpost_sales_invoice", {
+        p_invoice_id: id,
+      });
+      if (error) throw error;
+      const res = data as { success: boolean; error?: string };
+      if (!res?.success) {
+        toast({ title: "غير مسموح", description: res?.error || "تعذر إعادة التعيين", variant: "destructive" });
+        return;
+      }
+      await recalculateEntityBalance("customer", customerId);
+      toast({
+        title: "تم إعادة التعيين كمسودة",
+        description: "أصبحت الفاتورة قابلة للتعديل، والقيد المحاسبي أصبح مسودة ولن يظهر في التقارير",
+      });
+      setIsDirty(false);
+      navGuard.allowNext();
+      window.location.reload();
+    } catch (error: any) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCancelPosted() {
     if (saving) return;
     setSaving(true);
     try {
