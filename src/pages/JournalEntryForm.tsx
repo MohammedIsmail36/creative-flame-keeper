@@ -815,7 +815,9 @@ export default function JournalEntryForm() {
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-black uppercase tracking-tight">قيد متوازن</span>
-                <span className="text-[11px] opacity-80">جاهز للترحيل للحسابات</span>
+                <span className="text-[11px] opacity-80">
+                  {status === "posted" ? "قيد مرحل" : "جاهز للترحيل للحسابات"}
+                </span>
               </div>
             </div>
           ) : (
