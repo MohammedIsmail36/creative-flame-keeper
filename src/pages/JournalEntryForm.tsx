@@ -830,6 +830,22 @@ export default function JournalEntryForm() {
             </div>
           ))}
       </div>
+
+      {!isNew && isLinked && (
+        <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 flex flex-wrap items-center gap-3 text-muted-foreground">
+          <Info className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm flex-1">
+            هذا القيد مولّد تلقائياً من {linkedDoc?.label || "عملية في النظام"}. للتعديل افتح المستند الأصلي وأعده كمسودة
+            ثم أعد ترحيله.
+          </span>
+          {linkedDoc?.to && (
+            <Button variant="outline" size="sm" className="gap-2 h-8" onClick={() => navigate(linkedDoc.to!)}>
+              فتح المستند
+            </Button>
+          )}
+        </div>
+      )}
+
       <UnsavedChangesDialog open={navGuard.isBlocked} onStay={navGuard.cancel} onLeave={navGuard.confirm} />
     </div>
   );
