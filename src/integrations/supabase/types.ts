@@ -2158,6 +2158,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_system_journal_entry: {
+        Args: { p_entry_id: string }
+        Returns: boolean
+      }
       post_purchase_invoice: { Args: { p_invoice_id: string }; Returns: Json }
       post_sales_invoice: { Args: { p_invoice_id: string }; Returns: Json }
       show_limit: { Args: never; Returns: number }
