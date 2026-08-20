@@ -68,6 +68,7 @@ export default function JournalEntryForm() {
   const [status, setStatus] = useState("draft");
   const [editMode, setEditMode] = useState(true);
   const [isLinked, setIsLinked] = useState(false);
+  const [linkedDoc, setLinkedDoc] = useState<{ label: string; to: string | null } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const navGuard = useNavigationGuard(isDirty);
@@ -117,18 +118,46 @@ export default function JournalEntryForm() {
           );
         }
 
-        const queries = [
-          (supabase.from("sales_invoices") as any).select("id").eq("journal_entry_id", id).limit(1),
-          (supabase.from("purchase_invoices") as any).select("id").eq("journal_entry_id", id).limit(1),
-          (supabase.from("customer_payments") as any).select("id").eq("journal_entry_id", id).limit(1),
-          (supabase.from("supplier_payments") as any).select("id").eq("journal_entry_id", id).limit(1),
-          (supabase.from("sales_returns") as any).select("id").eq("journal_entry_id", id).limit(1),
-          (supabase.from("purchase_returns") as any).select("id").eq("journal_entry_id", id).limit(1),
+        // اكتشاف المستند المصدر للقيد (قيد آلي؟)
+        const sources: {
+          table: string;
+          label: string;
+          to: (row: any) => string | null;
+        }[] = [
+          { table: "sales_invoices", label: "فاتورة بيع", to: (r) => `/sales/${r.id}` },
+          { table: "purchase_invoices", label: "فاتورة مشتريات", to: (r) => `/purchases/${r.id}` },
+          { table: "sales_returns", label: "مرتجع بيع", to: (r) => `/sales-returns/${r.id}` },
+          { table: "purchase_returns", label: "مرتجع مشتريات", to: (r) => `/purchase-returns/${r.id}` },
+          { table: "customer_payments", label: "سند قبض", to: () => "/customer-payments" },
+          { table: "supplier_payments", label: "سند دفع", to: () => "/supplier-payments" },
+          { table: "expenses", label: "سند مصروف", to: () => "/expenses" },
+          {
+            table: "inventory_adjustments",
+            label: "تسوية مخزون",
+            to: (r) => `/inventory-adjustments/${r.id}`,
+          },
         ];
-        const results = await Promise.all(queries);
-        const linkedToDocument = results.some((r) => r.data && r.data.length > 0);
-        const isReversalEntry = (entry.description || "").startsWith("عكس ");
-        setIsLinked(linkedToDocument || isReversalEntry);
+        const results = await Promise.all(
+          sources.map((s) =>
+            (supabase.from(s.table as any) as any).select("id").eq("journal_entry_id", id).limit(1),
+          ),
+        );
+        const foundIdx = results.findIndex((r) => r.data && r.data.length > 0);
+        const isSystemType = ["reversal", "closing"].includes(entry.entry_type || "");
+        const isReversalEntry = isSystemType || (entry.description || "").startsWith("عكس ");
+
+        if (foundIdx >= 0) {
+          const src = sources[foundIdx];
+          setLinkedDoc({ label: src.label, to: src.to(results[foundIdx].data[0]) });
+        } else if (isReversalEntry) {
+          setLinkedDoc({
+            label: entry.entry_type === "closing" ? "قيد إقفال سنة مالية" : "قيد عكسي آلي",
+            to: null,
+          });
+        } else {
+          setLinkedDoc(null);
+        }
+        setIsLinked(foundIdx >= 0 || isReversalEntry);
       }
       setLoading(false);
     } else {
@@ -331,8 +360,15 @@ export default function JournalEntryForm() {
     setSaving(false);
   }
 
+  const linkedBlockMessage =
+    "هذا القيد مولّد من عملية في النظام — لا يمكن تعديله أو إلغاؤه هنا. عدّل المستند نفسه (إعادة كمسودة ثم إعادة الترحيل).";
+
   async function handleDelete() {
     if (!id || saving) return;
+    if (isLinked) {
+      toast({ title: "غير مسموح", description: linkedBlockMessage, variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       await supabase.from("journal_entry_lines").delete().eq("journal_entry_id", id);
@@ -354,9 +390,16 @@ export default function JournalEntryForm() {
 
   async function handleCancel() {
     if (!id || saving) return;
+    if (isLinked) {
+      toast({ title: "غير مسموح", description: linkedBlockMessage, variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
-      await (supabase.from("journal_entries") as any).update({ status: "cancelled" }).eq("id", id);
+      const { error } = await (supabase.from("journal_entries") as any)
+        .update({ status: "cancelled" })
+        .eq("id", id);
+      if (error) throw error;
       toast({ title: "تم الإلغاء", description: "تم إلغاء القيد" });
       loadData();
     } catch (error: any) {
@@ -388,7 +431,7 @@ export default function JournalEntryForm() {
 
   const isDraft = status === "draft";
   const canEditPosted = status === "posted" && !isLinked && canEdit;
-  const isEditable = editMode && canEdit && (isDraft || canEditPosted);
+  const isEditable = editMode && canEdit && !isLinked && (isDraft || canEditPosted);
 
 
   return (
@@ -408,7 +451,7 @@ export default function JournalEntryForm() {
         }
         actions={
           <>
-            {!isNew && isDraft && canDelete && (
+            {!isNew && isDraft && canDelete && !isLinked && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" className="gap-2">
@@ -480,7 +523,7 @@ export default function JournalEntryForm() {
                 تعديل
               </Button>
             )}
-            {!isNew && isDraft && canEdit && (
+            {!isNew && isDraft && canEdit && !isLinked && (
               <Button
                 variant="default"
                 onClick={handlePost}
@@ -541,6 +584,20 @@ export default function JournalEntryForm() {
           </>
         }
       />
+
+      {!isNew && isLinked && (
+        <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-bold text-sky-800">
+            قيد آلي مولّد من {linkedDoc?.label || "عملية في النظام"} — للتعديل عليه افتح المستند نفسه وأعده كمسودة ثم
+            أعد ترحيله (يحتفظ بنفس رقم القيد). لا يمكن تعديله أو إلغاؤه من هذه الشاشة.
+          </p>
+          {linkedDoc?.to && (
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(linkedDoc.to!)}>
+              فتح المستند
+            </Button>
+          )}
+        </div>
+      )}
 
       {isEditable && !isDraft && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-700">
