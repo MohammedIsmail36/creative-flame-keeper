@@ -451,7 +451,7 @@ export default function JournalEntryForm() {
         }
         actions={
           <>
-            {!isNew && isDraft && canDelete && (
+            {!isNew && isDraft && canDelete && !isLinked && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" className="gap-2">
@@ -523,7 +523,7 @@ export default function JournalEntryForm() {
                 تعديل
               </Button>
             )}
-            {!isNew && isDraft && canEdit && (
+            {!isNew && isDraft && canEdit && !isLinked && (
               <Button
                 variant="default"
                 onClick={handlePost}
@@ -584,6 +584,20 @@ export default function JournalEntryForm() {
           </>
         }
       />
+
+      {!isNew && isLinked && (
+        <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-bold text-sky-800">
+            قيد آلي مولّد من {linkedDoc?.label || "عملية في النظام"} — للتعديل عليه افتح المستند نفسه وأعده كمسودة ثم
+            أعد ترحيله (يحتفظ بنفس رقم القيد). لا يمكن تعديله أو إلغاؤه من هذه الشاشة.
+          </p>
+          {linkedDoc?.to && (
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(linkedDoc.to!)}>
+              فتح المستند
+            </Button>
+          )}
+        </div>
+      )}
 
       {isEditable && !isDraft && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-700">
