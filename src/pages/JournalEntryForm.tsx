@@ -360,8 +360,15 @@ export default function JournalEntryForm() {
     setSaving(false);
   }
 
+  const linkedBlockMessage =
+    "هذا القيد مولّد من عملية في النظام — لا يمكن تعديله أو إلغاؤه هنا. عدّل المستند نفسه (إعادة كمسودة ثم إعادة الترحيل).";
+
   async function handleDelete() {
     if (!id || saving) return;
+    if (isLinked) {
+      toast({ title: "غير مسموح", description: linkedBlockMessage, variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       await supabase.from("journal_entry_lines").delete().eq("journal_entry_id", id);
@@ -383,9 +390,16 @@ export default function JournalEntryForm() {
 
   async function handleCancel() {
     if (!id || saving) return;
+    if (isLinked) {
+      toast({ title: "غير مسموح", description: linkedBlockMessage, variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
-      await (supabase.from("journal_entries") as any).update({ status: "cancelled" }).eq("id", id);
+      const { error } = await (supabase.from("journal_entries") as any)
+        .update({ status: "cancelled" })
+        .eq("id", id);
+      if (error) throw error;
       toast({ title: "تم الإلغاء", description: "تم إلغاء القيد" });
       loadData();
     } catch (error: any) {
