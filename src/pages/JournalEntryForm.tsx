@@ -68,6 +68,7 @@ export default function JournalEntryForm() {
   const [status, setStatus] = useState("draft");
   const [editMode, setEditMode] = useState(true);
   const [isLinked, setIsLinked] = useState(false);
+  const [linkedDoc, setLinkedDoc] = useState<{ label: string; to: string | null } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const navGuard = useNavigationGuard(isDirty);
@@ -117,18 +118,46 @@ export default function JournalEntryForm() {
           );
         }
 
-        const queries = [
-          (supabase.from("sales_invoices") as any).select("id").eq("journal_entry_id", id).limit(1),
-          (supabase.from("purchase_invoices") as any).select("id").eq("journal_entry_id", id).limit(1),
-          (supabase.from("customer_payments") as any).select("id").eq("journal_entry_id", id).limit(1),
-          (supabase.from("supplier_payments") as any).select("id").eq("journal_entry_id", id).limit(1),
-          (supabase.from("sales_returns") as any).select("id").eq("journal_entry_id", id).limit(1),
-          (supabase.from("purchase_returns") as any).select("id").eq("journal_entry_id", id).limit(1),
+        // اكتشاف المستند المصدر للقيد (قيد آلي؟)
+        const sources: {
+          table: string;
+          label: string;
+          to: (row: any) => string | null;
+        }[] = [
+          { table: "sales_invoices", label: "فاتورة بيع", to: (r) => `/sales/${r.id}` },
+          { table: "purchase_invoices", label: "فاتورة مشتريات", to: (r) => `/purchases/${r.id}` },
+          { table: "sales_returns", label: "مرتجع بيع", to: (r) => `/sales-returns/${r.id}` },
+          { table: "purchase_returns", label: "مرتجع مشتريات", to: (r) => `/purchase-returns/${r.id}` },
+          { table: "customer_payments", label: "سند قبض", to: () => "/customer-payments" },
+          { table: "supplier_payments", label: "سند دفع", to: () => "/supplier-payments" },
+          { table: "expenses", label: "سند مصروف", to: () => "/expenses" },
+          {
+            table: "inventory_adjustments",
+            label: "تسوية مخزون",
+            to: (r) => `/inventory-adjustments/${r.id}`,
+          },
         ];
-        const results = await Promise.all(queries);
-        const linkedToDocument = results.some((r) => r.data && r.data.length > 0);
-        const isReversalEntry = (entry.description || "").startsWith("عكس ");
-        setIsLinked(linkedToDocument || isReversalEntry);
+        const results = await Promise.all(
+          sources.map((s) =>
+            (supabase.from(s.table as any) as any).select("id").eq("journal_entry_id", id).limit(1),
+          ),
+        );
+        const foundIdx = results.findIndex((r) => r.data && r.data.length > 0);
+        const isSystemType = ["reversal", "closing"].includes(entry.entry_type || "");
+        const isReversalEntry = isSystemType || (entry.description || "").startsWith("عكس ");
+
+        if (foundIdx >= 0) {
+          const src = sources[foundIdx];
+          setLinkedDoc({ label: src.label, to: src.to(results[foundIdx].data[0]) });
+        } else if (isReversalEntry) {
+          setLinkedDoc({
+            label: entry.entry_type === "closing" ? "قيد إقفال سنة مالية" : "قيد عكسي آلي",
+            to: null,
+          });
+        } else {
+          setLinkedDoc(null);
+        }
+        setIsLinked(foundIdx >= 0 || isReversalEntry);
       }
       setLoading(false);
     } else {
