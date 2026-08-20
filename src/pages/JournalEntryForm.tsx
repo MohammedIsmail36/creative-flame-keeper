@@ -431,7 +431,7 @@ export default function JournalEntryForm() {
 
   const isDraft = status === "draft";
   const canEditPosted = status === "posted" && !isLinked && canEdit;
-  const isEditable = editMode && canEdit && (isDraft || canEditPosted);
+  const isEditable = editMode && canEdit && !isLinked && (isDraft || canEditPosted);
 
 
   return (
