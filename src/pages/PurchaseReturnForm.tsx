@@ -244,10 +244,12 @@ export default function PurchaseReturnForm() {
         if (rows.length > 0) {
           await (supabase.from("purchase_return_items") as any).insert(rows);
         }
-        toast({
-          title: "تمت الإضافة",
-          description: draftSavedMsg || "تم إنشاء مرتجع الشراء كمسودة",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تمت الإضافة",
+            description: draftSavedMsg || "تم إنشاء مرتجع الشراء كمسودة",
+          });
+        }
         setIsDirty(false);
         navGuard.allowNext();
         navigate(`/purchase-returns/${ret.id}`);
