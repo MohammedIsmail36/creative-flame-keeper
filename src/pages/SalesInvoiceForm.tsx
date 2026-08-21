@@ -264,7 +264,7 @@ export default function SalesInvoiceForm() {
         description: Object.values(errors)[0],
         variant: "destructive",
       });
-      return;
+      return false;
     }
     setSaving(true);
     try {
