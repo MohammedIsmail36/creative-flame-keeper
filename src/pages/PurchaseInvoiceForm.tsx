@@ -199,7 +199,7 @@ export default function PurchaseInvoiceForm() {
         description: Object.values(errors)[0],
         variant: "destructive",
       });
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -217,7 +217,7 @@ export default function PurchaseInvoiceForm() {
           variant: "destructive",
         });
         setSaving(false);
-        return;
+        return false;
       }
       // Calculate net_total for each item
       const discountPercent = discountMode === "invoice" && subtotal > 0 ? invoiceDiscount / subtotal : 0;
@@ -260,10 +260,12 @@ export default function PurchaseInvoiceForm() {
         if (rows.length > 0) {
           await (supabase.from("purchase_invoice_items" as any) as any).insert(rows);
         }
-        toast({
-          title: "تمت الإضافة",
-          description: draftSavedMsg || "تم إنشاء فاتورة الشراء كمسودة",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تمت الإضافة",
+            description: draftSavedMsg || "تم إنشاء فاتورة الشراء كمسودة",
+          });
+        }
         setIsDirty(false);
         navGuard.allowNext();
         navigate(`/purchases/${inv.id}`);
@@ -285,13 +287,15 @@ export default function PurchaseInvoiceForm() {
         if (rows.length > 0) {
           await (supabase.from("purchase_invoice_items" as any) as any).insert(rows);
         }
-        toast({
-          title: "تم التحديث",
-          description: draftSavedMsg || "تم تحديث فاتورة الشراء",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تم التحديث",
+            description: draftSavedMsg || "تم تحديث فاتورة الشراء",
+          });
+        }
         setIsDirty(false);
         navGuard.allowNext();
-        loadData();
+        if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
       toast({
@@ -299,8 +303,11 @@ export default function PurchaseInvoiceForm() {
         description: error.message,
         variant: "destructive",
       });
+      setSaving(false);
+      return false;
     }
     setSaving(false);
+    return true;
   }
 
   async function postInvoice() {
