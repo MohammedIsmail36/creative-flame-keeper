@@ -328,10 +328,12 @@ export default function SalesInvoiceForm() {
         if (rows.length > 0) {
           await (supabase.from("sales_invoice_items") as any).insert(rows);
         }
-        toast({
-          title: "تمت الإضافة",
-          description: draftSavedMsg || "تم إنشاء فاتورة البيع كمسودة",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تمت الإضافة",
+            description: draftSavedMsg || "تم إنشاء فاتورة البيع كمسودة",
+          });
+        }
         setIsDirty(false);
         navGuard.allowNext();
         navigate(`/sales/${inv.id}`);
