@@ -405,6 +405,18 @@ export default function SalesInvoiceForm() {
       });
       return;
     }
+    // Persist any unsaved edits (e.g. invoice-level discount) before posting
+    if (isDirty && id) {
+      const saved = await handleSave({ silent: true, skipReload: true });
+      if (!saved) {
+        toast({
+          title: "تعذر الترحيل",
+          description: "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     setSaving(true);
     try {
       const { data: result, error: rpcError } = await supabase.rpc(
