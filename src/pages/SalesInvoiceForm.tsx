@@ -250,8 +250,8 @@ export default function SalesInvoiceForm() {
     setRedeemDialogOpen(false);
   }
 
-  async function handleSave() {
-    if (saving) return;
+  async function handleSave(opts?: { silent?: boolean; skipReload?: boolean }): Promise<boolean> {
+    if (saving) return false;
     const errors: Record<string, string> = {};
     // Draft is permissive: keep partial work even without a customer or items.
     // Strict validation runs on Post (postInvoice / DB function).
@@ -264,7 +264,7 @@ export default function SalesInvoiceForm() {
         description: Object.values(errors)[0],
         variant: "destructive",
       });
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -282,7 +282,7 @@ export default function SalesInvoiceForm() {
           variant: "destructive",
         });
         setSaving(false);
-        return;
+        return false;
       }
       // Calculate net_total per item (distribute invoice-level discount AND loyalty discount proportionally)
       const invoiceLevelReduction = (discountMode === "invoice" ? invoiceDiscount : 0) + loyaltyDiscount;
@@ -328,10 +328,12 @@ export default function SalesInvoiceForm() {
         if (rows.length > 0) {
           await (supabase.from("sales_invoice_items") as any).insert(rows);
         }
-        toast({
-          title: "تمت الإضافة",
-          description: draftSavedMsg || "تم إنشاء فاتورة البيع كمسودة",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تمت الإضافة",
+            description: draftSavedMsg || "تم إنشاء فاتورة البيع كمسودة",
+          });
+        }
         setIsDirty(false);
         navGuard.allowNext();
         navigate(`/sales/${inv.id}`);
@@ -353,13 +355,15 @@ export default function SalesInvoiceForm() {
         if (rows.length > 0) {
           await (supabase.from("sales_invoice_items") as any).insert(rows);
         }
-        toast({
-          title: "تم التحديث",
-          description: draftSavedMsg || "تم تحديث فاتورة البيع",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تم التحديث",
+            description: draftSavedMsg || "تم تحديث فاتورة البيع",
+          });
+        }
         setIsDirty(false);
         navGuard.allowNext();
-        loadData();
+        if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
       toast({
@@ -367,8 +371,11 @@ export default function SalesInvoiceForm() {
         description: error.message,
         variant: "destructive",
       });
+      setSaving(false);
+      return false;
     }
     setSaving(false);
+    return true;
   }
 
   async function postInvoice() {
@@ -397,6 +404,18 @@ export default function SalesInvoiceForm() {
         variant: "destructive",
       });
       return;
+    }
+    // Persist any unsaved edits (e.g. invoice-level discount) before posting
+    if (isDirty && id) {
+      const saved = await handleSave({ silent: true, skipReload: true });
+      if (!saved) {
+        toast({
+          title: "تعذر الترحيل",
+          description: "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل",
+          variant: "destructive",
+        });
+        return;
+      }
     }
     setSaving(true);
     try {

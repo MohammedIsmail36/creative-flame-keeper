@@ -183,8 +183,8 @@ export default function PurchaseReturnForm() {
     taxRate,
   });
 
-  async function handleSave() {
-    if (saving) return;
+  async function handleSave(opts?: { silent?: boolean; skipReload?: boolean }): Promise<boolean> {
+    if (saving) return false;
     const errors: Record<string, string> = {};
     // Draft is permissive: allow saving partial work.
     // Strict validation runs on Post.
@@ -196,7 +196,7 @@ export default function PurchaseReturnForm() {
         description: Object.values(errors)[0],
         variant: "destructive",
       });
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -244,10 +244,12 @@ export default function PurchaseReturnForm() {
         if (rows.length > 0) {
           await (supabase.from("purchase_return_items") as any).insert(rows);
         }
-        toast({
-          title: "تمت الإضافة",
-          description: draftSavedMsg || "تم إنشاء مرتجع الشراء كمسودة",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تمت الإضافة",
+            description: draftSavedMsg || "تم إنشاء مرتجع الشراء كمسودة",
+          });
+        }
         setIsDirty(false);
         navGuard.allowNext();
         navigate(`/purchase-returns/${ret.id}`);
@@ -272,13 +274,15 @@ export default function PurchaseReturnForm() {
         if (rows.length > 0) {
           await (supabase.from("purchase_return_items") as any).insert(rows);
         }
-        toast({
-          title: "تم التحديث",
-          description: draftSavedMsg || "تم تحديث مرتجع الشراء",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تم التحديث",
+            description: draftSavedMsg || "تم تحديث مرتجع الشراء",
+          });
+        }
         setIsDirty(false);
         navGuard.allowNext();
-        loadData();
+        if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
       toast({
@@ -286,8 +290,11 @@ export default function PurchaseReturnForm() {
         description: error.message,
         variant: "destructive",
       });
+      setSaving(false);
+      return false;
     }
     setSaving(false);
+    return true;
   }
 
   async function postReturn() {
