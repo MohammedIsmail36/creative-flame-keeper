@@ -282,7 +282,7 @@ export default function SalesInvoiceForm() {
           variant: "destructive",
         });
         setSaving(false);
-        return;
+        return false;
       }
       // Calculate net_total per item (distribute invoice-level discount AND loyalty discount proportionally)
       const invoiceLevelReduction = (discountMode === "invoice" ? invoiceDiscount : 0) + loyaltyDiscount;
