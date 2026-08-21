@@ -355,13 +355,15 @@ export default function SalesInvoiceForm() {
         if (rows.length > 0) {
           await (supabase.from("sales_invoice_items") as any).insert(rows);
         }
-        toast({
-          title: "تم التحديث",
-          description: draftSavedMsg || "تم تحديث فاتورة البيع",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تم التحديث",
+            description: draftSavedMsg || "تم تحديث فاتورة البيع",
+          });
+        }
         setIsDirty(false);
         navGuard.allowNext();
-        loadData();
+        if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
       toast({
@@ -369,8 +371,11 @@ export default function SalesInvoiceForm() {
         description: error.message,
         variant: "destructive",
       });
+      setSaving(false);
+      return false;
     }
     setSaving(false);
+    return true;
   }
 
   async function postInvoice() {
