@@ -185,8 +185,8 @@ export default function PurchaseInvoiceForm() {
   const { subtotal, hasLineDiscount, hasInvoiceDiscount, discountMode, afterDiscount, taxAmount, grandTotal } =
     calcInvoiceTotals({ items, invoiceDiscount, showTax, taxRate });
 
-  async function handleSave() {
-    if (saving) return;
+  async function handleSave(opts?: { silent?: boolean; skipReload?: boolean }): Promise<boolean> {
+    if (saving) return false;
     const errors: Record<string, string> = {};
     // Draft is permissive: keep partial work even without a supplier or items.
     // Strict validation runs on Post (postInvoice / DB function).
