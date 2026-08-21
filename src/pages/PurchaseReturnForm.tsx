@@ -274,13 +274,15 @@ export default function PurchaseReturnForm() {
         if (rows.length > 0) {
           await (supabase.from("purchase_return_items") as any).insert(rows);
         }
-        toast({
-          title: "تم التحديث",
-          description: draftSavedMsg || "تم تحديث مرتجع الشراء",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تم التحديث",
+            description: draftSavedMsg || "تم تحديث مرتجع الشراء",
+          });
+        }
         setIsDirty(false);
         navGuard.allowNext();
-        loadData();
+        if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
       toast({
@@ -288,8 +290,11 @@ export default function PurchaseReturnForm() {
         description: error.message,
         variant: "destructive",
       });
+      setSaving(false);
+      return false;
     }
     setSaving(false);
+    return true;
   }
 
   async function postReturn() {
