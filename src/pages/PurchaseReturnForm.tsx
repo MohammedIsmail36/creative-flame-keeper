@@ -183,8 +183,8 @@ export default function PurchaseReturnForm() {
     taxRate,
   });
 
-  async function handleSave() {
-    if (saving) return;
+  async function handleSave(opts?: { silent?: boolean; skipReload?: boolean }): Promise<boolean> {
+    if (saving) return false;
     const errors: Record<string, string> = {};
     // Draft is permissive: allow saving partial work.
     // Strict validation runs on Post.
@@ -196,7 +196,7 @@ export default function PurchaseReturnForm() {
         description: Object.values(errors)[0],
         variant: "destructive",
       });
-      return;
+      return false;
     }
     setSaving(true);
     try {
