@@ -874,7 +874,14 @@ export default function SalesInvoiceForm() {
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">تاريخ الإصدار</Label>
             {isEditable ? (
-              <DatePickerInput value={invoiceDate} onChange={setInvoiceDate} placeholder="اختر التاريخ" />
+              <DatePickerInput
+                value={invoiceDate}
+                onChange={(v) => {
+                  setInvoiceDate(v);
+                  setIsDirty(true);
+                }}
+                placeholder="اختر التاريخ"
+              />
             ) : (
               <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-mono tabular-nums">
                 {invoiceDate}
