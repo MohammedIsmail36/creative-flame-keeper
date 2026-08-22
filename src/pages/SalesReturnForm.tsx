@@ -915,7 +915,7 @@ export default function SalesReturnForm() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleSave}
+                onClick={() => handleSave()}
                 disabled={saving}
                 className="gap-1.5"
               >

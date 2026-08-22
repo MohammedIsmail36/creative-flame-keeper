@@ -808,7 +808,7 @@ export default function SalesInvoiceForm() {
               </Button>
             )}
             {isEditable && (
-              <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => handleSave()} disabled={saving} className="gap-1.5">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 {saving ? "جاري الحفظ..." : "حفظ مسودة"}
               </Button>

@@ -782,7 +782,7 @@ export default function PurchaseReturnForm() {
               </Button>
             )}
             {isEditable && (
-              <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => handleSave()} disabled={saving} className="gap-1.5">
                 <Save className="h-4 w-4" />
                 {saving ? "جاري الحفظ..." : "حفظ مسودة"}
               </Button>
