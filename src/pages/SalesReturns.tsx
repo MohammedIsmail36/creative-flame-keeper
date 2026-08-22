@@ -156,6 +156,7 @@ export default function SalesReturns() {
     const all = await fetchAllForExport(onProgress);
     const rows = all.map((r) => [
       formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status),
+      r.reference || "—",
       r.customer_name || "—",
       r.return_date,
       formatCurrency(r.total),
