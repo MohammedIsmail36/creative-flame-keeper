@@ -988,7 +988,10 @@ export default function SalesReturnForm() {
             {isEditable ? (
               <DatePickerInput
                 value={returnDate}
-                onChange={setReturnDate}
+                onChange={(v) => {
+                  setReturnDate(v);
+                  setIsDirty(true);
+                }}
                 placeholder="اختر التاريخ"
               />
             ) : (
