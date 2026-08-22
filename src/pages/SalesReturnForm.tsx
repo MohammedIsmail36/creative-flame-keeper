@@ -234,7 +234,7 @@ export default function SalesReturnForm() {
         description: Object.values(errors)[0],
         variant: "destructive",
       });
-      return;
+      return false;
     }
     setSaving(true);
     try {
