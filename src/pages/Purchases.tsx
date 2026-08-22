@@ -351,7 +351,7 @@ export default function Purchases() {
                 filenamePrefix: "فواتير-الشراء",
                 sheetName: "فواتير الشراء",
                 pdfTitle: "فواتير الشراء",
-                headers: ["رقم الفاتورة", "المورد", "التاريخ", "الإجمالي", "المدفوع", "المتبقي", "الاستحقاق", "الحالة"],
+                headers: ["رقم الفاتورة", "رقم المرجع", "المورد", "التاريخ", "الإجمالي", "المدفوع", "المتبقي", "الاستحقاق", "الحالة"],
                 rows: exportRows,
                 settings: null,
                 pdfOrientation: "landscape",
