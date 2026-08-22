@@ -26,6 +26,7 @@ interface Return {
   return_date: string;
   status: string;
   total: number;
+  reference?: string | null;
 }
 
 const PAGE_SIZE = 20;
@@ -155,6 +156,7 @@ export default function SalesReturns() {
     const all = await fetchAllForExport(onProgress);
     const rows = all.map((r) => [
       formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status),
+      r.reference || "—",
       r.customer_name || "—",
       r.return_date,
       formatCurrency(r.total),
@@ -179,7 +181,7 @@ export default function SalesReturns() {
       filenamePrefix: "مرتجعات-المبيعات",
       sheetName: "مرتجعات المبيعات",
       pdfTitle: "مرتجعات المبيعات",
-      headers: ["رقم المرتجع", "العميل", "التاريخ", "الإجمالي", "الحالة"],
+      headers: ["رقم المرتجع", "رقم المرجع", "العميل", "التاريخ", "الإجمالي", "الحالة"],
       rows: exportRows,
       settings,
     }),
@@ -194,6 +196,14 @@ export default function SalesReturns() {
         <span className="font-mono">
           {formatDisplayNumber(prefix, row.original.posted_number, row.original.return_number, row.original.status)}
         </span>
+      ),
+    },
+    {
+      accessorKey: "reference",
+      meta: { hideOnMobile: true },
+      header: ({ column }) => <DataTableColumnHeader column={column} title="رقم المرجع" />,
+      cell: ({ row }) => (
+        <span className="font-mono text-muted-foreground">{row.original.reference || "—"}</span>
       ),
     },
     {

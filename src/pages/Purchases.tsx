@@ -171,6 +171,7 @@ export default function Purchases() {
     const all = await fetchAllForExport(onProgress);
     const rows = all.map((i) => [
       formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status),
+      i.reference || "—",
       i.supplier_name || "—",
       i.invoice_date,
       formatCurrency(i.total),
@@ -205,6 +206,14 @@ export default function Purchases() {
           <span className="font-mono">
             {formatDisplayNumber(prefix, row.original.posted_number, row.original.invoice_number, row.original.status)}
           </span>
+        ),
+      },
+      {
+        accessorKey: "reference",
+        meta: { hideOnMobile: true },
+        header: ({ column }) => <DataTableColumnHeader column={column} title="رقم المرجع" />,
+        cell: ({ row }) => (
+          <span className="font-mono text-muted-foreground">{row.original.reference || "—"}</span>
         ),
       },
       {
@@ -342,7 +351,7 @@ export default function Purchases() {
                 filenamePrefix: "فواتير-الشراء",
                 sheetName: "فواتير الشراء",
                 pdfTitle: "فواتير الشراء",
-                headers: ["رقم الفاتورة", "المورد", "التاريخ", "الإجمالي", "المدفوع", "المتبقي", "الاستحقاق", "الحالة"],
+                headers: ["رقم الفاتورة", "رقم المرجع", "المورد", "التاريخ", "الإجمالي", "المدفوع", "المتبقي", "الاستحقاق", "الحالة"],
                 rows: exportRows,
                 settings: null,
                 pdfOrientation: "landscape",

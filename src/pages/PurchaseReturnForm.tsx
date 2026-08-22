@@ -306,6 +306,18 @@ export default function PurchaseReturnForm() {
       });
       return;
     }
+    // Persist any unsaved edits before posting
+    if (isDirty && id) {
+      const saved = await handleSave({ silent: true, skipReload: true });
+      if (!saved) {
+        toast({
+          title: "تعذر الترحيل",
+          description: "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     setSaving(true);
     try {
       // Validate: cannot return more than available stock AND total purchased from supplier
@@ -770,7 +782,7 @@ export default function PurchaseReturnForm() {
               </Button>
             )}
             {isEditable && (
-              <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => handleSave()} disabled={saving} className="gap-1.5">
                 <Save className="h-4 w-4" />
                 {saving ? "جاري الحفظ..." : "حفظ مسودة"}
               </Button>
@@ -830,7 +842,14 @@ export default function PurchaseReturnForm() {
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">تاريخ المرتجع</Label>
             {isEditable ? (
-              <DatePickerInput value={returnDate} onChange={setReturnDate} placeholder="اختر التاريخ" />
+              <DatePickerInput
+                value={returnDate}
+                onChange={(v) => {
+                  setReturnDate(v);
+                  setIsDirty(true);
+                }}
+                placeholder="اختر التاريخ"
+              />
             ) : (
               <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-mono tabular-nums">
                 {returnDate}

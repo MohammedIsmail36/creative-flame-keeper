@@ -687,7 +687,7 @@ export default function PurchaseInvoiceForm() {
               </Button>
             )}
             {isEditable && (
-              <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => handleSave()} disabled={saving} className="gap-1.5">
                 <Save className="h-4 w-4" />
                 {saving ? "جاري الحفظ..." : "حفظ مسودة"}
               </Button>
@@ -758,7 +758,14 @@ export default function PurchaseInvoiceForm() {
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">تاريخ الإصدار</Label>
             {isEditable ? (
-              <DatePickerInput value={invoiceDate} onChange={setInvoiceDate} placeholder="اختر التاريخ" />
+              <DatePickerInput
+                value={invoiceDate}
+                onChange={(v) => {
+                  setInvoiceDate(v);
+                  setIsDirty(true);
+                }}
+                placeholder="اختر التاريخ"
+              />
             ) : (
               <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-mono tabular-nums">
                 {invoiceDate}
@@ -1043,7 +1050,10 @@ export default function PurchaseInvoiceForm() {
                   <NumberInput
                     min={0}
                     value={invoiceDiscount || ""}
-                    onValueChange={(v) => setInvoiceDiscount(round2(v || 0))}
+                    onValueChange={(v) => {
+                      setInvoiceDiscount(round2(v || 0));
+                      setIsDirty(true);
+                    }}
                     disabled={discountMode === "line"}
                     placeholder="0.00"
                     className="font-mono tabular-nums text-center w-28 h-8 rounded-md disabled:opacity-40"

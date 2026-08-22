@@ -220,8 +220,8 @@ export default function SalesReturnForm() {
     taxRate,
   });
 
-  async function handleSave() {
-    if (saving) return;
+  async function handleSave(opts?: { silent?: boolean; skipReload?: boolean }): Promise<boolean> {
+    if (saving) return false;
     const errors: Record<string, string> = {};
     // Draft is permissive: allow saving partial work.
     // Strict validation runs on Post.
@@ -234,7 +234,7 @@ export default function SalesReturnForm() {
         description: Object.values(errors)[0],
         variant: "destructive",
       });
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -289,10 +289,12 @@ export default function SalesReturnForm() {
         if (rows.length > 0) {
           await (supabase.from("sales_return_items") as any).insert(rows);
         }
-        toast({
-          title: "تمت الإضافة",
-          description: draftSavedMsg || "تم إنشاء مرتجع البيع كمسودة",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تمت الإضافة",
+            description: draftSavedMsg || "تم إنشاء مرتجع البيع كمسودة",
+          });
+        }
         setIsDirty(false); navGuard.allowNext();
         navigate(`/sales-returns/${ret.id}`);
       } else {
@@ -322,12 +324,14 @@ export default function SalesReturnForm() {
         if (rows.length > 0) {
           await (supabase.from("sales_return_items") as any).insert(rows);
         }
-        toast({
-          title: "تم التحديث",
-          description: draftSavedMsg || "تم تحديث مرتجع البيع",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تم التحديث",
+            description: draftSavedMsg || "تم تحديث مرتجع البيع",
+          });
+        }
         setIsDirty(false); navGuard.allowNext();
-        loadData();
+        if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
       toast({
@@ -335,8 +339,11 @@ export default function SalesReturnForm() {
         description: error.message,
         variant: "destructive",
       });
+      setSaving(false);
+      return false;
     }
     setSaving(false);
+    return true;
   }
 
   async function postReturn() {
@@ -350,6 +357,18 @@ export default function SalesReturnForm() {
         variant: "destructive",
       });
       return;
+    }
+    // Persist any unsaved edits before posting
+    if (isDirty && id) {
+      const saved = await handleSave({ silent: true, skipReload: true });
+      if (!saved) {
+        toast({
+          title: "تعذر الترحيل",
+          description: "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل",
+          variant: "destructive",
+        });
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -896,7 +915,7 @@ export default function SalesReturnForm() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleSave}
+                onClick={() => handleSave()}
                 disabled={saving}
                 className="gap-1.5"
               >
@@ -969,7 +988,10 @@ export default function SalesReturnForm() {
             {isEditable ? (
               <DatePickerInput
                 value={returnDate}
-                onChange={setReturnDate}
+                onChange={(v) => {
+                  setReturnDate(v);
+                  setIsDirty(true);
+                }}
                 placeholder="اختر التاريخ"
               />
             ) : (
