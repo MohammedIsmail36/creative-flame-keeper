@@ -324,12 +324,14 @@ export default function SalesReturnForm() {
         if (rows.length > 0) {
           await (supabase.from("sales_return_items") as any).insert(rows);
         }
-        toast({
-          title: "تم التحديث",
-          description: draftSavedMsg || "تم تحديث مرتجع البيع",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تم التحديث",
+            description: draftSavedMsg || "تم تحديث مرتجع البيع",
+          });
+        }
         setIsDirty(false); navGuard.allowNext();
-        loadData();
+        if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
       toast({
@@ -337,8 +339,11 @@ export default function SalesReturnForm() {
         description: error.message,
         variant: "destructive",
       });
+      setSaving(false);
+      return false;
     }
     setSaving(false);
+    return true;
   }
 
   async function postReturn() {
