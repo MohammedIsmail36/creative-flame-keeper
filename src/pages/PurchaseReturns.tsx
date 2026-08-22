@@ -158,6 +158,7 @@ export default function PurchaseReturns() {
     const all = await fetchAllForExport(onProgress);
     const rows = all.map((r) => [
       formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status),
+      r.reference || "—",
       r.supplier_name || "—",
       r.return_date,
       formatCurrency(r.total),
