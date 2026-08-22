@@ -358,6 +358,18 @@ export default function SalesReturnForm() {
       });
       return;
     }
+    // Persist any unsaved edits before posting
+    if (isDirty && id) {
+      const saved = await handleSave({ silent: true, skipReload: true });
+      if (!saved) {
+        toast({
+          title: "تعذر الترحيل",
+          description: "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     setSaving(true);
     try {
       // Validate: check sold quantity in the last N days for each item (if enabled)
