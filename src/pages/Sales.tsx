@@ -198,6 +198,15 @@ export default function Sales() {
           </span>
         ),
       },
+      {
+        accessorKey: "reference",
+        meta: { hideOnMobile: true },
+        header: ({ column }) => <DataTableColumnHeader column={column} title="رقم المرجع" />,
+        cell: ({ row }) => (
+          <span className="font-mono text-muted-foreground">{row.original.reference || "—"}</span>
+        ),
+      },
+
 
       {
         accessorKey: "customer_name",
