@@ -183,7 +183,7 @@ export default function PurchaseReturns() {
       filenamePrefix: "مرتجعات-المشتريات",
       sheetName: "مرتجعات المشتريات",
       pdfTitle: "مرتجعات المشتريات",
-      headers: ["رقم المرتجع", "المورد", "التاريخ", "الإجمالي", "الحالة"],
+      headers: ["رقم المرتجع", "رقم المرجع", "المورد", "التاريخ", "الإجمالي", "الحالة"],
       rows: exportRows,
       settings,
     }),
