@@ -289,10 +289,12 @@ export default function SalesReturnForm() {
         if (rows.length > 0) {
           await (supabase.from("sales_return_items") as any).insert(rows);
         }
-        toast({
-          title: "تمت الإضافة",
-          description: draftSavedMsg || "تم إنشاء مرتجع البيع كمسودة",
-        });
+        if (!opts?.silent) {
+          toast({
+            title: "تمت الإضافة",
+            description: draftSavedMsg || "تم إنشاء مرتجع البيع كمسودة",
+          });
+        }
         setIsDirty(false); navGuard.allowNext();
         navigate(`/sales-returns/${ret.id}`);
       } else {
