@@ -349,7 +349,7 @@ export default function Sales() {
                 filenamePrefix: "فواتير-البيع",
                 sheetName: "فواتير البيع",
                 pdfTitle: "فواتير البيع",
-                headers: ["رقم الفاتورة", "العميل", "التاريخ", "الإجمالي", "المدفوع", "المتبقي", "الاستحقاق", "الحالة"],
+                headers: ["رقم الفاتورة", "رقم المرجع", "العميل", "التاريخ", "الإجمالي", "المدفوع", "المتبقي", "الاستحقاق", "الحالة"],
                 rows: exportRows,
                 settings: null,
                 pdfOrientation: "landscape",
