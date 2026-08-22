@@ -26,6 +26,7 @@ interface Return {
   return_date: string;
   status: string;
   total: number;
+  reference?: string | null;
 }
 
 const PAGE_SIZE = 20;
