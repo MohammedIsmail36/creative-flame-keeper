@@ -162,6 +162,7 @@ export default function Sales() {
     const all = await fetchAllForExport(onProgress);
     const rows = all.map((i) => [
       formatDisplayNumber(prefix, i.posted_number, i.invoice_number, i.status),
+      i.reference || "—",
       i.customer_name || "—",
       i.invoice_date,
       formatCurrency(i.total),
