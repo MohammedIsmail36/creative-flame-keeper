@@ -842,7 +842,14 @@ export default function PurchaseReturnForm() {
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">تاريخ المرتجع</Label>
             {isEditable ? (
-              <DatePickerInput value={returnDate} onChange={setReturnDate} placeholder="اختر التاريخ" />
+              <DatePickerInput
+                value={returnDate}
+                onChange={(v) => {
+                  setReturnDate(v);
+                  setIsDirty(true);
+                }}
+                placeholder="اختر التاريخ"
+              />
             ) : (
               <div className="h-10 px-4 flex items-center rounded-xl border bg-muted/30 text-sm font-mono tabular-nums">
                 {returnDate}
