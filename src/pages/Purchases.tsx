@@ -208,6 +208,14 @@ export default function Purchases() {
         ),
       },
       {
+        accessorKey: "reference",
+        meta: { hideOnMobile: true },
+        header: ({ column }) => <DataTableColumnHeader column={column} title="رقم المرجع" />,
+        cell: ({ row }) => (
+          <span className="font-mono text-muted-foreground">{row.original.reference || "—"}</span>
+        ),
+      },
+      {
         accessorKey: "supplier_name",
         header: ({ column }) => <DataTableColumnHeader column={column} title="المورد" />,
         cell: ({ row }) => <span className="font-medium">{row.original.supplier_name || "—"}</span>,
