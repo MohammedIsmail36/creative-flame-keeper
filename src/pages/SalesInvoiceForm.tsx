@@ -1296,7 +1296,10 @@ export default function SalesInvoiceForm() {
                   <NumberInput
                     min={0}
                     value={invoiceDiscount || ""}
-                    onValueChange={(v) => setInvoiceDiscount(round2(v || 0))}
+                    onValueChange={(v) => {
+                      setInvoiceDiscount(round2(v || 0));
+                      setIsDirty(true);
+                    }}
                     disabled={discountMode === "line"}
                     placeholder="0.00"
                     className="font-mono tabular-nums text-center w-28 h-8 rounded-md disabled:opacity-40"
