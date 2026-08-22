@@ -181,7 +181,7 @@ export default function SalesReturns() {
       filenamePrefix: "مرتجعات-المبيعات",
       sheetName: "مرتجعات المبيعات",
       pdfTitle: "مرتجعات المبيعات",
-      headers: ["رقم المرتجع", "العميل", "التاريخ", "الإجمالي", "الحالة"],
+      headers: ["رقم المرتجع", "رقم المرجع", "العميل", "التاريخ", "الإجمالي", "الحالة"],
       rows: exportRows,
       settings,
     }),
