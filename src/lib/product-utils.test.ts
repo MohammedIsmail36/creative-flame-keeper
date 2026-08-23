@@ -79,6 +79,13 @@ describe("productsToLookupItems", () => {
     expect(items[1].name).toBe("بنطلون (10)");
   });
 
+  it("should prefix code when showCode is true", () => {
+    const items = productsToLookupItems(products, true, true);
+    expect(items[0].name).toBe("[P001] قميص - زارا - 327 (50)");
+    expect(items[1].name).toBe("[P002] بنطلون (10)");
+  });
+
+
   it("should build search keywords from all fields", () => {
     const items = productsToLookupItems(products);
     expect(items[0].searchKeywords).toContain("P001");
