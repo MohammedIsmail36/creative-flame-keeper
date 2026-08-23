@@ -51,9 +51,9 @@ export function productsToLookupItems(
   showQty = false,
   showCode = false,
 ): LookupItem[] {
-
   return products.map((p) => {
-    let name = formatProductName(p);
+    let name = formatProductName(p, { withCode: showCode });
+
     if (showQty && p.quantity_on_hand != null) {
       name += ` (${p.quantity_on_hand})`;
     }
