@@ -13,24 +13,34 @@ export interface ProductWithBrand {
 }
 
 /**
- * Format product display name: اسم المنتج - الماركة - الموديل
+ * Format product display name: [كود] اسم المنتج - الماركة - الموديل
+ * Code prefix is opt-in via { withCode: true }.
  */
-export function formatProductName(p: ProductWithBrand): string {
-  return formatProductDisplay(p.name, p.product_brands?.name, p.model_number);
+export function formatProductName(
+  p: ProductWithBrand,
+  opts?: { withCode?: boolean },
+): string {
+  return formatProductDisplay(
+    p.name,
+    p.product_brands?.name,
+    p.model_number,
+    opts?.withCode ? p.code : undefined,
+  );
 }
 
 /**
- * Simple formatter: اسم المنتج - الماركة - الموديل
- * Works with any inline product data without needing the full ProductWithBrand type.
+ * Simple formatter: [كود] اسم المنتج - الماركة - الموديل
+ * The code prefix appears only when `code` is provided.
  */
 export function formatProductDisplay(
   name: string,
   brandName?: string | null,
   modelNumber?: string | null,
+  code?: string | null,
 ): string {
   const extra = [brandName, modelNumber].filter(Boolean);
-  if (extra.length > 0) return `${name} - ${extra.join(" - ")}`;
-  return name;
+  const base = extra.length > 0 ? `${name} - ${extra.join(" - ")}` : name;
+  return code ? `[${code}] ${base}` : base;
 }
 
 /**
@@ -39,7 +49,9 @@ export function formatProductDisplay(
 export function productsToLookupItems(
   products: ProductWithBrand[],
   showQty = false,
+  showCode = false,
 ): LookupItem[] {
+
   return products.map((p) => {
     let name = formatProductName(p);
     if (showQty && p.quantity_on_hand != null) {
