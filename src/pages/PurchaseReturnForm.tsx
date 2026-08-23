@@ -939,7 +939,7 @@ export default function PurchaseReturnForm() {
                     <td className="py-1 px-3 min-w-0">
                       {isEditable ? (
                         <LookupCombobox
-                          items={productsToLookupItems(products)}
+                          items={productsToLookupItems(products, false, true)}
                           value={item.product_id}
                           onValueChange={(v) => updateItem(i, "product_id", v)}
                           placeholder="اختر المنتج"
