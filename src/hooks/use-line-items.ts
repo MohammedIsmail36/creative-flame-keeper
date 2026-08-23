@@ -67,7 +67,7 @@ export function useLineItems<T extends BaseItem>(
       if (field === "product_id") {
         const prod = products.find((p) => p.id === value);
         if (prod) {
-          item.product_name = formatProductName(prod);
+          item.product_name = formatProductName(prod, { withCode: true });
           item.unit_price = (prod as any)[config.priceField] ?? 0;
           if (config.hasCostPrice) {
             item.cost_price = prod.purchase_price ?? 0;
