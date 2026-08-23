@@ -37,7 +37,21 @@ describe("formatProductName", () => {
     };
     expect(formatProductName(product)).toBe("منتج");
   });
+
+  it("should prefix code when withCode is true", () => {
+    const product: ProductWithBrand = {
+      id: "1", code: "P001", name: "قميص",
+      product_brands: { name: "زارا" }, model_number: "327",
+    };
+    expect(formatProductName(product, { withCode: true })).toBe("[P001] قميص - زارا - 327");
+  });
+
+  it("should prefix code with name only", () => {
+    const product: ProductWithBrand = { id: "1", code: "P002", name: "بنطلون" };
+    expect(formatProductName(product, { withCode: true })).toBe("[P002] بنطلون");
+  });
 });
+
 
 describe("productsToLookupItems", () => {
   const products: ProductWithBrand[] = [
@@ -64,6 +78,13 @@ describe("productsToLookupItems", () => {
     expect(items[0].name).toBe("قميص - زارا - 327 (50)");
     expect(items[1].name).toBe("بنطلون (10)");
   });
+
+  it("should prefix code when showCode is true", () => {
+    const items = productsToLookupItems(products, true, true);
+    expect(items[0].name).toBe("[P001] قميص - زارا - 327 (50)");
+    expect(items[1].name).toBe("[P002] بنطلون (10)");
+  });
+
 
   it("should build search keywords from all fields", () => {
     const items = productsToLookupItems(products);

@@ -197,8 +197,10 @@ export default function SalesReturnForm() {
                   it.products.name,
                   it.products.product_brands?.name,
                   it.products.model_number,
+                  it.products.code,
                 )
               : it.description || "",
+
             quantity: it.quantity,
             unit_price: it.unit_price,
             cost_price: it.products?.purchase_price || 0,
@@ -1112,7 +1114,7 @@ export default function SalesReturnForm() {
                     <td className="py-2 px-3 min-w-0">
                       {isEditable ? (
                         <LookupCombobox
-                          items={productsToLookupItems(products)}
+                          items={productsToLookupItems(products, false, true)}
                           value={item.product_id}
                           onValueChange={(v) => updateItem(i, "product_id", v)}
                           placeholder="اختر المنتج"

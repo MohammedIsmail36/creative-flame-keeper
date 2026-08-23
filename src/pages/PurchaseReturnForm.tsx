@@ -161,7 +161,7 @@ export default function PurchaseReturnForm() {
             id: it.id,
             product_id: it.product_id || "",
             product_name: it.products
-              ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number)
+              ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number, it.products.code)
               : it.description || "",
             quantity: it.quantity,
             unit_price: it.unit_price,
@@ -939,7 +939,7 @@ export default function PurchaseReturnForm() {
                     <td className="py-1 px-3 min-w-0">
                       {isEditable ? (
                         <LookupCombobox
-                          items={productsToLookupItems(products)}
+                          items={productsToLookupItems(products, false, true)}
                           value={item.product_id}
                           onValueChange={(v) => updateItem(i, "product_id", v)}
                           placeholder="اختر المنتج"
