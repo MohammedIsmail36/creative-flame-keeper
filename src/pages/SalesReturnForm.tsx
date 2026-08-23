@@ -197,8 +197,10 @@ export default function SalesReturnForm() {
                   it.products.name,
                   it.products.product_brands?.name,
                   it.products.model_number,
+                  it.products.code,
                 )
               : it.description || "",
+
             quantity: it.quantity,
             unit_price: it.unit_price,
             cost_price: it.products?.purchase_price || 0,

@@ -184,7 +184,7 @@ export default function SalesInvoiceForm() {
             id: it.id,
             product_id: it.product_id || "",
             product_name: it.products
-              ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number)
+              ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number, it.products.code)
               : it.description || "",
             quantity: it.quantity,
             unit_price: it.unit_price,
