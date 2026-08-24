@@ -293,17 +293,13 @@ export default function SalesInvoiceForm() {
           .select("id")
           .single();
         if (error) throw error;
-        const rows = itemsWithNet.map((i, idx) => ({
-          invoice_id: inv.id,
-          product_id: i.product_id,
-          description: i.product_name,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          discount: i.discount,
-          total: i.total,
-          net_total: i.net_total,
-          sort_order: idx,
-        }));
+        const rows = buildLineItemRows(validItems, {
+          parentKey: "invoice_id",
+          parentId: inv.id,
+          reduction: invoiceLevelReduction,
+          base: subtotal,
+        });
+
         if (rows.length > 0) {
           await (supabase.from("sales_invoice_items") as any).insert(rows);
         }
