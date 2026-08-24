@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type { PaginationState } from "@tanstack/react-table";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
+import { useQuery } from "@tanstack/react-query";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import {
   applyDocumentFilters,
@@ -172,4 +173,51 @@ export function useDocumentList<TRow>(config: UseDocumentListConfig<TRow>) {
     handlePrepareExport,
     fetchAllRows,
   };
+}
+
+export interface DocumentStatusSummary {
+  total: number;
+  draft: number;
+  posted: number;
+  cancelled: number;
+  totalAmount: number;
+}
+
+/**
+ * Lightweight status/amount summary for document lists that have no dedicated
+ * summary RPC (returns screens). Only posted documents feed the amount total.
+ */
+export function useDocumentStatusSummary(args: {
+  queryKey: string;
+  table: string;
+  dateField: string;
+  dateFrom: string;
+  dateTo: string;
+}) {
+  return useQuery({
+    queryKey: [args.queryKey, args.dateFrom, args.dateTo] as const,
+    queryFn: async (): Promise<DocumentStatusSummary> => {
+      let q = (supabase.from(args.table as any) as any).select("status, total");
+      if (args.dateFrom) q = q.gte(args.dateField, args.dateFrom);
+      if (args.dateTo) q = q.lte(args.dateField, args.dateTo);
+      const { data, error } = await q;
+      if (error) throw error;
+      const s: DocumentStatusSummary = {
+        total: (data || []).length,
+        draft: 0,
+        posted: 0,
+        cancelled: 0,
+        totalAmount: 0,
+      };
+      (data || []).forEach((r: any) => {
+        if (r.status === "draft") s.draft++;
+        else if (r.status === "posted") {
+          s.posted++;
+          s.totalAmount += Number(r.total);
+        } else if (r.status === "cancelled") s.cancelled++;
+      });
+      return s;
+    },
+    staleTime: 30_000,
+  });
 }
