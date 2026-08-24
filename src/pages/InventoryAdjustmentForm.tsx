@@ -930,8 +930,8 @@ export default function InventoryAdjustmentForm() {
             </AlertDialog>
           )}
           {!isNew && isApproved && role === "admin" && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+            <ConfirmDialog
+              trigger={
                 <Button
                   variant="outline"
                   size="sm"
@@ -941,27 +941,16 @@ export default function InventoryAdjustmentForm() {
                   <Ban className="h-4 w-4" />
                   إلغاء التسوية
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>إلغاء التسوية المعتمدة</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    سيتم استعادة كميات المخزون إلى ما قبل التسوية وإلغاء القيود
-                    المحاسبية المرتبطة. هل أنت متأكد؟
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogCancel>تراجع</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleCancelApproved}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    إلغاء التسوية
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              }
+              title="إلغاء التسوية المعتمدة"
+              description="سيتم استعادة كميات المخزون إلى ما قبل التسوية وإلغاء القيود المحاسبية المرتبطة. هل أنت متأكد؟"
+              confirmText="إلغاء التسوية"
+              cancelText="تراجع"
+              destructive
+              onConfirm={handleCancelApproved}
+            />
           )}
+
         </>}
       />
 
