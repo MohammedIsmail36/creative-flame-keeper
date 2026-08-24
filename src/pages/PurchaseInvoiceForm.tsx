@@ -100,6 +100,7 @@ export default function PurchaseInvoiceForm() {
     markDirty,
     markClean,
     navGuard,
+    runAction,
     ensurePeriodUnlocked,
   } =
     useDocumentFormState({ lockedUntilDate: settings?.locked_until_date });
@@ -185,8 +186,7 @@ export default function PurchaseInvoiceForm() {
       notify.error("تنبيه", Object.values(errors)[0]);
       return false;
     }
-    setSaving(true);
-    try {
+    await runAction(async () => {
       // Drop empty placeholder rows (no product) — keep user data intact
       const validItems = items.filter((i) => i.product_id);
       const droppedEmpty = items.length - validItems.length;
@@ -307,17 +307,12 @@ export default function PurchaseInvoiceForm() {
       notify.success("تم الترحيل", "تم ترحيل فاتورة الشراء وتوليد القيد المحاسبي وتحديث المخزون");
       markClean();
       loadData();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function handleDeleteDraft() {
     if (saving) return;
-    setSaving(true);
-    try {
+    await runAction(async () => {
       await deleteDraftDocument({
         itemsTable: "purchase_invoice_items",
         parentTable: "purchase_invoices",
@@ -327,17 +322,12 @@ export default function PurchaseInvoiceForm() {
       notify.success("تم الحذف", "تم حذف فاتورة الشراء المسودة");
       markClean();
       navigate("/purchases");
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function handleResetToDraft() {
     if (saving || !id) return;
-    setSaving(true);
-    try {
+    await runAction(async () => {
       const res = await invokeDocumentRpc("unpost_purchase_invoice", { p_invoice_id: id });
       if (!res.success) {
         notify.error(res.isException ? "خطأ" : "غير مسموح", res.error || "تعذر إعادة التعيين");
@@ -347,17 +337,12 @@ export default function PurchaseInvoiceForm() {
       notify.success("تم إعادة التعيين كمسودة", "أصبحت الفاتورة قابلة للتعديل، والقيد المحاسبي أصبح مسودة ولن يظهر في التقارير");
       markClean();
       window.location.reload();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function handleCancelPosted() {
     if (saving) return;
-    setSaving(true);
-    try {
+    await runAction(async () => {
       const { data: inv } = await (supabase.from("purchase_invoices" as any) as any)
         .select("journal_entry_id, posted_number, invoice_number")
         .eq("id", id)
@@ -423,11 +408,7 @@ export default function PurchaseInvoiceForm() {
       notify.success("تم الإلغاء", "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات");
       markClean();
       loadData();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function handlePrint() {

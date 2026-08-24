@@ -93,7 +93,7 @@ export default function PurchaseReturnForm() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(!isNew);
-  const { saving, setSaving, isDirty, setIsDirty, markDirty, markClean, navGuard } =
+  const { saving, setSaving, isDirty, setIsDirty, markDirty, markClean, navGuard, runAction } =
     useDocumentFormState({ lockedUntilDate: settings?.locked_until_date });
 
   const [returnNumber, setReturnNumber] = useState<number | null>(null);
@@ -174,8 +174,7 @@ export default function PurchaseReturnForm() {
       notify.error("تنبيه", Object.values(errors)[0]);
       return false;
     }
-    setSaving(true);
-    try {
+    await runAction(async () => {
       // Drop empty placeholder rows (no product) — keep user data intact
       const validItems = items.filter((i) => i.product_id);
       const droppedEmpty = items.length - validItems.length;
@@ -459,17 +458,12 @@ export default function PurchaseReturnForm() {
       notify.success("تم الترحيل", "تم ترحيل مرتجع الشراء");
       markClean();
       loadData();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function handleCancelPosted() {
     if (saving) return;
-    setSaving(true);
-    try {
+    await runAction(async () => {
       const { data: ret } = await (supabase.from("purchase_returns") as any)
         .select("journal_entry_id, posted_number, return_number")
         .eq("id", id)
@@ -537,17 +531,12 @@ export default function PurchaseReturnForm() {
       notify.success("تم الإلغاء", "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون");
       markClean();
       loadData();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function handleDeleteDraft() {
     if (saving) return;
-    setSaving(true);
-    try {
+    await runAction(async () => {
       await deleteDraftDocument({
         itemsTable: "purchase_return_items",
         parentTable: "purchase_returns",
@@ -557,11 +546,7 @@ export default function PurchaseReturnForm() {
       notify.success("تم الحذف", "تم حذف المرتجع");
       markClean();
       navigate("/purchase-returns");
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function handlePrint() {
