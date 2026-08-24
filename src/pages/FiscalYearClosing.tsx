@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import {
   Loader2,
   Lock,
@@ -238,13 +238,13 @@ export default function FiscalYearClosing() {
 
   const executeClosing = async () => {
     if (!retainedEarningsAccount) {
-      toast.error(
+      notify.error(
         `حساب الأرباح المحتجزة (${ACCOUNT_CODES.RETAINED_EARNINGS}) غير موجود في شجرة الحسابات`,
       );
       return;
     }
     if (revenueAccounts.length === 0 && expenseAccounts.length === 0) {
-      toast.error("لا توجد أرصدة لإقفالها في هذه الفترة");
+      notify.error("لا توجد أرصدة لإقفالها في هذه الفترة");
       return;
     }
 
@@ -262,7 +262,7 @@ export default function FiscalYearClosing() {
 
       // Verify debit/credit balance before proceeding
       if (!isBalanced(totalDebit, totalCredit)) {
-        toast.error(
+        notify.error(
           `قيد الإقفال غير متوازن: مدين ${totalDebit.toFixed(2)} ≠ دائن ${totalCredit.toFixed(2)}`,
         );
         setExecuting(false);
@@ -349,13 +349,13 @@ export default function FiscalYearClosing() {
         .update({ posted_number: nextPosted })
         .eq("id", entry.id);
 
-      toast.success(
+      notify.success(
         `تم إقفال السنة المالية ${fiscalYear.label} بنجاح - قيد رقم ${entry.entry_number}`,
       );
       setExistingClosing({ id: entry.id, description });
       fetchData();
     } catch (err: any) {
-      toast.error("خطأ في تنفيذ الإقفال: " + err.message);
+      notify.error("خطأ في تنفيذ الإقفال: " + err.message);
       console.error(err);
     }
     setExecuting(false);
@@ -378,13 +378,13 @@ export default function FiscalYearClosing() {
         .eq("id", existingClosing.id);
       if (entryErr) throw entryErr;
 
-      toast.success(
+      notify.success(
         `تم عكس قيد إقفال السنة المالية ${fiscalYear.label} وإعادة فتحها بنجاح`,
       );
       setExistingClosing(null);
       fetchData();
     } catch (err: any) {
-      toast.error("خطأ في عكس قيد الإقفال: " + err.message);
+      notify.error("خطأ في عكس قيد الإقفال: " + err.message);
       console.error(err);
     }
     setReversing(false);

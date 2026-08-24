@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { DormantEnriched } from "./dormant-utils";
 
 interface Props {
@@ -43,10 +43,10 @@ export function DormantActionMenu({ product, onIgnore, onChanged }: Props) {
     setBusy(false);
     setConfirmDeactivate(false);
     if (error) {
-      toast.error("تعذّر تعطيل المنتج: " + error.message);
+      notify.error("تعذّر تعطيل المنتج: " + error.message);
       return;
     }
-    toast.success("تم تعطيل المنتج");
+    notify.success("تم تعطيل المنتج");
     onChanged();
   };
 
