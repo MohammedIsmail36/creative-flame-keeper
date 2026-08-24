@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { StatusFilterSelect } from "@/components/FilterBar";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PageHeader } from "@/components/PageHeader";
 import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
@@ -756,17 +757,7 @@ export default function SupplierPayments() {
                 <SelectItem value="check">شيك</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-36 h-9 text-sm">
-                <SelectValue placeholder="الحالة" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل الحالات</SelectItem>
-                <SelectItem value="draft">مسودة</SelectItem>
-                <SelectItem value="posted">مرحّل</SelectItem>
-                <SelectItem value="cancelled">ملغي</SelectItem>
-              </SelectContent>
-            </Select>
+            <StatusFilterSelect value={statusFilter} onChange={setStatusFilter} className="w-36 h-9 text-sm" />
             <DatePickerInput
               value={dateFrom}
               onChange={setDateFrom}

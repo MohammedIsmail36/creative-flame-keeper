@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { StatusFilterSelect } from "@/components/FilterBar";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
@@ -330,17 +331,7 @@ export default function PurchaseReturns() {
         pageSize={PAGE_SIZE}
         toolbarContent={
           <div className="flex items-center gap-2 flex-wrap">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32 h-9 text-sm">
-                <SelectValue placeholder="الحالة" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل الحالات</SelectItem>
-                <SelectItem value="draft">مسودة</SelectItem>
-                <SelectItem value="posted">مُرحّل</SelectItem>
-                <SelectItem value="cancelled">ملغي</SelectItem>
-              </SelectContent>
-            </Select>
+            <StatusFilterSelect value={statusFilter} onChange={setStatusFilter} />
             <DatePickerInput
               value={dateFrom}
               onChange={setDateFrom}

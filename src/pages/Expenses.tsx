@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { StatusFilterSelect } from "@/components/FilterBar";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -800,17 +801,7 @@ export default function Expenses() {
         onGlobalFilterChange={(v) => setSearch(typeof v === "string" ? v : "")}
         toolbarContent={
           <div className="flex gap-3 flex-wrap items-center">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-36 h-9 text-sm bg-card border-border">
-                <SelectValue placeholder="الحالة" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل الحالات</SelectItem>
-                <SelectItem value="draft">مسودة</SelectItem>
-                <SelectItem value="posted">مرحّل</SelectItem>
-                <SelectItem value="cancelled">ملغي</SelectItem>
-              </SelectContent>
-            </Select>
+            <StatusFilterSelect value={statusFilter} onChange={setStatusFilter} className="w-36 h-9 text-sm bg-card border-border" />
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-48 h-9 text-sm bg-card border-border">
                 <SelectValue placeholder="نوع المصروف" />
