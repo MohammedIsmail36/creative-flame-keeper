@@ -149,11 +149,12 @@ export function StatCard({
           <div
             className={cn(
               "w-6 h-6 rounded-md flex items-center justify-center shrink-0",
-              TONE_CLASSES[tone],
+              iconBg || TONE_CLASSES[tone],
             )}
           >
-            <Icon className="h-3 w-3" />
+            {iconNode}
           </div>
+
         </div>
 
         <p
