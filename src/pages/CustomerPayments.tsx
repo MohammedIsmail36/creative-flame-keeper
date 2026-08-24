@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { StatusFilterSelect } from "@/components/FilterBar";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PageHeader } from "@/components/PageHeader";
-import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
+import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
