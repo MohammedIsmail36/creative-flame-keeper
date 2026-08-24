@@ -546,27 +546,20 @@ export default function JournalEntryForm() {
                   <X className="h-4 w-4" />
                   تراجع
                 </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
+                <ConfirmDialog
+                  trigger={
                     <Button disabled={saving || !isBalanced} className="gap-2">
                       {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       {saving ? "جاري الحفظ..." : "حفظ التعديلات"}
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent dir="rtl">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>تعديل قيد معتمد {displayNumber}</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        سيتم استبدال سطور القيد بالسطور الجديدة وتحديث الأرصدة فوراً، مع الاحتفاظ برقم القيد. هل تريد
-                        المتابعة؟
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="flex-row-reverse gap-2">
-                      <AlertDialogCancel>تراجع</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleSavePosted}>تأكيد التعديل</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                  }
+                  title={`تعديل قيد معتمد ${displayNumber}`}
+                  description="سيتم استبدال سطور القيد بالسطور الجديدة وتحديث الأرصدة فوراً، مع الاحتفاظ برقم القيد. هل تريد المتابعة؟"
+                  confirmText="تأكيد التعديل"
+                  cancelText="تراجع"
+                  onConfirm={handleSavePosted}
+                />
+
               </>
             )}
 
