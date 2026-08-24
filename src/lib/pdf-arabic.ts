@@ -2471,6 +2471,12 @@ function InvoiceDocument(
                 : isName
                   ? { ...s.tableCellName, width: colWidths[ci] }
                   : { ...s.tableCell, width: colWidths[ci] };
+              if (isName && !isLast)
+                return renderNameCell(
+                  `c-${ri}-${ci}`,
+                  String(cell),
+                  cellStyle,
+                );
               return React.createElement(
                 Text,
                 { key: `c-${ri}-${ci}`, style: cellStyle },
