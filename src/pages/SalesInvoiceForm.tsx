@@ -64,12 +64,11 @@ import { QuickAddCustomerDialog } from "@/components/QuickAddCustomerDialog";
 import {
   ProductWithBrand,
   productsToLookupItems,
-  formatProductDisplay,
   PRODUCT_SELECT_FIELDS,
 } from "@/lib/product-utils";
 import { ACCOUNT_CODES } from "@/lib/constants";
 import { notify } from "@/lib/notify";
-import { isPeriodLocked, invokeDocumentRpc, deleteDraftDocument } from "@/lib/document-actions";
+import { invokeDocumentRpc, deleteDraftDocument } from "@/lib/document-actions";
 
 interface Customer {
   id: string;
@@ -110,7 +109,16 @@ export default function SalesInvoiceForm() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(!isNew);
-  const { saving, setSaving, isDirty, setIsDirty, markDirty, markClean, navGuard } =
+  const {
+    saving,
+    setSaving,
+    isDirty,
+    setIsDirty,
+    markDirty,
+    markClean,
+    navGuard,
+    ensurePeriodUnlocked,
+  } =
     useDocumentFormState({ lockedUntilDate: settings?.locked_until_date });
   const [paymentSectionRefreshKey, setPaymentSectionRefreshKey] = useState(0);
 
@@ -338,10 +346,13 @@ export default function SalesInvoiceForm() {
       notify.error("تنبيه", "يجب إضافة بنود الفاتورة واختيار منتج لكل بند قبل الترحيل");
       return;
     }
-    if (isPeriodLocked(invoiceDate, settings?.locked_until_date)) {
-      notify.error("الفترة مقفلة", `لا يمكن ترحيل فاتورة بتاريخ ${invoiceDate} — الفترة مقفلة حتى ${settings.locked_until_date}`);
+    if (
+      !ensurePeriodUnlocked(
+        invoiceDate,
+        (lockedUntil) => `لا يمكن ترحيل فاتورة بتاريخ ${invoiceDate} — الفترة مقفلة حتى ${lockedUntil}`,
+      )
+    )
       return;
-    }
     // Persist any unsaved edits (e.g. invoice-level discount) before posting
     if (isDirty && id) {
       const saved = await handleSave({ silent: true, skipReload: true });

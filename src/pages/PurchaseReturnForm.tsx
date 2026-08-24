@@ -51,7 +51,6 @@ import { recalculateEntityBalance } from "@/lib/entity-balance";
 import {
   ProductWithBrand,
   productsToLookupItems,
-  formatProductDisplay,
   PRODUCT_SELECT_FIELDS_BASIC,
 } from "@/lib/product-utils";
 import { ACCOUNT_CODES } from "@/lib/constants";
