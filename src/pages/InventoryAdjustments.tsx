@@ -1,9 +1,10 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/PageHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -14,17 +15,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ExportMenu } from "@/components/ExportMenu";
 import { toast } from "@/hooks/use-toast";
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 interface AdjustmentRow {
   id: string;
@@ -39,8 +29,6 @@ const statusLabels: Record<string, string> = {
   ...INVOICE_STATUS_LABELS,
   approved: "معتمد",
 };
-const statusVariants: Record<string, "secondary" | "default" | "destructive"> =
-  { draft: "secondary", approved: "default", cancelled: "destructive" };
 
 export default function InventoryAdjustments() {
   const navigate = useNavigate();
@@ -138,13 +126,13 @@ export default function InventoryAdjustments() {
       accessorKey: "status",
       header: "الحالة",
       cell: ({ row }) => (
-        <Badge
-          variant={statusVariants[row.original.status] || "secondary"}
+        <StatusBadge
+          status={row.original.status}
+          kind="adjustment"
           className="text-xs px-3 py-1"
-        >
-          {statusLabels[row.original.status] || row.original.status}
-        </Badge>
+        />
       ),
+
     },
     {
       id: "actions",
@@ -152,8 +140,8 @@ export default function InventoryAdjustments() {
       cell: ({ row }) => (
         <div className="flex gap-1 justify-end">
           {row.original.status === "draft" && role === "admin" && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+            <ConfirmDialog
+              trigger={
                 <Button
                   size="sm"
                   variant="ghost"
@@ -162,26 +150,14 @@ export default function InventoryAdjustments() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>حذف التسوية</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    هل أنت متأكد من حذف هذه التسوية؟ لا يمكن التراجع عن هذا
-                    الإجراء.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => deleteMutation.mutate(row.original.id)}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    حذف
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              }
+              title="حذف التسوية"
+              description="هل أنت متأكد من حذف هذه التسوية؟ لا يمكن التراجع عن هذا الإجراء."
+              confirmText="حذف"
+              destructive
+              onConfirm={() => deleteMutation.mutate(row.original.id)}
+            />
+
           )}
         </div>
       ),

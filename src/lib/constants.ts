@@ -12,6 +12,31 @@ export const INVOICE_STATUS_COLORS: Record<string, string> = {
   cancelled: "destructive",
 };
 
+// ─── حالات المستندات الموحّدة (تُقرأ بواسطة StatusBadge) ───
+
+export type DocumentStatusKind = "invoice" | "adjustment" | "journal";
+
+export const DOCUMENT_STATUS_LABELS: Record<
+  DocumentStatusKind,
+  Record<string, string>
+> = {
+  invoice: INVOICE_STATUS_LABELS,
+  adjustment: { ...INVOICE_STATUS_LABELS, approved: "معتمد" },
+  journal: { draft: "مسودة", posted: "معتمد", cancelled: "ملغي" },
+};
+
+export const DOCUMENT_STATUS_VARIANTS: Record<
+  string,
+  "secondary" | "default" | "destructive"
+> = {
+  draft: "secondary",
+  posted: "default",
+  approved: "default",
+  cancelled: "destructive",
+};
+
+
+
 // ─── أنواع حركات المخزون (Inventory movement types) ───
 
 export const MOVEMENT_TYPE_LABELS: Record<string, string> = {

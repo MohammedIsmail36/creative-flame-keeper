@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -36,16 +37,6 @@ import { round2 } from "@/lib/utils";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatSupabaseError } from "@/lib/format-error";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 interface Supplier {
   id: string;
@@ -657,29 +648,16 @@ export default function Suppliers() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog
+      <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={() => setDeleteTarget(null)}
-      >
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>حذف المورد</AlertDialogTitle>
-            <AlertDialogDescription>
-              هل أنت متأكد من حذف المورد "{deleteTarget?.name}"؟ لا يمكن التراجع
-              عن هذا الإجراء.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              حذف
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title="حذف المورد"
+        description={`هل أنت متأكد من حذف المورد "${deleteTarget?.name ?? ""}"؟ لا يمكن التراجع عن هذا الإجراء.`}
+        confirmText="حذف"
+        destructive
+        onConfirm={confirmDelete}
+      />
+
     </div>
   );
 }
