@@ -241,21 +241,12 @@ export default function PurchaseReturnForm() {
       } else {
         await (supabase.from("purchase_returns") as any).update(payload).eq("id", id);
         await (supabase.from("purchase_return_items") as any).delete().eq("return_id", id);
-        const sumTotals = validItems.reduce((s, x) => s + x.total, 0);
-        const headerDiscount = payload.discount || 0;
-        const rows = validItems.map((i, idx) => ({
-          return_id: id,
-          product_id: i.product_id,
-          description: i.product_name,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          discount: i.discount,
-          total: i.total,
-          net_total: round2(
-            sumTotals > 0 && headerDiscount > 0 ? i.total - (i.total / sumTotals) * headerDiscount : i.total,
-          ),
-          sort_order: idx,
-        }));
+        const rows = buildLineItemRows(validItems, {
+          parentKey: "return_id",
+          parentId: id!,
+          reduction: payload.discount || 0,
+        });
+
         if (rows.length > 0) {
           await (supabase.from("purchase_return_items") as any).insert(rows);
         }
