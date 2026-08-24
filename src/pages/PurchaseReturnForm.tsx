@@ -6,7 +6,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { useNavigationGuard } from "@/hooks/use-navigation-guard";
+import { useDocumentFormState } from "@/hooks/use-document-form";
+import { mapLoadedLineItems } from "@/lib/document-items-mapping";
 import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
@@ -50,7 +51,6 @@ import { recalculateEntityBalance } from "@/lib/entity-balance";
 import {
   ProductWithBrand,
   productsToLookupItems,
-  formatProductDisplay,
   PRODUCT_SELECT_FIELDS_BASIC,
 } from "@/lib/product-utils";
 import { ACCOUNT_CODES } from "@/lib/constants";
@@ -93,8 +93,8 @@ export default function PurchaseReturnForm() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(!isNew);
-  const [saving, setSaving] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
+  const { saving, setSaving, isDirty, setIsDirty, markDirty, markClean, navGuard } =
+    useDocumentFormState({ lockedUntilDate: settings?.locked_until_date });
 
   const [returnNumber, setReturnNumber] = useState<number | null>(null);
   const [postedNumber, setPostedNumber] = useState<number | null>(null);
@@ -111,7 +111,6 @@ export default function PurchaseReturnForm() {
   const [editMode, setEditMode] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const navGuard = useNavigationGuard(isDirty);
 
   useEffect(() => {
     loadData();
@@ -149,19 +148,7 @@ export default function PurchaseReturnForm() {
           .select("*, products:product_id(name, code, model_number, product_brands(name))")
           .eq("return_id", id)
           .order("sort_order", { ascending: true });
-        setItems(
-          (itemsData || []).map((it: any) => ({
-            id: it.id,
-            product_id: it.product_id || "",
-            product_name: it.products
-              ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number, it.products.code)
-              : it.description || "",
-            quantity: it.quantity,
-            unit_price: it.unit_price,
-            discount: it.discount,
-            total: it.total,
-          })),
-        );
+        setItems(mapLoadedLineItems<ReturnItem>(itemsData));
       }
       setLoading(false);
     } else {
@@ -227,8 +214,7 @@ export default function PurchaseReturnForm() {
         if (!opts?.silent) {
           notify.success("تمت الإضافة", draftSavedMsg || "تم إنشاء مرتجع الشراء كمسودة");
         }
-        setIsDirty(false);
-        navGuard.allowNext();
+        markClean();
         navigate(`/purchase-returns/${ret.id}`);
       } else {
         await (supabase.from("purchase_returns") as any).update(payload).eq("id", id);
@@ -245,8 +231,7 @@ export default function PurchaseReturnForm() {
         if (!opts?.silent) {
           notify.success("تم التحديث", draftSavedMsg || "تم تحديث مرتجع الشراء");
         }
-        setIsDirty(false);
-        navGuard.allowNext();
+        markClean();
         if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
@@ -472,8 +457,7 @@ export default function PurchaseReturnForm() {
       await recalculateEntityBalance("supplier", supplierId);
 
       notify.success("تم الترحيل", "تم ترحيل مرتجع الشراء");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       loadData();
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -551,8 +535,7 @@ export default function PurchaseReturnForm() {
 
       // status already set to cancelled above
       notify.success("تم الإلغاء", "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       loadData();
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -572,8 +555,7 @@ export default function PurchaseReturnForm() {
         id: id!,
       });
       notify.success("تم الحذف", "تم حذف المرتجع");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       navigate("/purchase-returns");
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -624,7 +606,7 @@ export default function PurchaseReturnForm() {
   const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
 
   return (
-    <div className="space-y-6" dir="rtl" onInput={() => isEditable && !isDirty && setIsDirty(true)}>
+    <div className="space-y-6" dir="rtl" onInput={() => isEditable && markDirty()}>
       <PageHeader
         icon={RotateCcw}
         title={isNew ? "مرتجع شراء جديد" : "مرتجع شراء"}

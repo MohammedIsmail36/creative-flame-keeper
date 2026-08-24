@@ -9,7 +9,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { useNavigationGuard } from "@/hooks/use-navigation-guard";
+import { useDocumentFormState } from "@/hooks/use-document-form";
+import { mapLoadedLineItems } from "@/lib/document-items-mapping";
 import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { FormFieldError } from "@/components/FormFieldError";
 import { SectionHeader } from "@/components/SectionHeader";
@@ -63,12 +64,11 @@ import { QuickAddCustomerDialog } from "@/components/QuickAddCustomerDialog";
 import {
   ProductWithBrand,
   productsToLookupItems,
-  formatProductDisplay,
   PRODUCT_SELECT_FIELDS,
 } from "@/lib/product-utils";
 import { ACCOUNT_CODES } from "@/lib/constants";
 import { notify } from "@/lib/notify";
-import { isPeriodLocked, invokeDocumentRpc, deleteDraftDocument } from "@/lib/document-actions";
+import { invokeDocumentRpc, deleteDraftDocument } from "@/lib/document-actions";
 
 interface Customer {
   id: string;
@@ -109,8 +109,17 @@ export default function SalesInvoiceForm() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(!isNew);
-  const [saving, setSaving] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
+  const {
+    saving,
+    setSaving,
+    isDirty,
+    setIsDirty,
+    markDirty,
+    markClean,
+    navGuard,
+    ensurePeriodUnlocked,
+  } =
+    useDocumentFormState({ lockedUntilDate: settings?.locked_until_date });
   const [paymentSectionRefreshKey, setPaymentSectionRefreshKey] = useState(0);
 
   const [invoiceNumber, setInvoiceNumber] = useState<number | null>(null);
@@ -134,7 +143,6 @@ export default function SalesInvoiceForm() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddInitialName, setQuickAddInitialName] = useState("");
 
-  const navGuard = useNavigationGuard(isDirty);
 
   useEffect(() => {
     loadData();
@@ -173,20 +181,7 @@ export default function SalesInvoiceForm() {
           .select("*, products:product_id(name, code, purchase_price, model_number, product_brands(name))")
           .eq("invoice_id", id)
           .order("sort_order", { ascending: true });
-        setItems(
-          (itemsData || []).map((it: any) => ({
-            id: it.id,
-            product_id: it.product_id || "",
-            product_name: it.products
-              ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number, it.products.code)
-              : it.description || "",
-            quantity: it.quantity,
-            unit_price: it.unit_price,
-            cost_price: it.products?.purchase_price || 0,
-            discount: it.discount,
-            total: it.total,
-          })),
-        );
+        setItems(mapLoadedLineItems<InvoiceItem>(itemsData, { withCostPrice: true }));
       }
       setLoading(false);
     } else {
@@ -309,8 +304,7 @@ export default function SalesInvoiceForm() {
         if (!opts?.silent) {
           notify.success("تمت الإضافة", draftSavedMsg || "تم إنشاء فاتورة البيع كمسودة");
         }
-        setIsDirty(false);
-        navGuard.allowNext();
+        markClean();
         navigate(`/sales/${inv.id}`);
       } else {
         const { error } = await (supabase.from("sales_invoices") as any).update(payload).eq("id", id);
@@ -329,8 +323,7 @@ export default function SalesInvoiceForm() {
         if (!opts?.silent) {
           notify.success("تم التحديث", draftSavedMsg || "تم تحديث فاتورة البيع");
         }
-        setIsDirty(false);
-        navGuard.allowNext();
+        markClean();
         if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
@@ -353,10 +346,13 @@ export default function SalesInvoiceForm() {
       notify.error("تنبيه", "يجب إضافة بنود الفاتورة واختيار منتج لكل بند قبل الترحيل");
       return;
     }
-    if (isPeriodLocked(invoiceDate, settings?.locked_until_date)) {
-      notify.error("الفترة مقفلة", `لا يمكن ترحيل فاتورة بتاريخ ${invoiceDate} — الفترة مقفلة حتى ${settings.locked_until_date}`);
+    if (
+      !ensurePeriodUnlocked(
+        invoiceDate,
+        (lockedUntil) => `لا يمكن ترحيل فاتورة بتاريخ ${invoiceDate} — الفترة مقفلة حتى ${lockedUntil}`,
+      )
+    )
       return;
-    }
     // Persist any unsaved edits (e.g. invoice-level discount) before posting
     if (isDirty && id) {
       const saved = await handleSave({ silent: true, skipReload: true });
@@ -376,8 +372,7 @@ export default function SalesInvoiceForm() {
       await recalculateEntityBalance("customer", customerId);
 
       notify.success("تم الترحيل", "تم ترحيل فاتورة البيع وتوليد القيد المحاسبي وتحديث المخزون");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       loadData();
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -397,8 +392,7 @@ export default function SalesInvoiceForm() {
         id: id!,
       });
       notify.success("تم الحذف", "تم حذف فاتورة البيع المسودة");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       navigate("/sales");
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -418,8 +412,7 @@ export default function SalesInvoiceForm() {
       }
       await recalculateEntityBalance("customer", customerId);
       notify.success("تم إعادة التعيين كمسودة", "أصبحت الفاتورة قابلة للتعديل، والقيد المحاسبي أصبح مسودة ولن يظهر في التقارير");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       window.location.reload();
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -550,8 +543,7 @@ export default function SalesInvoiceForm() {
       // status already set to cancelled above
 
       notify.success("تم الإلغاء", "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات للمخزون");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       loadData();
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -604,7 +596,7 @@ export default function SalesInvoiceForm() {
   const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
 
   return (
-    <div className="space-y-6" dir="rtl" onInput={() => isEditable && !isDirty && setIsDirty(true)}>
+    <div className="space-y-6" dir="rtl" onInput={() => isEditable && markDirty()}>
       <PageHeader
         icon={FileText}
         title={isNew ? "إنشاء فاتورة مبيعات" : "فاتورة مبيعات"}
