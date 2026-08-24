@@ -14,6 +14,7 @@ import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { SectionHeader } from "@/components/SectionHeader";
 import { calcInvoiceTotals } from "@/lib/invoice-totals";
+import { buildLineItemRows } from "@/lib/invoice-items";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -202,12 +203,9 @@ export default function PurchaseInvoiceForm() {
         setSaving(false);
         return false;
       }
-      // Calculate net_total for each item
-      const discountPercent = discountMode === "invoice" && subtotal > 0 ? invoiceDiscount / subtotal : 0;
-      const itemsWithNet = validItems.map((i) => ({
-        ...i,
-        net_total: discountMode === "invoice" ? round2(i.total * (1 - discountPercent)) : i.total,
-      }));
+      // الخصم العام (إن وُجد) يُوزّع تناسبيًا على net_total لضمان دقة تكلفة الشراء
+      const invoiceLevelReduction = discountMode === "invoice" ? invoiceDiscount : 0;
+
 
       const payload: any = {
         supplier_id: supplierId || null,
@@ -229,17 +227,13 @@ export default function PurchaseInvoiceForm() {
           .select("id")
           .single();
         if (error) throw error;
-        const rows = itemsWithNet.map((i, idx) => ({
-          invoice_id: inv.id,
-          product_id: i.product_id,
-          description: i.product_name,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          discount: i.discount,
-          total: i.total,
-          net_total: i.net_total,
-          sort_order: idx,
-        }));
+        const rows = buildLineItemRows(validItems, {
+          parentKey: "invoice_id",
+          parentId: inv.id,
+          reduction: invoiceLevelReduction,
+          base: subtotal,
+        });
+
         if (rows.length > 0) {
           await (supabase.from("purchase_invoice_items" as any) as any).insert(rows);
         }
@@ -253,17 +247,13 @@ export default function PurchaseInvoiceForm() {
         const { error } = await (supabase.from("purchase_invoices" as any) as any).update(payload).eq("id", id);
         if (error) throw error;
         await (supabase.from("purchase_invoice_items" as any) as any).delete().eq("invoice_id", id);
-        const rows = itemsWithNet.map((i, idx) => ({
-          invoice_id: id,
-          product_id: i.product_id,
-          description: i.product_name,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          discount: i.discount,
-          total: i.total,
-          net_total: i.net_total,
-          sort_order: idx,
-        }));
+        const rows = buildLineItemRows(validItems, {
+          parentKey: "invoice_id",
+          parentId: id!,
+          reduction: invoiceLevelReduction,
+          base: subtotal,
+        });
+
         if (rows.length > 0) {
           await (supabase.from("purchase_invoice_items" as any) as any).insert(rows);
         }

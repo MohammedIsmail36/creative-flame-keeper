@@ -14,6 +14,8 @@ import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { FormFieldError } from "@/components/FormFieldError";
 import { SectionHeader } from "@/components/SectionHeader";
 import { calcInvoiceTotals } from "@/lib/invoice-totals";
+import { buildLineItemRows } from "@/lib/invoice-items";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -267,13 +269,9 @@ export default function SalesInvoiceForm() {
         setSaving(false);
         return false;
       }
-      // Calculate net_total per item (distribute invoice-level discount AND loyalty discount proportionally)
+      // التخفيض على مستوى الفاتورة (خصم عام + خصم نقاط الولاء) يُوزّع تناسبيًا على net_total
       const invoiceLevelReduction = (discountMode === "invoice" ? invoiceDiscount : 0) + loyaltyDiscount;
-      const discountPercent = subtotal > 0 ? invoiceLevelReduction / subtotal : 0;
-      const itemsWithNet = validItems.map((i) => ({
-        ...i,
-        net_total: round2(i.total * (1 - discountPercent)),
-      }));
+
 
       const payload: any = {
         customer_id: customerId || null,
@@ -297,17 +295,13 @@ export default function SalesInvoiceForm() {
           .select("id")
           .single();
         if (error) throw error;
-        const rows = itemsWithNet.map((i, idx) => ({
-          invoice_id: inv.id,
-          product_id: i.product_id,
-          description: i.product_name,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          discount: i.discount,
-          total: i.total,
-          net_total: i.net_total,
-          sort_order: idx,
-        }));
+        const rows = buildLineItemRows(validItems, {
+          parentKey: "invoice_id",
+          parentId: inv.id,
+          reduction: invoiceLevelReduction,
+          base: subtotal,
+        });
+
         if (rows.length > 0) {
           await (supabase.from("sales_invoice_items") as any).insert(rows);
         }
@@ -321,17 +315,13 @@ export default function SalesInvoiceForm() {
         const { error } = await (supabase.from("sales_invoices") as any).update(payload).eq("id", id);
         if (error) throw error;
         await (supabase.from("sales_invoice_items") as any).delete().eq("invoice_id", id);
-        const rows = itemsWithNet.map((i, idx) => ({
-          invoice_id: id,
-          product_id: i.product_id,
-          description: i.product_name,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          discount: i.discount,
-          total: i.total,
-          net_total: i.net_total,
-          sort_order: idx,
-        }));
+        const rows = buildLineItemRows(validItems, {
+          parentKey: "invoice_id",
+          parentId: id!,
+          reduction: invoiceLevelReduction,
+          base: subtotal,
+        });
+
         if (rows.length > 0) {
           await (supabase.from("sales_invoice_items") as any).insert(rows);
         }

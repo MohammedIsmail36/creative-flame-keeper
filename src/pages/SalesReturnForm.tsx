@@ -16,8 +16,9 @@ import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { SectionHeader } from "@/components/SectionHeader";
 import { calcInvoiceTotals } from "@/lib/invoice-totals";
+import { buildLineItemRows } from "@/lib/invoice-items";
 import { useLineItems } from "@/hooks/use-line-items";
-import { cn, round2 } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -256,23 +257,12 @@ export default function SalesReturnForm() {
           .select("id")
           .single();
         if (error) throw error;
-        const sumTotals = validItems.reduce((s, x) => s + x.total, 0);
-        const headerDiscount = payload.discount || 0;
-        const rows = validItems.map((i, idx) => ({
-          return_id: ret.id,
-          product_id: i.product_id,
-          description: i.product_name,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          discount: i.discount,
-          total: i.total,
-          net_total: round2(
-            sumTotals > 0 && headerDiscount > 0
-              ? i.total - (i.total / sumTotals) * headerDiscount
-              : i.total
-          ),
-          sort_order: idx,
-        }));
+        const rows = buildLineItemRows(validItems, {
+          parentKey: "return_id",
+          parentId: ret.id,
+          reduction: payload.discount || 0,
+        });
+
         if (rows.length > 0) {
           await (supabase.from("sales_return_items") as any).insert(rows);
         }
@@ -288,23 +278,12 @@ export default function SalesReturnForm() {
         await (supabase.from("sales_return_items") as any)
           .delete()
           .eq("return_id", id);
-        const sumTotals = validItems.reduce((s, x) => s + x.total, 0);
-        const headerDiscount = payload.discount || 0;
-        const rows = validItems.map((i, idx) => ({
-          return_id: id,
-          product_id: i.product_id,
-          description: i.product_name,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          discount: i.discount,
-          total: i.total,
-          net_total: round2(
-            sumTotals > 0 && headerDiscount > 0
-              ? i.total - (i.total / sumTotals) * headerDiscount
-              : i.total
-          ),
-          sort_order: idx,
-        }));
+        const rows = buildLineItemRows(validItems, {
+          parentKey: "return_id",
+          parentId: id!,
+          reduction: payload.discount || 0,
+        });
+
         if (rows.length > 0) {
           await (supabase.from("sales_return_items") as any).insert(rows);
         }

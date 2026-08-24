@@ -50,3 +50,21 @@ export function calcInvoiceTotals({
     grandTotal,
   };
 }
+
+/**
+ * توزيع أي خصم/تخفيض على مستوى الفاتورة (خصم عام + خصم نقاط الولاء) على السطور
+ * بشكل تناسبي، لضمان أن مجموع `net_total` يساوي الصافي بعد الخصم.
+ *
+ * المعادلة: net_total = total × (1 − reduction / base)
+ * حيث base هو مجموع إجماليات السطور (أو قيمة صريحة مثل subtotal المُقرّب).
+ * عند reduction = 0 تبقى القيمة مساوية للإجمالي الأصلي.
+ */
+export function distributeNetTotals<T extends { total: number }>(
+  items: T[],
+  reduction: number,
+  base?: number,
+): (T & { net_total: number })[] {
+  const total = base ?? items.reduce((s, i) => s + i.total, 0);
+  const ratio = total > 0 && reduction > 0 ? reduction / total : 0;
+  return items.map((i) => ({ ...i, net_total: round2(i.total * (1 - ratio)) }));
+}
