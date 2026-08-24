@@ -20,11 +20,13 @@ function errorMessage(err: unknown): string | undefined {
 export interface DocumentRpcResult {
   success: boolean;
   error?: string;
+  /** true إذا كان الفشل خطأ اتصال/قاعدة بيانات وليس رفضًا منطقيًا من الدالة. */
+  isException?: boolean;
 }
 
 /**
  * استدعاء دوال قاعدة البيانات التي تُعيد `{ success, error }`.
- * لا ترفع استثناءً: أي خطأ شبكة/قاعدة بيانات يُعاد كـ `{ success: false, error }`.
+ * لا ترفع استثناءً: أي خطأ شبكة/قاعدة بيانات يُعاد كـ `{ success: false, isException: true }`.
  */
 export async function invokeDocumentRpc(
   fn: string,
@@ -32,14 +34,15 @@ export async function invokeDocumentRpc(
 ): Promise<DocumentRpcResult> {
   try {
     const { data, error } = await (supabase.rpc as any)(fn, args);
-    if (error) return { success: false, error: errorMessage(error) };
+    if (error) return { success: false, error: errorMessage(error), isException: true };
     const res = data as DocumentRpcResult | null;
     if (!res?.success) return { success: false, error: res?.error };
     return { success: true };
   } catch (error) {
-    return { success: false, error: errorMessage(error) };
+    return { success: false, error: errorMessage(error), isException: true };
   }
 }
+
 
 export interface DeleteDraftOptions {
   /** جدول البنود (مثال: `sales_invoice_items`) */
