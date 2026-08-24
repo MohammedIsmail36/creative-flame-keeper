@@ -257,23 +257,12 @@ export default function SalesReturnForm() {
           .select("id")
           .single();
         if (error) throw error;
-        const sumTotals = validItems.reduce((s, x) => s + x.total, 0);
-        const headerDiscount = payload.discount || 0;
-        const rows = validItems.map((i, idx) => ({
-          return_id: ret.id,
-          product_id: i.product_id,
-          description: i.product_name,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          discount: i.discount,
-          total: i.total,
-          net_total: round2(
-            sumTotals > 0 && headerDiscount > 0
-              ? i.total - (i.total / sumTotals) * headerDiscount
-              : i.total
-          ),
-          sort_order: idx,
-        }));
+        const rows = buildLineItemRows(validItems, {
+          parentKey: "return_id",
+          parentId: ret.id,
+          reduction: payload.discount || 0,
+        });
+
         if (rows.length > 0) {
           await (supabase.from("sales_return_items") as any).insert(rows);
         }
