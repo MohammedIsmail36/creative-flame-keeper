@@ -14,7 +14,7 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { calcInvoiceTotals } from "@/lib/invoice-totals";
 import { buildLineItemRows } from "@/lib/invoice-items";
 import { useLineItems } from "@/hooks/use-line-items";
-import { cn, round2 } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
