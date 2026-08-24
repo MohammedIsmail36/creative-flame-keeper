@@ -1,4 +1,5 @@
 import { notify } from "@/lib/notify";
+import { isPeriodLocked, deleteDraftDocument } from "@/lib/document-actions";
 import { StatusBadge } from "@/components/StatusBadge";
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
@@ -303,10 +304,7 @@ export default function SalesReturnForm() {
   }
 
   async function postReturn() {
-    if (
-      settings?.locked_until_date &&
-      returnDate <= settings.locked_until_date
-    ) {
+    if (isPeriodLocked(returnDate, settings?.locked_until_date)) {
       notify.error("خطأ", `لا يمكن ترحيل مرتجع بتاريخ ${returnDate} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       return;
     }
@@ -656,10 +654,12 @@ export default function SalesReturnForm() {
     if (saving) return;
     setSaving(true);
     try {
-      await (supabase.from("sales_return_items") as any)
-        .delete()
-        .eq("return_id", id);
-      await (supabase.from("sales_returns") as any).delete().eq("id", id);
+      await deleteDraftDocument({
+        itemsTable: "sales_return_items",
+        parentTable: "sales_returns",
+        parentKey: "return_id",
+        id: id!,
+      });
       notify.success("تم الحذف", "تم حذف المرتجع");
       setIsDirty(false); navGuard.allowNext();
       navigate("/sales-returns");

@@ -68,6 +68,7 @@ import {
 } from "@/lib/product-utils";
 import { ACCOUNT_CODES } from "@/lib/constants";
 import { notify } from "@/lib/notify";
+import { isPeriodLocked, invokeDocumentRpc, deleteDraftDocument } from "@/lib/document-actions";
 
 interface Customer {
   id: string;
@@ -352,7 +353,7 @@ export default function SalesInvoiceForm() {
       notify.error("تنبيه", "يجب إضافة بنود الفاتورة واختيار منتج لكل بند قبل الترحيل");
       return;
     }
-    if (settings?.locked_until_date && invoiceDate <= settings.locked_until_date) {
+    if (isPeriodLocked(invoiceDate, settings?.locked_until_date)) {
       notify.error("الفترة مقفلة", `لا يمكن ترحيل فاتورة بتاريخ ${invoiceDate} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       return;
     }
@@ -366,14 +367,9 @@ export default function SalesInvoiceForm() {
     }
     setSaving(true);
     try {
-      const { data: result, error: rpcError } = await supabase.rpc(
-        "post_sales_invoice" as any,
-        { p_invoice_id: id } as any,
-      );
-      if (rpcError) throw rpcError;
-      const res = result as any;
-      if (!res?.success) {
-        notify.error("خطأ", res?.error || "حدث خطأ أثناء الترحيل");
+      const res = await invokeDocumentRpc("post_sales_invoice", { p_invoice_id: id });
+      if (!res.success) {
+        notify.error("خطأ", res.error || "حدث خطأ أثناء الترحيل");
         return;
       }
 
@@ -394,8 +390,12 @@ export default function SalesInvoiceForm() {
     if (saving) return;
     setSaving(true);
     try {
-      await (supabase.from("sales_invoice_items") as any).delete().eq("invoice_id", id);
-      await (supabase.from("sales_invoices") as any).delete().eq("id", id);
+      await deleteDraftDocument({
+        itemsTable: "sales_invoice_items",
+        parentTable: "sales_invoices",
+        parentKey: "invoice_id",
+        id: id!,
+      });
       notify.success("تم الحذف", "تم حذف فاتورة البيع المسودة");
       setIsDirty(false);
       navGuard.allowNext();
@@ -411,13 +411,9 @@ export default function SalesInvoiceForm() {
     if (saving || !id) return;
     setSaving(true);
     try {
-      const { data, error } = await (supabase.rpc as any)("unpost_sales_invoice", {
-        p_invoice_id: id,
-      });
-      if (error) throw error;
-      const res = data as { success: boolean; error?: string };
-      if (!res?.success) {
-        notify.error("غير مسموح", res?.error || "تعذر إعادة التعيين");
+      const res = await invokeDocumentRpc("unpost_sales_invoice", { p_invoice_id: id });
+      if (!res.success) {
+        notify.error(res.isException ? "خطأ" : "غير مسموح", res.error || "تعذر إعادة التعيين");
         return;
       }
       await recalculateEntityBalance("customer", customerId);
