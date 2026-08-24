@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { formatError } from "@/lib/format-error";
 
 /**
  * طبقة مشتركة لعمليات المستندات (فواتير البيع/الشراء والمرتجعات).
@@ -12,6 +11,10 @@ export function isPeriodLocked(
   lockedUntilDate?: string | null,
 ): boolean {
   return Boolean(lockedUntilDate) && documentDate <= (lockedUntilDate as string);
+}
+
+function errorMessage(err: unknown): string | undefined {
+  return (err as { message?: string } | null)?.message;
 }
 
 export interface DocumentRpcResult {
@@ -29,12 +32,12 @@ export async function invokeDocumentRpc(
 ): Promise<DocumentRpcResult> {
   try {
     const { data, error } = await (supabase.rpc as any)(fn, args);
-    if (error) return { success: false, error: formatError(error) };
+    if (error) return { success: false, error: errorMessage(error) };
     const res = data as DocumentRpcResult | null;
     if (!res?.success) return { success: false, error: res?.error };
     return { success: true };
   } catch (error) {
-    return { success: false, error: formatError(error) };
+    return { success: false, error: errorMessage(error) };
   }
 }
 
