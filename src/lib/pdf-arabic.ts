@@ -2214,20 +2214,27 @@ function InvoiceDocument(
       );
 
   // ── Table data ──
-  const colHeaders: string[] = ["#", "البند / الوصف", "الكمية", "السعر"];
+  const hasAnyCode = items.some((it) => CODE_PREFIX_RE.test(it.name));
+  const colHeaders: string[] = ["#"];
+  if (hasAnyCode) colHeaders.push("الكود");
+  colHeaders.push("البند / الوصف", "الكمية", "السعر");
   if (showDiscount) colHeaders.push("الخصم");
   colHeaders.push("المجموع");
-  const colWidths = showDiscount
-    ? ["5%", "38%", "10%", "16%", "11%", "20%"]
-    : ["5%", "42%", "11%", "20%", "22%"];
+  const colWidths = hasAnyCode
+    ? showDiscount
+      ? ["4%", "11%", "28%", "9%", "15%", "11%", "22%"]
+      : ["4%", "12%", "31%", "10%", "19%", "24%"]
+    : showDiscount
+      ? ["5%", "38%", "10%", "16%", "11%", "20%"]
+      : ["5%", "42%", "11%", "20%", "22%"];
 
   const tableRows = items.map((item, idx) => {
-    const row: (string | number)[] = [
-      String(idx + 1),
-      item.name,
-      fmtNum(item.quantity),
-      fmtNum(item.unitPrice),
-    ];
+    const match = CODE_PREFIX_RE.exec(item.name);
+    const code = match ? match[1] : "";
+    const label = match ? match[2] : item.name;
+    const row: (string | number)[] = [String(idx + 1)];
+    if (hasAnyCode) row.push(code || "—");
+    row.push(label, fmtNum(item.quantity), fmtNum(item.unitPrice));
     if (showDiscount) row.push(item.discount > 0 ? fmtNum(item.discount) : "—");
     row.push(fmtNum(item.total));
     return row;
@@ -2464,19 +2471,21 @@ function InvoiceDocument(
               },
             },
             ...row.map((cell, ci) => {
-              const isName = ci === 1;
+              const isCode = hasAnyCode && ci === 1;
+              const isName = ci === (hasAnyCode ? 2 : 1);
               const isLast = ci === row.length - 1;
               const cellStyle = isLast
                 ? { ...s.tableCellBold, width: colWidths[ci] }
                 : isName
                   ? { ...s.tableCellName, width: colWidths[ci] }
-                  : { ...s.tableCell, width: colWidths[ci] };
-              if (isName && !isLast)
-                return renderNameCell(
-                  `c-${ri}-${ci}`,
-                  String(cell),
-                  cellStyle,
-                );
+                  : isCode
+                    ? {
+                        ...s.tableCell,
+                        width: colWidths[ci],
+                        color: C.ink5,
+                        direction: "ltr" as const,
+                      }
+                    : { ...s.tableCell, width: colWidths[ci] };
               return React.createElement(
                 Text,
                 { key: `c-${ri}-${ci}`, style: cellStyle },
