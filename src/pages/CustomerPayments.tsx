@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { StatusFilterSelect } from "@/components/FilterBar";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PageHeader } from "@/components/PageHeader";
-import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
-import { supabase } from "@/integrations/supabase/client";
+import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,9 +31,19 @@ import {
 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
-import { ACCOUNT_CODES, INVOICE_STATUS_LABELS } from "@/lib/constants";
-import { recalculateEntityBalance, recalculateInvoicePaidAmount } from "@/lib/entity-balance";
+import { INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { notify } from "@/lib/notify";
+import {
+  fetchPaymentVoucherData,
+  filterPaymentVouchers,
+  hasPaymentVoucherFilters,
+  savePaymentVoucherDraft,
+  postPaymentVoucher,
+  updatePostedPaymentVoucher,
+  cancelPaymentVoucher,
+  deletePaymentVoucher,
+  getPostedVoucherEditBlockReason,
+} from "@/lib/payment-voucher";
 
 interface Customer {
   id: string;
@@ -103,48 +112,18 @@ export default function CustomerPayments() {
 
   async function fetchAll() {
     setLoading(true);
-    const { fetchAllPaged } = await import("@/lib/paged-fetch");
-    const [custRes, payments] = await Promise.all([
-      (supabase.from("customers" as any) as any).select("id, code, name, balance").eq("is_active", true).order("name"),
-      fetchAllPaged<any>(
-        () =>
-          (supabase.from("customer_payments") as any)
-            .select("*, customers:customer_id(name)", { count: "exact" })
-            .order("payment_number", { ascending: false }),
-        { batchSize: 500, maxRows: 50000 },
-      ),
-    ]);
-    setCustomers(custRes.data || []);
-    const rawPayments = (payments || []).map((p: any) => ({
-      ...p,
-      customer_name: p.customers?.name,
-    }));
-
-    // Identify refund payments (linked to sales returns)
-    const postedIds = rawPayments.filter((p: any) => p.status === "posted").map((p: any) => p.id);
-    let refundIds = new Set<string>();
-    if (postedIds.length > 0) {
-      const { data: returnAllocs } = await supabase
-        .from("sales_return_payment_allocations")
-        .select("payment_id")
-        .in("payment_id", postedIds);
-      refundIds = new Set((returnAllocs || []).map((a: any) => a.payment_id));
-    }
-    setPayments(rawPayments.map((p: any) => ({ ...p, isRefund: refundIds.has(p.id) })));
+    const { entities, vouchers } = await fetchPaymentVoucherData("customer");
+    setCustomers(entities as Customer[]);
+    setPayments(vouchers.map((p) => ({ ...(p as any), customer_name: p.entity_name })) as Payment[]);
     setLoading(false);
   }
 
-  const filtered = useMemo(() => {
-    return payments.filter((p) => {
-      if (methodFilter !== "all" && p.payment_method !== methodFilter) return false;
-      if (statusFilter !== "all" && p.status !== statusFilter) return false;
-      if (dateFrom && p.payment_date < dateFrom) return false;
-      if (dateTo && p.payment_date > dateTo) return false;
-      return true;
-    });
-  }, [payments, methodFilter, statusFilter, dateFrom, dateTo]);
+  const filtered = useMemo(
+    () => filterPaymentVouchers(payments, { methodFilter, statusFilter, dateFrom, dateTo }),
+    [payments, methodFilter, statusFilter, dateFrom, dateTo],
+  );
 
-  const hasFilters = methodFilter !== "all" || statusFilter !== "all" || dateFrom || dateTo;
+  const hasFilters = hasPaymentVoucherFilters({ methodFilter, statusFilter, dateFrom, dateTo });
   const clearFilters = () => {
     setMethodFilter("all");
     setStatusFilter("all");
@@ -163,229 +142,21 @@ export default function CustomerPayments() {
     setDialogOpen(true);
   }
 
-  // Save as DRAFT (no journal entry, no balance update)
-  async function handleSaveDraft() {
-    if (saving) return;
-    const errors: Record<string, string> = {};
-    if (!customerId) errors.customer = "يرجى اختيار العميل";
-    if (amount <= 0) errors.amount = "يرجى إدخال المبلغ";
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-    setSaving(true);
-    try {
-      const data = {
-        customer_id: customerId,
-        payment_date: paymentDate,
-        amount,
-        payment_method: paymentMethod,
-        reference: reference.trim() || null,
-        notes: notes.trim() || null,
-        status: "draft",
-      };
-      if (editTarget) {
-        await (supabase.from("customer_payments" as any) as any).update(data).eq("id", editTarget.id);
-        notify.success("تم التحديث", "تم تحديث المسودة بنجاح");
-      } else {
-        await (supabase.from("customer_payments" as any) as any).insert(data);
-        notify.success("تم الحفظ", "تم حفظ الدفعة كمسودة");
-      }
-      setDialogOpen(false);
-      resetForm();
-      fetchAll();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    }
-    setSaving(false);
-  }
-
-  // Save and POST directly
-  async function handleSubmitPosted() {
-    if (saving) return;
+  /** Validates the form and returns true when it is ready to be submitted. */
+  function validateForm() {
     const errors: Record<string, string> = {};
     if (!customerId) errors.customer = "يرجى اختيار العميل";
     if (amount <= 0) errors.amount = "يرجى إدخال مبلغ صحيح";
     setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-    setSaving(true);
-    try {
-      if (editTarget && editingPosted) {
-        // Atomic overwrite of posted payment via RPC — preserves posted_number and journal entry number
-        const { data, error } = await (supabase as any).rpc("edit_customer_payment", {
-          p_payment_id: editTarget.id,
-          p_customer_id: customerId,
-          p_payment_date: paymentDate,
-          p_amount: amount,
-          p_payment_method: paymentMethod,
-          p_reference: reference.trim() || null,
-          p_notes: notes.trim() || null,
-        });
-        if (error) throw error;
-        const oldCustomerId = (data as any)?.old_customer_id || editTarget.customer_id;
-        await recalculateEntityBalance("customer", oldCustomerId);
-        if (customerId !== oldCustomerId) {
-          await recalculateEntityBalance("customer", customerId);
-        }
-        notify.success("تم التحديث", "تم تعديل السند بنفس رقم السند ورقم القيد");
-      } else if (editTarget) {
-        await (supabase.from("customer_payments" as any) as any)
-          .update({
-            customer_id: customerId,
-            payment_date: paymentDate,
-            amount,
-            payment_method: paymentMethod,
-            reference: reference.trim() || null,
-            notes: notes.trim() || null,
-          })
-          .eq("id", editTarget.id);
-        await postPaymentLogic(
-          customerId,
-          paymentDate,
-          amount,
-          paymentMethod,
-          reference.trim() || null,
-          notes.trim() || null,
-          editTarget.id,
-        );
-        notify.success("تم التسجيل", "تم تسجيل السداد بنجاح");
-      } else {
-        await postPaymentLogic(
-          customerId,
-          paymentDate,
-          amount,
-          paymentMethod,
-          reference.trim() || null,
-          notes.trim() || null,
-        );
-        notify.success("تم التسجيل", "تم تسجيل السداد بنجاح");
-      }
-      setDialogOpen(false);
-      resetForm();
-      fetchAll();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    }
-    setSaving(false);
+    return Object.keys(errors).length === 0;
   }
 
-  // Core post logic - creates journal entry + updates balance
-  // When `reusePostedNum` is provided, no new posted_number is generated (used for editing posted payments).
-  async function postPaymentLogic(
-    custId: string,
-    date: string,
-    amt: number,
-    method: string,
-    ref: string | null,
-    note: string | null,
-    existingPaymentId?: string,
-    reusePostedNum?: number | null,
-    reuseJournalPostedNum?: number | null,
-  ) {
-    if (settings?.locked_until_date && date <= settings.locked_until_date) {
-      throw new Error(`لا يمكن تسجيل دفعة بتاريخ ${date} — الفترة مقفلة حتى ${settings.locked_until_date}`);
-    }
-    const accountCode = method === "cash" ? ACCOUNT_CODES.CASH : ACCOUNT_CODES.BANK;
-    const { data: accounts } = await supabase
-      .from("accounts")
-      .select("id, code")
-      .in("code", [ACCOUNT_CODES.CUSTOMERS, accountCode]);
-    const customersAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.CUSTOMERS);
-    const cashBankAcc = accounts?.find((a) => a.code === accountCode);
-    if (!customersAcc || !cashBankAcc) throw new Error("تأكد من وجود حسابات العملاء والصندوق/البنك");
-
-    const paymentPostedNum = reusePostedNum ? reusePostedNum : await getNextPostedNumber("customer_payments");
-    const payPrefix = settings?.customer_payment_prefix || "CPY-";
-    const displayPayNum = `${payPrefix}${String(paymentPostedNum).padStart(4, "0")}`;
-    const customerName = customers.find((c) => c.id === custId)?.name || "";
-    const desc = `سند قبض رقم ${displayPayNum} - تحصيل من عميل ${customerName}`;
-
-    const jePostedNum = reuseJournalPostedNum ? reuseJournalPostedNum : await getNextPostedNumber("journal_entries");
-    const { data: je, error: jeError } = await supabase
-      .from("journal_entries")
-      .insert({
-        description: desc,
-        entry_date: date,
-        total_debit: amt,
-        total_credit: amt,
-        status: "posted",
-        posted_number: jePostedNum,
-      } as any)
-      .select("id")
-      .single();
-    if (jeError) throw jeError;
-
-    await supabase.from("journal_entry_lines").insert([
-      {
-        journal_entry_id: je.id,
-        account_id: cashBankAcc.id,
-        debit: amt,
-        credit: 0,
-        description: desc,
-      },
-      {
-        journal_entry_id: je.id,
-        account_id: customersAcc.id,
-        debit: 0,
-        credit: amt,
-        description: desc,
-      },
-    ] as any);
-
-    if (existingPaymentId) {
-      await (supabase.from("customer_payments" as any) as any)
-        .update({
-          status: "posted",
-          journal_entry_id: je.id,
-          posted_number: paymentPostedNum,
-        })
-        .eq("id", existingPaymentId);
-    } else {
-      await (supabase.from("customer_payments" as any) as any).insert({
-        customer_id: custId,
-        payment_date: date,
-        amount: amt,
-        payment_method: method,
-        reference: ref,
-        notes: note,
-        journal_entry_id: je.id,
-        status: "posted",
-        posted_number: paymentPostedNum,
-      });
-    }
-
-    await recalculateEntityBalance("customer", custId);
-  }
-
-  // Post a draft payment
-  async function handlePostDraft() {
-    if (!postTarget || saving) return;
+  /** Runs a voucher mutation with unified saving state + error reporting. */
+  async function runVoucherAction(action: () => Promise<void>) {
+    if (saving) return;
     setSaving(true);
     try {
-      await postPaymentLogic(
-        postTarget.customer_id,
-        postTarget.payment_date,
-        postTarget.amount,
-        postTarget.payment_method,
-        postTarget.reference,
-        postTarget.notes,
-        postTarget.id,
-      );
-      notify.success("تم الترحيل", `تم ترحيل الدفعة #${postTarget.payment_number}`);
-      setPostTarget(null);
-      fetchAll();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    }
-    setSaving(false);
-  }
-
-  // Delete a draft payment
-  async function handleDelete() {
-    if (!deleteTarget || saving) return;
-    setSaving(true);
-    try {
-      await (supabase.from("customer_payments" as any) as any).delete().eq("id", deleteTarget.id);
-      notify.success("تم الحذف", `تم حذف الدفعة #${deleteTarget.payment_number}`);
-      setDeleteTarget(null);
+      await action();
       fetchAll();
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -394,74 +165,148 @@ export default function CustomerPayments() {
     }
   }
 
-  // Cancel a posted payment (reverse journal + restore balance)
-  async function handleCancel() {
-    if (!cancelTarget || saving) return;
-    setSaving(true);
-    try {
-      // 1. Get all invoice allocations for this payment
-      const { data: allocations } = await (supabase.from("customer_payment_allocations" as any) as any)
-        .select("id, invoice_id, allocated_amount")
-        .eq("payment_id", cancelTarget.id);
-
-      // 2. Delete invoice allocations
-      if (allocations && allocations.length > 0) {
-        await (supabase.from("customer_payment_allocations" as any) as any).delete().eq("payment_id", cancelTarget.id);
-      }
-
-      // 3. Delete return payment allocations (refund linkages)
-      await (supabase.from("sales_return_payment_allocations" as any) as any)
-        .delete()
-        .eq("payment_id", cancelTarget.id);
-
-      // 4. Reverse journal entry status to cancelled
-      if (cancelTarget.journal_entry_id) {
-        const { error: jeError } = await (supabase.from("journal_entries") as any)
-          .update({ status: "cancelled" })
-          .eq("id", cancelTarget.journal_entry_id);
-        if (jeError) throw new Error("فشل في تحديث حالة القيد المحاسبي: " + jeError.message);
-      }
-
-      // 5. CRITICAL: Update payment status to cancelled BEFORE recalculating
-      // (recalculateEntityBalance only counts 'posted' payments)
-      await (supabase.from("customer_payments" as any) as any)
-        .update({ status: "cancelled" })
-        .eq("id", cancelTarget.id);
-
-      // 6. Recalculate affected invoices' paid_amount
-      if (allocations && allocations.length > 0) {
-        const affectedInvoiceIds = (allocations || [])
-          .map((a: any) => String(a.invoice_id))
-          .filter((v: string, i: number, arr: string[]) => arr.indexOf(v) === i);
-        for (const invoiceId of affectedInvoiceIds) {
-          await recalculateInvoicePaidAmount("sales", invoiceId);
-        }
-      }
-
-      // 7. Recalculate customer balance now that status is cancelled
-      await recalculateEntityBalance("customer", cancelTarget.customer_id);
-
-      notify.success("تم الإلغاء", `تم إلغاء الدفعة #${cancelTarget.payment_number} وعكس القيد المحاسبي وفك جميع التخصيصات`);
-      setCancelTarget(null);
-      fetchAll();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    }
-    setSaving(false);
+  // Save as DRAFT (no journal entry, no balance update)
+  async function handleSaveDraft() {
+    if (!validateForm()) return;
+    await runVoucherAction(async () => {
+      await savePaymentVoucherDraft({
+        kind: "customer",
+        id: editTarget?.id,
+        entityId: customerId,
+        date: paymentDate,
+        amount,
+        method: paymentMethod,
+        reference: reference.trim() || null,
+        notes: notes.trim() || null,
+      });
+      notify.success(editTarget ? "تم التحديث" : "تم الحفظ", editTarget ? "تم تحديث المسودة بنجاح" : "تم حفظ الدفعة كمسودة");
+      setDialogOpen(false);
+      resetForm();
+    });
   }
 
-  // Convert a posted payment back to draft so the user can edit it,
-  // while preserving the original posted_number and journal posted_number.
+  // Save and POST directly
+  async function handleSubmitPosted() {
+    if (!validateForm()) return;
+    await runVoucherAction(async () => {
+      if (editTarget && editingPosted) {
+        await updatePostedPaymentVoucher({
+          kind: "customer",
+          id: editTarget.id,
+          entityId: customerId,
+          previousEntityId: editTarget.customer_id,
+          date: paymentDate,
+          amount,
+          method: paymentMethod,
+          reference: reference.trim() || null,
+          notes: notes.trim() || null,
+        });
+        notify.success("تم التحديث", "تم تعديل السند بنفس رقم السند ورقم القيد");
+      } else {
+        if (editTarget) {
+          // Draft edit → persist changes then post the same row
+          await savePaymentVoucherDraft({
+            kind: "customer",
+            id: editTarget.id,
+            entityId: customerId,
+            date: paymentDate,
+            amount,
+            method: paymentMethod,
+            reference: reference.trim() || null,
+            notes: notes.trim() || null,
+          });
+        }
+        await postVoucher({
+          entityId: customerId,
+          date: paymentDate,
+          amount,
+          method: paymentMethod,
+          reference: reference.trim() || null,
+          notes: notes.trim() || null,
+          existingPaymentId: editTarget?.id,
+        });
+        notify.success("تم التسجيل", "تم تسجيل السداد بنجاح");
+      }
+      setDialogOpen(false);
+      resetForm();
+    });
+  }
+
+  /** Thin wrapper injecting settings + resolved customer name into the shared post flow. */
+  async function postVoucher(args: {
+    entityId: string;
+    date: string;
+    amount: number;
+    method: string;
+    reference: string | null;
+    notes: string | null;
+    existingPaymentId?: string;
+  }) {
+    await postPaymentVoucher({
+      kind: "customer",
+      ...args,
+      entityName: customers.find((c) => c.id === args.entityId)?.name || "",
+      prefix: settings?.customer_payment_prefix,
+      lockedUntilDate: settings?.locked_until_date,
+    });
+  }
+
+  // Post a draft payment
+  async function handlePostDraft() {
+    if (!postTarget) return;
+    const target = postTarget;
+    await runVoucherAction(async () => {
+      await postVoucher({
+        entityId: target.customer_id,
+        date: target.payment_date,
+        amount: target.amount,
+        method: target.payment_method,
+        reference: target.reference,
+        notes: target.notes,
+        existingPaymentId: target.id,
+      });
+      notify.success("تم الترحيل", `تم ترحيل الدفعة #${target.payment_number}`);
+      setPostTarget(null);
+    });
+  }
+
+  // Delete a draft payment
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    await runVoucherAction(async () => {
+      await deletePaymentVoucher("customer", target.id);
+      notify.success("تم الحذف", `تم حذف الدفعة #${target.payment_number}`);
+      setDeleteTarget(null);
+    });
+  }
+
+  // Cancel a posted payment (reverse journal + restore balance)
+  async function handleCancel() {
+    if (!cancelTarget) return;
+    const target = cancelTarget;
+    await runVoucherAction(async () => {
+      await cancelPaymentVoucher("customer", {
+        id: target.id,
+        journal_entry_id: target.journal_entry_id,
+        entityId: target.customer_id,
+      });
+      notify.success(
+        "تم الإلغاء",
+        `تم إلغاء الدفعة #${target.payment_number} وعكس القيد المحاسبي وفك جميع التخصيصات`,
+      );
+      setCancelTarget(null);
+    });
+  }
+
+  // Convert a posted payment back to an editable form while preserving
+  // the original posted_number and journal posted_number (handled by the RPC).
   function handleConfirmEditPosted() {
     if (!editPostedTarget) return;
     const target = editPostedTarget;
-    if (settings?.locked_until_date && target.payment_date <= settings.locked_until_date) {
-      notify.error("غير مسموح", `لا يمكن تعديل سند بتاريخ ${target.payment_date} — الفترة مقفلة حتى ${settings.locked_until_date}`);
-      setEditPostedTarget(null);
-      return;
-    }
-    if (target.isRefund) {
-      notify.error("غير مسموح", "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.");
+    const blockReason = getPostedVoucherEditBlockReason(target, settings?.locked_until_date);
+    if (blockReason) {
+      notify.error("غير مسموح", blockReason);
       setEditPostedTarget(null);
       return;
     }
