@@ -721,6 +721,45 @@ function buildColWidths(headers: string[]): string[] {
   });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Product name cells: "[PRD-377] الاسم - الماركة - الموديل"
+// Mixing a Latin code inside an RTL sentence breaks the visual order in PDF,
+// so we render the code as its own LTR line above the Arabic name.
+// ─────────────────────────────────────────────────────────────────────────────
+const CODE_PREFIX_RE = /^\s*\[([^\]]+)\]\s*(.*)$/s;
+
+function renderNameCell(
+  key: string,
+  value: string,
+  style: Record<string, unknown>,
+): React.ReactNode {
+  const match = CODE_PREFIX_RE.exec(value);
+  if (!match) {
+    return React.createElement(Text, { key, style }, value);
+  }
+  const [, code, rest] = match;
+  const fontSize =
+    typeof style.fontSize === "number" ? (style.fontSize as number) : 8;
+  return React.createElement(
+    View,
+    { key, style },
+    React.createElement(
+      Text,
+      {
+        style: {
+          fontSize: Math.max(6, fontSize - 1),
+          color: C.ink5,
+          textAlign: "right" as const,
+          direction: "ltr" as const,
+        },
+      },
+      code,
+    ),
+    React.createElement(Text, { style: { textAlign: "right" as const } }, rest),
+  );
+}
+
+
 function DataTable({
   headers,
   rows,
@@ -766,14 +805,10 @@ function DataTable({
             String(cell),
           );
         if (colType === "wide")
-          return React.createElement(
-            Text,
-            {
-              key: `c-${ri}-${ci}`,
-              style: { ...tbl.cellName, width: colWidths[ci] },
-            },
-            String(cell),
-          );
+          return renderNameCell(`c-${ri}-${ci}`, String(cell), {
+            ...tbl.cellName,
+            width: colWidths[ci],
+          });
         return React.createElement(
           Text,
           {
@@ -1437,6 +1472,8 @@ function ReportDocument(
         }
         const finalStyle =
           numColor && !emphasis ? { ...baseStyle, color: numColor } : baseStyle;
+        if (colType === "wide" && !emphasis)
+          return renderNameCell(`c-${ri}-${ci}`, String(cell), finalStyle);
         return React.createElement(
           Text,
           { key: `c-${ri}-${ci}`, style: finalStyle },
@@ -2434,6 +2471,12 @@ function InvoiceDocument(
                 : isName
                   ? { ...s.tableCellName, width: colWidths[ci] }
                   : { ...s.tableCell, width: colWidths[ci] };
+              if (isName && !isLast)
+                return renderNameCell(
+                  `c-${ri}-${ci}`,
+                  String(cell),
+                  cellStyle,
+                );
               return React.createElement(
                 Text,
                 { key: `c-${ri}-${ci}`, style: cellStyle },
