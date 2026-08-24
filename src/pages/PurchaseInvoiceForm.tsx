@@ -148,19 +148,7 @@ export default function PurchaseInvoiceForm() {
           .select("*, products:product_id(name, code, model_number, product_brands(name))")
           .eq("invoice_id", id)
           .order("sort_order", { ascending: true });
-        setItems(
-          (itemsData || []).map((it: any) => ({
-            id: it.id,
-            product_id: it.product_id || "",
-            product_name: it.products
-              ? formatProductDisplay(it.products.name, it.products.product_brands?.name, it.products.model_number, it.products.code)
-              : it.description || "",
-            quantity: it.quantity,
-            unit_price: it.unit_price,
-            discount: it.discount,
-            total: it.total,
-          })),
-        );
+        setItems(mapLoadedLineItems<InvoiceItem>(itemsData));
       }
       setLoading(false);
     } else {
