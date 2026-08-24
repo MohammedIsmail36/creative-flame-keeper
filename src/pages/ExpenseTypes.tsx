@@ -354,20 +354,16 @@ export default function ExpenseTypes() {
       </Dialog>
 
       {/* Delete Alert */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>حذف نوع المصروف</AlertDialogTitle>
-            <AlertDialogDescription>هل أنت متأكد من حذف "{deleteTarget?.name}"؟</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter dir="ltr" className="">
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-              حذف
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title="حذف نوع المصروف"
+        description={`هل أنت متأكد من حذف "${deleteTarget?.name ?? ""}"؟`}
+        confirmText="حذف"
+        destructive
+        onConfirm={handleDelete}
+      />
+
     </div>
   );
 }
