@@ -1,3 +1,4 @@
+import { notify } from "@/lib/notify";
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -21,7 +22,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-import { notify } from "@/lib/notify";
   Upload,
   FileSpreadsheet,
   Check,

@@ -1,3 +1,4 @@
+import { notify } from "@/lib/notify";
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getNextPostedNumber } from "@/lib/posted-number-utils";
@@ -49,7 +50,6 @@ import {
 } from "@/lib/entity-balance";
 import { Progress } from "@/components/ui/progress";
 import {
-import { notify } from "@/lib/notify";
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,

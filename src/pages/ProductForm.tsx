@@ -1,3 +1,4 @@
+import { notify } from "@/lib/notify";
 import React, { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,7 +33,6 @@ import {
 } from "@/lib/code-generation";
 import { useSettings } from "@/contexts/SettingsContext";
 import {
-import { notify } from "@/lib/notify";
   Save,
   Plus,
   ImagePlus,

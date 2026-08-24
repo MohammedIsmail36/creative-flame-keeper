@@ -1,3 +1,4 @@
+import { notify } from "@/lib/notify";
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import {
@@ -63,7 +64,6 @@ import {
   PRODUCT_SELECT_FIELDS,
 } from "@/lib/product-utils";
 import {
-import { notify } from "@/lib/notify";
   ACCOUNT_CODES,
   INVOICE_STATUS_LABELS,
   INVOICE_STATUS_COLORS,

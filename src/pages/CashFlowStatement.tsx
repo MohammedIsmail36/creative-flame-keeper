@@ -1,3 +1,4 @@
+import { notify } from "@/lib/notify";
 import React, { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { format } from "date-fns";
@@ -23,7 +24,6 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-import { notify } from "@/lib/notify";
   Table,
   TableBody,
   TableCell,

@@ -1,3 +1,4 @@
+import { notify } from "@/lib/notify";
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { recalculateInvoicePaidAmount } from "@/lib/entity-balance";
@@ -14,7 +15,6 @@ import {
   ChevronUp,
 } from "lucide-react";
 import {
-import { notify } from "@/lib/notify";
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
