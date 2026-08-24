@@ -17,6 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { Send, Loader2, CheckCircle2 } from "lucide-react";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
+import { notify } from "@/lib/notify";
 
 export interface TelegramPublicProduct {
   id: string;
@@ -115,11 +116,7 @@ export function TelegramPublishButton({ product, imagesCount, variant = "icon" }
 
   const openDialog = async () => {
     if (!configured) {
-      toast({
-        title: "إعدادات تيليجرام غير مكتملة",
-        description: "أضف توكن البوت ومعرّف القناة وفعّل النشر من صفحة الإعدادات › تيليجرام.",
-        variant: "destructive",
-      });
+      notify.error("إعدادات تيليجرام غير مكتملة", "أضف توكن البوت ومعرّف القناة وفعّل النشر من صفحة الإعدادات › تيليجرام.");
       navigate("/settings");
       return;
     }
@@ -132,11 +129,7 @@ export function TelegramPublishButton({ product, imagesCount, variant = "icon" }
     }
     setCount(imgs);
     if ((imgs || 0) === 0) {
-      toast({
-        title: "لا يمكن النشر",
-        description: "المنتج بدون صورة. أضف صورة رئيسية أو صور معرض أولاً.",
-        variant: "destructive",
-      });
+      notify.error("لا يمكن النشر", "المنتج بدون صورة. أضف صورة رئيسية أو صور معرض أولاً.");
       return;
     }
     setOpen(true);
@@ -146,20 +139,12 @@ export function TelegramPublishButton({ product, imagesCount, variant = "icon" }
     setSending(true);
     try {
       const res = await invokePublish({ action: "publish", product_id: product.id });
-      toast({
-        title: published ? "تم إعادة النشر" : "تم النشر على تيليجرام",
-        description:
-          `تم إرسال ${res?.images_count ?? 0} صورة إلى ${settings?.channel_id}` +
-          (res?.skipped_images ? ` (تم تجاهل ${res.skipped_images} صورة لتجاوز حد 10 صور)` : ""),
-      });
+      notify.success(published ? "تم إعادة النشر" : "تم النشر على تيليجرام", `تم إرسال ${res?.images_count ?? 0} صورة إلى ${settings?.channel_id}` +
+          (res?.skipped_images ? ` (تم تجاهل ${res.skipped_images} صورة لتجاوز حد 10 صور)` : ""));
       queryClient.invalidateQueries({ queryKey: ["telegram-post-status"] });
       setOpen(false);
     } catch (e) {
-      toast({
-        title: "فشل النشر على تيليجرام",
-        description: e instanceof Error ? e.message : "خطأ غير معروف",
-        variant: "destructive",
-      });
+      notify.error("فشل النشر على تيليجرام", e instanceof Error ? e.message : "خطأ غير معروف");
     } finally {
       setSending(false);
     }

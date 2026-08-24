@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { Upload, Download, FileSpreadsheet, Loader2, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { readExcelFile, exportToExcel } from "@/lib/excel-export";
+import { notify } from "@/lib/notify";
 
 type LookupType = "categories" | "brands" | "units";
 
@@ -92,7 +93,7 @@ export function LookupImportDialog({ open, onOpenChange, type, onImportComplete 
     try {
       const { rows } = await readExcelFile(file);
       if (rows.length < 2) {
-        toast({ title: "خطأ", description: "الملف فارغ أو لا يحتوي على بيانات", variant: "destructive" });
+        notify.error("خطأ", "الملف فارغ أو لا يحتوي على بيانات");
         setImporting(false);
         return;
       }
@@ -184,11 +185,11 @@ export function LookupImportDialog({ open, onOpenChange, type, onImportComplete 
         const parts: string[] = [];
         if (added > 0) parts.push(`أُضيف ${added}`);
         if (updated > 0) parts.push(`تم تحديث ${updated}`);
-        toast({ title: "تم الاستيراد", description: parts.join(" • ") });
+        notify.success("تم الاستيراد", parts.join(" • "));
         onImportComplete();
       }
     } catch (err: any) {
-      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+      notify.error("خطأ", err.message);
     } finally {
       setImporting(false);
       if (fileRef.current) fileRef.current.value = "";

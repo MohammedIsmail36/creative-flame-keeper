@@ -33,6 +33,7 @@ import {
 } from "@/lib/code-generation";
 import { useSettings } from "@/contexts/SettingsContext";
 import {
+import { notify } from "@/lib/notify";
   Save,
   Plus,
   ImagePlus,
@@ -145,11 +146,7 @@ export default function ProductForm() {
       .eq("id", id!)
       .single();
     if (error || !data) {
-      toast({
-        title: "خطأ",
-        description: "لم يتم العثور على المنتج",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "لم يتم العثور على المنتج");
       goBackToList();
       return;
     }
@@ -192,11 +189,7 @@ export default function ProductForm() {
       .from("product-images")
       .upload(filePath, file);
     if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل رفع الصورة",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل رفع الصورة");
       return null;
     }
     const { data } = supabase.storage
@@ -258,11 +251,7 @@ export default function ProductForm() {
 
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast({
-        title: "تنبيه",
-        description: Object.values(errors)[0],
-        variant: "destructive",
-      });
+      notify.error("تنبيه", Object.values(errors)[0]);
       return;
     }
     setSaving(true);
@@ -416,10 +405,7 @@ export default function ProductForm() {
       }
 
 
-      toast({
-        title: isEdit ? "تم التحديث" : "تمت الإضافة",
-        description: isEdit ? "تم تعديل المنتج بنجاح" : "تم إضافة المنتج بنجاح",
-      });
+      notify.success(isEdit ? "تم التحديث" : "تمت الإضافة", isEdit ? "تم تعديل المنتج بنجاح" : "تم إضافة المنتج بنجاح");
       setIsDirty(false); navGuard.allowNext();
       queryClient.invalidateQueries({ queryKey: ["products-list"] });
       queryClient.invalidateQueries({ queryKey: ["products-summary"] });
@@ -434,7 +420,7 @@ export default function ProductForm() {
           ? "الباركود موجود مسبقاً"
           : "كود المنتج موجود مسبقاً";
       }
-      toast({ title: "خطأ", description: msg, variant: "destructive" });
+      notify.error("خطأ", msg);
     } finally {
       setSaving(false);
     }
@@ -451,13 +437,9 @@ export default function ProductForm() {
       .select("id, name")
       .single();
     if (error) {
-      toast({
-        title: "خطأ",
-        description: error.message.includes("duplicate")
+      notify.error("خطأ", error.message.includes("duplicate")
           ? "الاسم موجود مسبقاً"
-          : error.message,
-        variant: "destructive",
-      });
+          : error.message);
       return;
     }
     const item = data as LookupItem;
@@ -481,13 +463,9 @@ export default function ProductForm() {
       .select("id, name, parent_id")
       .single();
     if (error) {
-      toast({
-        title: "خطأ",
-        description: error.message.includes("duplicate")
+      notify.error("خطأ", error.message.includes("duplicate")
           ? "الاسم موجود مسبقاً"
-          : error.message,
-        variant: "destructive",
-      });
+          : error.message);
       return;
     }
     const item = data as CategoryItem;

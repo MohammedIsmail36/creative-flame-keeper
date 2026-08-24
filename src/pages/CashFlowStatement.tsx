@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+import { notify } from "@/lib/notify";
   Table,
   TableBody,
   TableCell,
@@ -94,11 +95,7 @@ export default function CashFlowStatement() {
     ]);
 
     if (cpRes.error || spRes.error || expRes.error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في تحميل بيانات التدفقات النقدية",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في تحميل بيانات التدفقات النقدية");
     }
 
     const cpData = cpRes.data || [];

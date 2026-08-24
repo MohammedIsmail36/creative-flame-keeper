@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { generateEntityCode } from "@/lib/code-generation";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, User } from "lucide-react";
+import { notify } from "@/lib/notify";
 
 export interface QuickAddedCustomer {
   id: string;
@@ -50,11 +51,7 @@ export function QuickAddCustomerDialog({
   async function handleSave() {
     const trimmed = name.trim();
     if (!trimmed) {
-      toast({
-        title: "تنبيه",
-        description: "يرجى إدخال اسم العميل",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "يرجى إدخال اسم العميل");
       return;
     }
     setSaving(true);
@@ -71,18 +68,11 @@ export function QuickAddCustomerDialog({
         .select("id, code, name, balance")
         .single();
       if (error) throw error;
-      toast({
-        title: "تمت الإضافة",
-        description: `تم إنشاء العميل ${data.name}`,
-      });
+      notify.success("تمت الإضافة", `تم إنشاء العميل ${data.name}`);
       onCreated(data as QuickAddedCustomer);
       onOpenChange(false);
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message || "تعذر إنشاء العميل",
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message || "تعذر إنشاء العميل");
     } finally {
       setSaving(false);
     }

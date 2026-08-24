@@ -33,6 +33,7 @@ import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 import { ACCOUNT_CODES, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
 import { recalculateEntityBalance, recalculateInvoicePaidAmount } from "@/lib/entity-balance";
+import { notify } from "@/lib/notify";
 
 interface Customer {
   id: string;
@@ -183,20 +184,16 @@ export default function CustomerPayments() {
       };
       if (editTarget) {
         await (supabase.from("customer_payments" as any) as any).update(data).eq("id", editTarget.id);
-        toast({ title: "تم التحديث", description: "تم تحديث المسودة بنجاح" });
+        notify.success("تم التحديث", "تم تحديث المسودة بنجاح");
       } else {
         await (supabase.from("customer_payments" as any) as any).insert(data);
-        toast({ title: "تم الحفظ", description: "تم حفظ الدفعة كمسودة" });
+        notify.success("تم الحفظ", "تم حفظ الدفعة كمسودة");
       }
       setDialogOpen(false);
       resetForm();
       fetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
     setSaving(false);
   }
@@ -228,7 +225,7 @@ export default function CustomerPayments() {
         if (customerId !== oldCustomerId) {
           await recalculateEntityBalance("customer", customerId);
         }
-        toast({ title: "تم التحديث", description: "تم تعديل السند بنفس رقم السند ورقم القيد" });
+        notify.success("تم التحديث", "تم تعديل السند بنفس رقم السند ورقم القيد");
       } else if (editTarget) {
         await (supabase.from("customer_payments" as any) as any)
           .update({
@@ -249,7 +246,7 @@ export default function CustomerPayments() {
           notes.trim() || null,
           editTarget.id,
         );
-        toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
+        notify.success("تم التسجيل", "تم تسجيل السداد بنجاح");
       } else {
         await postPaymentLogic(
           customerId,
@@ -259,17 +256,13 @@ export default function CustomerPayments() {
           reference.trim() || null,
           notes.trim() || null,
         );
-        toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
+        notify.success("تم التسجيل", "تم تسجيل السداد بنجاح");
       }
       setDialogOpen(false);
       resetForm();
       fetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
     setSaving(false);
   }
@@ -376,18 +369,11 @@ export default function CustomerPayments() {
         postTarget.notes,
         postTarget.id,
       );
-      toast({
-        title: "تم الترحيل",
-        description: `تم ترحيل الدفعة #${postTarget.payment_number}`,
-      });
+      notify.success("تم الترحيل", `تم ترحيل الدفعة #${postTarget.payment_number}`);
       setPostTarget(null);
       fetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
     setSaving(false);
   }
@@ -398,18 +384,11 @@ export default function CustomerPayments() {
     setSaving(true);
     try {
       await (supabase.from("customer_payments" as any) as any).delete().eq("id", deleteTarget.id);
-      toast({
-        title: "تم الحذف",
-        description: `تم حذف الدفعة #${deleteTarget.payment_number}`,
-      });
+      notify.success("تم الحذف", `تم حذف الدفعة #${deleteTarget.payment_number}`);
       setDeleteTarget(null);
       fetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }
@@ -462,18 +441,11 @@ export default function CustomerPayments() {
       // 7. Recalculate customer balance now that status is cancelled
       await recalculateEntityBalance("customer", cancelTarget.customer_id);
 
-      toast({
-        title: "تم الإلغاء",
-        description: `تم إلغاء الدفعة #${cancelTarget.payment_number} وعكس القيد المحاسبي وفك جميع التخصيصات`,
-      });
+      notify.success("تم الإلغاء", `تم إلغاء الدفعة #${cancelTarget.payment_number} وعكس القيد المحاسبي وفك جميع التخصيصات`);
       setCancelTarget(null);
       fetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
     setSaving(false);
   }
@@ -484,20 +456,12 @@ export default function CustomerPayments() {
     if (!editPostedTarget) return;
     const target = editPostedTarget;
     if (settings?.locked_until_date && target.payment_date <= settings.locked_until_date) {
-      toast({
-        title: "غير مسموح",
-        description: `لا يمكن تعديل سند بتاريخ ${target.payment_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
+      notify.error("غير مسموح", `لا يمكن تعديل سند بتاريخ ${target.payment_date} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       setEditPostedTarget(null);
       return;
     }
     if (target.isRefund) {
-      toast({
-        title: "غير مسموح",
-        description: "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.",
-        variant: "destructive",
-      });
+      notify.error("غير مسموح", "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.");
       setEditPostedTarget(null);
       return;
     }

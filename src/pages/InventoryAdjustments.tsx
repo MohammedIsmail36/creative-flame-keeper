@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ExportMenu } from "@/components/ExportMenu";
 import { toast } from "@/hooks/use-toast";
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { notify } from "@/lib/notify";
 
 interface AdjustmentRow {
   id: string;
@@ -55,11 +56,7 @@ export default function InventoryAdjustments() {
 
   useEffect(() => {
     if (isError) {
-      toast({
-        title: "خطأ",
-        description: "فشل في جلب بيانات التسويات",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في جلب بيانات التسويات");
     }
   }, [isError]);
 
@@ -80,9 +77,9 @@ export default function InventoryAdjustments() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory-adjustments"] });
-      toast({ title: "تم حذف التسوية بنجاح" });
+      notify.success("تم حذف التسوية بنجاح");
     },
-    onError: () => toast({ title: "خطأ في الحذف", variant: "destructive" }),
+    onError: () => notify.error("خطأ في الحذف"),
   });
 
   const approvedCount = adjustments.filter(

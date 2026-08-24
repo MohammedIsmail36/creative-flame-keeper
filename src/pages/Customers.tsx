@@ -38,6 +38,7 @@ import { round2 } from "@/lib/utils";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatSupabaseError } from "@/lib/format-error";
+import { notify } from "@/lib/notify";
 
 interface Customer {
   id: string;
@@ -230,11 +231,7 @@ export default function Customers() {
 
   async function handleSave() {
     if (!form.code.trim() || !form.name.trim()) {
-      toast({
-        title: "تنبيه",
-        description: "يرجى إدخال الكود والاسم",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "يرجى إدخال الكود والاسم");
       return;
     }
     setSaving(true);
@@ -256,7 +253,7 @@ export default function Customers() {
           .update(payload)
           .eq("id", editItem.id);
         if (error) throw error;
-        toast({ title: "تم التحديث", description: "تم تعديل بيانات العميل" });
+        notify.success("تم التحديث", "تم تعديل بيانات العميل");
       } else {
         const insertPayload = { ...payload, opening_balance: openingBalance };
         const { data: newCustomer, error } = await (
@@ -273,16 +270,12 @@ export default function Customers() {
             openingBalance,
           );
         }
-        toast({ title: "تمت الإضافة", description: "تم إضافة العميل بنجاح" });
+        notify.success("تمت الإضافة", "تم إضافة العميل بنجاح");
       }
       setDialogOpen(false);
       refetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: formatSupabaseError(error),
-        variant: "destructive",
-      });
+      notify.error("خطأ", formatSupabaseError(error));
     }
     setSaving(false);
   }
@@ -293,11 +286,7 @@ export default function Customers() {
       .select("id", { count: "exact", head: true })
       .eq("customer_id", deleteTarget.id);
     if (count && count > 0) {
-      toast({
-        title: "لا يمكن الحذف",
-        description: `العميل مرتبط بـ ${count} فاتورة بيع`,
-        variant: "destructive",
-      });
+      notify.error("لا يمكن الحذف", `العميل مرتبط بـ ${count} فاتورة بيع`);
       setDeleteTarget(null);
       return;
     }
@@ -305,15 +294,11 @@ export default function Customers() {
       .delete()
       .eq("id", deleteTarget.id);
     if (error) {
-      toast({
-        title: "خطأ",
-        description: formatSupabaseError(error),
-        variant: "destructive",
-      });
+      notify.error("خطأ", formatSupabaseError(error));
       setDeleteTarget(null);
       return;
     }
-    toast({ title: "تم الحذف", description: "تم حذف العميل" });
+    notify.success("تم الحذف", "تم حذف العميل");
     setDeleteTarget(null);
     refetchAll();
   }

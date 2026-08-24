@@ -17,6 +17,7 @@ import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
 import { toast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
+import { notify } from "@/lib/notify";
 
 interface Return {
   id: string;
@@ -108,11 +109,7 @@ export default function PurchaseReturns() {
 
       const { data, error, count } = await q;
       if (error) {
-        toast({
-          title: "خطأ",
-          description: "فشل في تحميل مرتجعات المشتريات",
-          variant: "destructive",
-        });
+        notify.error("خطأ", "فشل في تحميل مرتجعات المشتريات");
         throw error;
       }
       return {

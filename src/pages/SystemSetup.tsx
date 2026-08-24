@@ -9,7 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   Settings2,
@@ -23,13 +22,13 @@ import {
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { notify } from "@/lib/notify";
 
 // ─── Edge function names ───
 const FN_SEED_SYSTEM = "seed-system";
 const FN_DATABASE_BACKUP = "database-backup";
 
 export default function SystemSetup() {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<string[]>([]);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
@@ -45,19 +44,12 @@ export default function SystemSetup() {
       if (error) throw error;
       setResults(data.results || []);
       setStatus("success");
-      toast({
-        title: "تمت التهيئة بنجاح",
-        description: "تم تطبيق الإعدادات الافتراضية للنظام",
-      });
+      notify.success("تمت التهيئة بنجاح", "تم تطبيق الإعدادات الافتراضية للنظام");
     } catch (error: any) {
       console.error("Seed system error:", error.message);
       setStatus("error");
       setResults(["خطأ: حدث خطأ أثناء تهيئة النظام. يرجى المحاولة مرة أخرى."]);
-      toast({
-        title: "خطأ في التهيئة",
-        description: "حدث خطأ أثناء تهيئة النظام. يرجى المحاولة مرة أخرى.",
-        variant: "destructive",
-      });
+      notify.error("خطأ في التهيئة", "حدث خطأ أثناء تهيئة النظام. يرجى المحاولة مرة أخرى.");
     } finally {
       setLoading(false);
     }
@@ -77,27 +69,16 @@ export default function SystemSetup() {
 
       const hasErrors = results.some((r) => r.includes("❌"));
       if (hasErrors) {
-        toast({
-          title: "اكتمل التصفير مع بعض الأخطاء",
-          description: "راجع التفاصيل أدناه",
-          variant: "destructive",
-        });
+        notify.error("اكتمل التصفير مع بعض الأخطاء", "راجع التفاصيل أدناه");
       } else {
-        toast({
-          title: "✅ تم التصفير بنجاح",
-          description: "تم إعادة بناء قاعدة البيانات من الصفر",
-        });
+        notify.success("✅ تم التصفير بنجاح", "تم إعادة بناء قاعدة البيانات من الصفر");
       }
     } catch (error: any) {
       console.error("Database reset error:", error.message);
       const errMsg =
         "حدث خطأ أثناء تصفير قاعدة البيانات. يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني.";
       setResetResults([`❌ ${errMsg}`]);
-      toast({
-        title: "خطأ في التصفير",
-        description: errMsg,
-        variant: "destructive",
-      });
+      notify.error("خطأ في التصفير", errMsg);
     } finally {
       setResetLoading(false);
     }

@@ -26,6 +26,7 @@ import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { useQuery } from "@tanstack/react-query";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { StatusChips } from "@/components/StatusChips";
+import { notify } from "@/lib/notify";
 
 interface JournalEntry {
   id: string;
@@ -116,11 +117,7 @@ export default function Journal() {
 
       const { data, error, count } = await q;
       if (error) {
-        toast({
-          title: "خطأ",
-          description: "فشل في جلب القيود",
-          variant: "destructive",
-        });
+        notify.error("خطأ", "فشل في جلب القيود");
         throw error;
       }
       return { rows: data || [], totalCount: count ?? 0 };

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+import { notify } from "@/lib/notify";
   BALANCE_TOLERANCE,
   FISCAL_CLOSING_DESCRIPTION_PREFIX,
 } from "@/lib/constants";
@@ -115,11 +116,7 @@ export default function TrialBalance() {
       }));
       setLines(synthetic);
       if (accountsRes.error || balRes.error) {
-        toast({
-          title: "خطأ",
-          description: "فشل في جلب البيانات",
-          variant: "destructive",
-        });
+        notify.error("خطأ", "فشل في جلب البيانات");
       }
       setLoading(false);
       return;
@@ -139,11 +136,7 @@ export default function TrialBalance() {
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
     if (linesRes.data) setLines(linesRes.data);
     if (accountsRes.error || linesRes.error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في جلب البيانات",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في جلب البيانات");
     }
     setLoading(false);
   };
@@ -295,7 +288,7 @@ export default function TrialBalance() {
       orientation: "landscape",
       filename: "Trial_Balance",
     });
-    toast({ title: "تم التصدير" });
+    notify.success("تم التصدير");
     setExportMenuOpen(false);
   };
 
@@ -320,7 +313,7 @@ export default function TrialBalance() {
       "Balance Credit": grandBalanceCredit,
     });
     await exportToExcel(data, "Trial Balance", "Trial_Balance.xlsx");
-    toast({ title: "تم التصدير" });
+    notify.success("تم التصدير");
     setExportMenuOpen(false);
   };
 

@@ -25,6 +25,7 @@ import { toast } from "@/hooks/use-toast";
 import { Save, CheckCircle, Loader2, Info } from "lucide-react";
 import { postExpense } from "@/lib/expense-posting";
 import { formatSupabaseError } from "@/lib/format-error";
+import { notify } from "@/lib/notify";
 
 interface ExpenseType {
   id: string;
@@ -169,11 +170,7 @@ export function ExpenseFormDialog({
     if (amount <= 0) errors.amount = "يرجى إدخال مبلغ صحيح";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast({
-        title: "تنبيه",
-        description: Object.values(errors)[0],
-        variant: "destructive",
-      });
+      notify.error("تنبيه", Object.values(errors)[0]);
       return false;
     }
     return true;
@@ -184,11 +181,7 @@ export function ExpenseFormDialog({
       settings?.locked_until_date &&
       expenseDate <= settings.locked_until_date
     ) {
-      toast({
-        title: "خطأ",
-        description: `لا يمكن تسجيل/تعديل مصروف بتاريخ ${expenseDate} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
+      notify.error("خطأ", `لا يمكن تسجيل/تعديل مصروف بتاريخ ${expenseDate} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       return false;
     }
     return true;
@@ -212,22 +205,18 @@ export function ExpenseFormDialog({
           .update(payload)
           .eq("id", expenseId);
         if (error) throw error;
-        toast({ title: "تم التحديث", description: "تم تحديث المسودة بنجاح" });
+        notify.success("تم التحديث", "تم تحديث المسودة بنجاح");
       } else {
         const { error } = await (supabase.from("expenses") as any).insert(
           payload,
         );
         if (error) throw error;
-        toast({ title: "تم الحفظ", description: "تم حفظ المصروف كمسودة" });
+        notify.success("تم الحفظ", "تم حفظ المصروف كمسودة");
       }
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: formatSupabaseError(error),
-        variant: "destructive",
-      });
+      notify.error("خطأ", formatSupabaseError(error));
     }
     setSaving(false);
   }
@@ -278,18 +267,11 @@ export function ExpenseFormDialog({
         oldJournalEntryId: reuseJe ? existingJeId : null,
       });
 
-      toast({
-        title: "تم الترحيل",
-        description: `تم تسجيل المصروف ${displayNumber} بنجاح`,
-      });
+      notify.success("تم الترحيل", `تم تسجيل المصروف ${displayNumber} بنجاح`);
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: formatSupabaseError(error),
-        variant: "destructive",
-      });
+      notify.error("خطأ", formatSupabaseError(error));
     }
     setSaving(false);
   }

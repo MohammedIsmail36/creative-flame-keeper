@@ -39,6 +39,7 @@ import {
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { ROLE_LABELS, ROLE_COLORS } from "@/lib/constants";
+import { notify } from "@/lib/notify";
 
 type AppRole = "admin" | "accountant" | "sales";
 
@@ -82,11 +83,7 @@ export default function UserManagement() {
       .select("user_id, role, created_at");
 
     if (rolesError) {
-      toast({
-        title: "خطأ",
-        description: "فشل في جلب بيانات المستخدمين",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في جلب بيانات المستخدمين");
       setLoading(false);
       return;
     }
@@ -134,11 +131,7 @@ export default function UserManagement() {
 
   const handleRoleChange = async (userId: string, newRole: AppRole) => {
     if (userId === user?.id) {
-      toast({
-        title: "تنبيه",
-        description: "لا يمكنك تغيير دورك بنفسك",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "لا يمكنك تغيير دورك بنفسك");
       return;
     }
     const { error } = await supabase
@@ -146,14 +139,10 @@ export default function UserManagement() {
       .update({ role: newRole })
       .eq("user_id", userId);
     if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في تحديث الدور",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في تحديث الدور");
       return;
     }
-    toast({ title: "تم التحديث", description: "تم تغيير دور المستخدم بنجاح" });
+    notify.success("تم التحديث", "تم تغيير دور المستخدم بنجاح");
     setUsers((prev) =>
       prev.map((u) => (u.user_id === userId ? { ...u, role: newRole } : u)),
     );
@@ -161,11 +150,7 @@ export default function UserManagement() {
 
   const handleDeleteUser = async (userId: string) => {
     if (userId === user?.id) {
-      toast({
-        title: "تنبيه",
-        description: "لا يمكنك حذف حسابك بنفسك",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "لا يمكنك حذف حسابك بنفسك");
       return;
     }
     const { error: roleError } = await supabase
@@ -173,11 +158,7 @@ export default function UserManagement() {
       .delete()
       .eq("user_id", userId);
     if (roleError) {
-      toast({
-        title: "خطأ",
-        description: "فشل في حذف دور المستخدم",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في حذف دور المستخدم");
       return;
     }
     const { error: profileError } = await supabase
@@ -186,13 +167,9 @@ export default function UserManagement() {
       .eq("id", userId);
     if (profileError) {
       console.error("Failed to delete profile:", profileError);
-      toast({
-        title: "تم حذف الدور",
-        description: "لكن فشل حذف الملف الشخصي",
-        variant: "destructive",
-      });
+      notify.error("تم حذف الدور", "لكن فشل حذف الملف الشخصي");
     } else {
-      toast({ title: "تم الحذف", description: "تم حذف المستخدم بنجاح" });
+      notify.success("تم الحذف", "تم حذف المستخدم بنجاح");
     }
     setUsers((prev) => prev.filter((u) => u.user_id !== userId));
   };
@@ -200,11 +177,7 @@ export default function UserManagement() {
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) {
-      toast({
-        title: "خطأ",
-        description: "كلمة المرور يجب أن تكون 6 أحرف على الأقل",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "كلمة المرور يجب أن تكون 6 أحرف على الأقل");
       return;
     }
     setAddLoading(true);
@@ -223,10 +196,7 @@ export default function UserManagement() {
       if (res.error)
         throw new Error(res.error.message || "فشل في إنشاء المستخدم");
       if (res.data?.error) throw new Error(res.data.error);
-      toast({
-        title: "تم إنشاء الحساب",
-        description: "تم إنشاء حساب المستخدم وتفعيله بنجاح.",
-      });
+      notify.success("تم إنشاء الحساب", "تم إنشاء حساب المستخدم وتفعيله بنجاح.");
       setAddDialogOpen(false);
       setNewEmail("");
       setNewPassword("");
@@ -234,11 +204,7 @@ export default function UserManagement() {
       setNewRole("sales");
       setTimeout(() => fetchUsers(), 1000);
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setAddLoading(false);
     }
@@ -252,16 +218,9 @@ export default function UserManagement() {
       .update({ full_name: editFullName.trim() })
       .eq("id", editUserId);
     if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في تحديث الاسم",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في تحديث الاسم");
     } else {
-      toast({
-        title: "تم التحديث",
-        description: "تم تغيير اسم المستخدم بنجاح",
-      });
+      notify.success("تم التحديث", "تم تغيير اسم المستخدم بنجاح");
       setUsers((prev) =>
         prev.map((u) =>
           u.user_id === editUserId
@@ -290,10 +249,7 @@ export default function UserManagement() {
     link.download = "المستخدمين.csv";
     link.click();
     URL.revokeObjectURL(url);
-    toast({
-      title: "تم التصدير",
-      description: "تم تصدير قائمة المستخدمين بنجاح",
-    });
+    notify.success("تم التصدير", "تم تصدير قائمة المستخدمين بنجاح");
   };
 
   const columns: ColumnDef<UserWithRole, any>[] = [

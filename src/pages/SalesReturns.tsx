@@ -16,6 +16,7 @@ import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useQuery } from "@tanstack/react-query";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
+import { notify } from "@/lib/notify";
 
 interface Return {
   id: string;
@@ -106,11 +107,7 @@ export default function SalesReturns() {
 
       const { data, error, count } = await q;
       if (error) {
-        toast({
-          title: "خطأ",
-          description: "فشل في تحميل المرتجعات",
-          variant: "destructive",
-        });
+        notify.error("خطأ", "فشل في تحميل المرتجعات");
         throw error;
       }
       return {

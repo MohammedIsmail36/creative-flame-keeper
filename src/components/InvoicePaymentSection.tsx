@@ -50,6 +50,7 @@ import {
 } from "@/lib/entity-balance";
 import { Progress } from "@/components/ui/progress";
 import {
+import { notify } from "@/lib/notify";
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -295,19 +296,11 @@ export default function InvoicePaymentSection({
 
   async function handleNewPayment() {
     if (amount <= 0) {
-      toast({
-        title: "تنبيه",
-        description: "يرجى إدخال مبلغ صحيح",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "يرجى إدخال مبلغ صحيح");
       return;
     }
     if (amount > remaining) {
-      toast({
-        title: "تنبيه",
-        description: "المبلغ أكبر من المتبقي على الفاتورة",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "المبلغ أكبر من المتبقي على الفاتورة");
       return;
     }
     setSaving(true);
@@ -324,11 +317,7 @@ export default function InvoicePaymentSection({
       const entityAcc = accounts?.find((a) => a.code === entityAccCode);
       const cashBankAcc = accounts?.find((a) => a.code === cashBankCode);
       if (!entityAcc || !cashBankAcc) {
-        toast({
-          title: "خطأ",
-          description: "تأكد من وجود الحسابات المطلوبة في شجرة الحسابات",
-          variant: "destructive",
-        });
+        notify.error("خطأ", "تأكد من وجود الحسابات المطلوبة في شجرة الحسابات");
         setSaving(false);
         return;
       }
@@ -456,7 +445,7 @@ export default function InvoicePaymentSection({
         entityId,
       );
 
-      toast({ title: "تم التسجيل", description: "تم تسجيل الدفعة وتخصيصها" });
+      notify.success("تم التسجيل", "تم تسجيل الدفعة وتخصيصها");
       setDialogOpen(false);
       setAmount(0);
       setReference("");
@@ -464,11 +453,7 @@ export default function InvoicePaymentSection({
       fetchData();
       onPaymentAdded();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
     setSaving(false);
   }
@@ -476,11 +461,7 @@ export default function InvoicePaymentSection({
   async function linkPayment(payment: AvailablePayment, allocAmount: number) {
     const maxAlloc = Math.min(payment.remaining, remaining);
     if (allocAmount <= 0 || allocAmount > maxAlloc) {
-      toast({
-        title: "تنبيه",
-        description: `المبلغ يجب أن يكون بين 0.01 و ${maxAlloc.toFixed(2)}`,
-        variant: "destructive",
-      });
+      notify.error("تنبيه", `المبلغ يجب أن يكون بين 0.01 و ${maxAlloc.toFixed(2)}`);
       return;
     }
     try {
@@ -490,19 +471,12 @@ export default function InvoicePaymentSection({
       };
       allocPayload2[allocIdCol] = invoiceId;
       await supabase.from(allocationTable as any).insert(allocPayload2);
-      toast({
-        title: "تم التخصيص",
-        description: `تم تخصيص ${allocAmount.toFixed(2)} من الدفعة #${payment.payment_number}`,
-      });
+      notify.success("تم التخصيص", `تم تخصيص ${allocAmount.toFixed(2)} من الدفعة #${payment.payment_number}`);
       setLinkAmounts({});
       fetchData();
       onPaymentAdded();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
   }
 
@@ -512,15 +486,11 @@ export default function InvoicePaymentSection({
         .from(allocationTable as any)
         .delete()
         .eq("id", allocation.id);
-      toast({ title: "تم فك التخصيص" });
+      notify.success("تم فك التخصيص");
       fetchData();
       onPaymentAdded();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
   }
 

@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { Save, CheckCircle, Trash2, Pencil, CalendarIcon, Plus, X, Ban, BookOpen, Check, Loader2, Info } from "lucide-react";
 import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { isBalanced as checkBalanced } from "@/lib/constants";
+import { notify } from "@/lib/notify";
 
 interface Account {
   id: string;
@@ -195,19 +196,11 @@ export default function JournalEntryForm() {
     if (!isBalanced) errors.lines = "القيد غير متوازن";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast({
-        title: "تنبيه",
-        description: Object.values(errors)[0],
-        variant: "destructive",
-      });
+      notify.error("تنبيه", Object.values(errors)[0]);
       return;
     }
     if (settings?.locked_until_date && entryDate <= settings.locked_until_date) {
-      toast({
-        title: "خطأ",
-        description: `لا يمكن إنشاء قيد بتاريخ ${entryDate} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
+      notify.error("خطأ", `لا يمكن إنشاء قيد بتاريخ ${entryDate} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       return;
     }
     setSaving(true);
@@ -241,7 +234,7 @@ export default function JournalEntryForm() {
           description: l.description || null,
         }));
         await supabase.from("journal_entry_lines").insert(linesPayload as any);
-        toast({ title: "تم التحديث", description: "تم تعديل القيد بنجاح" });
+        notify.success("تم التحديث", "تم تعديل القيد بنجاح");
         setIsDirty(false);
         navGuard.allowNext();
         loadData();
@@ -259,17 +252,13 @@ export default function JournalEntryForm() {
           description: l.description || null,
         }));
         await supabase.from("journal_entry_lines").insert(linesPayload as any);
-        toast({ title: "تمت الإضافة", description: "تم إنشاء القيد بنجاح" });
+        notify.success("تمت الإضافة", "تم إنشاء القيد بنجاح");
         setIsDirty(false);
         navGuard.allowNext();
         navigate(`/journal/${data.id}`);
       }
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message || "حدث خطأ",
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message || "حدث خطأ");
     }
     setSaving(false);
   }
@@ -284,7 +273,7 @@ export default function JournalEntryForm() {
     if (!isBalanced) errors.lines = "القيد غير متوازن";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast({ title: "تنبيه", description: Object.values(errors)[0], variant: "destructive" });
+      notify.error("تنبيه", Object.values(errors)[0]);
       return;
     }
     setSaving(true);
@@ -301,13 +290,13 @@ export default function JournalEntryForm() {
         })),
       });
       if (error) throw error;
-      toast({ title: "تم التحديث", description: "تم تعديل القيد المعتمد بنجاح" });
+      notify.success("تم التحديث", "تم تعديل القيد المعتمد بنجاح");
       setIsDirty(false);
       navGuard.allowNext();
       setEditMode(false);
       loadData();
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message || "حدث خطأ", variant: "destructive" });
+      notify.error("خطأ", error.message || "حدث خطأ");
     }
     setSaving(false);
   }
@@ -317,19 +306,11 @@ export default function JournalEntryForm() {
     if (!id || saving) return;
     const validLines = lines.filter((l) => l.account_id && (l.debit > 0 || l.credit > 0));
     if (validLines.length < 2) {
-      toast({
-        title: "تنبيه",
-        description: "يجب إضافة سطرين على الأقل",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "يجب إضافة سطرين على الأقل");
       return;
     }
     if (!isBalanced) {
-      toast({
-        title: "تنبيه",
-        description: "القيد غير متوازن",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "القيد غير متوازن");
       return;
     }
     setSaving(true);
@@ -339,14 +320,10 @@ export default function JournalEntryForm() {
         .update({ status: "posted", posted_number: newPostedNumber })
         .eq("id", id);
       if (error) throw error;
-      toast({ title: "تم الاعتماد", description: "تم اعتماد القيد بنجاح" });
+      notify.success("تم الاعتماد", "تم اعتماد القيد بنجاح");
       loadData();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
     setSaving(false);
   }
@@ -357,23 +334,19 @@ export default function JournalEntryForm() {
   async function handleDelete() {
     if (!id || saving) return;
     if (isLinked) {
-      toast({ title: "غير مسموح", description: linkedBlockMessage, variant: "destructive" });
+      notify.error("غير مسموح", linkedBlockMessage);
       return;
     }
     setSaving(true);
     try {
       await supabase.from("journal_entry_lines").delete().eq("journal_entry_id", id);
       await (supabase.from("journal_entries") as any).delete().eq("id", id);
-      toast({ title: "تم الحذف", description: "تم حذف القيد بنجاح" });
+      notify.success("تم الحذف", "تم حذف القيد بنجاح");
       setIsDirty(false);
       navGuard.allowNext();
       navigate("/journal");
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }
@@ -382,7 +355,7 @@ export default function JournalEntryForm() {
   async function handleCancel() {
     if (!id || saving) return;
     if (isLinked) {
-      toast({ title: "غير مسموح", description: linkedBlockMessage, variant: "destructive" });
+      notify.error("غير مسموح", linkedBlockMessage);
       return;
     }
     setSaving(true);
@@ -391,14 +364,10 @@ export default function JournalEntryForm() {
         .update({ status: "cancelled" })
         .eq("id", id);
       if (error) throw error;
-      toast({ title: "تم الإلغاء", description: "تم إلغاء القيد" });
+      notify.success("تم الإلغاء", "تم إلغاء القيد");
       loadData();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }

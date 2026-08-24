@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import {
+import { notify } from "@/lib/notify";
   Upload,
   FileSpreadsheet,
   Check,
@@ -172,21 +173,13 @@ export default function ProductImport() {
 
     const ext = file.name.split(".").pop()?.toLowerCase();
     if (!ext || !["csv", "xlsx", "xls"].includes(ext)) {
-      toast({
-        title: "خطأ",
-        description: "نوع الملف غير مدعوم. يرجى رفع ملف CSV أو Excel (.xlsx)",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "نوع الملف غير مدعوم. يرجى رفع ملف CSV أو Excel (.xlsx)");
       e.target.value = "";
       return;
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      toast({
-        title: "خطأ",
-        description: "حجم الملف يتجاوز الحد الأقصى (5 ميغابايت)",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "حجم الملف يتجاوز الحد الأقصى (5 ميغابايت)");
       e.target.value = "";
       return;
     }
@@ -271,11 +264,7 @@ export default function ProductImport() {
   const handleImport = async () => {
     const validRows = rows.filter((r) => r.status === "valid");
     if (validRows.length === 0) {
-      toast({
-        title: "تنبيه",
-        description: "لا توجد صفوف صالحة للاستيراد",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "لا توجد صفوف صالحة للاستيراد");
       return;
     }
     setImporting(true);
@@ -560,11 +549,7 @@ export default function ProductImport() {
 
         openingPosted = true;
       } catch (obErr: any) {
-        toast({
-          title: "تحذير: فشل ترحيل الرصيد الافتتاحي",
-          description: `تم إضافة المنتجات لكن لم يتم إنشاء قيد الرصيد الافتتاحي. ${obErr.message || ""}`,
-          variant: "destructive",
-        });
+        notify.error("تحذير: فشل ترحيل الرصيد الافتتاحي", `تم إضافة المنتجات لكن لم يتم إنشاء قيد الرصيد الافتتاحي. ${obErr.message || ""}`);
       }
     }
 
@@ -583,29 +568,17 @@ export default function ProductImport() {
       if (successCount > 0) parts.push(`أُضيف ${successCount} منتج جديد`);
       if (updatedCount > 0) parts.push(`تم تحديث ${updatedCount} منتج موجود`);
       if (skippedCount > 0) parts.push(`تم تخطي ${skippedCount}`);
-      toast({ title: "تم الاستيراد", description: parts.join(" • ") });
+      notify.success("تم الاستيراد", parts.join(" • "));
       setImported(true);
     } else if (totalProcessed > 0) {
-      toast({
-        title: "استيراد جزئي",
-        description: `جديد ${successCount} • محدّث ${updatedCount} • فشل ${failCount}${skippedCount > 0 ? ` • تخطي ${skippedCount}` : ""}`,
-        variant: "destructive",
-      });
+      notify.error("استيراد جزئي", `جديد ${successCount} • محدّث ${updatedCount} • فشل ${failCount}${skippedCount > 0 ? ` • تخطي ${skippedCount}` : ""}`);
       setImported(true);
     } else {
-      toast({
-        title: "فشل الاستيراد",
-        description: `فشل استيراد جميع المنتجات (${failCount})`,
-        variant: "destructive",
-      });
+      notify.error("فشل الاستيراد", `فشل استيراد جميع المنتجات (${failCount})`);
     }
     } catch (err: any) {
       console.error("Import failed:", err);
-      toast({
-        title: "خطأ غير متوقع أثناء الاستيراد",
-        description: err?.message || String(err),
-        variant: "destructive",
-      });
+      notify.error("خطأ غير متوقع أثناء الاستيراد", err?.message || String(err));
     } finally {
       setImporting(false);
     }
