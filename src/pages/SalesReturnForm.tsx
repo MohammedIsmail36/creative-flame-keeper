@@ -1,5 +1,5 @@
 import { notify } from "@/lib/notify";
-import { isPeriodLocked, deleteDraftDocument } from "@/lib/document-actions";
+import { deleteDraftDocument } from "@/lib/document-actions";
 import { StatusBadge } from "@/components/StatusBadge";
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
@@ -107,7 +107,17 @@ export default function SalesReturnForm() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(!isNew);
-  const { saving, setSaving, isDirty, setIsDirty, markDirty, markClean, navGuard, runAction } =
+  const {
+    saving,
+    setSaving,
+    isDirty,
+    setIsDirty,
+    markDirty,
+    markClean,
+    navGuard,
+    runAction,
+    ensurePeriodUnlocked,
+  } =
     useDocumentFormState({ lockedUntilDate: settings?.locked_until_date });
 
   const [returnNumber, setReturnNumber] = useState<number | null>(null);
@@ -284,10 +294,13 @@ export default function SalesReturnForm() {
   }
 
   async function postReturn() {
-    if (isPeriodLocked(returnDate, settings?.locked_until_date)) {
-      notify.error("خطأ", `لا يمكن ترحيل مرتجع بتاريخ ${returnDate} — الفترة مقفلة حتى ${settings.locked_until_date}`);
+    if (
+      !ensurePeriodUnlocked(
+        returnDate,
+        (lockedUntil) => `لا يمكن ترحيل مرتجع بتاريخ ${returnDate} — الفترة مقفلة حتى ${lockedUntil}`,
+      )
+    )
       return;
-    }
     // Persist any unsaved edits before posting
     if (isDirty && id) {
       const saved = await handleSave({ silent: true, skipReload: true });
