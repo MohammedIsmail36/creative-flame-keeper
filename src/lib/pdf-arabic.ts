@@ -2471,19 +2471,21 @@ function InvoiceDocument(
               },
             },
             ...row.map((cell, ci) => {
-              const isName = ci === 1;
+              const isCode = hasAnyCode && ci === 1;
+              const isName = ci === (hasAnyCode ? 2 : 1);
               const isLast = ci === row.length - 1;
               const cellStyle = isLast
                 ? { ...s.tableCellBold, width: colWidths[ci] }
                 : isName
                   ? { ...s.tableCellName, width: colWidths[ci] }
-                  : { ...s.tableCell, width: colWidths[ci] };
-              if (isName && !isLast)
-                return renderNameCell(
-                  `c-${ri}-${ci}`,
-                  String(cell),
-                  cellStyle,
-                );
+                  : isCode
+                    ? {
+                        ...s.tableCell,
+                        width: colWidths[ci],
+                        color: C.ink5,
+                        direction: "ltr" as const,
+                      }
+                    : { ...s.tableCell, width: colWidths[ci] };
               return React.createElement(
                 Text,
                 { key: `c-${ri}-${ci}`, style: cellStyle },
