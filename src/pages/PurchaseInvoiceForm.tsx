@@ -43,17 +43,8 @@ import {
   Loader2,
   Undo2,
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import OutstandingCreditsSection from "@/components/OutstandingCreditsSection";
 import { recalculateEntityBalance } from "@/lib/entity-balance";
