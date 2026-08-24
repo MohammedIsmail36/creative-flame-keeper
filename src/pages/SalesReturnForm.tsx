@@ -179,26 +179,7 @@ export default function SalesReturnForm() {
           )
           .eq("return_id", id)
           .order("sort_order", { ascending: true });
-        setItems(
-          (itemsData || []).map((it: any) => ({
-            id: it.id,
-            product_id: it.product_id || "",
-            product_name: it.products
-              ? formatProductDisplay(
-                  it.products.name,
-                  it.products.product_brands?.name,
-                  it.products.model_number,
-                  it.products.code,
-                )
-              : it.description || "",
-
-            quantity: it.quantity,
-            unit_price: it.unit_price,
-            cost_price: it.products?.purchase_price || 0,
-            discount: it.discount,
-            total: it.total,
-          })),
-        );
+        setItems(mapLoadedLineItems<ReturnItem>(itemsData, { withCostPrice: true }));
       }
       setLoading(false);
     } else {
