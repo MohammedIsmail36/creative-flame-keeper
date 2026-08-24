@@ -323,31 +323,14 @@ export default function Sales() {
         onPaginationChange={setPagination}
         pageSize={PAGE_SIZE}
         toolbarContent={
-          <div className="flex items-center gap-2 flex-wrap">
-            <DatePickerInput
-              value={dateFrom}
-              onChange={setDateFrom}
-              placeholder="من تاريخ"
-              className="w-[150px] h-9 text-sm"
-            />
-            <DatePickerInput
-              value={dateTo}
-              onChange={setDateTo}
-              placeholder="إلى تاريخ"
-              className="w-[150px] h-9 text-sm"
-            />
-            {hasFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="h-9 gap-1 text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-3.5 w-3.5" />
-                مسح الفلاتر
-              </Button>
-            )}
-          </div>
+          <DocumentListFilters
+            dateFrom={dateFrom}
+            onDateFromChange={setDateFrom}
+            dateTo={dateTo}
+            onDateToChange={setDateTo}
+            hasFilters={hasFilters}
+            onClear={clearFilters}
+          />
         }
       />
     </div>
