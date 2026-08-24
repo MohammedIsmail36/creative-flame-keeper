@@ -11,7 +11,6 @@ import { AccountCombobox } from "@/components/AccountCombobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Receipt, CheckCircle2, XCircle, Tags } from "lucide-react";
 import { notify } from "@/lib/notify";
 

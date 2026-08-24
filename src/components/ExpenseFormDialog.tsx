@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FormFieldError } from "@/components/FormFieldError";
-import { toast } from "@/hooks/use-toast";
 import { Save, CheckCircle, Loader2, Info } from "lucide-react";
 import { postExpense } from "@/lib/expense-posting";
 import { formatSupabaseError } from "@/lib/format-error";

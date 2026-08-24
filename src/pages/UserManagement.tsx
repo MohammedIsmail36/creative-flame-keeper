@@ -24,7 +24,6 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { toast } from "@/hooks/use-toast";
 import {
   Users,
   Trash2,

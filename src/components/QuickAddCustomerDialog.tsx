@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { generateEntityCode } from "@/lib/code-generation";
-import { toast } from "@/hooks/use-toast";
 import { Loader2, User } from "lucide-react";
 import { notify } from "@/lib/notify";
 
