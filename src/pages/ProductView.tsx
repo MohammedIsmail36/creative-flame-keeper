@@ -477,7 +477,7 @@ function Lightbox({ images, initialIndex, onClose }: LightboxProps) {
 
 export default function ProductView() {
   const { role } = useAuth();
-  const { settings } = useSettings();
+  const { settings, formatCurrency } = useSettings();
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
@@ -689,7 +689,6 @@ export default function ProductView() {
   if (loading) return <PageSkeleton variant="cards" />;
   if (!product) return null;
 
-  const formatCurrency = (val: number) => `${Number(val).toLocaleString("en-US", { minimumFractionDigits: 2 })} EGP`;
 
   const catName = product.product_categories?.name || product.category || "-";
   const unitSymbol = product.product_units?.symbol || "";

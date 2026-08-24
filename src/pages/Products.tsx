@@ -44,6 +44,7 @@ import { Input } from "@/components/ui/input";
 import { ProductsGrid } from "@/components/products/ProductsGrid";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import { formatNumber as fmtNum, formatInt as fmtInt } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { StatusChips } from "@/components/StatusChips";
@@ -73,13 +74,6 @@ interface ProductRow {
 }
 
 const PAGE_SIZE = 20;
-const fmtNum = (n: number) =>
-  Number(n || 0).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-const fmtInt = (n: number) => Number(n || 0).toLocaleString("en-US");
-const formatCurrency = (val: number) => `${fmtNum(val)} EGP`;
 
 function renderCategoryOptions(nodes: CategoryNode[], depth = 0): React.ReactNode[] {
   const result: React.ReactNode[] = [];
@@ -104,7 +98,7 @@ export default function Products() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { settings } = useSettings();
+  const { settings, formatCurrency } = useSettings();
 
   const [searchParams, setSearchParams] = useSearchParams();
 

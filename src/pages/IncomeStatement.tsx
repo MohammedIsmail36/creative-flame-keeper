@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { formatNumber } from "@/lib/format";
 import { PageHeader } from "@/components/PageHeader";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -173,11 +174,8 @@ export default function IncomeStatement() {
     ]);
 
   const profitMargin = totalRevenue > 0 ? (netIncome / totalRevenue) * 100 : 0;
-  const formatNum = (val: number) =>
-    Math.abs(val).toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  /** قوائم الأرباح تُعرض بالقيمة المطلقة (الإشارة تُفهم من نوع السطر) */
+  const formatNum = (val: number) => formatNumber(Math.abs(val));
   const formatCurrency = (val: number) => `${formatNum(val)} ${currency}`;
 
   const handleExportPDF = async () => {
