@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from "react";
+import { StatusFilterSelect } from "@/components/FilterBar";
+import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
-import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { DatePickerInput } from "@/components/DatePickerInput";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { Plus, RotateCcw, Eye, X, Clock, Trash2, CheckCircle, Ban, DollarSign } from "lucide-react";
@@ -227,9 +227,7 @@ export default function SalesReturns() {
       accessorKey: "status",
       header: "الحالة",
       cell: ({ row }) => (
-        <Badge variant={INVOICE_STATUS_COLORS[row.original.status] as any}>
-          {INVOICE_STATUS_LABELS[row.original.status]}
-        </Badge>
+        <StatusBadge status={row.original.status} />
       ),
     },
   ];
@@ -327,17 +325,7 @@ export default function SalesReturns() {
         pageSize={PAGE_SIZE}
         toolbarContent={
           <div className="flex items-center gap-2 flex-wrap">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32 h-9 text-sm">
-                <SelectValue placeholder="الحالة" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل الحالات</SelectItem>
-                <SelectItem value="draft">مسودة</SelectItem>
-                <SelectItem value="posted">مُرحّل</SelectItem>
-                <SelectItem value="cancelled">ملغي</SelectItem>
-              </SelectContent>
-            </Select>
+            <StatusFilterSelect value={statusFilter} onChange={setStatusFilter} />
             <DatePickerInput
               value={dateFrom}
               onChange={setDateFrom}

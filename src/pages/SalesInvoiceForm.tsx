@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { StatusBadge } from "@/components/StatusBadge";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { PageHeader } from "@/components/PageHeader";
 import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
@@ -20,7 +21,6 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/NumberInput";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
 import {
@@ -64,7 +64,7 @@ import {
   formatProductDisplay,
   PRODUCT_SELECT_FIELDS,
 } from "@/lib/product-utils";
-import { ACCOUNT_CODES, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { ACCOUNT_CODES } from "@/lib/constants";
 import { notify } from "@/lib/notify";
 
 interface Customer {
@@ -631,9 +631,7 @@ export default function SalesInvoiceForm() {
               </span>
             )}
             {!isNew && (
-              <Badge variant={INVOICE_STATUS_COLORS[status] as any} className="text-xs px-3 py-1">
-                {INVOICE_STATUS_LABELS[status]}
-              </Badge>
+              <StatusBadge status={status} className="text-xs px-3 py-1" />
             )}
           </>
         }

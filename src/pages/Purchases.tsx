@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from "react";
+import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
-import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { useQuery } from "@tanstack/react-query";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { StatusChips } from "@/components/StatusChips";
@@ -255,9 +255,7 @@ export default function Purchases() {
         accessorKey: "status",
         header: "الحالة",
         cell: ({ row }) => (
-          <Badge variant={INVOICE_STATUS_COLORS[row.original.status] as any}>
-            {INVOICE_STATUS_LABELS[row.original.status]}
-          </Badge>
+          <StatusBadge status={row.original.status} />
         ),
       },
     ],

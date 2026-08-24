@@ -155,3 +155,36 @@ export function FilterDateRange({
     </>
   );
 }
+
+const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "all", label: "كل الحالات" },
+  { value: "draft", label: "مسودة" },
+  { value: "posted", label: "مُرحّل" },
+  { value: "cancelled", label: "ملغي" },
+];
+
+/** فلتر الحالة الموحّد (مسودة / مُرحّل / ملغي) */
+export function StatusFilterSelect({
+  value,
+  onChange,
+  className = "w-32 h-9 text-sm",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className={className}>
+        <SelectValue placeholder="الحالة" />
+      </SelectTrigger>
+      <SelectContent>
+        {STATUS_FILTER_OPTIONS.map((o) => (
+          <SelectItem key={o.value} value={o.value}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}

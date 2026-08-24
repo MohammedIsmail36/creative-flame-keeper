@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { StatusFilterSelect } from "@/components/FilterBar";
+import { StatusBadge } from "@/components/StatusBadge";
 import { PageHeader } from "@/components/PageHeader";
 import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,7 +22,7 @@ import { Loader2 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { FormFieldError } from "@/components/FormFieldError";
 import { useSettings } from "@/contexts/SettingsContext";
-import { ACCOUNT_CODES, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { ACCOUNT_CODES, INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { recalculateEntityBalance, recalculateInvoicePaidAmount } from "@/lib/entity-balance";
 import { notify } from "@/lib/notify";
 
@@ -52,7 +54,6 @@ const methodLabels: Record<string, string> = {
   check: "شيك",
 };
 const statusLabels = INVOICE_STATUS_LABELS;
-const statusVariants = INVOICE_STATUS_COLORS;
 
 export default function SupplierPayments() {
   const { role } = useAuth();
@@ -525,9 +526,7 @@ export default function SupplierPayments() {
       accessorKey: "status",
       header: "الحالة",
       cell: ({ row }) => (
-        <Badge variant={statusVariants[row.original.status] as any}>
-          {statusLabels[row.original.status] || row.original.status}
-        </Badge>
+        <StatusBadge status={row.original.status} />
       ),
     },
 
@@ -757,17 +756,7 @@ export default function SupplierPayments() {
                 <SelectItem value="check">شيك</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-36 h-9 text-sm">
-                <SelectValue placeholder="الحالة" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل الحالات</SelectItem>
-                <SelectItem value="draft">مسودة</SelectItem>
-                <SelectItem value="posted">مرحّل</SelectItem>
-                <SelectItem value="cancelled">ملغي</SelectItem>
-              </SelectContent>
-            </Select>
+            <StatusFilterSelect value={statusFilter} onChange={setStatusFilter} className="w-36 h-9 text-sm" />
             <DatePickerInput
               value={dateFrom}
               onChange={setDateFrom}
