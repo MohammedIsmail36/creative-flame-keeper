@@ -41,17 +41,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import ReturnSettlementsView from "@/components/ReturnSettlementsView";
 import { recalculateEntityBalance } from "@/lib/entity-balance";
