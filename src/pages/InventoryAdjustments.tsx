@@ -152,8 +152,8 @@ export default function InventoryAdjustments() {
       cell: ({ row }) => (
         <div className="flex gap-1 justify-end">
           {row.original.status === "draft" && role === "admin" && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+            <ConfirmDialog
+              trigger={
                 <Button
                   size="sm"
                   variant="ghost"
@@ -162,26 +162,14 @@ export default function InventoryAdjustments() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>حذف التسوية</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    هل أنت متأكد من حذف هذه التسوية؟ لا يمكن التراجع عن هذا
-                    الإجراء.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => deleteMutation.mutate(row.original.id)}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    حذف
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              }
+              title="حذف التسوية"
+              description="هل أنت متأكد من حذف هذه التسوية؟ لا يمكن التراجع عن هذا الإجراء."
+              confirmText="حذف"
+              destructive
+              onConfirm={() => deleteMutation.mutate(row.original.id)}
+            />
+
           )}
         </div>
       ),
