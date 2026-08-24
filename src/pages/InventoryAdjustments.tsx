@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/PageHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,17 +16,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ExportMenu } from "@/components/ExportMenu";
 import { toast } from "@/hooks/use-toast";
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 interface AdjustmentRow {
   id: string;
@@ -39,8 +30,6 @@ const statusLabels: Record<string, string> = {
   ...INVOICE_STATUS_LABELS,
   approved: "معتمد",
 };
-const statusVariants: Record<string, "secondary" | "default" | "destructive"> =
-  { draft: "secondary", approved: "default", cancelled: "destructive" };
 
 export default function InventoryAdjustments() {
   const navigate = useNavigate();
