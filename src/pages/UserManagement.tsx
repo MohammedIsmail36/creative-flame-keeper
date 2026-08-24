@@ -410,8 +410,8 @@ export default function UserManagement() {
               <Pencil className="h-4 w-4" />
             </Button>
             {u.user_id !== user?.id && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <ConfirmDialog
+                trigger={
                   <Button
                     variant="ghost"
                     size="icon"
@@ -421,26 +421,14 @@ export default function UserManagement() {
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent dir="rtl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      هل أنت متأكد من حذف المستخدم "{u.full_name}"؟ لا يمكن
-                      التراجع عن هذا الإجراء.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row-reverse gap-2">
-                    <AlertDialogAction
-                      onClick={() => handleDeleteUser(u.user_id)}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      حذف
-                    </AlertDialogAction>
-                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                }
+                title="تأكيد الحذف"
+                description={`هل أنت متأكد من حذف المستخدم "${u.full_name}"؟ لا يمكن التراجع عن هذا الإجراء.`}
+                confirmText="حذف"
+                destructive
+                onConfirm={() => handleDeleteUser(u.user_id)}
+              />
+
             )}
           </div>
         );
