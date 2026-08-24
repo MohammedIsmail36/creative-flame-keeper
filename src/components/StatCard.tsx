@@ -4,7 +4,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type StatTone = "primary" | "blue" | "orange" | "purple" | "emerald" | "red";
+export type StatTone =
+  | "primary"
+  | "blue"
+  | "orange"
+  | "purple"
+  | "emerald"
+  | "red"
+  | "amber"
+  | "rose";
 
 const TONE_CLASSES: Record<StatTone, string> = {
   primary: "bg-primary/10 text-primary",
@@ -13,10 +21,13 @@ const TONE_CLASSES: Record<StatTone, string> = {
   purple: "bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400",
   emerald: "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   red: "bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400",
+  amber: "bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  rose: "bg-rose-100 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400",
 };
 
 export interface StatCardProps {
-  icon: React.ComponentType<{ className?: string }>;
+  /** مكوّن أيقونة (lucide) أو عنصر أيقونة جاهز */
+  icon: React.ComponentType<{ className?: string }> | React.ReactNode;
   label: string;
   value: React.ReactNode;
   /** سطر فرعي أسفل القيمة (مقارنة، عدد، عملة...) */
@@ -27,13 +38,17 @@ export interface StatCardProps {
   valueClass?: string;
   className?: string;
   onClick?: () => void;
+  /** md: مضغوط (لوحات المؤشرات) • lg: بطاقة تقارير كبيرة */
+  size?: "md" | "lg";
+  /** تجاوز خلفية الأيقونة (للحالات القديمة التي تمرر classes مباشرة) */
+  iconBg?: string;
 }
 
 /**
  * بطاقة مؤشر موحّدة — تحل محل تعريفات KpiCard المحلية المكرّرة.
  */
 export function StatCard({
-  icon: Icon,
+  icon,
   label,
   value,
   sub,
@@ -42,7 +57,69 @@ export function StatCard({
   valueClass,
   className,
   onClick,
+  size = "md",
+  iconBg,
 }: StatCardProps) {
+  const lg = size === "lg";
+  const iconNode = React.isValidElement(icon)
+    ? icon
+    : (() => {
+        const Icon = icon as React.ComponentType<{ className?: string }>;
+        return <Icon className={lg ? "h-5 w-5" : "h-3 w-3"} />;
+      })();
+
+  if (lg) {
+    return (
+      <Card
+        className={cn(
+          "border shadow-sm",
+          onClick && "cursor-pointer transition-colors hover:bg-muted/40",
+          className,
+        )}
+        onClick={onClick}
+      >
+        <CardContent className="p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div
+              className={cn(
+                "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
+                iconBg || TONE_CLASSES[tone],
+              )}
+            >
+              {iconNode}
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p className="text-sm text-muted-foreground font-medium">{label}</p>
+              {hint && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 text-muted-foreground/50 cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs text-right">
+                    {hint}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          </div>
+          <p
+            className={cn(
+              "text-2xl font-black font-mono tabular-nums leading-tight",
+              valueClass,
+            )}
+            style={{ wordBreak: "break-all" }}
+          >
+            {value}
+          </p>
+          {sub && (
+            <p className="text-xs text-muted-foreground mt-1 font-mono">{sub}</p>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+
   return (
     <Card
       className={cn(
