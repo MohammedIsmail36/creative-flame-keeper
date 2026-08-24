@@ -43,7 +43,6 @@ import {
   X,
   ZoomIn,
   AlertCircle,
-  Loader2,
   Info,
   ExternalLink,
   X as XIcon,
