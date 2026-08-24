@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { StatusBadge } from "@/components/StatusBadge";
 import { PageHeader } from "@/components/PageHeader";
 import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -525,9 +526,7 @@ export default function SupplierPayments() {
       accessorKey: "status",
       header: "الحالة",
       cell: ({ row }) => (
-        <Badge variant={statusVariants[row.original.status] as any}>
-          {statusLabels[row.original.status] || row.original.status}
-        </Badge>
+        <StatusBadge status={row.original.status} />
       ),
     },
 

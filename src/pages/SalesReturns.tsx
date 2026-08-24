@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
@@ -227,9 +228,7 @@ export default function SalesReturns() {
       accessorKey: "status",
       header: "الحالة",
       cell: ({ row }) => (
-        <Badge variant={INVOICE_STATUS_COLORS[row.original.status] as any}>
-          {INVOICE_STATUS_LABELS[row.original.status]}
-        </Badge>
+        <StatusBadge status={row.original.status} />
       ),
     },
   ];

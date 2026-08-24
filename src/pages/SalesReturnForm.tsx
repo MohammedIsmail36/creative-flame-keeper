@@ -1,4 +1,5 @@
 import { notify } from "@/lib/notify";
+import { StatusBadge } from "@/components/StatusBadge";
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import {
@@ -763,12 +764,7 @@ export default function SalesReturnForm() {
               </span>
             )}
             {!isNew && (
-              <Badge
-                variant={INVOICE_STATUS_COLORS[status] as any}
-                className="text-xs px-3 py-1"
-              >
-                {INVOICE_STATUS_LABELS[status]}
-              </Badge>
+              <StatusBadge status={status} className="text-xs px-3 py-1" />
             )}
           </>
         }

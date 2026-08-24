@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { StatusBadge } from "@/components/StatusBadge";
 import { useLineItems } from "@/hooks/use-line-items";
 import { round2, cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
@@ -513,9 +514,7 @@ export default function PurchaseInvoiceForm() {
               </span>
             )}
             {!isNew && (
-              <Badge variant={INVOICE_STATUS_COLORS[status] as any} className="text-xs px-3 py-1">
-                {INVOICE_STATUS_LABELS[status]}
-              </Badge>
+              <StatusBadge status={status} className="text-xs px-3 py-1" />
             )}
           </>
         }
