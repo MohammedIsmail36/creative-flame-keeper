@@ -657,29 +657,16 @@ export default function Suppliers() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog
+      <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={() => setDeleteTarget(null)}
-      >
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>حذف المورد</AlertDialogTitle>
-            <AlertDialogDescription>
-              هل أنت متأكد من حذف المورد "{deleteTarget?.name}"؟ لا يمكن التراجع
-              عن هذا الإجراء.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              حذف
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title="حذف المورد"
+        description={`هل أنت متأكد من حذف المورد "${deleteTarget?.name ?? ""}"؟ لا يمكن التراجع عن هذا الإجراء.`}
+        confirmText="حذف"
+        destructive
+        onConfirm={confirmDelete}
+      />
+
     </div>
   );
 }
