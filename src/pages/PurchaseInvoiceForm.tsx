@@ -8,7 +8,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { useNavigationGuard } from "@/hooks/use-navigation-guard";
+import { useDocumentFormState } from "@/hooks/use-document-form";
+import { mapLoadedLineItems } from "@/lib/document-items-mapping";
 import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
@@ -113,8 +114,6 @@ export default function PurchaseInvoiceForm() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddInitialName, setQuickAddInitialName] = useState("");
-
-  const navGuard = useNavigationGuard(isDirty);
 
   useEffect(() => {
     loadData();
@@ -241,8 +240,7 @@ export default function PurchaseInvoiceForm() {
         if (!opts?.silent) {
           notify.success("تمت الإضافة", draftSavedMsg || "تم إنشاء فاتورة الشراء كمسودة");
         }
-        setIsDirty(false);
-        navGuard.allowNext();
+        markClean();
         navigate(`/purchases/${inv.id}`);
       } else {
         const { error } = await (supabase.from("purchase_invoices" as any) as any).update(payload).eq("id", id);
@@ -261,8 +259,7 @@ export default function PurchaseInvoiceForm() {
         if (!opts?.silent) {
           notify.success("تم التحديث", draftSavedMsg || "تم تحديث فاتورة الشراء");
         }
-        setIsDirty(false);
-        navGuard.allowNext();
+        markClean();
         if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
@@ -309,8 +306,7 @@ export default function PurchaseInvoiceForm() {
       await recalculateEntityBalance("supplier", supplierId);
 
       notify.success("تم الترحيل", "تم ترحيل فاتورة الشراء وتوليد القيد المحاسبي وتحديث المخزون");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       loadData();
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -330,8 +326,7 @@ export default function PurchaseInvoiceForm() {
         id: id!,
       });
       notify.success("تم الحذف", "تم حذف فاتورة الشراء المسودة");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       navigate("/purchases");
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -351,8 +346,7 @@ export default function PurchaseInvoiceForm() {
       }
       if (supplierId) await recalculateEntityBalance("supplier", supplierId);
       notify.success("تم إعادة التعيين كمسودة", "أصبحت الفاتورة قابلة للتعديل، والقيد المحاسبي أصبح مسودة ولن يظهر في التقارير");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       window.location.reload();
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -428,8 +422,7 @@ export default function PurchaseInvoiceForm() {
 
       // status already set to cancelled above
       notify.success("تم الإلغاء", "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       loadData();
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -487,7 +480,7 @@ export default function PurchaseInvoiceForm() {
   const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto" dir="rtl" onInput={() => isEditable && !isDirty && setIsDirty(true)}>
+    <div className="space-y-6 max-w-7xl mx-auto" dir="rtl" onInput={() => isEditable && markDirty()}>
       <PageHeader
         icon={ShoppingCart}
         title={isNew ? "إنشاء فاتورة مشتريات" : "فاتورة مشتريات"}
