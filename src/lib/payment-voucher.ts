@@ -316,7 +316,9 @@ export async function cancelPaymentVoucher(
   await (supabase.from(cfg.table as any) as any).update({ status: "cancelled" }).eq("id", voucher.id);
 
   if (allocations && allocations.length > 0) {
-    const affectedInvoiceIds = Array.from(new Set((allocations || []).map((a: any) => String(a.invoice_id))));
+    const affectedInvoiceIds = Array.from(
+      new Set<string>((allocations || []).map((a: any) => String(a.invoice_id))),
+    );
     for (const invoiceId of affectedInvoiceIds) {
       await recalculateInvoicePaidAmount(cfg.invoiceKind, invoiceId);
     }
