@@ -11,7 +11,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { useNavigationGuard } from "@/hooks/use-navigation-guard";
+import { useDocumentFormState } from "@/hooks/use-document-form";
+import { mapLoadedLineItems } from "@/lib/document-items-mapping";
 import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
@@ -107,8 +108,8 @@ export default function SalesReturnForm() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(!isNew);
-  const [saving, setSaving] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
+  const { saving, setSaving, isDirty, setIsDirty, markDirty, markClean, navGuard } =
+    useDocumentFormState({ lockedUntilDate: settings?.locked_until_date });
 
   const [returnNumber, setReturnNumber] = useState<number | null>(null);
   const [postedNumber, setPostedNumber] = useState<number | null>(null);
@@ -134,7 +135,6 @@ export default function SalesReturnForm() {
   const [editMode, setEditMode] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const navGuard = useNavigationGuard(isDirty);
 
   useEffect(() => {
     loadData();
@@ -270,7 +270,7 @@ export default function SalesReturnForm() {
         if (!opts?.silent) {
           notify.success("تمت الإضافة", draftSavedMsg || "تم إنشاء مرتجع البيع كمسودة");
         }
-        setIsDirty(false); navGuard.allowNext();
+        markClean();
         navigate(`/sales-returns/${ret.id}`);
       } else {
         await (supabase.from("sales_returns") as any)
@@ -291,7 +291,7 @@ export default function SalesReturnForm() {
         if (!opts?.silent) {
           notify.success("تم التحديث", draftSavedMsg || "تم تحديث مرتجع البيع");
         }
-        setIsDirty(false); navGuard.allowNext();
+        markClean();
         if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
@@ -553,8 +553,7 @@ export default function SalesReturnForm() {
       await recalculateEntityBalance("customer", customerId);
 
       notify.success("تم الترحيل", "تم ترحيل مرتجع البيع");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       loadData();
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -640,8 +639,7 @@ export default function SalesReturnForm() {
 
       // status already set to cancelled above
       notify.success("تم الإلغاء", "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون");
-      setIsDirty(false);
-      navGuard.allowNext();
+      markClean();
       loadData();
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -661,7 +659,7 @@ export default function SalesReturnForm() {
         id: id!,
       });
       notify.success("تم الحذف", "تم حذف المرتجع");
-      setIsDirty(false); navGuard.allowNext();
+      markClean();
       navigate("/sales-returns");
     } catch (error: any) {
       notify.error("خطأ", error.message);
@@ -726,7 +724,7 @@ export default function SalesReturnForm() {
     <div
       className="space-y-6"
       dir="rtl"
-      onInput={() => isEditable && !isDirty && setIsDirty(true)}
+      onInput={() => isEditable && markDirty()}
     >
       <PageHeader
         icon={RotateCcw}
