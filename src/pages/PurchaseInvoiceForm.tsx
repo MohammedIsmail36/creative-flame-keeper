@@ -186,7 +186,8 @@ export default function PurchaseInvoiceForm() {
       notify.error("تنبيه", Object.values(errors)[0]);
       return false;
     }
-    await runAction(async () => {
+    setSaving(true);
+    try {
       // Drop empty placeholder rows (no product) — keep user data intact
       const validItems = items.filter((i) => i.product_id);
       const droppedEmpty = items.length - validItems.length;
@@ -307,7 +308,11 @@ export default function PurchaseInvoiceForm() {
       notify.success("تم الترحيل", "تم ترحيل فاتورة الشراء وتوليد القيد المحاسبي وتحديث المخزون");
       markClean();
       loadData();
-    });
+    } catch (error: any) {
+      notify.error("خطأ", error.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDeleteDraft() {

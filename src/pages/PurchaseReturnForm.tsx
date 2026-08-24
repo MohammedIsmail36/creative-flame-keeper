@@ -174,7 +174,8 @@ export default function PurchaseReturnForm() {
       notify.error("تنبيه", Object.values(errors)[0]);
       return false;
     }
-    await runAction(async () => {
+    setSaving(true);
+    try {
       // Drop empty placeholder rows (no product) — keep user data intact
       const validItems = items.filter((i) => i.product_id);
       const droppedEmpty = items.length - validItems.length;
@@ -458,7 +459,11 @@ export default function PurchaseReturnForm() {
       notify.success("تم الترحيل", "تم ترحيل مرتجع الشراء");
       markClean();
       loadData();
-    });
+    } catch (error: any) {
+      notify.error("خطأ", error.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleCancelPosted() {
