@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Send, Loader2, CheckCircle2 } from "lucide-react";
+import { Send, CheckCircle2 } from "lucide-react";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
 import { notify } from "@/lib/notify";
