@@ -355,32 +355,23 @@ export default function InventoryReconciliationPage() {
         </CardContent>
       </Card>
 
-      <AlertDialog
+      <ConfirmDialog
         open={!!confirmRow}
         onOpenChange={(o) => !o && setConfirmRow(null)}
-      >
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>مزامنة كمية المنتج مع الحركات</AlertDialogTitle>
-            <AlertDialogDescription>
-              سيتم تعديل كمية المنتج{" "}
-              <strong>{confirmRow?.code}</strong> من{" "}
-              <strong>{confirmRow?.qty_on_hand}</strong> إلى{" "}
-              <strong>{confirmRow?.movement_qty}</strong> لتتطابق مع مجموع
-              الحركات الفعلية. هذا الإجراء لا يُنشئ قيداً محاسبياً — استخدمه فقط
-              لتصحيح انحراف قديم في كارت المنتج (بدون تعديل في المحاسبة أو الحركات).
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => confirmRow && syncRow(confirmRow)}
-            >
-              تأكيد المزامنة
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title="مزامنة كمية المنتج مع الحركات"
+        description={
+          <>
+            سيتم تعديل كمية المنتج <strong>{confirmRow?.code}</strong> من{" "}
+            <strong>{confirmRow?.qty_on_hand}</strong> إلى{" "}
+            <strong>{confirmRow?.movement_qty}</strong> لتتطابق مع مجموع الحركات
+            الفعلية. هذا الإجراء لا يُنشئ قيداً محاسبياً — استخدمه فقط لتصحيح
+            انحراف قديم في كارت المنتج (بدون تعديل في المحاسبة أو الحركات).
+          </>
+        }
+        confirmText="تأكيد المزامنة"
+        onConfirm={() => confirmRow && syncRow(confirmRow)}
+      />
+
     </div>
   );
 }
