@@ -827,8 +827,8 @@ export default function InventoryAdjustmentForm() {
             />
           )}
           {!isNew && isDraft && canEdit && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+            <ConfirmDialog
+              trigger={
                 <Button
                   variant="outline"
                   size="sm"
@@ -837,27 +837,15 @@ export default function InventoryAdjustmentForm() {
                   <Trash2 className="h-4 w-4" />
                   حذف
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>حذف التسوية</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    هل أنت متأكد من حذف هذه التسوية؟ لا يمكن التراجع عن هذا
-                    الإجراء.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteDraft}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    حذف
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              }
+              title="حذف التسوية"
+              description="هل أنت متأكد من حذف هذه التسوية؟ لا يمكن التراجع عن هذا الإجراء."
+              confirmText="حذف"
+              destructive
+              onConfirm={handleDeleteDraft}
+            />
           )}
+
           {!isNew && isDraft && canEdit && !editMode && (
             <Button
               variant="outline"
