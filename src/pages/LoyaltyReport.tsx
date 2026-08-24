@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { StatCard } from "@/components/StatCard";
 import { PageHeader } from "@/components/PageHeader";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { DatePickerInput } from "@/components/DatePickerInput";
@@ -743,23 +744,3 @@ function KpiCard({
   return <StatCard size="lg" icon={icon} label={label} value={value} sub={sub} tone={tone} />;
 }
 
-function KpiCardLegacy({ icon: Icon, label, value, sub, tone }: any) {
-  const map: Record<string, string> = {
-    primary: "bg-primary/10 text-primary",
-    emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400",
-    amber: "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
-    rose: "bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400",
-  };
-  return (
-    <div className="bg-card p-5 rounded-2xl border shadow-sm">
-      <div className="flex items-center gap-3 mb-3">
-        <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${map[tone]}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="text-sm text-muted-foreground font-medium">{label}</div>
-      </div>
-      <div className="text-2xl font-black font-mono tabular-nums">{value}</div>
-      {sub && <div className="text-xs text-muted-foreground mt-1 font-mono">{sub}</div>}
-    </div>
-  );
-}

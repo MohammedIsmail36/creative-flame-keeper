@@ -1,4 +1,5 @@
 import { notify } from "@/lib/notify";
+import { StatCard } from "@/components/StatCard";
 import { formatNumber } from "@/lib/format";
 import React, { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
@@ -994,19 +995,3 @@ function KpiCard({
   );
 }
 
-function KpiCardLegacy({ icon, iconBg, label, value, hint }: any) {
-  return (
-    <div className="bg-card p-6 rounded-xl shadow-sm border">
-      <div className="flex justify-between items-start mb-4">
-        <div className={cn("p-2 rounded-lg", iconBg)}>{icon}</div>
-      </div>
-      <p className="text-sm text-muted-foreground font-medium">{label}</p>
-      <h3 className="text-2xl font-black text-foreground mt-1 font-mono">
-        {value}
-      </h3>
-      {hint && (
-        <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>
-      )}
-    </div>
-  );
-}

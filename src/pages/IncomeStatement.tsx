@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { StatCard } from "@/components/StatCard";
 import { formatNumber } from "@/lib/format";
 import { PageHeader } from "@/components/PageHeader";
 import { format } from "date-fns";
@@ -589,16 +590,3 @@ function KpiCard({
   return <StatCard size="lg" icon={icon} iconBg={iconBg} label={label} value={value} />;
 }
 
-function KpiCardLegacy({ icon, iconBg, label, value }: any) {
-  return (
-    <div className="bg-card p-6 rounded-xl shadow-sm border">
-      <div className="flex justify-between items-start mb-4">
-        <div className={cn("p-2 rounded-lg", iconBg)}>{icon}</div>
-      </div>
-      <p className="text-sm text-muted-foreground font-medium">{label}</p>
-      <h3 className="text-2xl font-black text-foreground mt-1 font-mono">
-        {value}
-      </h3>
-    </div>
-  );
-}
