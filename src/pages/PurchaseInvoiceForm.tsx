@@ -202,12 +202,9 @@ export default function PurchaseInvoiceForm() {
         setSaving(false);
         return false;
       }
-      // Calculate net_total for each item
-      const discountPercent = discountMode === "invoice" && subtotal > 0 ? invoiceDiscount / subtotal : 0;
-      const itemsWithNet = validItems.map((i) => ({
-        ...i,
-        net_total: discountMode === "invoice" ? round2(i.total * (1 - discountPercent)) : i.total,
-      }));
+      // الخصم العام (إن وُجد) يُوزّع تناسبيًا على net_total لضمان دقة تكلفة الشراء
+      const invoiceLevelReduction = discountMode === "invoice" ? invoiceDiscount : 0;
+
 
       const payload: any = {
         supplier_id: supplierId || null,
