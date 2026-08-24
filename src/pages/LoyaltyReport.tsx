@@ -728,7 +728,7 @@ function AdjustPopover({
 }
 
 function KpiCard({
-  icon: Icon,
+  icon,
   label,
   value,
   sub,
@@ -740,6 +740,10 @@ function KpiCard({
   sub?: string;
   tone: "primary" | "emerald" | "amber" | "rose";
 }) {
+  return <StatCard size="lg" icon={icon} label={label} value={value} sub={sub} tone={tone} />;
+}
+
+function KpiCardLegacy({ icon: Icon, label, value, sub, tone }: any) {
   const map: Record<string, string> = {
     primary: "bg-primary/10 text-primary",
     emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400",

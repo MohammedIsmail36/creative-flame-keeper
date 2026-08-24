@@ -990,6 +990,12 @@ function KpiCard({
   hint?: string;
 }) {
   return (
+    <StatCard size="lg" icon={icon} iconBg={iconBg} label={label} value={value} sub={hint} />
+  );
+}
+
+function KpiCardLegacy({ icon, iconBg, label, value, hint }: any) {
+  return (
     <div className="bg-card p-6 rounded-xl shadow-sm border">
       <div className="flex justify-between items-start mb-4">
         <div className={cn("p-2 rounded-lg", iconBg)}>{icon}</div>

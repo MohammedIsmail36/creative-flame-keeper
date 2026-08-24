@@ -616,6 +616,10 @@ function KpiCard({
   label: string;
   value: string;
 }) {
+  return <StatCard size="lg" icon={icon} iconBg={iconBg} label={label} value={value} />;
+}
+
+function KpiCardLegacy({ icon, iconBg, label, value }: any) {
   return (
     <div className="bg-card p-6 rounded-xl shadow-sm border">
       <div className="flex justify-between items-start mb-4">
