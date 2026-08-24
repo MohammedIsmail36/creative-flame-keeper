@@ -8,16 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
@@ -917,76 +908,52 @@ export default function Expenses() {
       />
 
       {/* Post Alert */}
-      <AlertDialog open={!!postTarget} onOpenChange={() => setPostTarget(null)}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>ترحيل المصروف</AlertDialogTitle>
-            <AlertDialogDescription>سيتم إنشاء قيد محاسبي تلقائي. هل تريد المتابعة؟</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handlePost} disabled={saving}>
-              ترحيل
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!postTarget}
+        onOpenChange={() => setPostTarget(null)}
+        title="ترحيل المصروف"
+        description="سيتم إنشاء قيد محاسبي تلقائي. هل تريد المتابعة؟"
+        confirmText="ترحيل"
+        loading={saving}
+        onConfirm={handlePost}
+      />
 
       {/* Cancel Alert */}
-      <AlertDialog open={!!cancelTarget} onOpenChange={() => setCancelTarget(null)}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>إلغاء المصروف</AlertDialogTitle>
-            <AlertDialogDescription>سيتم عكس القيد المحاسبي. هل أنت متأكد؟</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>تراجع</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancel}
-              disabled={saving}
-              className="bg-destructive text-destructive-foreground"
-            >
-              إلغاء المصروف
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!cancelTarget}
+        onOpenChange={() => setCancelTarget(null)}
+        title="إلغاء المصروف"
+        description="سيتم عكس القيد المحاسبي. هل أنت متأكد؟"
+        cancelText="تراجع"
+        confirmText="إلغاء المصروف"
+        destructive
+        loading={saving}
+        onConfirm={handleCancel}
+      />
 
       {/* Delete Alert */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>حذف المصروف</AlertDialogTitle>
-            <AlertDialogDescription>هل أنت متأكد من حذف هذا المصروف؟</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-              حذف
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        title="حذف المصروف"
+        description="هل أنت متأكد من حذف هذا المصروف؟"
+        confirmText="حذف"
+        destructive
+        onConfirm={handleDelete}
+      />
 
       {/* Revert to Draft Alert */}
-      <AlertDialog open={!!revertTarget} onOpenChange={() => !saving && setRevertTarget(null)}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>إعادة تعيين المصروف كمسودة</AlertDialogTitle>
-            <AlertDialogDescription>
-              سيتحول المصروف إلى مسودة، ويتحول القيد المحاسبي المرتبط به إلى مسودة أيضاً فيخرج من التقارير وميزان
-              المراجعة دون حذفه. عند إعادة الترحيل تُبنى سطور نفس القيد من جديد بنفس الرقم التسلسلي. ستفتح نافذة
-              التعديل تلقائياً بعد التأكيد. هل تريد المتابعة؟
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={saving}>تراجع</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRevertToDraft} disabled={saving}>
-              تأكيد
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!revertTarget}
+        onOpenChange={() => setRevertTarget(null)}
+        title="إعادة تعيين المصروف كمسودة"
+        description="سيتحول المصروف إلى مسودة، ويتحول القيد المحاسبي المرتبط به إلى مسودة أيضاً فيخرج من التقارير وميزان المراجعة دون حذفه. عند إعادة الترحيل تُبنى سطور نفس القيد من جديد بنفس الرقم التسلسلي. ستفتح نافذة التعديل تلقائياً بعد التأكيد. هل تريد المتابعة؟"
+        cancelText="تراجع"
+        confirmText="تأكيد"
+        loading={saving}
+        onConfirm={handleRevertToDraft}
+      />
+
 
       {/* Form Dialog (Add / Edit) */}
       <ExpenseFormDialog

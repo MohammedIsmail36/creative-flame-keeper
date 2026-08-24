@@ -10,17 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   Settings2,
   Play,
@@ -235,8 +225,13 @@ export default function SystemSetup() {
             </p>
           </div>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
+          <ConfirmDialog
+            title="⚠️ تأكيد تصفير قاعدة البيانات"
+            description="هل أنت متأكد من تصفير قاعدة البيانات بالكامل؟ سيتم حذف جميع البيانات والمستخدمين وإعادة بناء القاعدة من الصفر. لا يمكن التراجع عن هذا الإجراء."
+            confirmText="نعم، صفّر قاعدة البيانات"
+            destructive
+            onConfirm={handleReset}
+            trigger={
               <Button
                 variant="destructive"
                 className="w-full gap-2"
@@ -254,29 +249,9 @@ export default function SystemSetup() {
                   </>
                 )}
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent dir="rtl">
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  ⚠️ تأكيد تصفير قاعدة البيانات
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  هل أنت متأكد من تصفير قاعدة البيانات بالكامل؟ سيتم حذف جميع
-                  البيانات والمستخدمين وإعادة بناء القاعدة من الصفر. لا يمكن
-                  التراجع عن هذا الإجراء.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="flex-row-reverse gap-2">
-                <AlertDialogAction
-                  onClick={handleReset}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  نعم، صفّر قاعدة البيانات
-                </AlertDialogAction>
-                <AlertDialogCancel>إلغاء</AlertDialogCancel>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            }
+          />
+
 
           {resetResults.length > 0 && (
             <div className="rounded-lg border bg-muted/50 p-3 space-y-1.5 max-h-64 overflow-y-auto">

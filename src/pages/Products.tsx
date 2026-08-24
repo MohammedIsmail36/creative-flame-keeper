@@ -13,17 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { deleteStorageFiles } from "@/lib/storage-cleanup";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
@@ -679,8 +669,17 @@ export default function Products() {
               />
 
               {canToggle && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
+                <ConfirmDialog
+                  title={row.original.is_active ? "تعطيل المنتج" : "تفعيل المنتج"}
+                  description={
+                    row.original.is_active
+                      ? `هل تريد تعطيل منتج "${row.original.name}"؟`
+                      : `هل تريد تفعيل منتج "${row.original.name}"؟`
+                  }
+                  confirmText={row.original.is_active ? "تعطيل" : "تفعيل"}
+                  destructive={row.original.is_active}
+                  onConfirm={() => toggleProductStatus(row.original)}
+                  trigger={
                     <Button
                       variant="ghost"
                       size="icon"
@@ -689,35 +688,18 @@ export default function Products() {
                     >
                       {row.original.is_active ? <Archive className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent dir="rtl">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>{row.original.is_active ? "تعطيل المنتج" : "تفعيل المنتج"}</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {row.original.is_active
-                          ? `هل تريد تعطيل منتج "${row.original.name}"؟`
-                          : `هل تريد تفعيل منتج "${row.original.name}"؟`}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="flex-row-reverse gap-2">
-                      <AlertDialogAction
-                        onClick={() => toggleProductStatus(row.original)}
-                        className={
-                          row.original.is_active
-                            ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            : "bg-emerald-600 text-white hover:bg-emerald-700"
-                        }
-                      >
-                        {row.original.is_active ? "تعطيل" : "تفعيل"}
-                      </AlertDialogAction>
-                      <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                  }
+                />
+
               )}
               {canHardDelete && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
+                <ConfirmDialog
+                  title="حذف المنتج نهائياً"
+                  description={`سيتم حذف المنتج "${row.original.name}" نهائياً من قاعدة البيانات. هذا الإجراء لا يمكن التراجع عنه.`}
+                  confirmText="حذف نهائي"
+                  destructive
+                  onConfirm={() => hardDeleteProduct(row.original)}
+                  trigger={
                     <Button
                       variant="ghost"
                       size="icon"
@@ -726,26 +708,9 @@ export default function Products() {
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent dir="rtl">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>حذف المنتج نهائياً</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        سيتم حذف المنتج "{row.original.name}" نهائياً من قاعدة البيانات. هذا الإجراء لا يمكن التراجع
-                        عنه.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="flex-row-reverse gap-2">
-                      <AlertDialogAction
-                        onClick={() => hardDeleteProduct(row.original)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        حذف نهائي
-                      </AlertDialogAction>
-                      <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                  }
+                />
+
               )}
             </div>
           );

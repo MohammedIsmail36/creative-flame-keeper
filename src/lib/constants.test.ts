@@ -55,7 +55,9 @@ describe("ACCOUNT_CODES", () => {
       "REVENUE",
       "INVENTORY_ADJUSTMENT_GAIN",
       "COGS",
+      "PURCHASE_RETURN_PRICE_VARIANCE",
       "INVENTORY_ADJUSTMENT_LOSS",
+
     ];
     expect(Object.keys(ACCOUNT_CODES)).toEqual(expectedKeys);
   });
