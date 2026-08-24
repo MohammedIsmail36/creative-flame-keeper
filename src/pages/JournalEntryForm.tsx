@@ -452,35 +452,23 @@ export default function JournalEntryForm() {
         actions={
           <>
             {!isNew && isDraft && canDelete && !isLinked && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <ConfirmDialog
+                trigger={
                   <Button variant="destructive" className="gap-2">
                     <Trash2 className="h-4 w-4" />
                     حذف
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent dir="rtl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>حذف القيد المسودة</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      هل أنت متأكد من حذف هذا القيد؟ لا يمكن التراجع عن هذا الإجراء.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row-reverse gap-2">
-                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDelete}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      حذف
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                }
+                title="حذف القيد المسودة"
+                description="هل أنت متأكد من حذف هذا القيد؟ لا يمكن التراجع عن هذا الإجراء."
+                confirmText="حذف"
+                destructive
+                onConfirm={handleDelete}
+              />
             )}
             {!isNew && status === "posted" && canEdit && !isLinked && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <ConfirmDialog
+                trigger={
                   <Button
                     variant="outline"
                     className="gap-2 border-destructive text-destructive hover:bg-destructive/10"
@@ -488,24 +476,16 @@ export default function JournalEntryForm() {
                     <Ban className="h-4 w-4" />
                     إلغاء القيد
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent dir="rtl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>إلغاء القيد {displayNumber}</AlertDialogTitle>
-                    <AlertDialogDescription>سيتم تغيير حالة القيد إلى "ملغي". هل تريد المتابعة؟</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row-reverse gap-2">
-                    <AlertDialogCancel>تراجع</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleCancel}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      تأكيد الإلغاء
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                }
+                title={`إلغاء القيد ${displayNumber}`}
+                description='سيتم تغيير حالة القيد إلى "ملغي". هل تريد المتابعة؟'
+                confirmText="تأكيد الإلغاء"
+                cancelText="تراجع"
+                destructive
+                onConfirm={handleCancel}
+              />
             )}
+
             {!isNew && status === "posted" && isLinked && (
               <Button
                 variant="ghost"
