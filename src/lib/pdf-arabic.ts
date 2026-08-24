@@ -1472,6 +1472,8 @@ function ReportDocument(
         }
         const finalStyle =
           numColor && !emphasis ? { ...baseStyle, color: numColor } : baseStyle;
+        if (colType === "wide" && !emphasis)
+          return renderNameCell(`c-${ri}-${ci}`, String(cell), finalStyle);
         return React.createElement(
           Text,
           { key: `c-${ri}-${ci}`, style: finalStyle },
