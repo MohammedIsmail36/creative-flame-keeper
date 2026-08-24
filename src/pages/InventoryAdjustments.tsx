@@ -138,13 +138,13 @@ export default function InventoryAdjustments() {
       accessorKey: "status",
       header: "الحالة",
       cell: ({ row }) => (
-        <Badge
-          variant={statusVariants[row.original.status] || "secondary"}
+        <StatusBadge
+          status={row.original.status}
+          kind="adjustment"
           className="text-xs px-3 py-1"
-        >
-          {statusLabels[row.original.status] || row.original.status}
-        </Badge>
+        />
       ),
+
     },
     {
       id: "actions",
