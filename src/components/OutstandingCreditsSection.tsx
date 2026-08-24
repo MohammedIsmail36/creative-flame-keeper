@@ -302,8 +302,8 @@ export default function OutstandingCreditsSection({
                 <span className="font-mono font-semibold text-primary">
                   {fmt(s.settled_amount)}
                 </span>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
+                <ConfirmDialog
+                  trigger={
                     <Button
                       size="sm"
                       variant="ghost"
@@ -312,26 +312,14 @@ export default function OutstandingCreditsSection({
                     >
                       <Unlink className="h-3 w-3" />
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent dir="rtl">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>إلغاء التسوية</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        هل تريد إلغاء تسوية {fmt(s.settled_amount)} من المرتجع #
-                        {s.posted_number || s.return_number}؟
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="flex-row-reverse gap-2">
-                      <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => removeSettlement(s)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        إلغاء التسوية
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                  }
+                  title="إلغاء التسوية"
+                  description={`هل تريد إلغاء تسوية ${fmt(s.settled_amount)} من المرتجع #${s.posted_number || s.return_number}؟`}
+                  confirmText="إلغاء التسوية"
+                  destructive
+                  onConfirm={() => removeSettlement(s)}
+                />
+
               </div>
             </div>
           ))}
