@@ -92,8 +92,8 @@ export default function PurchaseInvoiceForm() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(!isNew);
-  const [saving, setSaving] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
+  const { saving, setSaving, isDirty, setIsDirty, markDirty, markClean, navGuard } =
+    useDocumentFormState({ lockedUntilDate: settings?.locked_until_date });
   const [paymentSectionRefreshKey, setPaymentSectionRefreshKey] = useState(0);
 
   const [invoiceNumber, setInvoiceNumber] = useState<number | null>(null);
