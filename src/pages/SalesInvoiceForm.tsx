@@ -267,13 +267,9 @@ export default function SalesInvoiceForm() {
         setSaving(false);
         return false;
       }
-      // Calculate net_total per item (distribute invoice-level discount AND loyalty discount proportionally)
+      // التخفيض على مستوى الفاتورة (خصم عام + خصم نقاط الولاء) يُوزّع تناسبيًا على net_total
       const invoiceLevelReduction = (discountMode === "invoice" ? invoiceDiscount : 0) + loyaltyDiscount;
-      const discountPercent = subtotal > 0 ? invoiceLevelReduction / subtotal : 0;
-      const itemsWithNet = validItems.map((i) => ({
-        ...i,
-        net_total: round2(i.total * (1 - discountPercent)),
-      }));
+
 
       const payload: any = {
         customer_id: customerId || null,
