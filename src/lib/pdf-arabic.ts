@@ -805,14 +805,10 @@ function DataTable({
             String(cell),
           );
         if (colType === "wide")
-          return React.createElement(
-            Text,
-            {
-              key: `c-${ri}-${ci}`,
-              style: { ...tbl.cellName, width: colWidths[ci] },
-            },
-            String(cell),
-          );
+          return renderNameCell(`c-${ri}-${ci}`, String(cell), {
+            ...tbl.cellName,
+            width: colWidths[ci],
+          });
         return React.createElement(
           Text,
           {
