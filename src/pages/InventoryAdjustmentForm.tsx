@@ -886,8 +886,8 @@ export default function InventoryAdjustmentForm() {
             </Button>
           )}
           {!isNew && isDraft && canEdit && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+            <ConfirmDialog
+              trigger={
                 <Button
                   size="sm"
                   disabled={saving || items.length === 0 || hasZeroDiff}
@@ -901,34 +901,29 @@ export default function InventoryAdjustmentForm() {
                   <CheckCircle className="h-4 w-4" />
                   اعتماد التسوية
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>اعتماد التسوية</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    سيتم تسجيل القيود المحاسبية وتحديث كميات المخزون. لا يمكن
-                    التراجع عن هذه العملية.
-                    {totalLoss > 0 && (
-                      <div className="text-destructive mt-2 font-semibold">
-                        عجز: {formatCurrency(totalLoss)}
-                      </div>
-                    )}
-                    {totalGain > 0 && (
-                      <div className="text-green-600 mt-1 font-semibold">
-                        فائض: {formatCurrency(totalGain)}
-                      </div>
-                    )}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleApprove}>
-                    اعتماد
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              }
+              title="اعتماد التسوية"
+              description="سيتم تسجيل القيود المحاسبية وتحديث كميات المخزون. لا يمكن التراجع عن هذه العملية."
+              confirmText="اعتماد"
+              onConfirm={handleApprove}
+            >
+              {(totalLoss > 0 || totalGain > 0) && (
+                <div className="text-sm">
+                  {totalLoss > 0 && (
+                    <div className="text-destructive font-semibold">
+                      عجز: {formatCurrency(totalLoss)}
+                    </div>
+                  )}
+                  {totalGain > 0 && (
+                    <div className="text-green-600 mt-1 font-semibold">
+                      فائض: {formatCurrency(totalGain)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </ConfirmDialog>
           )}
+
           {!isNew && isApproved && role === "admin" && (
             <ConfirmDialog
               trigger={
