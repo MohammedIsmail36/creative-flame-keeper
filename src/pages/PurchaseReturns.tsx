@@ -1,22 +1,19 @@
-import React, { useState, useMemo } from "react";
-import { StatusFilterSelect } from "@/components/FilterBar";
+import React, { useMemo } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
-import { supabase } from "@/integrations/supabase/client";
+import { INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { DatePickerInput } from "@/components/DatePickerInput";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef, PaginationState } from "@tanstack/react-table";
-import { Plus, RotateCcw, Eye, X, Trash2, Clock, CheckCircle, Ban, DollarSign } from "lucide-react";
+import { ColumnDef } from "@tanstack/react-table";
+import { Plus, RotateCcw, Clock, CheckCircle, Ban, DollarSign } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
-import { INVOICE_STATUS_LABELS } from "@/lib/constants";
-import { useQuery } from "@tanstack/react-query";
-import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
-import { notify } from "@/lib/notify";
+import { DocumentStatsStrip } from "@/components/DocumentStatsStrip";
+import { DocumentListFilters } from "@/components/DocumentListFilters";
+import { useDocumentList, useDocumentStatusSummary } from "@/hooks/use-document-list";
 
 interface Return {
   id: string;
@@ -30,149 +27,40 @@ interface Return {
   reference?: string | null;
 }
 
-const PAGE_SIZE = 20;
 const fmtNum = (n: number) => Number(n || 0).toLocaleString("en-US");
 
 export default function PurchaseReturns() {
   const { role } = useAuth();
   const navigate = useNavigate();
   const { settings, formatCurrency } = useSettings();
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [search, setSearch] = useState("");
-  const debouncedSearch = useDebouncedValue(search, 300);
   const canEdit = role === "admin" || role === "accountant";
+  const prefix = settings?.purchase_return_prefix || "PRN-";
 
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: PAGE_SIZE,
-  });
-
-  const { data: stats } = useQuery({
-    queryKey: ["purchase-returns-summary", dateFrom, dateTo],
-    queryFn: async () => {
-      let q = (supabase.from("purchase_returns") as any).select("status, total");
-      if (dateFrom) q = q.gte("return_date", dateFrom);
-      if (dateTo) q = q.lte("return_date", dateTo);
-      const { data, error } = await q;
-      if (error) throw error;
-      const s = {
-        total: (data || []).length,
-        draft: 0,
-        posted: 0,
-        cancelled: 0,
-        totalAmount: 0,
-      };
-      (data || []).forEach((r: any) => {
-        if (r.status === "draft") s.draft++;
-        else if (r.status === "posted") {
-          s.posted++;
-          s.totalAmount += Number(r.total);
-        } else if (r.status === "cancelled") s.cancelled++;
-      });
-      return s;
-    },
-    staleTime: 30_000,
-  });
-
-  const { data: pagedData, isLoading } = usePagedQuery<Return>(
-    [
-      "purchase-returns-list",
-      pagination.pageIndex,
-      pagination.pageSize,
-      statusFilter,
-      dateFrom,
-      dateTo,
-      debouncedSearch,
-    ] as const,
-    async () => {
-      const from = pagination.pageIndex * pagination.pageSize;
-      const to = from + pagination.pageSize - 1;
-
-      let q = (supabase.from("purchase_returns") as any)
-        .select("*, suppliers:supplier_id(name)", { count: "exact" })
-        .order("return_number", { ascending: false })
-        .range(from, to);
-
-      if (statusFilter !== "all") q = q.eq("status", statusFilter);
-      if (dateFrom) q = q.gte("return_date", dateFrom);
-      if (dateTo) q = q.lte("return_date", dateTo);
-      if (debouncedSearch.trim()) {
-        const s = debouncedSearch.trim();
-        const asNum = Number(s);
-        if (!isNaN(asNum)) {
-          q = q.or(`return_number.eq.${asNum},posted_number.eq.${asNum}`);
-        }
-      }
-
-      const { data, error, count } = await q;
-      if (error) {
-        notify.error("خطأ", "فشل في تحميل مرتجعات المشتريات");
-        throw error;
-      }
-      return {
-        rows: (data || []).map((r: any) => ({
-          ...r,
-          supplier_name: r.suppliers?.name,
-        })),
-        totalCount: count ?? 0,
-      };
-    },
-  );
-
-  const returns = pagedData?.rows ?? [];
-  const totalCount = pagedData?.totalCount ?? 0;
-  const pageCount = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
-
-  React.useEffect(() => {
-    setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
-
-  const fetchAllForExport = async (onProgress?: (loaded: number, total: number) => void): Promise<Return[]> => {
-    const { fetchAllPaged } = await import("@/lib/paged-fetch");
-    const rows = await fetchAllPaged<any>(
-      () => {
-        let q = (supabase.from("purchase_returns") as any)
-          .select("*, suppliers:supplier_id(name)", { count: "exact" })
-          .order("return_number", { ascending: false });
-        if (statusFilter !== "all") q = q.eq("status", statusFilter);
-        if (dateFrom) q = q.gte("return_date", dateFrom);
-        if (dateTo) q = q.lte("return_date", dateTo);
-        return q;
-      },
-      { batchSize: 500, maxRows: 50000, onProgress },
-    );
-    return rows.map((r: any) => ({ ...r, supplier_name: r.suppliers?.name }));
-  };
-
-  const [exportRows, setExportRows] = useState<any[][]>([]);
-  React.useEffect(() => {
-    setExportRows([]);
-  }, [statusFilter, dateFrom, dateTo, debouncedSearch]);
-  const handlePrepareExport = async (onProgress?: (loaded: number, total: number) => void) => {
-    const all = await fetchAllForExport(onProgress);
-    const rows = all.map((r) => [
+  const list = useDocumentList<Return>({
+    queryKey: "purchase-returns-list",
+    table: "purchase_returns",
+    select: "*, suppliers:supplier_id(name)",
+    dateField: "return_date",
+    numberField: "return_number",
+    errorMessage: "فشل في تحميل مرتجعات المشتريات",
+    mapRow: (r: any) => ({ ...r, supplier_name: r.suppliers?.name }),
+    mapExportRow: (r) => [
       formatDisplayNumber(prefix, r.posted_number, r.return_number, r.status),
       r.reference || "—",
       r.supplier_name || "—",
       r.return_date,
       formatCurrency(r.total),
       INVOICE_STATUS_LABELS[r.status] || r.status,
-    ]);
-    setExportRows(rows);
-    return { rows };
-  };
+    ],
+  });
 
-  const hasFilters = statusFilter !== "all" || dateFrom || dateTo || search.trim();
-  const clearFilters = () => {
-    setStatusFilter("all");
-    setDateFrom("");
-    setDateTo("");
-    setSearch("");
-  };
-
-  const prefix = settings?.purchase_return_prefix || "PRN-";
+  const { data: stats } = useDocumentStatusSummary({
+    queryKey: "purchase-returns-summary",
+    table: "purchase_returns",
+    dateField: "return_date",
+    dateFrom: list.dateFrom,
+    dateTo: list.dateTo,
+  });
 
   const exportConfig = useMemo(
     () => ({
@@ -180,10 +68,10 @@ export default function PurchaseReturns() {
       sheetName: "مرتجعات المشتريات",
       pdfTitle: "مرتجعات المشتريات",
       headers: ["رقم المرتجع", "رقم المرجع", "المورد", "التاريخ", "الإجمالي", "الحالة"],
-      rows: exportRows,
+      rows: list.exportRows,
       settings,
     }),
-    [exportRows, settings],
+    [list.exportRows, settings],
   );
 
   const columns: ColumnDef<Return, any>[] = [
@@ -228,9 +116,7 @@ export default function PurchaseReturns() {
     {
       accessorKey: "status",
       header: "الحالة",
-      cell: ({ row }) => (
-        <StatusBadge status={row.original.status} />
-      ),
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
     },
   ];
 
@@ -242,7 +128,7 @@ export default function PurchaseReturns() {
         description={`${fmtNum(stats?.total ?? 0)} مرتجع`}
         actions={
           <>
-            <ExportMenu config={exportConfig} disabled={isLoading} onOpen={handlePrepareExport} />
+            <ExportMenu config={exportConfig} disabled={list.isLoading} onOpen={list.handlePrepareExport} />
             {canEdit && (
               <Button
                 onClick={() => navigate("/purchase-returns/new")}
@@ -256,9 +142,10 @@ export default function PurchaseReturns() {
         }
       />
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        {[
+      <DocumentStatsStrip
+        activeFilter={list.statusFilter}
+        onFilterChange={list.setStatusFilter}
+        items={[
           {
             label: "إجمالي المرتجعات",
             value: fmtNum(stats?.total ?? 0),
@@ -294,66 +181,36 @@ export default function PurchaseReturns() {
             color: "bg-blue-500/10 text-blue-600",
             filter: "",
           },
-        ].map(({ label, value, icon: Icon, color, filter }) => (
-          <button
-            key={label}
-            onClick={() => filter && setStatusFilter(filter)}
-            className={`rounded-xl border p-4 text-right bg-card transition-all hover:shadow-md ${statusFilter === filter ? "ring-2 ring-primary" : ""}`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
-                <Icon className="h-4 w-4" />
-              </div>
-              <span className="text-2xl font-black text-foreground font-mono">{value}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">{label}</p>
-          </button>
-        ))}
-      </div>
+        ]}
+      />
 
       <DataTable
         compactRows
         columns={columns}
-        data={returns}
+        data={list.rows}
         searchPlaceholder="بحث..."
-        isLoading={isLoading}
+        isLoading={list.isLoading}
         emptyMessage="لا توجد مرتجعات"
         onRowClick={(r) => navigate(`/purchase-returns/${r.id}`)}
-        globalFilter={search}
-        onGlobalFilterChange={setSearch}
+        globalFilter={list.search}
+        onGlobalFilterChange={list.setSearch}
         manualPagination
-        pageCount={pageCount}
-        totalRows={totalCount}
-        pagination={pagination}
-        onPaginationChange={setPagination}
-        pageSize={PAGE_SIZE}
+        pageCount={list.pageCount}
+        totalRows={list.totalCount}
+        pagination={list.pagination}
+        onPaginationChange={list.setPagination}
+        pageSize={list.pageSize}
         toolbarContent={
-          <div className="flex items-center gap-2 flex-wrap">
-            <StatusFilterSelect value={statusFilter} onChange={setStatusFilter} />
-            <DatePickerInput
-              value={dateFrom}
-              onChange={setDateFrom}
-              placeholder="من تاريخ"
-              className="w-[150px] h-9 text-sm"
-            />
-            <DatePickerInput
-              value={dateTo}
-              onChange={setDateTo}
-              placeholder="إلى تاريخ"
-              className="w-[150px] h-9 text-sm"
-            />
-            {hasFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="h-9 gap-1 text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                مسح الفلاتر
-              </Button>
-            )}
-          </div>
+          <DocumentListFilters
+            statusFilter={list.statusFilter}
+            onStatusChange={list.setStatusFilter}
+            dateFrom={list.dateFrom}
+            onDateFromChange={list.setDateFrom}
+            dateTo={list.dateTo}
+            onDateToChange={list.setDateTo}
+            hasFilters={list.hasFilters}
+            onClear={list.clearFilters}
+          />
         }
       />
     </div>
