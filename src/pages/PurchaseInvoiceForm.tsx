@@ -56,7 +56,7 @@ import {
   formatProductDisplay,
   PRODUCT_SELECT_FIELDS_BASIC,
 } from "@/lib/product-utils";
-import { ACCOUNT_CODES, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { ACCOUNT_CODES } from "@/lib/constants";
 import { notify } from "@/lib/notify";
 
 interface Supplier {

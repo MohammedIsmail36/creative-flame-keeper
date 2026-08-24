@@ -4,7 +4,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
-import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

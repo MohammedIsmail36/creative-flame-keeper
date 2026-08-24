@@ -15,7 +15,7 @@ import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { Plus, RotateCcw, Eye, X, Trash2, Clock, CheckCircle, Ban, DollarSign } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
-import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { useQuery } from "@tanstack/react-query";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { notify } from "@/lib/notify";

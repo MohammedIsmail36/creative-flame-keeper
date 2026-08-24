@@ -22,7 +22,7 @@ import { Loader2 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { FormFieldError } from "@/components/FormFieldError";
 import { useSettings } from "@/contexts/SettingsContext";
-import { ACCOUNT_CODES, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { ACCOUNT_CODES, INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { recalculateEntityBalance, recalculateInvoicePaidAmount } from "@/lib/entity-balance";
 import { notify } from "@/lib/notify";
 
@@ -54,7 +54,6 @@ const methodLabels: Record<string, string> = {
   check: "شيك",
 };
 const statusLabels = INVOICE_STATUS_LABELS;
-const statusVariants = INVOICE_STATUS_COLORS;
 
 export default function SupplierPayments() {
   const { role } = useAuth();

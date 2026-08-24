@@ -66,8 +66,6 @@ import {
 } from "@/lib/product-utils";
 import {
   ACCOUNT_CODES,
-  INVOICE_STATUS_LABELS,
-  INVOICE_STATUS_COLORS,
 } from "@/lib/constants";
 
 interface Customer {
