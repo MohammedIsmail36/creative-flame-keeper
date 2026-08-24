@@ -1,4 +1,5 @@
 import { notify } from "@/lib/notify";
+import { LoadingState } from "@/components/LoadingState";
 import { useState } from "react";
 import { useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +32,7 @@ export default function Auth() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <LoadingState variant="inline" className="h-8 w-8" />
       </div>
     );
   }

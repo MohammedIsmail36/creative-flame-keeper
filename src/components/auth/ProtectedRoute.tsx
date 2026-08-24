@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { LoadingState } from "@/components/LoadingState";
 import { useAuth } from "@/contexts/AuthContext";
 import Forbidden from "@/pages/Forbidden";
 
@@ -20,7 +21,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   if (loading || waitingForRole) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <LoadingState variant="inline" className="h-8 w-8" />
       </div>
     );
   }
