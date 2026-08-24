@@ -25,7 +25,7 @@ export interface LoadedItemRow {
 }
 
 export interface MappedLineItem {
-  id: string;
+  id?: string;
   product_id: string;
   product_name: string;
   quantity: number;
