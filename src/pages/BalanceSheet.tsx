@@ -1,4 +1,5 @@
 import { notify } from "@/lib/notify";
+import { formatNumber } from "@/lib/format";
 import React, { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { format } from "date-fns";
@@ -280,10 +281,7 @@ export default function BalanceSheet() {
 
   /** تنسيق محاسبي: القيم السالبة (المعاكسة للطبيعة) بين قوسين */
   const formatNum = (val: number) => {
-    const abs = Math.abs(val).toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+    const abs = formatNumber(Math.abs(val));
     return val < 0 ? `(${abs})` : abs;
   };
   const formatCurrency = (val: number) => `${formatNum(val)} ${currency}`;

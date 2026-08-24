@@ -2,18 +2,9 @@ import React, { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Send, Loader2, CheckCircle2 } from "lucide-react";
+import { Send, CheckCircle2 } from "lucide-react";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
 import { notify } from "@/lib/notify";
@@ -195,48 +186,38 @@ export function TelegramPublishButton({ product, imagesCount, variant = "icon" }
         </TooltipContent>
       </Tooltip>
 
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>{published ? "إعادة نشر المنتج" : "نشر المنتج على تيليجرام"}</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2 text-right">
-                <div>
-                  المنتج: <span className="font-bold text-foreground">{product.name}</span> ({product.code})
-                </div>
-                <div>
-                  القناة: <span className="font-mono text-foreground">{settings?.channel_id}</span>
-                </div>
-                <div>
-                  الصور التي سترسل:{" "}
-                  <span className="font-bold text-foreground">{Math.min(count ?? 0, 10)}</span>
-                  {(count ?? 0) > 10 && (
-                    <span className="text-warning"> (أول 10 صور فقط — حد تيليجرام)</span>
-                  )}
-                </div>
-                {published && (
-                  <div className="text-warning font-medium">
-                    تم نشر هذا المنتج مسبقاً في {new Date(published.created_at).toLocaleDateString("en-GB")} — إعادة
-                    النشر ستُنشئ منشوراً جديداً في القناة.
-                  </div>
-                )}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                doPublish();
-              }}
-              disabled={sending}
-            >
-              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : published ? "إعادة النشر" : "نشر"}
-            </AlertDialogAction>
-            <AlertDialogCancel disabled={sending}>إلغاء</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={published ? "إعادة نشر المنتج" : "نشر المنتج على تيليجرام"}
+        description={
+          <span className="block space-y-2 text-right">
+            <span className="block">
+              المنتج: <span className="font-bold text-foreground">{product.name}</span> ({product.code})
+            </span>
+            <span className="block">
+              القناة: <span className="font-mono text-foreground">{settings?.channel_id}</span>
+            </span>
+            <span className="block">
+              الصور التي سترسل:{" "}
+              <span className="font-bold text-foreground">{Math.min(count ?? 0, 10)}</span>
+              {(count ?? 0) > 10 && (
+                <span className="text-warning"> (أول 10 صور فقط — حد تيليجرام)</span>
+              )}
+            </span>
+            {published && (
+              <span className="block text-warning font-medium">
+                تم نشر هذا المنتج مسبقاً في {new Date(published.created_at).toLocaleDateString("en-GB")} — إعادة
+                النشر ستُنشئ منشوراً جديداً في القناة.
+              </span>
+            )}
+          </span>
+        }
+        confirmText={published ? "إعادة النشر" : "نشر"}
+        loading={sending}
+        onConfirm={doPublish}
+      />
+
     </>
   );
 }

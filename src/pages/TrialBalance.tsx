@@ -1,4 +1,5 @@
 import { notify } from "@/lib/notify";
+import { formatNumber as formatNum } from "@/lib/format";
 import React, { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { format } from "date-fns";
@@ -49,7 +50,7 @@ interface TrialBalanceRow {
 }
 
 export default function TrialBalance() {
-  const { settings, currency } = useSettings();
+  const { settings, currency, formatCurrency } = useSettings();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -230,12 +231,6 @@ export default function TrialBalance() {
   const isBalanced =
     Math.abs(grandBalanceDebit - grandBalanceCredit) <= BALANCE_TOLERANCE;
 
-  const formatNum = (val: number) =>
-    Number(val).toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  const formatCurrency = (val: number) => `${formatNum(val)} ${currency}`;
 
   const getAccountTypeLabel = (type: string) => {
     const map: Record<string, string> = {
