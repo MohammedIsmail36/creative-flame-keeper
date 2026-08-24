@@ -1,18 +1,16 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Button } from "@/components/ui/button";
-import { DatePickerInput } from "@/components/DatePickerInput";
+import { DocumentListFilters } from "@/components/DocumentListFilters";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef, PaginationState } from "@tanstack/react-table";
+import { ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
   FileText,
-  Eye,
-  X,
   Clock,
   CheckCircle,
   DollarSign,
@@ -25,9 +23,8 @@ import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { INVOICE_STATUS_LABELS } from "@/lib/constants";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useQuery } from "@tanstack/react-query";
-import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
+import { useDocumentList } from "@/hooks/use-document-list";
 import { StatusChips } from "@/components/StatusChips";
-import { notify } from "@/lib/notify";
 
 interface Invoice {
   id: string;
