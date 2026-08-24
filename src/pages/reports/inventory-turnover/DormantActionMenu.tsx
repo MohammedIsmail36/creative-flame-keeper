@@ -81,23 +81,17 @@ export function DormantActionMenu({ product, onIgnore, onChanged }: Props) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog open={confirmDeactivate} onOpenChange={setConfirmDeactivate}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>تعطيل المنتج؟</AlertDialogTitle>
-            <AlertDialogDescription>
-              سيتم إخفاء المنتج «{product.productName}» من قوائم البيع والشراء.
-              يمكنك إعادة تفعيله لاحقاً من شاشة المنتجات.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeactivate} disabled={busy}>
-              تأكيد التعطيل
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={confirmDeactivate}
+        onOpenChange={setConfirmDeactivate}
+        title="تعطيل المنتج؟"
+        description={`سيتم إخفاء المنتج «${product.productName}» من قوائم البيع والشراء. يمكنك إعادة تفعيله لاحقاً من شاشة المنتجات.`}
+        confirmText="تأكيد التعطيل"
+        destructive
+        loading={busy}
+        onConfirm={handleDeactivate}
+      />
+
     </>
   );
 }
