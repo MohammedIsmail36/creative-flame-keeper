@@ -42,17 +42,8 @@ import {
   Ban,
   Loader2,
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+
 
 type Product = ProductWithBrand & { quantity_on_hand: number };
 
@@ -827,8 +818,8 @@ export default function InventoryAdjustmentForm() {
             />
           )}
           {!isNew && isDraft && canEdit && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+            <ConfirmDialog
+              trigger={
                 <Button
                   variant="outline"
                   size="sm"
@@ -837,27 +828,15 @@ export default function InventoryAdjustmentForm() {
                   <Trash2 className="h-4 w-4" />
                   حذف
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>حذف التسوية</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    هل أنت متأكد من حذف هذه التسوية؟ لا يمكن التراجع عن هذا
-                    الإجراء.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteDraft}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    حذف
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              }
+              title="حذف التسوية"
+              description="هل أنت متأكد من حذف هذه التسوية؟ لا يمكن التراجع عن هذا الإجراء."
+              confirmText="حذف"
+              destructive
+              onConfirm={handleDeleteDraft}
+            />
           )}
+
           {!isNew && isDraft && canEdit && !editMode && (
             <Button
               variant="outline"
@@ -886,8 +865,8 @@ export default function InventoryAdjustmentForm() {
             </Button>
           )}
           {!isNew && isDraft && canEdit && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+            <ConfirmDialog
+              trigger={
                 <Button
                   size="sm"
                   disabled={saving || items.length === 0 || hasZeroDiff}
@@ -901,37 +880,32 @@ export default function InventoryAdjustmentForm() {
                   <CheckCircle className="h-4 w-4" />
                   اعتماد التسوية
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>اعتماد التسوية</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    سيتم تسجيل القيود المحاسبية وتحديث كميات المخزون. لا يمكن
-                    التراجع عن هذه العملية.
-                    {totalLoss > 0 && (
-                      <div className="text-destructive mt-2 font-semibold">
-                        عجز: {formatCurrency(totalLoss)}
-                      </div>
-                    )}
-                    {totalGain > 0 && (
-                      <div className="text-green-600 mt-1 font-semibold">
-                        فائض: {formatCurrency(totalGain)}
-                      </div>
-                    )}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleApprove}>
-                    اعتماد
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              }
+              title="اعتماد التسوية"
+              description="سيتم تسجيل القيود المحاسبية وتحديث كميات المخزون. لا يمكن التراجع عن هذه العملية."
+              confirmText="اعتماد"
+              onConfirm={handleApprove}
+            >
+              {(totalLoss > 0 || totalGain > 0) && (
+                <div className="text-sm">
+                  {totalLoss > 0 && (
+                    <div className="text-destructive font-semibold">
+                      عجز: {formatCurrency(totalLoss)}
+                    </div>
+                  )}
+                  {totalGain > 0 && (
+                    <div className="text-green-600 mt-1 font-semibold">
+                      فائض: {formatCurrency(totalGain)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </ConfirmDialog>
           )}
+
           {!isNew && isApproved && role === "admin" && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+            <ConfirmDialog
+              trigger={
                 <Button
                   variant="outline"
                   size="sm"
@@ -941,27 +915,16 @@ export default function InventoryAdjustmentForm() {
                   <Ban className="h-4 w-4" />
                   إلغاء التسوية
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent dir="rtl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>إلغاء التسوية المعتمدة</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    سيتم استعادة كميات المخزون إلى ما قبل التسوية وإلغاء القيود
-                    المحاسبية المرتبطة. هل أنت متأكد؟
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row-reverse gap-2">
-                  <AlertDialogCancel>تراجع</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleCancelApproved}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    إلغاء التسوية
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              }
+              title="إلغاء التسوية المعتمدة"
+              description="سيتم استعادة كميات المخزون إلى ما قبل التسوية وإلغاء القيود المحاسبية المرتبطة. هل أنت متأكد؟"
+              confirmText="إلغاء التسوية"
+              cancelText="تراجع"
+              destructive
+              onConfirm={handleCancelApproved}
+            />
           )}
+
         </>}
       />
 

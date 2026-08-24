@@ -53,17 +53,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import OutstandingCreditsSection from "@/components/OutstandingCreditsSection";
 import { recalculateEntityBalance } from "@/lib/entity-balance";
@@ -708,8 +699,8 @@ export default function SalesInvoiceForm() {
         actions={
           <>
             {!isNew && isDraft && canEdit && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <ConfirmDialog
+                trigger={
                   <Button
                     variant="outline"
                     size="sm"
@@ -718,30 +709,18 @@ export default function SalesInvoiceForm() {
                     <Trash2 className="h-4 w-4" />
                     حذف
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>حذف الفاتورة المسودة</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      هل أنت متأكد من حذف هذه الفاتورة؟ لا يمكن التراجع عن هذا الإجراء.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row-reverse gap-2">
-                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDeleteDraft}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      حذف
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                }
+                title="حذف الفاتورة المسودة"
+                description="هل أنت متأكد من حذف هذه الفاتورة؟ لا يمكن التراجع عن هذا الإجراء."
+                confirmText="حذف"
+                destructive
+                onConfirm={handleDeleteDraft}
+              />
             )}
 
             {!isNew && status === "posted" && canEdit && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <ConfirmDialog
+                trigger={
                   <Button
                     variant="outline"
                     size="sm"
@@ -750,51 +729,31 @@ export default function SalesInvoiceForm() {
                     <Ban className="h-4 w-4" />
                     إلغاء
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent dir="rtl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>إلغاء الفاتورة المرحّلة</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد العميل.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row-reverse gap-2">
-                    <AlertDialogCancel>تراجع</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleCancelPosted}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      إلغاء الفاتورة
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                }
+                title="إلغاء الفاتورة المرحّلة"
+                description="سيتم عكس القيد المحاسبي وإرجاع الكميات للمخزون وتعديل رصيد العميل."
+                confirmText="إلغاء الفاتورة"
+                cancelText="تراجع"
+                destructive
+                onConfirm={handleCancelPosted}
+              />
             )}
 
             {!isNew && status === "posted" && role === "admin" && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <ConfirmDialog
+                trigger={
                   <Button variant="outline" size="sm" className="gap-1.5">
                     <Undo2 className="h-4 w-4" />
                     إعادة كمسودة
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent dir="rtl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>إعادة تعيين الفاتورة كمسودة</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      ستعود الفاتورة لحالة المسودة ليمكن تعديلها، ويتحول قيدها المحاسبي إلى مسودة (يخرج من التقارير دون
-                      حذفه)، وتُسحب الكميات من المخزون وتُلغى نقاط الولاء المكتسبة منها. يظل رقم الفاتورة كما هو ويُعاد
-                      استخدام نفس القيد عند الترحيل مرة أخرى. غير مسموح إن وُجد سداد أو مرتجع مرتبط بالفاتورة.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row-reverse gap-2">
-                    <AlertDialogCancel>تراجع</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleResetToDraft}>تأكيد</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                }
+                title="إعادة تعيين الفاتورة كمسودة"
+                description="ستعود الفاتورة لحالة المسودة ليمكن تعديلها، ويتحول قيدها المحاسبي إلى مسودة (يخرج من التقارير دون حذفه)، وتُسحب الكميات من المخزون وتُلغى نقاط الولاء المكتسبة منها. يظل رقم الفاتورة كما هو ويُعاد استخدام نفس القيد عند الترحيل مرة أخرى. غير مسموح إن وُجد سداد أو مرتجع مرتبط بالفاتورة."
+                cancelText="تراجع"
+                onConfirm={handleResetToDraft}
+              />
             )}
+
             {!isNew && (
               <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5">
                 <Printer className="h-4 w-4" />

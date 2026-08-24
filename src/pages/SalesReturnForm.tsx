@@ -51,17 +51,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import ReturnSettlementsView from "@/components/ReturnSettlementsView";
 import { recalculateEntityBalance } from "@/lib/entity-balance";
@@ -839,8 +830,8 @@ export default function SalesReturnForm() {
         actions={
           <>
             {!isNew && isDraft && canEdit && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <ConfirmDialog
+                trigger={
                   <Button
                     variant="outline"
                     size="sm"
@@ -849,30 +840,17 @@ export default function SalesReturnForm() {
                     <Trash2 className="h-4 w-4" />
                     حذف
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent dir="rtl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>حذف المرتجع</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      هل أنت متأكد من حذف هذا المرتجع؟ لا يمكن التراجع عن هذا
-                      الإجراء.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row-reverse gap-2">
-                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDeleteDraft}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      حذف
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                }
+                title="حذف المرتجع"
+                description="هل أنت متأكد من حذف هذا المرتجع؟ لا يمكن التراجع عن هذا الإجراء."
+                confirmText="حذف"
+                destructive
+                onConfirm={handleDeleteDraft}
+              />
             )}
             {!isNew && status === "posted" && canEdit && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <ConfirmDialog
+                trigger={
                   <Button
                     variant="outline"
                     size="sm"
@@ -881,27 +859,16 @@ export default function SalesReturnForm() {
                     <Ban className="h-4 w-4" />
                     إلغاء
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent dir="rtl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>إلغاء المرتجع المرحّل</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      سيتم عكس القيد المحاسبي وإرجاع الكميات من المخزون وتعديل
-                      رصيد العميل.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row-reverse gap-2">
-                    <AlertDialogCancel>تراجع</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleCancelPosted}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      إلغاء المرتجع
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                }
+                title="إلغاء المرتجع المرحّل"
+                description="سيتم عكس القيد المحاسبي وإرجاع الكميات من المخزون وتعديل رصيد العميل."
+                confirmText="إلغاء المرتجع"
+                cancelText="تراجع"
+                destructive
+                onConfirm={handleCancelPosted}
+              />
             )}
+
             {!isNew && (
               <Button
                 variant="outline"

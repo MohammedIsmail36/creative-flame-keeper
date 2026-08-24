@@ -42,17 +42,8 @@ import {
   Clock,
   AlertCircle,
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+
 import {
   recalculateEntityBalance,
   recalculateInvoicePaidAmount,
@@ -885,8 +876,8 @@ export default function InvoicePaymentSection({
                         </Badge>
                       </TableCell>
                       <TableCell className="py-2">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
+                        <ConfirmDialog
+                          trigger={
                             <Button
                               size="sm"
                               variant="ghost"
@@ -895,26 +886,14 @@ export default function InvoicePaymentSection({
                             >
                               <Unlink className="h-3 w-3" />
                             </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent dir="rtl">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>فك التخصيص</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                هل تريد فك تخصيص {fmt(a.allocated_amount)} من
-                                الدفعة #{a.payment_number}؟
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter className="flex-row-reverse gap-2">
-                              <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => unlinkAllocation(a)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                فك التخصيص
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                          }
+                          title="فك التخصيص"
+                          description={`هل تريد فك تخصيص ${fmt(a.allocated_amount)} من الدفعة #${a.payment_number}؟`}
+                          confirmText="فك التخصيص"
+                          destructive
+                          onConfirm={() => unlinkAllocation(a)}
+                        />
+
                       </TableCell>
                     </TableRow>
                   ))}

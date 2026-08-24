@@ -14,17 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+
 import { AccountCombobox } from "@/components/AccountCombobox";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -452,35 +443,23 @@ export default function JournalEntryForm() {
         actions={
           <>
             {!isNew && isDraft && canDelete && !isLinked && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <ConfirmDialog
+                trigger={
                   <Button variant="destructive" className="gap-2">
                     <Trash2 className="h-4 w-4" />
                     حذف
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent dir="rtl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>حذف القيد المسودة</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      هل أنت متأكد من حذف هذا القيد؟ لا يمكن التراجع عن هذا الإجراء.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row-reverse gap-2">
-                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDelete}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      حذف
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                }
+                title="حذف القيد المسودة"
+                description="هل أنت متأكد من حذف هذا القيد؟ لا يمكن التراجع عن هذا الإجراء."
+                confirmText="حذف"
+                destructive
+                onConfirm={handleDelete}
+              />
             )}
             {!isNew && status === "posted" && canEdit && !isLinked && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <ConfirmDialog
+                trigger={
                   <Button
                     variant="outline"
                     className="gap-2 border-destructive text-destructive hover:bg-destructive/10"
@@ -488,24 +467,16 @@ export default function JournalEntryForm() {
                     <Ban className="h-4 w-4" />
                     إلغاء القيد
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent dir="rtl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>إلغاء القيد {displayNumber}</AlertDialogTitle>
-                    <AlertDialogDescription>سيتم تغيير حالة القيد إلى "ملغي". هل تريد المتابعة؟</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-row-reverse gap-2">
-                    <AlertDialogCancel>تراجع</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleCancel}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      تأكيد الإلغاء
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                }
+                title={`إلغاء القيد ${displayNumber}`}
+                description='سيتم تغيير حالة القيد إلى "ملغي". هل تريد المتابعة؟'
+                confirmText="تأكيد الإلغاء"
+                cancelText="تراجع"
+                destructive
+                onConfirm={handleCancel}
+              />
             )}
+
             {!isNew && status === "posted" && isLinked && (
               <Button
                 variant="ghost"
@@ -546,27 +517,20 @@ export default function JournalEntryForm() {
                   <X className="h-4 w-4" />
                   تراجع
                 </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
+                <ConfirmDialog
+                  trigger={
                     <Button disabled={saving || !isBalanced} className="gap-2">
                       {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       {saving ? "جاري الحفظ..." : "حفظ التعديلات"}
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent dir="rtl">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>تعديل قيد معتمد {displayNumber}</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        سيتم استبدال سطور القيد بالسطور الجديدة وتحديث الأرصدة فوراً، مع الاحتفاظ برقم القيد. هل تريد
-                        المتابعة؟
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="flex-row-reverse gap-2">
-                      <AlertDialogCancel>تراجع</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleSavePosted}>تأكيد التعديل</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                  }
+                  title={`تعديل قيد معتمد ${displayNumber}`}
+                  description="سيتم استبدال سطور القيد بالسطور الجديدة وتحديث الأرصدة فوراً، مع الاحتفاظ برقم القيد. هل تريد المتابعة؟"
+                  confirmText="تأكيد التعديل"
+                  cancelText="تراجع"
+                  onConfirm={handleSavePosted}
+                />
+
               </>
             )}
 
