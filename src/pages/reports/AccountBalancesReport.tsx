@@ -630,6 +630,7 @@
 // }
 
 import { useEffect, useMemo, useState } from "react";
+import { StatCard } from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1343,50 +1344,17 @@ interface KpiCardProps {
   valueClass?: string;
 }
 
-function KpiCard({ label, value, currency, icon: Icon, tone, hint, valueClass }: KpiCardProps) {
-  const iconBg: Record<string, string> = {
-    blue: "bg-blue-100    dark:bg-blue-500/10    text-blue-600    dark:text-blue-400",
-    orange: "bg-orange-100  dark:bg-orange-500/10  text-orange-600  dark:text-orange-400",
-    purple: "bg-purple-100  dark:bg-purple-500/10  text-purple-600  dark:text-purple-400",
-    emerald: "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    red: "bg-red-100     dark:bg-red-500/10     text-red-600     dark:text-red-400",
-  };
-
+function KpiCard({ label, value, currency, icon, tone, hint, valueClass }: KpiCardProps) {
   return (
-    <Card className="border shadow-sm">
-      <CardContent className="pt-3 pb-3 px-3">
-        {/* Row 1: label + icon */}
-        <div className="flex items-start justify-between gap-1 mb-2">
-          <div className="flex items-center gap-1 min-w-0">
-            <p className="text-[11px] leading-snug text-muted-foreground line-clamp-2">{label}</p>
-            {hint && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-2.5 w-2.5 text-muted-foreground/40 cursor-help shrink-0 mt-px" />
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs text-xs text-right">
-                  {hint}
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-          <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0", iconBg[tone])}>
-            <Icon className="h-3 w-3" />
-          </div>
-        </div>
-
-        {/* Row 2: number — occupies its own line, never truncated or crowded */}
-        <p
-          className={cn("text-base font-bold tabular-nums font-mono leading-tight", valueClass)}
-          style={{ wordBreak: "break-all" }}
-        >
-          {value}
-        </p>
-
-        {/* Row 3: currency label on its own line — never overlaps the number */}
-        {currency && <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">{currency}</p>}
-      </CardContent>
-    </Card>
+    <StatCard
+      icon={icon}
+      label={label}
+      value={value}
+      sub={currency || undefined}
+      hint={hint}
+      tone={tone}
+      valueClass={valueClass}
+    />
   );
 }
 
