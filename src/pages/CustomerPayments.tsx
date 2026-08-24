@@ -3,7 +3,6 @@ import { StatusFilterSelect } from "@/components/FilterBar";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PageHeader } from "@/components/PageHeader";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
