@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { LoadingState } from "@/components/LoadingState";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -543,9 +544,7 @@ export default function Accounts() {
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-            </div>
+            <LoadingState />
           ) : (filteredAccounts ? filteredAccounts.length : rootAccounts.length) === 0 ? (
             <div className="text-center py-12 space-y-2">
               <BookOpen className="h-10 w-10 text-muted-foreground/40 mx-auto" />

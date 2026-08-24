@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { LoadingState } from "@/components/LoadingState";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1082,10 +1083,7 @@ export default function ProductView() {
               )}
 
               {loadingMovements && (
-                <div className="flex items-center justify-center py-12 gap-3 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span className="text-sm">جارٍ تحميل الحركات…</span>
-                </div>
+                <LoadingState label="جارٍ تحميل الحركات…" />
               )}
               {movementsError && !loadingMovements && (
                 <div className="flex items-center gap-3 p-4 rounded-lg bg-destructive/10 text-destructive border border-destructive/20">

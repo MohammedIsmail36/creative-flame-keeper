@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LoadingState } from "@/components/LoadingState";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteStorageFile } from "@/lib/storage-cleanup";
@@ -293,9 +294,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
+      <LoadingState variant="block" />
     );
   }
 
