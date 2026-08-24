@@ -8,13 +8,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ConfirmDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  /** وضع مُتحكَّم: مرّر open + onOpenChange. اتركهما فارغين مع trigger للوضع غير المتحكَّم */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** عنصر يفتح الحوار (يُلفّ بـ AlertDialogTrigger asChild) */
+  trigger?: React.ReactNode;
   title: React.ReactNode;
   description?: React.ReactNode;
   /** محتوى إضافي داخل جسم الحوار (سبب الإلغاء، تحذير محاسبي، تفاصيل...) */
@@ -37,6 +41,7 @@ export interface ConfirmDialogProps {
 export function ConfirmDialog({
   open,
   onOpenChange,
+  trigger,
   title,
   description,
   children,
@@ -47,9 +52,17 @@ export function ConfirmDialog({
   confirmDisabled = false,
   onConfirm,
 }: ConfirmDialogProps) {
+  const controlled = open !== undefined;
+
   return (
-    <AlertDialog open={open} onOpenChange={(o) => !loading && onOpenChange(o)}>
+    <AlertDialog
+      {...(controlled
+        ? { open, onOpenChange: (o: boolean) => !loading && onOpenChange?.(o) }
+        : {})}
+    >
+      {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
       <AlertDialogContent dir="rtl">
+
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description && (
