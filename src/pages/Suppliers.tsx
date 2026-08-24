@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
-import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Truck, X, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ExportMenu } from "@/components/ExportMenu";
@@ -37,6 +36,7 @@ import { round2 } from "@/lib/utils";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatSupabaseError } from "@/lib/format-error";
+import { notify } from "@/lib/notify";
 
 interface Supplier {
   id: string;
@@ -256,11 +256,7 @@ export default function Suppliers() {
 
   async function handleSave() {
     if (!form.code.trim() || !form.name.trim()) {
-      toast({
-        title: "تنبيه",
-        description: "يرجى إدخال الكود والاسم",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "يرجى إدخال الكود والاسم");
       return;
     }
     setSaving(true);
@@ -281,7 +277,7 @@ export default function Suppliers() {
           .update(payload)
           .eq("id", editItem.id);
         if (error) throw error;
-        toast({ title: "تم التحديث", description: "تم تعديل بيانات المورد" });
+        notify.success("تم التحديث", "تم تعديل بيانات المورد");
       } else {
         const insertPayload = { ...payload, opening_balance: openingBalance };
         const { data: newSupplier, error } = await (
@@ -298,16 +294,12 @@ export default function Suppliers() {
             openingBalance,
           );
         }
-        toast({ title: "تمت الإضافة", description: "تم إضافة المورد بنجاح" });
+        notify.success("تمت الإضافة", "تم إضافة المورد بنجاح");
       }
       setDialogOpen(false);
       refetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: formatSupabaseError(error),
-        variant: "destructive",
-      });
+      notify.error("خطأ", formatSupabaseError(error));
     }
     setSaving(false);
   }
@@ -318,11 +310,7 @@ export default function Suppliers() {
       .select("id", { count: "exact", head: true })
       .eq("supplier_id", deleteTarget.id);
     if (count && count > 0) {
-      toast({
-        title: "لا يمكن الحذف",
-        description: `المورد مرتبط بـ ${count} فاتورة شراء`,
-        variant: "destructive",
-      });
+      notify.error("لا يمكن الحذف", `المورد مرتبط بـ ${count} فاتورة شراء`);
       setDeleteTarget(null);
       return;
     }
@@ -330,15 +318,11 @@ export default function Suppliers() {
       .delete()
       .eq("id", deleteTarget.id);
     if (error) {
-      toast({
-        title: "خطأ",
-        description: formatSupabaseError(error),
-        variant: "destructive",
-      });
+      notify.error("خطأ", formatSupabaseError(error));
       setDeleteTarget(null);
       return;
     }
-    toast({ title: "تم الحذف", description: "تم حذف المورد" });
+    notify.success("تم الحذف", "تم حذف المورد");
     setDeleteTarget(null);
     refetchAll();
   }

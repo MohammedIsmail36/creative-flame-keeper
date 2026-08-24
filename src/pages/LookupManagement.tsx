@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { toast } from "@/hooks/use-toast";
 import {
   Plus,
   Pencil,
@@ -40,6 +39,7 @@ import {
 import { LookupImportDialog } from "@/components/LookupImportDialog";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
+import { notify } from "@/lib/notify";
 
 interface LookupConfig {
   table: string;
@@ -167,11 +167,7 @@ export default function LookupManagement() {
 
   async function handleSave() {
     if (!formName.trim()) {
-      toast({
-        title: "تنبيه",
-        description: "يرجى إدخال الاسم",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "يرجى إدخال الاسم");
       return;
     }
     const duplicate = items.find(
@@ -180,11 +176,7 @@ export default function LookupManagement() {
         (!editItem || item.id !== editItem.id),
     );
     if (duplicate) {
-      toast({
-        title: "تنبيه",
-        description: `يوجد ${config.singularTitle} بنفس الاسم: "${duplicate.name}"`,
-        variant: "destructive",
-      });
+      notify.error("تنبيه", `يوجد ${config.singularTitle} بنفس الاسم: "${duplicate.name}"`);
       return;
     }
     setSaving(true);
@@ -199,19 +191,13 @@ export default function LookupManagement() {
           .update(payload)
           .eq("id", editItem.id);
         if (error) throw error;
-        toast({
-          title: "تم التحديث",
-          description: `تم تعديل ${config.singularTitle} بنجاح`,
-        });
+        notify.success("تم التحديث", `تم تعديل ${config.singularTitle} بنجاح`);
       } else {
         const { error } = await (
           supabase.from(config.table as any) as any
         ).insert(payload);
         if (error) throw error;
-        toast({
-          title: "تمت الإضافة",
-          description: `تم إضافة ${config.singularTitle} بنجاح`,
-        });
+        notify.success("تمت الإضافة", `تم إضافة ${config.singularTitle} بنجاح`);
       }
       setDialogOpen(false);
       fetchItems();
@@ -219,7 +205,7 @@ export default function LookupManagement() {
       const msg = error.message?.includes("duplicate")
         ? "الاسم موجود مسبقاً"
         : error.message;
-      toast({ title: "خطأ", description: msg, variant: "destructive" });
+      notify.error("خطأ", msg);
     }
     setSaving(false);
   }
@@ -231,11 +217,7 @@ export default function LookupManagement() {
         .select("id", { count: "exact", head: true })
         .eq(config.fkColumn, deleteTarget.id);
       if (count && count > 0) {
-        toast({
-          title: "لا يمكن الحذف",
-          description: `هذا ${config.singularTitle} مرتبط بـ ${count} منتج. قم بتعطيله بدلاً من حذفه.`,
-          variant: "destructive",
-        });
+        notify.error("لا يمكن الحذف", `هذا ${config.singularTitle} مرتبط بـ ${count} منتج. قم بتعطيله بدلاً من حذفه.`);
         setDeleteDialogOpen(false);
         return;
       }
@@ -243,18 +225,11 @@ export default function LookupManagement() {
         .delete()
         .eq("id", deleteTarget.id);
       if (error) throw error;
-      toast({
-        title: "تم الحذف",
-        description: `تم حذف ${config.singularTitle} نهائياً`,
-      });
+      notify.success("تم الحذف", `تم حذف ${config.singularTitle} نهائياً`);
       setDeleteDialogOpen(false);
       fetchItems();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
   }
 
@@ -263,11 +238,7 @@ export default function LookupManagement() {
       .update({ is_active: !item.is_active })
       .eq("id", item.id);
     if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في تغيير الحالة",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في تغيير الحالة");
       return;
     }
     fetchItems();

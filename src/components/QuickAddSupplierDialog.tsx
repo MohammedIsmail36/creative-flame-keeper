@@ -12,8 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { generateEntityCode } from "@/lib/code-generation";
-import { toast } from "@/hooks/use-toast";
 import { Loader2, Truck } from "lucide-react";
+import { notify } from "@/lib/notify";
 
 export interface QuickAddedSupplier {
   id: string;
@@ -51,11 +51,7 @@ export function QuickAddSupplierDialog({
   async function handleSave() {
     const trimmed = name.trim();
     if (!trimmed) {
-      toast({
-        title: "تنبيه",
-        description: "يرجى إدخال اسم المورد",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "يرجى إدخال اسم المورد");
       return;
     }
     setSaving(true);
@@ -72,18 +68,11 @@ export function QuickAddSupplierDialog({
         .select("id, code, name, balance")
         .single();
       if (error) throw error;
-      toast({
-        title: "تمت الإضافة",
-        description: `تم إنشاء المورد ${data.name}`,
-      });
+      notify.success("تمت الإضافة", `تم إنشاء المورد ${data.name}`);
       onCreated(data as QuickAddedSupplier);
       onOpenChange(false);
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message || "تعذر إنشاء المورد",
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message || "تعذر إنشاء المورد");
     } finally {
       setSaving(false);
     }

@@ -11,8 +11,8 @@ import { AccountCombobox } from "@/components/AccountCombobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Receipt, CheckCircle2, XCircle, Tags } from "lucide-react";
+import { notify } from "@/lib/notify";
 
 interface Account {
   id: string;
@@ -88,11 +88,7 @@ export default function ExpenseTypes() {
 
   async function handleSave() {
     if (!name.trim() || !accountId) {
-      toast({
-        title: "تنبيه",
-        description: "يرجى إدخال اسم النوع واختيار الحساب",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "يرجى إدخال اسم النوع واختيار الحساب");
       return;
     }
     setSaving(true);
@@ -105,24 +101,17 @@ export default function ExpenseTypes() {
       if (editTarget) {
         const { error } = await (supabase.from("expense_types" as any) as any).update(payload).eq("id", editTarget.id);
         if (error) throw error;
-        toast({
-          title: "تم التحديث",
-          description: "تم تحديث نوع المصروف بنجاح",
-        });
+        notify.success("تم التحديث", "تم تحديث نوع المصروف بنجاح");
       } else {
         const { error } = await (supabase.from("expense_types" as any) as any).insert(payload);
         if (error) throw error;
-        toast({ title: "تم الحفظ", description: "تم إضافة نوع المصروف بنجاح" });
+        notify.success("تم الحفظ", "تم إضافة نوع المصروف بنجاح");
       }
       setDialogOpen(false);
       resetForm();
       fetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
     setSaving(false);
   }
@@ -134,25 +123,17 @@ export default function ExpenseTypes() {
         .select("id", { count: "exact", head: true })
         .eq("expense_type_id", deleteTarget.id);
       if (count && count > 0) {
-        toast({
-          title: "لا يمكن الحذف",
-          description: "يوجد مصروفات مرتبطة بهذا النوع",
-          variant: "destructive",
-        });
+        notify.error("لا يمكن الحذف", "يوجد مصروفات مرتبطة بهذا النوع");
         setDeleteTarget(null);
         return;
       }
       const { error } = await (supabase.from("expense_types" as any) as any).delete().eq("id", deleteTarget.id);
       if (error) throw error;
-      toast({ title: "تم الحذف", description: "تم حذف نوع المصروف" });
+      notify.success("تم الحذف", "تم حذف نوع المصروف");
       setDeleteTarget(null);
       fetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
   }
 

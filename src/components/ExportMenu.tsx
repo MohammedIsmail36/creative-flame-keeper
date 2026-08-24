@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, FileSpreadsheet, FileDown, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { toast } from "@/hooks/use-toast";
 import type { CompanySettings } from "@/contexts/SettingsContext";
+import { notify } from "@/lib/notify";
 
 export interface ExportConfig {
   filenamePrefix: string;
@@ -85,7 +85,7 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
       headers: cfg.headers,
       rows: cfg.rows,
     });
-    toast({ title: "تم التصدير", description: "تم التصدير بصيغة CSV" });
+    notify.success("تم التصدير", "تم التصدير بصيغة CSV");
   };
 
   const handleExcel = async () => {
@@ -98,7 +98,7 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
       headers: cfg.headers,
       rows: cfg.rows,
     });
-    toast({ title: "تم التصدير", description: "تم التصدير بصيغة Excel" });
+    notify.success("تم التصدير", "تم التصدير بصيغة Excel");
   };
 
   const handlePDF = async () => {
@@ -116,7 +116,7 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
         (cfg.headers.length > 6 ? "landscape" : "portrait"),
       filename: cfg.filenamePrefix,
     });
-    toast({ title: "تم التصدير", description: "تم التصدير بصيغة PDF" });
+    notify.success("تم التصدير", "تم التصدير بصيغة PDF");
   };
 
   return (

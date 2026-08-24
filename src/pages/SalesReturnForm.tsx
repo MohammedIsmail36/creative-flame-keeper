@@ -1,3 +1,4 @@
+import { notify } from "@/lib/notify";
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import {
@@ -32,7 +33,6 @@ import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
-import { toast } from "@/hooks/use-toast";
 import {
   Plus,
   X,
@@ -222,11 +222,7 @@ export default function SalesReturnForm() {
       errors.items = "يجب أن تكون الكمية المرتجعة أكبر من صفر";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast({
-        title: "تنبيه",
-        description: Object.values(errors)[0],
-        variant: "destructive",
-      });
+      notify.error("تنبيه", Object.values(errors)[0]);
       return false;
     }
     setSaving(true);
@@ -283,10 +279,7 @@ export default function SalesReturnForm() {
           await (supabase.from("sales_return_items") as any).insert(rows);
         }
         if (!opts?.silent) {
-          toast({
-            title: "تمت الإضافة",
-            description: draftSavedMsg || "تم إنشاء مرتجع البيع كمسودة",
-          });
+          notify.success("تمت الإضافة", draftSavedMsg || "تم إنشاء مرتجع البيع كمسودة");
         }
         setIsDirty(false); navGuard.allowNext();
         navigate(`/sales-returns/${ret.id}`);
@@ -318,20 +311,13 @@ export default function SalesReturnForm() {
           await (supabase.from("sales_return_items") as any).insert(rows);
         }
         if (!opts?.silent) {
-          toast({
-            title: "تم التحديث",
-            description: draftSavedMsg || "تم تحديث مرتجع البيع",
-          });
+          notify.success("تم التحديث", draftSavedMsg || "تم تحديث مرتجع البيع");
         }
         setIsDirty(false); navGuard.allowNext();
         if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
       setSaving(false);
       return false;
     }
@@ -344,22 +330,14 @@ export default function SalesReturnForm() {
       settings?.locked_until_date &&
       returnDate <= settings.locked_until_date
     ) {
-      toast({
-        title: "خطأ",
-        description: `لا يمكن ترحيل مرتجع بتاريخ ${returnDate} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
+      notify.error("خطأ", `لا يمكن ترحيل مرتجع بتاريخ ${returnDate} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       return;
     }
     // Persist any unsaved edits before posting
     if (isDirty && id) {
       const saved = await handleSave({ silent: true, skipReload: true });
       if (!saved) {
-        toast({
-          title: "تعذر الترحيل",
-          description: "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل",
-          variant: "destructive",
-        });
+        notify.error("تعذر الترحيل", "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل");
         return;
       }
     }
@@ -432,11 +410,7 @@ export default function SalesReturnForm() {
           const availableToReturn = totalSold - totalReturned;
           if (item.quantity > availableToReturn) {
             const prodName = item.product_name;
-            toast({
-              title: "تنبيه",
-              description: `الكمية المرتجعة للصنف (${prodName}) أكبر من الكمية المباعة خلال ${returnDaysLimit} يوم السابقة. المتاح للإرجاع: ${availableToReturn}`,
-              variant: "destructive",
-            });
+            notify.error("تنبيه", `الكمية المرتجعة للصنف (${prodName}) أكبر من الكمية المباعة خلال ${returnDaysLimit} يوم السابقة. المتاح للإرجاع: ${availableToReturn}`);
             return;
           }
         }
@@ -466,12 +440,7 @@ export default function SalesReturnForm() {
       let salesTaxAcc: { id: string } | null = null;
       if (taxAmount > 0) {
         if (!settings?.enable_tax || !settings?.sales_tax_account_id) {
-          toast({
-            title: "خطأ",
-            description:
-              'الضريبة مطبقة على المرتجع ولكنها غير مفعّلة في الإعدادات أو لم يتم تحديد حساب ضريبة المبيعات. يرجى ضبط ذلك من تبويب "الضريبة" في إعدادات الشركة',
-            variant: "destructive",
-          });
+          notify.error("خطأ", 'الضريبة مطبقة على المرتجع ولكنها غير مفعّلة في الإعدادات أو لم يتم تحديد حساب ضريبة المبيعات. يرجى ضبط ذلك من تبويب "الضريبة" في إعدادات الشركة');
           return;
         }
         const { data: taxAccData } = await supabase
@@ -480,23 +449,14 @@ export default function SalesReturnForm() {
           .eq("id", settings.sales_tax_account_id)
           .maybeSingle();
         if (!taxAccData) {
-          toast({
-            title: "خطأ",
-            description:
-              "حساب ضريبة المبيعات المحدد في الإعدادات غير موجود في شجرة الحسابات",
-            variant: "destructive",
-          });
+          notify.error("خطأ", "حساب ضريبة المبيعات المحدد في الإعدادات غير موجود في شجرة الحسابات");
           return;
         }
         salesTaxAcc = taxAccData;
       }
 
       if (!customersAcc || !revenueAcc) {
-        toast({
-          title: "خطأ",
-          description: "تأكد من وجود الحسابات المطلوبة",
-          variant: "destructive",
-        });
+        notify.error("خطأ", "تأكد من وجود الحسابات المطلوبة");
         return;
       }
 
@@ -617,16 +577,12 @@ export default function SalesReturnForm() {
 
       await recalculateEntityBalance("customer", customerId);
 
-      toast({ title: "تم الترحيل", description: "تم ترحيل مرتجع البيع" });
+      notify.success("تم الترحيل", "تم ترحيل مرتجع البيع");
       setIsDirty(false);
       navGuard.allowNext();
       loadData();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }
@@ -708,19 +664,12 @@ export default function SalesReturnForm() {
       }
 
       // status already set to cancelled above
-      toast({
-        title: "تم الإلغاء",
-        description: "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون",
-      });
+      notify.success("تم الإلغاء", "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون");
       setIsDirty(false);
       navGuard.allowNext();
       loadData();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }
@@ -734,15 +683,11 @@ export default function SalesReturnForm() {
         .delete()
         .eq("return_id", id);
       await (supabase.from("sales_returns") as any).delete().eq("id", id);
-      toast({ title: "تم الحذف", description: "تم حذف المرتجع" });
+      notify.success("تم الحذف", "تم حذف المرتجع");
       setIsDirty(false); navGuard.allowNext();
       navigate("/sales-returns");
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }

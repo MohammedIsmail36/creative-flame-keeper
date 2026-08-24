@@ -1,3 +1,4 @@
+import { notify } from "@/lib/notify";
 import React, { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { format } from "date-fns";
@@ -12,7 +13,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Scale,
@@ -115,11 +115,7 @@ export default function TrialBalance() {
       }));
       setLines(synthetic);
       if (accountsRes.error || balRes.error) {
-        toast({
-          title: "خطأ",
-          description: "فشل في جلب البيانات",
-          variant: "destructive",
-        });
+        notify.error("خطأ", "فشل في جلب البيانات");
       }
       setLoading(false);
       return;
@@ -139,11 +135,7 @@ export default function TrialBalance() {
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
     if (linesRes.data) setLines(linesRes.data);
     if (accountsRes.error || linesRes.error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في جلب البيانات",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في جلب البيانات");
     }
     setLoading(false);
   };
@@ -295,7 +287,7 @@ export default function TrialBalance() {
       orientation: "landscape",
       filename: "Trial_Balance",
     });
-    toast({ title: "تم التصدير" });
+    notify.success("تم التصدير");
     setExportMenuOpen(false);
   };
 
@@ -320,7 +312,7 @@ export default function TrialBalance() {
       "Balance Credit": grandBalanceCredit,
     });
     await exportToExcel(data, "Trial Balance", "Trial_Balance.xlsx");
-    toast({ title: "تم التصدير" });
+    notify.success("تم التصدير");
     setExportMenuOpen(false);
   };
 

@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
-import { toast } from "@/hooks/use-toast";
 import { Plus, Receipt, CheckCircle, XCircle, Trash2, Pencil, X, Clock, Wallet } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +21,7 @@ import { formatSupabaseError } from "@/lib/format-error";
 import { ExpenseFormDialog } from "@/components/ExpenseFormDialog";
 import { Undo2, FileText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { notify } from "@/lib/notify";
 
 interface Expense {
   id: string;
@@ -244,11 +244,7 @@ export default function Expenses() {
   async function handleRevertToDraft() {
     if (!revertTarget) return;
     if (settings?.locked_until_date && revertTarget.expense_date <= settings.locked_until_date) {
-      toast({
-        title: "خطأ",
-        description: `لا يمكن تعديل مصروف بتاريخ ${revertTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
+      notify.error("خطأ", `لا يمكن تعديل مصروف بتاريخ ${revertTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       setRevertTarget(null);
       return;
     }
@@ -290,19 +286,12 @@ export default function Expenses() {
       });
 
 
-      toast({
-        title: "تم التحويل لمسودة",
-        description: "يمكنك الآن تعديل المصروف ثم إعادة ترحيله بنفس الرقم",
-      });
+      notify.success("تم التحويل لمسودة", "يمكنك الآن تعديل المصروف ثم إعادة ترحيله بنفس الرقم");
       setRevertTarget(null);
       refetchAll();
       openEditDialog(target, oldPostedNum);
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: formatSupabaseError(error),
-        variant: "destructive",
-      });
+      notify.error("خطأ", formatSupabaseError(error));
     }
     setSaving(false);
   }
@@ -310,11 +299,7 @@ export default function Expenses() {
   async function handlePost() {
     if (!postTarget) return;
     if (settings?.locked_until_date && postTarget.expense_date <= settings.locked_until_date) {
-      toast({
-        title: "خطأ",
-        description: `لا يمكن ترحيل مصروف بتاريخ ${postTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
+      notify.error("خطأ", `لا يمكن ترحيل مصروف بتاريخ ${postTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       setPostTarget(null);
       return;
     }
@@ -339,15 +324,11 @@ export default function Expenses() {
         oldJournalEntryId: postTarget.journal_entry_id ?? null,
       });
 
-      toast({ title: "تم الترحيل", description: `تم ترحيل المصروف ${displayNumber}` });
+      notify.success("تم الترحيل", `تم ترحيل المصروف ${displayNumber}`);
       setPostTarget(null);
       refetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: formatSupabaseError(error),
-        variant: "destructive",
-      });
+      notify.error("خطأ", formatSupabaseError(error));
     }
     setSaving(false);
   }
@@ -355,16 +336,12 @@ export default function Expenses() {
   async function handleCancel() {
     if (!cancelTarget || !cancelTarget.journal_entry_id) return;
     if (cancelTarget.status === "cancelled") {
-      toast({ title: "تنبيه", description: "المصروف ملغى بالفعل", variant: "destructive" });
+      notify.error("تنبيه", "المصروف ملغى بالفعل");
       setCancelTarget(null);
       return;
     }
     if (settings?.locked_until_date && cancelTarget.expense_date <= settings.locked_until_date) {
-      toast({
-        title: "خطأ",
-        description: `لا يمكن إلغاء مصروف بتاريخ ${cancelTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
+      notify.error("خطأ", `لا يمكن إلغاء مصروف بتاريخ ${cancelTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       setCancelTarget(null);
       return;
     }
@@ -417,18 +394,11 @@ export default function Expenses() {
 
       await (supabase.from("expenses" as any) as any).update({ status: "cancelled" }).eq("id", cancelTarget.id);
 
-      toast({
-        title: "تم الإلغاء",
-        description: `تم إلغاء المصروف وعكس القيد المحاسبي`,
-      });
+      notify.success("تم الإلغاء", `تم إلغاء المصروف وعكس القيد المحاسبي`);
       setCancelTarget(null);
       refetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: formatSupabaseError(error),
-        variant: "destructive",
-      });
+      notify.error("خطأ", formatSupabaseError(error));
     }
     setSaving(false);
   }
@@ -436,44 +406,28 @@ export default function Expenses() {
   async function handleDelete() {
     if (!deleteTarget) return;
     if (deleteTarget.status === "posted") {
-      toast({
-        title: "غير مسموح",
-        description: "لا يمكن حذف مصروف مرحّل — قم بإلغائه أولاً.",
-        variant: "destructive",
-      });
+      notify.error("غير مسموح", "لا يمكن حذف مصروف مرحّل — قم بإلغائه أولاً.");
       setDeleteTarget(null);
       return;
     }
     if (deleteTarget.journal_entry_id) {
-      toast({
-        title: "غير مسموح",
-        description: "هذا المصروف مرتبط بقيد محاسبي — قم بإلغائه أولاً.",
-        variant: "destructive",
-      });
+      notify.error("غير مسموح", "هذا المصروف مرتبط بقيد محاسبي — قم بإلغائه أولاً.");
       setDeleteTarget(null);
       return;
     }
     if (settings?.locked_until_date && deleteTarget.expense_date <= settings.locked_until_date) {
-      toast({
-        title: "خطأ",
-        description: `لا يمكن حذف مصروف بتاريخ ${deleteTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
+      notify.error("خطأ", `لا يمكن حذف مصروف بتاريخ ${deleteTarget.expense_date} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       setDeleteTarget(null);
       return;
     }
     try {
       const { error } = await (supabase.from("expenses" as any) as any).delete().eq("id", deleteTarget.id);
       if (error) throw error;
-      toast({ title: "تم الحذف", description: "تم حذف المصروف" });
+      notify.success("تم الحذف", "تم حذف المصروف");
       setDeleteTarget(null);
       refetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: formatSupabaseError(error),
-        variant: "destructive",
-      });
+      notify.error("خطأ", formatSupabaseError(error));
     }
   }
 

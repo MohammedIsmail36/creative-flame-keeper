@@ -17,7 +17,6 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { deleteStorageFiles } from "@/lib/storage-cleanup";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
-import { toast } from "@/hooks/use-toast";
 import {
   Package,
   Plus,
@@ -49,6 +48,7 @@ import { useQuery } from "@tanstack/react-query";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { StatusChips } from "@/components/StatusChips";
 import { buildCategoryTree, getDescendantIds, CategoryNode } from "@/lib/category-utils";
+import { notify } from "@/lib/notify";
 
 interface ProductRow {
   id: string;
@@ -257,11 +257,7 @@ export default function Products() {
 
       const { data, error, count } = await q;
       if (error) {
-        toast({
-          title: "خطأ",
-          description: "فشل في جلب المنتجات",
-          variant: "destructive",
-        });
+        notify.error("خطأ", "فشل في جلب المنتجات");
         throw error;
       }
       let rows = (data || []) as ProductRow[];
@@ -313,25 +309,14 @@ export default function Products() {
     const newStatus = !product.is_active;
     // منع التعطيل إذا كانت الكمية المتاحة أكبر من صفر
     if (!newStatus && Number(product.quantity_on_hand || 0) > 0) {
-      toast({
-        title: "لا يمكن التعطيل",
-        description: `لا يمكن تعطيل المنتج "${product.name}" لأن الكمية المتاحة (${fmtNum(product.quantity_on_hand)}) أكبر من صفر. قم بتصفير المخزون أولاً.`,
-        variant: "destructive",
-      });
+      notify.error("لا يمكن التعطيل", `لا يمكن تعطيل المنتج "${product.name}" لأن الكمية المتاحة (${fmtNum(product.quantity_on_hand)}) أكبر من صفر. قم بتصفير المخزون أولاً.`);
       return;
     }
     const { error } = await supabase.from("products").update({ is_active: newStatus }).eq("id", product.id);
     if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في تحديث حالة المنتج",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في تحديث حالة المنتج");
     } else {
-      toast({
-        title: newStatus ? "تم التفعيل" : "تم التعطيل",
-        description: newStatus ? "تم تفعيل المنتج بنجاح" : "تم تعطيل المنتج بنجاح",
-      });
+      notify.success(newStatus ? "تم التفعيل" : "تم التعطيل", newStatus ? "تم تفعيل المنتج بنجاح" : "تم تعطيل المنتج بنجاح");
       refetchList();
       refetchSummary();
     }
@@ -359,19 +344,11 @@ export default function Products() {
       ]);
       const totalUsage = checks.reduce((sum, r) => sum + (r.count || 0), 0);
       if (totalUsage > 0) {
-        toast({
-          title: "لا يمكن الحذف النهائي",
-          description: `المنتج "${product.name}" مستخدم في ${totalUsage} عملية/حركة. يمكن تعطيله بدلاً من حذفه.`,
-          variant: "destructive",
-        });
+        notify.error("لا يمكن الحذف النهائي", `المنتج "${product.name}" مستخدم في ${totalUsage} عملية/حركة. يمكن تعطيله بدلاً من حذفه.`);
         return;
       }
       if (Number(product.quantity_on_hand || 0) !== 0) {
-        toast({
-          title: "لا يمكن الحذف النهائي",
-          description: "الكمية المتاحة للمنتج ليست صفراً.",
-          variant: "destructive",
-        });
+        notify.error("لا يمكن الحذف النهائي", "الكمية المتاحة للمنتج ليست صفراً.");
         return;
       }
       // جمع كل عناوين الصور (الرئيسية + المعرض) لحذفها من Storage
@@ -389,15 +366,11 @@ export default function Products() {
       await supabase.from("product_images").delete().eq("product_id", product.id);
       const { error } = await supabase.from("products").delete().eq("id", product.id);
       if (error) throw error;
-      toast({ title: "تم الحذف", description: `تم حذف المنتج "${product.name}" نهائياً` });
+      notify.success("تم الحذف", `تم حذف المنتج "${product.name}" نهائياً`);
       refetchList();
       refetchSummary();
     } catch (err: any) {
-      toast({
-        title: "خطأ في الحذف",
-        description: err.message || "تعذر حذف المنتج",
-        variant: "destructive",
-      });
+      notify.error("خطأ في الحذف", err.message || "تعذر حذف المنتج");
     }
   };
 

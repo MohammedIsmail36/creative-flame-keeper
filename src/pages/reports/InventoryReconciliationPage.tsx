@@ -25,9 +25,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
 import { round2 } from "@/lib/utils";
 import { useSettings } from "@/contexts/SettingsContext";
+import { notify } from "@/lib/notify";
 
 
 interface Row {
@@ -127,7 +127,7 @@ export default function InventoryReconciliationPage() {
       );
       setRows(out);
     } catch (e: any) {
-      toast({ title: "خطأ في التحميل", description: e.message, variant: "destructive" });
+      notify.error("خطأ في التحميل", e.message);
     } finally {
       setLoading(false);
     }
@@ -170,13 +170,10 @@ export default function InventoryReconciliationPage() {
         .update({ quantity_on_hand: row.movement_qty })
         .eq("id", row.id);
       if (error) throw error;
-      toast({
-        title: "تمت المزامنة",
-        description: `تم تعديل كمية ${row.code} من ${row.qty_on_hand} إلى ${row.movement_qty}`,
-      });
+      notify.success("تمت المزامنة", `تم تعديل كمية ${row.code} من ${row.qty_on_hand} إلى ${row.movement_qty}`);
       await load();
     } catch (e: any) {
-      toast({ title: "فشلت المزامنة", description: e.message, variant: "destructive" });
+      notify.error("فشلت المزامنة", e.message);
     } finally {
       setBusyId(null);
       setConfirmRow(null);

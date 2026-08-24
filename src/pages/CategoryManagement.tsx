@@ -1,3 +1,4 @@
+import { notify } from "@/lib/notify";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -16,7 +17,6 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { toast } from "@/hooks/use-toast";
 import {
   Plus,
   Pencil,
@@ -256,11 +256,7 @@ export default function CategoryManagement() {
 
   async function handleSave() {
     if (!formName.trim()) {
-      toast({
-        title: "تنبيه",
-        description: "يرجى إدخال الاسم",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "يرجى إدخال الاسم");
       return;
     }
     setSaving(true);
@@ -272,21 +268,12 @@ export default function CategoryManagement() {
     try {
       if (editItem) {
         if (parentId === editItem.id) {
-          toast({
-            title: "خطأ",
-            description: "لا يمكن تعيين التصنيف كأب لنفسه",
-            variant: "destructive",
-          });
+          notify.error("خطأ", "لا يمكن تعيين التصنيف كأب لنفسه");
           setSaving(false);
           return;
         }
         if (wouldCreateCycle(editItem.id, parentId, items)) {
-          toast({
-            title: "خطأ",
-            description:
-              "لا يمكن تعيين هذا التصنيف الأب لأنه سيؤدي إلى حلقة دائرية",
-            variant: "destructive",
-          });
+          notify.error("خطأ", "لا يمكن تعيين هذا التصنيف الأب لأنه سيؤدي إلى حلقة دائرية");
           setSaving(false);
           return;
         }
@@ -294,13 +281,13 @@ export default function CategoryManagement() {
           .update(payload)
           .eq("id", editItem.id);
         if (error) throw error;
-        toast({ title: "تم التحديث" });
+        notify.success("تم التحديث");
       } else {
         const { error } = await (
           supabase.from("product_categories") as any
         ).insert(payload);
         if (error) throw error;
-        toast({ title: "تمت الإضافة" });
+        notify.success("تمت الإضافة");
       }
       setDialogOpen(false);
       fetchItems();
@@ -308,7 +295,7 @@ export default function CategoryManagement() {
       const msg = error.message?.includes("duplicate")
         ? "الاسم موجود مسبقاً"
         : error.message;
-      toast({ title: "خطأ", description: msg, variant: "destructive" });
+      notify.error("خطأ", msg);
     }
     setSaving(false);
   }
@@ -320,11 +307,7 @@ export default function CategoryManagement() {
         (i) => i.parent_id === deleteTarget.id,
       ).length;
       if (childCount > 0) {
-        toast({
-          title: "لا يمكن الحذف",
-          description: `يحتوي على ${childCount} تصنيف فرعي. احذفها أولاً.`,
-          variant: "destructive",
-        });
+        notify.error("لا يمكن الحذف", `يحتوي على ${childCount} تصنيف فرعي. احذفها أولاً.`);
         setDeleteDialogOpen(false);
         return;
       }
@@ -332,11 +315,7 @@ export default function CategoryManagement() {
         .select("id", { count: "exact", head: true })
         .eq("category_id", deleteTarget.id);
       if (count && count > 0) {
-        toast({
-          title: "لا يمكن الحذف",
-          description: `مرتبط بـ ${count} منتج. قم بتعطيله بدلاً من حذفه.`,
-          variant: "destructive",
-        });
+        notify.error("لا يمكن الحذف", `مرتبط بـ ${count} منتج. قم بتعطيله بدلاً من حذفه.`);
         setDeleteDialogOpen(false);
         return;
       }
@@ -344,15 +323,11 @@ export default function CategoryManagement() {
         .delete()
         .eq("id", deleteTarget.id);
       if (error) throw error;
-      toast({ title: "تم الحذف" });
+      notify.success("تم الحذف");
       setDeleteDialogOpen(false);
       fetchItems();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
   }
 
@@ -361,11 +336,7 @@ export default function CategoryManagement() {
       .update({ is_active: !item.is_active })
       .eq("id", item.id);
     if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في تغيير حالة التصنيف",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في تغيير حالة التصنيف");
       return;
     }
     fetchItems();

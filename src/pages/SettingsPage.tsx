@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AccountCombobox } from "@/components/AccountCombobox";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { useUserRole } from "@/hooks/use-user-role";
 import { TelegramSettingsTab } from "@/components/settings/TelegramSettingsTab";
 import { z } from "zod";
@@ -159,7 +159,7 @@ export default function SettingsPage() {
       .maybeSingle();
 
     if (error) {
-      toast.error("خطأ في تحميل الإعدادات");
+      notify.error("خطأ في تحميل الإعدادات");
       console.error(error);
     } else if (data) {
       // ضمان قيم افتراضية للبادئات إذا كانت فارغة في قاعدة البيانات
@@ -191,22 +191,22 @@ export default function SettingsPage() {
     for (const { key, label } of prefixFields) {
       const result = prefixSchema.safeParse(settings[key]);
       if (!result.success) {
-        toast.error(`${label}: ${result.error.issues[0].message}`);
+        notify.error(`${label}: ${result.error.issues[0].message}`);
         return;
       }
     }
     // التحقق من إعدادات الضريبة عند التفعيل
     if (settings.enable_tax) {
       if (!settings.tax_rate || settings.tax_rate <= 0) {
-        toast.error("نسبة الضريبة يجب أن تكون أكبر من صفر عند تفعيل الضريبة");
+        notify.error("نسبة الضريبة يجب أن تكون أكبر من صفر عند تفعيل الضريبة");
         return;
       }
       if (!settings.sales_tax_account_id) {
-        toast.error("يجب اختيار حساب ضريبة المبيعات");
+        notify.error("يجب اختيار حساب ضريبة المبيعات");
         return;
       }
       if (!settings.purchase_tax_account_id) {
-        toast.error("يجب اختيار حساب ضريبة المشتريات");
+        notify.error("يجب اختيار حساب ضريبة المشتريات");
         return;
       }
     }
@@ -225,17 +225,17 @@ export default function SettingsPage() {
       .maybeSingle();
 
     if (error) {
-      toast.error("خطأ في حفظ الإعدادات: " + error.message);
+      notify.error("خطأ في حفظ الإعدادات: " + error.message);
       console.error(error);
     } else if (!data) {
       // لم يُحدَّث أي صف — غالباً بسبب صلاحيات RLS أو أن السجل غير موجود
-      toast.error(
+      notify.error(
         "تعذّر حفظ الإعدادات — تحقق من صلاحياتك (يتطلب دور المدير) ثم أعد المحاولة",
       );
     } else {
       // مزامنة الحالة المحلية مع ما حُفظ فعلياً في قاعدة البيانات
       setSettings(data as CompanySettings);
-      toast.success("تم حفظ الإعدادات بنجاح");
+      notify.success("تم حفظ الإعدادات بنجاح");
       await refetch();
     }
     setSaving(false);
@@ -253,11 +253,11 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file || !settings) return;
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      toast.error("يُسمح فقط بصور من نوع PNG, JPG, GIF, WEBP");
+      notify.error("يُسمح فقط بصور من نوع PNG, JPG, GIF, WEBP");
       return;
     }
     if (file.size > MAX_IMAGE_SIZE) {
-      toast.error("حجم الصورة يجب أن لا يتجاوز 2 ميجابايت");
+      notify.error("حجم الصورة يجب أن لا يتجاوز 2 ميجابايت");
       return;
     }
 
@@ -278,9 +278,9 @@ export default function SettingsPage() {
       if (previousLogo && previousLogo !== urlData.publicUrl) {
         await deleteStorageFile(previousLogo);
       }
-      toast.success("تم رفع الشعار بنجاح. اضغط حفظ لتأكيد التغييرات.");
+      notify.success("تم رفع الشعار بنجاح. اضغط حفظ لتأكيد التغييرات.");
     } catch (err: any) {
-      toast.error("خطأ في رفع الشعار: " + err.message);
+      notify.error("خطأ في رفع الشعار: " + err.message);
     }
     setUploading(false);
   };

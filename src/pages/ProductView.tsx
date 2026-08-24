@@ -26,7 +26,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { toast } from "@/hooks/use-toast";
 import {
   Pencil,
   Package,
@@ -54,6 +53,7 @@ import { TelegramPublishButton } from "@/components/products/TelegramPublishButt
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { notify } from "@/lib/notify";
 
 // ─────────────────────────────────────────────
 // Types
@@ -681,7 +681,7 @@ export default function ProductView() {
   // Redirect on error
   useEffect(() => {
     if (error) {
-      toast({ title: "خطأ", description: error, variant: "destructive" });
+      notify.error("خطأ", error);
       navigate(`/products${returnTo}`);
     }
   }, [error, navigate]);

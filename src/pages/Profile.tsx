@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
 import {
   User,
   Lock,
@@ -35,10 +34,10 @@ import {
   InputOTPSeparator,
 } from "@/components/ui/input-otp";
 import { ROLE_LABELS } from "@/lib/constants";
+import { notify } from "@/lib/notify";
 
 export default function Profile() {
   const { user, fullName, role } = useAuth();
-  const { toast } = useToast();
 
   // Personal info
   const [name, setName] = useState(fullName);
@@ -87,11 +86,7 @@ export default function Profile() {
 
   const handleUpdateName = async () => {
     if (!name.trim()) {
-      toast({
-        title: "خطأ",
-        description: "الاسم مطلوب",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "الاسم مطلوب");
       return;
     }
     setSavingName(true);
@@ -101,13 +96,9 @@ export default function Profile() {
         .update({ full_name: name.trim() })
         .eq("id", user?.id);
       if (error) throw error;
-      toast({ title: "تم التحديث", description: "تم تحديث الاسم بنجاح" });
+      notify.success("تم التحديث", "تم تحديث الاسم بنجاح");
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSavingName(false);
     }
@@ -115,27 +106,15 @@ export default function Profile() {
 
   const handleChangePassword = async () => {
     if (!newPassword || !confirmPassword) {
-      toast({
-        title: "خطأ",
-        description: "يرجى ملء جميع الحقول",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "يرجى ملء جميع الحقول");
       return;
     }
     if (newPassword.length < 8) {
-      toast({
-        title: "خطأ",
-        description: "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "كلمة المرور يجب أن تكون 8 أحرف على الأقل");
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast({
-        title: "خطأ",
-        description: "كلمتا المرور غير متطابقتين",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "كلمتا المرور غير متطابقتين");
       return;
     }
     setSavingPassword(true);
@@ -144,15 +123,11 @@ export default function Profile() {
         password: newPassword,
       });
       if (error) throw error;
-      toast({ title: "تم التحديث", description: "تم تغيير كلمة المرور بنجاح" });
+      notify.success("تم التحديث", "تم تغيير كلمة المرور بنجاح");
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSavingPassword(false);
     }
@@ -170,11 +145,7 @@ export default function Profile() {
       setVerifyCode("");
       setEnrollDialogOpen(true);
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
   };
 
@@ -195,16 +166,9 @@ export default function Profile() {
 
       setMfaEnabled(true);
       setEnrollDialogOpen(false);
-      toast({
-        title: "تم التفعيل",
-        description: "تم تفعيل التحقق بخطوتين بنجاح",
-      });
+      notify.success("تم التفعيل", "تم تفعيل التحقق بخطوتين بنجاح");
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setVerifying(false);
     }
@@ -217,13 +181,9 @@ export default function Profile() {
       if (error) throw error;
       setMfaEnabled(false);
       setFactorId("");
-      toast({ title: "تم الإلغاء", description: "تم إلغاء التحقق بخطوتين" });
+      notify.success("تم الإلغاء", "تم إلغاء التحقق بخطوتين");
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setUnenrolling(false);
     }

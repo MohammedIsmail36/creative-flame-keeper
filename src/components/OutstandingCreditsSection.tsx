@@ -1,10 +1,10 @@
+import { notify } from "@/lib/notify";
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { recalculateInvoicePaidAmount } from "@/lib/entity-balance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "@/hooks/use-toast";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 import {
@@ -194,11 +194,7 @@ export default function OutstandingCreditsSection({
       Math.min(ret.remaining, Math.max(invoiceRemaining, 0));
     const maxAmount = Math.min(ret.remaining, Math.max(invoiceRemaining, 0));
     if (amount <= 0 || amount > maxAmount + 0.01) {
-      toast({
-        title: "تنبيه",
-        description: `المبلغ يجب أن يكون بين 0.01 و ${maxAmount.toFixed(2)}`,
-        variant: "destructive",
-      });
+      notify.error("تنبيه", `المبلغ يجب أن يكون بين 0.01 و ${maxAmount.toFixed(2)}`);
       return;
     }
     try {
@@ -208,19 +204,12 @@ export default function OutstandingCreditsSection({
         settled_amount: amount,
       });
       await recalculateInvoicePaidAmount(type, invoiceId);
-      toast({
-        title: "تم التسوية",
-        description: `تم تطبيق ${amount.toFixed(2)} من المرتجع #${ret.posted_number || ret.return_number}`,
-      });
+      notify.success("تم التسوية", `تم تطبيق ${amount.toFixed(2)} من المرتجع #${ret.posted_number || ret.return_number}`);
       setApplyAmounts({});
       fetchData();
       onSettlementChanged();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
   }
 
@@ -228,15 +217,11 @@ export default function OutstandingCreditsSection({
     try {
       await supabase.from(settlementTable as any).delete().eq("id", settlement.id);
       await recalculateInvoicePaidAmount(type, invoiceId);
-      toast({ title: "تم إلغاء التسوية" });
+      notify.success("تم إلغاء التسوية");
       fetchData();
       onSettlementChanged();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
   }
 

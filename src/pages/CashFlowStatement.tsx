@@ -1,3 +1,4 @@
+import { notify } from "@/lib/notify";
 import React, { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { format } from "date-fns";
@@ -11,7 +12,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   ArrowUpRight,
@@ -94,11 +94,7 @@ export default function CashFlowStatement() {
     ]);
 
     if (cpRes.error || spRes.error || expRes.error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في تحميل بيانات التدفقات النقدية",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في تحميل بيانات التدفقات النقدية");
     }
 
     const cpData = cpRes.data || [];

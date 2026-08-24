@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { ShieldCheck, Loader2, CheckCircle, HeadsetIcon } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "@/components/ui/input-otp";
+import { notify } from "@/lib/notify";
 
 export default function MfaVerify() {
   const [factorId, setFactorId] = useState("");
@@ -12,7 +12,6 @@ export default function MfaVerify() {
   const [verifying, setVerifying] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { user, mfaRequired } = useAuth();
 
   useEffect(() => {
@@ -53,11 +52,7 @@ export default function MfaVerify() {
       navigate("/", { replace: true });
       window.location.reload();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: "رمز التحقق غير صحيح",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "رمز التحقق غير صحيح");
       setCode("");
     } finally {
       setVerifying(false);

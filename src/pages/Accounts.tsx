@@ -20,7 +20,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { toast } from "@/hooks/use-toast";
 import {
   BookOpen,
   Plus,
@@ -43,6 +42,7 @@ import {
 import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 import { fetchAllPaged } from "@/lib/paged-fetch";
+import { notify } from "@/lib/notify";
 
 type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
 
@@ -121,11 +121,7 @@ export default function Accounts() {
       const topLevel = new Set(data.filter((a) => !a.parent_id).map((a) => a.id));
       setExpandedIds(topLevel);
     } catch (err: any) {
-      toast({
-        title: "خطأ",
-        description: err?.message || "فشل في جلب الحسابات",
-        variant: "destructive",
-      });
+      notify.error("خطأ", err?.message || "فشل في جلب الحسابات");
     } finally {
       setLoading(false);
     }
@@ -224,26 +220,18 @@ export default function Accounts() {
     if (editingAccount) {
       const { error } = await supabase.from("accounts").update(payload).eq("id", editingAccount.id);
       if (error) {
-        toast({
-          title: "خطأ",
-          description: error.message.includes("duplicate") ? "رمز الحساب مستخدم بالفعل" : "فشل في تحديث الحساب",
-          variant: "destructive",
-        });
+        notify.error("خطأ", error.message.includes("duplicate") ? "رمز الحساب مستخدم بالفعل" : "فشل في تحديث الحساب");
       } else {
-        toast({ title: "تم التحديث", description: "تم تعديل الحساب بنجاح" });
+        notify.success("تم التحديث", "تم تعديل الحساب بنجاح");
         setDialogOpen(false);
         fetchAccounts();
       }
     } else {
       const { error } = await supabase.from("accounts").insert(payload as any);
       if (error) {
-        toast({
-          title: "خطأ",
-          description: error.message.includes("duplicate") ? "رمز الحساب مستخدم بالفعل" : "فشل في إضافة الحساب",
-          variant: "destructive",
-        });
+        notify.error("خطأ", error.message.includes("duplicate") ? "رمز الحساب مستخدم بالفعل" : "فشل في إضافة الحساب");
       } else {
-        toast({ title: "تمت الإضافة", description: "تم إضافة الحساب بنجاح" });
+        notify.success("تمت الإضافة", "تم إضافة الحساب بنجاح");
         setDialogOpen(false);
         fetchAccounts();
       }
@@ -253,11 +241,7 @@ export default function Accounts() {
 
   const handleDelete = async (account: Account) => {
     if (account.is_system) {
-      toast({
-        title: "تنبيه",
-        description: "هذا حساب نظام أساسي ولا يمكن حذفه",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "هذا حساب نظام أساسي ولا يمكن حذفه");
       return;
     }
     const children = accountTree.get(account.id);
@@ -269,18 +253,10 @@ export default function Accounts() {
         .select("id", { count: "exact", head: true })
         .in("account_id", childIds);
       if (childEntriesCount && childEntriesCount > 0) {
-        toast({
-          title: "تنبيه",
-          description: "لا يمكن حذف حساب رئيسي مرتبط بحسابات فرعية لها قيود محاسبية",
-          variant: "destructive",
-        });
+        notify.error("تنبيه", "لا يمكن حذف حساب رئيسي مرتبط بحسابات فرعية لها قيود محاسبية");
         return;
       }
-      toast({
-        title: "تنبيه",
-        description: "لا يمكن حذف حساب يحتوي على حسابات فرعية",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "لا يمكن حذف حساب يحتوي على حسابات فرعية");
       return;
     }
 
@@ -290,23 +266,15 @@ export default function Accounts() {
       .select("id", { count: "exact", head: true })
       .eq("account_id", account.id);
     if (entriesCount && entriesCount > 0) {
-      toast({
-        title: "تنبيه",
-        description: `لا يمكن حذف الحساب "${account.name}" لأنه مرتبط بقيود محاسبية (${entriesCount} قيد). يمكنك تعطيله بدلاً من ذلك.`,
-        variant: "destructive",
-      });
+      notify.error("تنبيه", `لا يمكن حذف الحساب "${account.name}" لأنه مرتبط بقيود محاسبية (${entriesCount} قيد). يمكنك تعطيله بدلاً من ذلك.`);
       return;
     }
 
     const { error } = await supabase.from("accounts").delete().eq("id", account.id);
     if (error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في حذف الحساب",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في حذف الحساب");
     } else {
-      toast({ title: "تم الحذف", description: "تم حذف الحساب بنجاح" });
+      notify.success("تم الحذف", "تم حذف الحساب بنجاح");
       fetchAccounts();
     }
   };

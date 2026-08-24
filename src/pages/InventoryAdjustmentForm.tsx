@@ -26,7 +26,6 @@ import {
   formatProductDisplay,
   PRODUCT_SELECT_FIELDS,
 } from "@/lib/product-utils";
-import { toast } from "@/hooks/use-toast";
 import { ACCOUNT_CODES } from "@/lib/constants";
 import {
   Plus,
@@ -43,6 +42,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { notify } from "@/lib/notify";
 
 
 type Product = ProductWithBrand & { quantity_on_hand: number };
@@ -238,11 +238,7 @@ export default function InventoryAdjustmentForm() {
     if (items.some((i) => !i.product_id)) errors.items = "اختر المنتج لكل بند";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast({
-        title: "تنبيه",
-        description: Object.values(errors)[0],
-        variant: "destructive",
-      });
+      notify.error("تنبيه", Object.values(errors)[0]);
       return;
     }
 
@@ -287,15 +283,11 @@ export default function InventoryAdjustmentForm() {
       ).insert(rows);
       if (itemsErr) throw itemsErr;
 
-      toast({ title: "تم حفظ التسوية بنجاح" });
+      notify.success("تم حفظ التسوية بنجاح");
       setIsDirty(false); navGuard.allowNext();
       navigate(`/inventory-adjustments/${adjId}`);
     } catch (e: any) {
-      toast({
-        title: "خطأ في الحفظ",
-        description: e.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ في الحفظ", e.message);
     } finally {
       setSaving(false);
     }
@@ -311,11 +303,11 @@ export default function InventoryAdjustmentForm() {
       await (supabase.from("inventory_adjustments") as any)
         .delete()
         .eq("id", id);
-      toast({ title: "تم حذف التسوية بنجاح" });
+      notify.success("تم حذف التسوية بنجاح");
       setIsDirty(false); navGuard.allowNext();
       navigate("/inventory-adjustments");
     } catch {
-      toast({ title: "خطأ في الحذف", variant: "destructive" });
+      notify.error("خطأ في الحذف");
     } finally {
       setSaving(false);
     }
@@ -327,22 +319,14 @@ export default function InventoryAdjustmentForm() {
       (i) => i.product_id && i.difference === 0,
     ).length;
     if (zeroDiffCount > 0) {
-      toast({
-        title: "لا يمكن اعتماد التسوية",
-        description: `يوجد ${zeroDiffCount} بند بفرق صفر. احذفها أو عدّل الكميات الفعلية قبل الاعتماد.`,
-        variant: "destructive",
-      });
+      notify.error("لا يمكن اعتماد التسوية", `يوجد ${zeroDiffCount} بند بفرق صفر. احذفها أو عدّل الكميات الفعلية قبل الاعتماد.`);
       return;
     }
     if (
       settings?.locked_until_date &&
       adjustmentDate <= settings.locked_until_date
     ) {
-      toast({
-        title: "الفترة مقفلة",
-        description: `لا يمكن اعتماد تسوية بتاريخ ${adjustmentDate} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
+      notify.error("الفترة مقفلة", `لا يمكن اعتماد تسوية بتاريخ ${adjustmentDate} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       return;
     }
     setSaving(true);
@@ -595,13 +579,9 @@ export default function InventoryAdjustmentForm() {
 
       setStatus("approved");
       setEditMode(false);
-      toast({ title: "تم اعتماد التسوية وتسجيل القيود بنجاح" });
+      notify.success("تم اعتماد التسوية وتسجيل القيود بنجاح");
     } catch (e: any) {
-      toast({
-        title: "خطأ في الاعتماد",
-        description: e.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ في الاعتماد", e.message);
     } finally {
       setSaving(false);
     }
@@ -706,16 +686,9 @@ export default function InventoryAdjustmentForm() {
 
       setStatus("cancelled");
       setEditMode(false);
-      toast({
-        title: "تم إلغاء التسوية بنجاح",
-        description: "تم استعادة كميات المخزون وتسجيل قيد عكسي",
-      });
+      notify.success("تم إلغاء التسوية بنجاح", "تم استعادة كميات المخزون وتسجيل قيد عكسي");
     } catch (e: any) {
-      toast({
-        title: "خطأ في إلغاء التسوية",
-        description: e.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ في إلغاء التسوية", e.message);
     } finally {
       setSaving(false);
     }

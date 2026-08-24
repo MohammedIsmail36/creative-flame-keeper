@@ -1,7 +1,7 @@
+import { notify } from "@/lib/notify";
 import { useState } from "react";
 import { useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Calculator,
@@ -19,7 +19,6 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { toast } = useToast();
   const { user, loading: authLoading, mfaRequired } = useAuth();
 
   // Same-origin relative path only.
@@ -57,11 +56,7 @@ export default function Auth() {
       if (error) throw error;
       navigate(nextPath);
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setLoading(false);
     }

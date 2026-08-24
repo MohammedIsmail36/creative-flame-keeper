@@ -11,7 +11,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   TrendingUp,
@@ -30,6 +29,7 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FISCAL_CLOSING_DESCRIPTION_PREFIX } from "@/lib/constants";
+import { notify } from "@/lib/notify";
 
 interface Account {
   id: string;
@@ -73,11 +73,7 @@ export default function IncomeStatement() {
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
     if (linesRes.data) setLines(linesRes.data);
     if (accountsRes.error || linesRes.error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في جلب البيانات",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في جلب البيانات");
     }
 
     // Find last closing entry date if fiscal year closing is enabled
@@ -226,10 +222,7 @@ export default function IncomeStatement() {
       ],
       filename: "Income_Statement",
     });
-    toast({
-      title: "تم التصدير",
-      description: "تم تصدير قائمة الدخل بصيغة PDF",
-    });
+    notify.success("تم التصدير", "تم تصدير قائمة الدخل بصيغة PDF");
     setExportMenuOpen(false);
   };
 
@@ -275,10 +268,7 @@ export default function IncomeStatement() {
       المبلغ: netIncome,
     });
     await exportToExcel(data, "Income Statement", "Income_Statement.xlsx");
-    toast({
-      title: "تم التصدير",
-      description: "تم تصدير قائمة الدخل بصيغة Excel",
-    });
+    notify.success("تم التصدير", "تم تصدير قائمة الدخل بصيغة Excel");
     setExportMenuOpen(false);
   };
 

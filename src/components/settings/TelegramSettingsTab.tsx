@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Send, Loader2, Save, Info, PlugZap, RotateCcw } from "lucide-react";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 
@@ -70,11 +70,11 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
 
   const save = async () => {
     if (!channelId.trim()) {
-      toast.error("أدخل معرّف القناة (مثال: @my_channel أو -1001234567890)");
+      notify.error("أدخل معرّف القناة (مثال: @my_channel أو -1001234567890)");
       return;
     }
     if (!row?.bot_token_hint && !newToken.trim()) {
-      toast.error("أدخل توكن البوت أولاً");
+      notify.error("أدخل توكن البوت أولاً");
       return;
     }
     setSaving(true);
@@ -94,11 +94,11 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
 
     setSaving(false);
     if (error) {
-      toast.error("فشل حفظ إعدادات تيليجرام: " + error.message);
+      notify.error("فشل حفظ إعدادات تيليجرام: " + error.message);
       return;
     }
     setNewToken("");
-    toast.success("تم حفظ إعدادات تيليجرام");
+    notify.success("تم حفظ إعدادات تيليجرام");
     await load();
     queryClient.invalidateQueries({ queryKey: ["telegram-settings-public"] });
   };
@@ -121,9 +121,9 @@ export function TelegramSettingsTab({ isAdmin }: { isAdmin: boolean }) {
         }
         throw new Error(details);
       }
-      toast.success(`تم الاتصال بنجاح عبر البوت @${(data as any)?.bot ?? ""} وإرسال رسالة اختبار للقناة`);
+      notify.success(`تم الاتصال بنجاح عبر البوت @${(data as any)?.bot ?? ""} وإرسال رسالة اختبار للقناة`);
     } catch (e) {
-      toast.error("فشل الاتصال: " + (e instanceof Error ? e.message : "خطأ غير معروف"));
+      notify.error("فشل الاتصال: " + (e instanceof Error ? e.message : "خطأ غير معروف"));
     } finally {
       setTesting(false);
     }

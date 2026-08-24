@@ -15,7 +15,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { toast } from "@/hooks/use-toast";
 import { Plus, CreditCard, X, Trash2, CheckCircle, XCircle, Pencil, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
@@ -23,6 +22,7 @@ import { FormFieldError } from "@/components/FormFieldError";
 import { useSettings } from "@/contexts/SettingsContext";
 import { ACCOUNT_CODES, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
 import { recalculateEntityBalance, recalculateInvoicePaidAmount } from "@/lib/entity-balance";
+import { notify } from "@/lib/notify";
 
 interface Supplier {
   id: string;
@@ -171,20 +171,16 @@ export default function SupplierPayments() {
       };
       if (editTarget) {
         await (supabase.from("supplier_payments" as any) as any).update(data).eq("id", editTarget.id);
-        toast({ title: "تم التحديث", description: "تم تحديث المسودة بنجاح" });
+        notify.success("تم التحديث", "تم تحديث المسودة بنجاح");
       } else {
         await (supabase.from("supplier_payments" as any) as any).insert(data);
-        toast({ title: "تم الحفظ", description: "تم حفظ الدفعة كمسودة" });
+        notify.success("تم الحفظ", "تم حفظ الدفعة كمسودة");
       }
       setDialogOpen(false);
       resetForm();
       fetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
     setSaving(false);
   }
@@ -217,7 +213,7 @@ export default function SupplierPayments() {
         if (supplierId !== oldSupplierId) {
           await recalculateEntityBalance("supplier", supplierId);
         }
-        toast({ title: "تم التحديث", description: "تم تعديل السند بنفس رقم السند ورقم القيد" });
+        notify.success("تم التحديث", "تم تعديل السند بنفس رقم السند ورقم القيد");
       } else if (editTarget) {
         // Draft edit → update then post
         await (supabase.from("supplier_payments" as any) as any)
@@ -239,7 +235,7 @@ export default function SupplierPayments() {
           notes.trim() || null,
           editTarget.id,
         );
-        toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
+        notify.success("تم التسجيل", "تم تسجيل السداد بنجاح");
       } else {
         await postPaymentLogic(
           supplierId,
@@ -249,17 +245,13 @@ export default function SupplierPayments() {
           reference.trim() || null,
           notes.trim() || null,
         );
-        toast({ title: "تم التسجيل", description: "تم تسجيل السداد بنجاح" });
+        notify.success("تم التسجيل", "تم تسجيل السداد بنجاح");
       }
       setDialogOpen(false);
       resetForm();
       fetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
     setSaving(false);
   }
@@ -363,18 +355,11 @@ export default function SupplierPayments() {
         postTarget.notes,
         postTarget.id,
       );
-      toast({
-        title: "تم الترحيل",
-        description: `تم ترحيل الدفعة #${postTarget.payment_number}`,
-      });
+      notify.success("تم الترحيل", `تم ترحيل الدفعة #${postTarget.payment_number}`);
       setPostTarget(null);
       fetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
     setSaving(false);
   }
@@ -384,18 +369,11 @@ export default function SupplierPayments() {
     setSaving(true);
     try {
       await (supabase.from("supplier_payments" as any) as any).delete().eq("id", deleteTarget.id);
-      toast({
-        title: "تم الحذف",
-        description: `تم حذف الدفعة #${deleteTarget.payment_number}`,
-      });
+      notify.success("تم الحذف", `تم حذف الدفعة #${deleteTarget.payment_number}`);
       setDeleteTarget(null);
       fetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }
@@ -447,18 +425,11 @@ export default function SupplierPayments() {
       // 7. Recalculate supplier balance now that status is cancelled
       await recalculateEntityBalance("supplier", cancelTarget.supplier_id);
 
-      toast({
-        title: "تم الإلغاء",
-        description: `تم إلغاء الدفعة #${cancelTarget.payment_number} وعكس القيد المحاسبي وفك جميع التخصيصات`,
-      });
+      notify.success("تم الإلغاء", `تم إلغاء الدفعة #${cancelTarget.payment_number} وعكس القيد المحاسبي وفك جميع التخصيصات`);
       setCancelTarget(null);
       fetchAll();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     }
     setSaving(false);
   }
@@ -467,20 +438,12 @@ export default function SupplierPayments() {
     if (!editPostedTarget) return;
     const target = editPostedTarget;
     if (settings?.locked_until_date && target.payment_date <= settings.locked_until_date) {
-      toast({
-        title: "غير مسموح",
-        description: `لا يمكن تعديل سند بتاريخ ${target.payment_date} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
+      notify.error("غير مسموح", `لا يمكن تعديل سند بتاريخ ${target.payment_date} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       setEditPostedTarget(null);
       return;
     }
     if (target.isRefund) {
-      toast({
-        title: "غير مسموح",
-        description: "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.",
-        variant: "destructive",
-      });
+      notify.error("غير مسموح", "لا يمكن تعديل سند مرتبط بمرتجع. ألغِ المرتجع أولاً ثم أنشئ السند من جديد.");
       setEditPostedTarget(null);
       return;
     }

@@ -1,3 +1,4 @@
+import { notify } from "@/lib/notify";
 import React, { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { format } from "date-fns";
@@ -17,7 +18,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Landmark,
@@ -89,11 +89,7 @@ export default function BalanceSheet() {
         .in("journal_entries.status", ["posted", "approved"]),
     ]);
     if (accountsRes.error || linesRes.error) {
-      toast({
-        title: "خطأ",
-        description: "فشل في تحميل بيانات الميزانية",
-        variant: "destructive",
-      });
+      notify.error("خطأ", "فشل في تحميل بيانات الميزانية");
     }
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
     if (linesRes.data) setLines(linesRes.data);
@@ -417,10 +413,7 @@ export default function BalanceSheet() {
       ],
       filename: "Balance_Sheet",
     });
-    toast({
-      title: "تم التصدير",
-      description: "تم تصدير الميزانية العمومية بصيغة PDF",
-    });
+    notify.success("تم التصدير", "تم تصدير الميزانية العمومية بصيغة PDF");
     setExportMenuOpen(false);
   };
 
@@ -509,10 +502,7 @@ export default function BalanceSheet() {
     row("", "", "إجمالي حقوق الملكية", "", totalEquity);
 
     await exportToExcel(data, "Balance Sheet", "Balance_Sheet.xlsx");
-    toast({
-      title: "تم التصدير",
-      description: "تم تصدير الميزانية العمومية بصيغة Excel",
-    });
+    notify.success("تم التصدير", "تم تصدير الميزانية العمومية بصيغة Excel");
     setExportMenuOpen(false);
   };
 

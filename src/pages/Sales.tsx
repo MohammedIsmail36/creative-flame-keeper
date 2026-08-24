@@ -23,11 +23,11 @@ import {
 } from "lucide-react";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
-import { toast } from "@/hooks/use-toast";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useQuery } from "@tanstack/react-query";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { StatusChips } from "@/components/StatusChips";
+import { notify } from "@/lib/notify";
 
 interface Invoice {
   id: string;
@@ -110,11 +110,7 @@ export default function Sales() {
 
       const { data, error, count } = await q;
       if (error) {
-        toast({
-          title: "خطأ",
-          description: "فشل في تحميل الفواتير",
-          variant: "destructive",
-        });
+        notify.error("خطأ", "فشل في تحميل الفواتير");
         throw error;
       }
       return {

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
-import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +15,7 @@ import { ExportMenu } from "@/components/ExportMenu";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useQuery } from "@tanstack/react-query";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
+import { notify } from "@/lib/notify";
 
 interface Return {
   id: string;
@@ -106,11 +106,7 @@ export default function SalesReturns() {
 
       const { data, error, count } = await q;
       if (error) {
-        toast({
-          title: "خطأ",
-          description: "فشل في تحميل المرتجعات",
-          variant: "destructive",
-        });
+        notify.error("خطأ", "فشل في تحميل المرتجعات");
         throw error;
       }
       return {

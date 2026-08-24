@@ -22,7 +22,6 @@ import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
-import { toast } from "@/hooks/use-toast";
 import {
   Plus,
   X,
@@ -54,6 +53,7 @@ import {
   PRODUCT_SELECT_FIELDS_BASIC,
 } from "@/lib/product-utils";
 import { ACCOUNT_CODES, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { notify } from "@/lib/notify";
 
 interface Supplier {
   id: string;
@@ -182,11 +182,7 @@ export default function PurchaseReturnForm() {
     if (items.some((i) => i.product_id && i.quantity <= 0)) errors.items = "يجب أن تكون الكمية أكبر من صفر لكل بند";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast({
-        title: "تنبيه",
-        description: Object.values(errors)[0],
-        variant: "destructive",
-      });
+      notify.error("تنبيه", Object.values(errors)[0]);
       return false;
     }
     setSaving(true);
@@ -236,10 +232,7 @@ export default function PurchaseReturnForm() {
           await (supabase.from("purchase_return_items") as any).insert(rows);
         }
         if (!opts?.silent) {
-          toast({
-            title: "تمت الإضافة",
-            description: draftSavedMsg || "تم إنشاء مرتجع الشراء كمسودة",
-          });
+          notify.success("تمت الإضافة", draftSavedMsg || "تم إنشاء مرتجع الشراء كمسودة");
         }
         setIsDirty(false);
         navGuard.allowNext();
@@ -266,21 +259,14 @@ export default function PurchaseReturnForm() {
           await (supabase.from("purchase_return_items") as any).insert(rows);
         }
         if (!opts?.silent) {
-          toast({
-            title: "تم التحديث",
-            description: draftSavedMsg || "تم تحديث مرتجع الشراء",
-          });
+          notify.success("تم التحديث", draftSavedMsg || "تم تحديث مرتجع الشراء");
         }
         setIsDirty(false);
         navGuard.allowNext();
         if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
       setSaving(false);
       return false;
     }
@@ -290,22 +276,14 @@ export default function PurchaseReturnForm() {
 
   async function postReturn() {
     if (settings?.locked_until_date && returnDate <= settings.locked_until_date) {
-      toast({
-        title: "خطأ",
-        description: `لا يمكن ترحيل مرتجع بتاريخ ${returnDate} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
+      notify.error("خطأ", `لا يمكن ترحيل مرتجع بتاريخ ${returnDate} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       return;
     }
     // Persist any unsaved edits before posting
     if (isDirty && id) {
       const saved = await handleSave({ silent: true, skipReload: true });
       if (!saved) {
-        toast({
-          title: "تعذر الترحيل",
-          description: "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل",
-          variant: "destructive",
-        });
+        notify.error("تعذر الترحيل", "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل");
         return;
       }
     }
@@ -320,11 +298,7 @@ export default function PurchaseReturnForm() {
           .eq("id", item.product_id)
           .single();
         if (prod && item.quantity > prod.quantity_on_hand) {
-          toast({
-            title: "تنبيه",
-            description: `لا يمكن إرجاع كمية (${item.quantity}) من الصنف (${item.product_name}) أكبر من الكمية المتاحة في المخزون (${prod.quantity_on_hand})`,
-            variant: "destructive",
-          });
+          notify.error("تنبيه", `لا يمكن إرجاع كمية (${item.quantity}) من الصنف (${item.product_name}) أكبر من الكمية المتاحة في المخزون (${prod.quantity_on_hand})`);
           return;
         }
         // Validate against total purchased quantity from this supplier
@@ -363,11 +337,7 @@ export default function PurchaseReturnForm() {
           }
           const maxReturnable = totalPurchased - totalReturned;
           if (item.quantity > maxReturnable) {
-            toast({
-              title: "تنبيه",
-              description: `لا يمكن إرجاع كمية (${item.quantity}) من الصنف (${item.product_name}) — إجمالي المشتراة من هذا المورد (${totalPurchased}) والمرتجعة سابقاً (${totalReturned})`,
-              variant: "destructive",
-            });
+            notify.error("تنبيه", `لا يمكن إرجاع كمية (${item.quantity}) من الصنف (${item.product_name}) — إجمالي المشتراة من هذا المورد (${totalPurchased}) والمرتجعة سابقاً (${totalReturned})`);
             return;
           }
         }
@@ -387,11 +357,7 @@ export default function PurchaseReturnForm() {
       const inputVatAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.INPUT_VAT);
       const ppvAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.PURCHASE_RETURN_PRICE_VARIANCE);
       if (!inventoryAcc || !supplierAcc) {
-        toast({
-          title: "خطأ",
-          description: "تأكد من وجود حسابات المخزون والموردين",
-          variant: "destructive",
-        });
+        notify.error("خطأ", "تأكد من وجود حسابات المخزون والموردين");
         return;
       }
 
@@ -521,16 +487,12 @@ export default function PurchaseReturnForm() {
 
       await recalculateEntityBalance("supplier", supplierId);
 
-      toast({ title: "تم الترحيل", description: "تم ترحيل مرتجع الشراء" });
+      notify.success("تم الترحيل", "تم ترحيل مرتجع الشراء");
       setIsDirty(false);
       navGuard.allowNext();
       loadData();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }
@@ -604,19 +566,12 @@ export default function PurchaseReturnForm() {
       }
 
       // status already set to cancelled above
-      toast({
-        title: "تم الإلغاء",
-        description: "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون",
-      });
+      notify.success("تم الإلغاء", "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون");
       setIsDirty(false);
       navGuard.allowNext();
       loadData();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }
@@ -628,16 +583,12 @@ export default function PurchaseReturnForm() {
     try {
       await (supabase.from("purchase_return_items") as any).delete().eq("return_id", id);
       await (supabase.from("purchase_returns") as any).delete().eq("id", id);
-      toast({ title: "تم الحذف", description: "تم حذف المرتجع" });
+      notify.success("تم الحذف", "تم حذف المرتجع");
       setIsDirty(false);
       navGuard.allowNext();
       navigate("/purchase-returns");
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }

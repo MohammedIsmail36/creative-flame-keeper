@@ -22,7 +22,6 @@ import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { LookupCombobox } from "@/components/LookupCombobox";
-import { toast } from "@/hooks/use-toast";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
 import {
   Plus,
@@ -66,6 +65,7 @@ import {
   PRODUCT_SELECT_FIELDS,
 } from "@/lib/product-utils";
 import { ACCOUNT_CODES, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from "@/lib/constants";
+import { notify } from "@/lib/notify";
 
 interface Customer {
   id: string;
@@ -250,11 +250,7 @@ export default function SalesInvoiceForm() {
     if (items.some((i) => i.unit_price < 0)) errors.items = "لا يمكن أن يكون السعر سالباً";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast({
-        title: "تنبيه",
-        description: Object.values(errors)[0],
-        variant: "destructive",
-      });
+      notify.error("تنبيه", Object.values(errors)[0]);
       return false;
     }
     setSaving(true);
@@ -267,11 +263,7 @@ export default function SalesInvoiceForm() {
       }
       // Block creating brand-new empty invoices (no customer AND no items)
       if (isNew && !customerId && validItems.length === 0) {
-        toast({
-          title: "تنبيه",
-          description: "لا يمكن حفظ فاتورة فارغة - أضف عميلاً أو بنودًا أولاً",
-          variant: "destructive",
-        });
+        notify.error("تنبيه", "لا يمكن حفظ فاتورة فارغة - أضف عميلاً أو بنودًا أولاً");
         setSaving(false);
         return false;
       }
@@ -320,10 +312,7 @@ export default function SalesInvoiceForm() {
           await (supabase.from("sales_invoice_items") as any).insert(rows);
         }
         if (!opts?.silent) {
-          toast({
-            title: "تمت الإضافة",
-            description: draftSavedMsg || "تم إنشاء فاتورة البيع كمسودة",
-          });
+          notify.success("تمت الإضافة", draftSavedMsg || "تم إنشاء فاتورة البيع كمسودة");
         }
         setIsDirty(false);
         navGuard.allowNext();
@@ -347,21 +336,14 @@ export default function SalesInvoiceForm() {
           await (supabase.from("sales_invoice_items") as any).insert(rows);
         }
         if (!opts?.silent) {
-          toast({
-            title: "تم التحديث",
-            description: draftSavedMsg || "تم تحديث فاتورة البيع",
-          });
+          notify.success("تم التحديث", draftSavedMsg || "تم تحديث فاتورة البيع");
         }
         setIsDirty(false);
         navGuard.allowNext();
         if (!opts?.skipReload) loadData();
       }
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
       setSaving(false);
       return false;
     }
@@ -372,39 +354,23 @@ export default function SalesInvoiceForm() {
   async function postInvoice() {
     if (saving) return;
     if (!customerId) {
-      toast({
-        title: "تنبيه",
-        description: "يرجى اختيار العميل قبل الترحيل",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "يرجى اختيار العميل قبل الترحيل");
       setFieldErrors((e) => ({ ...e, customer: "يرجى اختيار العميل" }));
       return;
     }
     if (items.length === 0 || items.some((i) => !i.product_id)) {
-      toast({
-        title: "تنبيه",
-        description: "يجب إضافة بنود الفاتورة واختيار منتج لكل بند قبل الترحيل",
-        variant: "destructive",
-      });
+      notify.error("تنبيه", "يجب إضافة بنود الفاتورة واختيار منتج لكل بند قبل الترحيل");
       return;
     }
     if (settings?.locked_until_date && invoiceDate <= settings.locked_until_date) {
-      toast({
-        title: "الفترة مقفلة",
-        description: `لا يمكن ترحيل فاتورة بتاريخ ${invoiceDate} — الفترة مقفلة حتى ${settings.locked_until_date}`,
-        variant: "destructive",
-      });
+      notify.error("الفترة مقفلة", `لا يمكن ترحيل فاتورة بتاريخ ${invoiceDate} — الفترة مقفلة حتى ${settings.locked_until_date}`);
       return;
     }
     // Persist any unsaved edits (e.g. invoice-level discount) before posting
     if (isDirty && id) {
       const saved = await handleSave({ silent: true, skipReload: true });
       if (!saved) {
-        toast({
-          title: "تعذر الترحيل",
-          description: "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل",
-          variant: "destructive",
-        });
+        notify.error("تعذر الترحيل", "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل");
         return;
       }
     }
@@ -417,29 +383,18 @@ export default function SalesInvoiceForm() {
       if (rpcError) throw rpcError;
       const res = result as any;
       if (!res?.success) {
-        toast({
-          title: "خطأ",
-          description: res?.error || "حدث خطأ أثناء الترحيل",
-          variant: "destructive",
-        });
+        notify.error("خطأ", res?.error || "حدث خطأ أثناء الترحيل");
         return;
       }
 
       await recalculateEntityBalance("customer", customerId);
 
-      toast({
-        title: "تم الترحيل",
-        description: "تم ترحيل فاتورة البيع وتوليد القيد المحاسبي وتحديث المخزون",
-      });
+      notify.success("تم الترحيل", "تم ترحيل فاتورة البيع وتوليد القيد المحاسبي وتحديث المخزون");
       setIsDirty(false);
       navGuard.allowNext();
       loadData();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }
@@ -451,16 +406,12 @@ export default function SalesInvoiceForm() {
     try {
       await (supabase.from("sales_invoice_items") as any).delete().eq("invoice_id", id);
       await (supabase.from("sales_invoices") as any).delete().eq("id", id);
-      toast({ title: "تم الحذف", description: "تم حذف فاتورة البيع المسودة" });
+      notify.success("تم الحذف", "تم حذف فاتورة البيع المسودة");
       setIsDirty(false);
       navGuard.allowNext();
       navigate("/sales");
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }
@@ -476,19 +427,16 @@ export default function SalesInvoiceForm() {
       if (error) throw error;
       const res = data as { success: boolean; error?: string };
       if (!res?.success) {
-        toast({ title: "غير مسموح", description: res?.error || "تعذر إعادة التعيين", variant: "destructive" });
+        notify.error("غير مسموح", res?.error || "تعذر إعادة التعيين");
         return;
       }
       await recalculateEntityBalance("customer", customerId);
-      toast({
-        title: "تم إعادة التعيين كمسودة",
-        description: "أصبحت الفاتورة قابلة للتعديل، والقيد المحاسبي أصبح مسودة ولن يظهر في التقارير",
-      });
+      notify.success("تم إعادة التعيين كمسودة", "أصبحت الفاتورة قابلة للتعديل، والقيد المحاسبي أصبح مسودة ولن يظهر في التقارير");
       setIsDirty(false);
       navGuard.allowNext();
       window.location.reload();
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }
@@ -615,19 +563,12 @@ export default function SalesInvoiceForm() {
 
       // status already set to cancelled above
 
-      toast({
-        title: "تم الإلغاء",
-        description: "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات للمخزون",
-      });
+      notify.success("تم الإلغاء", "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات للمخزون");
       setIsDirty(false);
       navGuard.allowNext();
       loadData();
     } catch (error: any) {
-      toast({
-        title: "خطأ",
-        description: error.message,
-        variant: "destructive",
-      });
+      notify.error("خطأ", error.message);
     } finally {
       setSaving(false);
     }

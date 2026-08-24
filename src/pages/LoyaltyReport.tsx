@@ -30,7 +30,7 @@ import {
 import { round2, cn } from "@/lib/utils";
 import { aggregateByCustomer, aggregateTotals } from "@/lib/loyalty-aggregation";
 import { ExportMenu } from "@/components/ExportMenu";
-import { toast } from "@/hooks/use-toast";
+import { notify } from "@/lib/notify";
 
 interface TxRow {
   customer_id: string;
@@ -235,11 +235,7 @@ export default function LoyaltyReport() {
     if (!delta || isNaN(delta)) return false;
     const newBalance = (customer.current_balance || 0) + delta;
     if (newBalance < 0) {
-      toast({
-        title: "غير مسموح",
-        description: "الرصيد الناتج سيكون سالباً",
-        variant: "destructive",
-      });
+      notify.error("غير مسموح", "الرصيد الناتج سيكون سالباً");
       return false;
     }
     try {
@@ -255,14 +251,11 @@ export default function LoyaltyReport() {
         .update({ loyalty_points: newBalance })
         .eq("id", customer.id);
       if (cErr) throw cErr;
-      toast({
-        title: "تم التعديل",
-        description: `${customer.name}: ${delta > 0 ? "+" : ""}${delta} نقطة`,
-      });
+      notify.success("تم التعديل", `${customer.name}: ${delta > 0 ? "+" : ""}${delta} نقطة`);
       await load();
       return true;
     } catch (e: any) {
-      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+      notify.error("خطأ", e.message);
       return false;
     }
   }
