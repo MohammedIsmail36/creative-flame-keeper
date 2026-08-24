@@ -1,5 +1,5 @@
 import { notify } from "@/lib/notify";
-import { isPeriodLocked, deleteDraftDocument } from "@/lib/document-actions";
+import { deleteDraftDocument } from "@/lib/document-actions";
 import { StatusBadge } from "@/components/StatusBadge";
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
@@ -107,7 +107,17 @@ export default function SalesReturnForm() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(!isNew);
-  const { saving, setSaving, isDirty, setIsDirty, markDirty, markClean, navGuard } =
+  const {
+    saving,
+    setSaving,
+    isDirty,
+    setIsDirty,
+    markDirty,
+    markClean,
+    navGuard,
+    runAction,
+    ensurePeriodUnlocked,
+  } =
     useDocumentFormState({ lockedUntilDate: settings?.locked_until_date });
 
   const [returnNumber, setReturnNumber] = useState<number | null>(null);
@@ -284,10 +294,13 @@ export default function SalesReturnForm() {
   }
 
   async function postReturn() {
-    if (isPeriodLocked(returnDate, settings?.locked_until_date)) {
-      notify.error("خطأ", `لا يمكن ترحيل مرتجع بتاريخ ${returnDate} — الفترة مقفلة حتى ${settings.locked_until_date}`);
+    if (
+      !ensurePeriodUnlocked(
+        returnDate,
+        (lockedUntil) => `لا يمكن ترحيل مرتجع بتاريخ ${returnDate} — الفترة مقفلة حتى ${lockedUntil}`,
+      )
+    )
       return;
-    }
     // Persist any unsaved edits before posting
     if (isDirty && id) {
       const saved = await handleSave({ silent: true, skipReload: true });
@@ -544,8 +557,7 @@ export default function SalesReturnForm() {
 
   async function handleCancelPosted() {
     if (saving) return;
-    setSaving(true);
-    try {
+    await runAction(async () => {
       const { data: ret } = await (supabase.from("sales_returns") as any)
         .select("journal_entry_id, posted_number, return_number")
         .eq("id", id)
@@ -621,17 +633,12 @@ export default function SalesReturnForm() {
       notify.success("تم الإلغاء", "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون");
       markClean();
       loadData();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function handleDeleteDraft() {
     if (saving) return;
-    setSaving(true);
-    try {
+    await runAction(async () => {
       await deleteDraftDocument({
         itemsTable: "sales_return_items",
         parentTable: "sales_returns",
@@ -641,11 +648,7 @@ export default function SalesReturnForm() {
       notify.success("تم الحذف", "تم حذف المرتجع");
       markClean();
       navigate("/sales-returns");
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function handlePrint() {

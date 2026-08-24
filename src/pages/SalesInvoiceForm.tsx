@@ -117,6 +117,7 @@ export default function SalesInvoiceForm() {
     markDirty,
     markClean,
     navGuard,
+    runAction,
     ensurePeriodUnlocked,
   } =
     useDocumentFormState({ lockedUntilDate: settings?.locked_until_date });
@@ -383,8 +384,7 @@ export default function SalesInvoiceForm() {
 
   async function handleDeleteDraft() {
     if (saving) return;
-    setSaving(true);
-    try {
+    await runAction(async () => {
       await deleteDraftDocument({
         itemsTable: "sales_invoice_items",
         parentTable: "sales_invoices",
@@ -394,17 +394,12 @@ export default function SalesInvoiceForm() {
       notify.success("تم الحذف", "تم حذف فاتورة البيع المسودة");
       markClean();
       navigate("/sales");
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function handleResetToDraft() {
     if (saving || !id) return;
-    setSaving(true);
-    try {
+    await runAction(async () => {
       const res = await invokeDocumentRpc("unpost_sales_invoice", { p_invoice_id: id });
       if (!res.success) {
         notify.error(res.isException ? "خطأ" : "غير مسموح", res.error || "تعذر إعادة التعيين");
@@ -414,17 +409,12 @@ export default function SalesInvoiceForm() {
       notify.success("تم إعادة التعيين كمسودة", "أصبحت الفاتورة قابلة للتعديل، والقيد المحاسبي أصبح مسودة ولن يظهر في التقارير");
       markClean();
       window.location.reload();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function handleCancelPosted() {
     if (saving) return;
-    setSaving(true);
-    try {
+    await runAction(async () => {
       const { data: inv } = await (supabase.from("sales_invoices") as any)
         .select(
           "journal_entry_id, customer_id, total, tax, loyalty_discount, loyalty_points_redeemed, invoice_date, posted_number, invoice_number",
@@ -545,11 +535,7 @@ export default function SalesInvoiceForm() {
       notify.success("تم الإلغاء", "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات للمخزون");
       markClean();
       loadData();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function handlePrint() {
