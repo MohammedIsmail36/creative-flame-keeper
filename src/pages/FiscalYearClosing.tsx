@@ -17,17 +17,7 @@ import {
   FileWarning,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   Dialog,
   DialogContent,
@@ -449,8 +439,25 @@ export default function FiscalYearClosing() {
               </p>
             </div>
           </div>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
+          <ConfirmDialog
+            title="تأكيد عكس قيد الإقفال"
+            description={
+              <>
+                سيتم حذف قيد إقفال السنة المالية نهائياً وإعادة أرصدة حسابات
+                الإيرادات والمصروفات إلى وضعها السابق.
+                <br />
+                <br />
+                سيتم أيضاً عكس المبلغ المرحّل إلى حساب الأرباح المحتجزة (
+                {ACCOUNT_CODES.RETAINED_EARNINGS}).
+                <br />
+                <br />
+                <strong>هل أنت متأكد من إعادة فتح السنة المالية؟</strong>
+              </>
+            }
+            confirmText="تأكيد العكس"
+            destructive
+            onConfirm={reverseClosing}
+            trigger={
               <Button
                 variant="outline"
                 size="sm"
@@ -464,33 +471,9 @@ export default function FiscalYearClosing() {
                 )}
                 عكس الإقفال
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent dir="rtl">
-              <AlertDialogHeader>
-                <AlertDialogTitle>تأكيد عكس قيد الإقفال</AlertDialogTitle>
-                <AlertDialogDescription>
-                  سيتم حذف قيد إقفال السنة المالية نهائياً وإعادة أرصدة حسابات
-                  الإيرادات والمصروفات إلى وضعها السابق.
-                  <br />
-                  <br />
-                  سيتم أيضاً عكس المبلغ المرحّل إلى حساب الأرباح المحتجزة (
-                  {ACCOUNT_CODES.RETAINED_EARNINGS}).
-                  <br />
-                  <br />
-                  <strong>هل أنت متأكد من إعادة فتح السنة المالية؟</strong>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="flex-row-reverse gap-2">
-                <AlertDialogAction
-                  onClick={reverseClosing}
-                  className="bg-destructive hover:bg-destructive/90"
-                >
-                  تأكيد العكس
-                </AlertDialogAction>
-                <AlertDialogCancel>إلغاء</AlertDialogCancel>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            }
+          />
+
         </div>
       )}
 

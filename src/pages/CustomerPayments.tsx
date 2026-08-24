@@ -13,16 +13,7 @@ import { LookupCombobox } from "@/components/LookupCombobox";
 import { FormFieldError } from "@/components/FormFieldError";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "@/hooks/use-toast";
@@ -870,92 +861,71 @@ export default function CustomerPayments() {
       />
 
       {/* Delete confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>حذف الدفعة #{deleteTarget?.payment_number}</AlertDialogTitle>
-            <AlertDialogDescription>
-              هل أنت متأكد من حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              حذف
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        title={`حذف الدفعة #${deleteTarget?.payment_number ?? ""}`}
+        description="هل أنت متأكد من حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء."
+        confirmText="حذف"
+        destructive
+        onConfirm={handleDelete}
+      />
 
       {/* Post confirmation */}
-      <AlertDialog open={!!postTarget} onOpenChange={() => setPostTarget(null)}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>ترحيل الدفعة #{postTarget?.payment_number}</AlertDialogTitle>
-            <AlertDialogDescription>
-              سيتم إنشاء قيد محاسبي وتحديث رصيد العميل بمبلغ{" "}
-              {postTarget?.amount.toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-              })}
-              . هل تريد المتابعة؟
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handlePostDraft}>ترحيل</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!postTarget}
+        onOpenChange={() => setPostTarget(null)}
+        title={`ترحيل الدفعة #${postTarget?.payment_number ?? ""}`}
+        description={
+          <>
+            سيتم إنشاء قيد محاسبي وتحديث رصيد العميل بمبلغ{" "}
+            {postTarget?.amount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            })}
+            . هل تريد المتابعة؟
+          </>
+        }
+        confirmText="ترحيل"
+        onConfirm={handlePostDraft}
+      />
 
       {/* Cancel confirmation */}
-      <AlertDialog open={!!cancelTarget} onOpenChange={() => setCancelTarget(null)}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>إلغاء الدفعة #{cancelTarget?.payment_number}</AlertDialogTitle>
-            <AlertDialogDescription>
-              سيتم إلغاء القيد المحاسبي وإعادة رصيد العميل بمبلغ{" "}
-              {cancelTarget?.amount.toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-              })}
-              . هل تريد المتابعة؟
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancel}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              تأكيد الإلغاء
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!cancelTarget}
+        onOpenChange={() => setCancelTarget(null)}
+        title={`إلغاء الدفعة #${cancelTarget?.payment_number ?? ""}`}
+        description={
+          <>
+            سيتم إلغاء القيد المحاسبي وإعادة رصيد العميل بمبلغ{" "}
+            {cancelTarget?.amount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            })}
+            . هل تريد المتابعة؟
+          </>
+        }
+        confirmText="تأكيد الإلغاء"
+        destructive
+        onConfirm={handleCancel}
+      />
 
       {/* Edit posted payment confirmation */}
-      <AlertDialog open={!!editPostedTarget} onOpenChange={() => setEditPostedTarget(null)}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              تعديل سند مُرحّل #{editPostedTarget?.posted_number ?? editPostedTarget?.payment_number}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              سيتم فتح نموذج التعديل مباشرة، وعند الحفظ ستتم إعادة الكتابة فوق نفس السند وقيده المحاسبي كعملية واحدة —{" "}
-              <strong>بنفس رقم السند ورقم القيد</strong> ({prefix}
-              {String(editPostedTarget?.posted_number ?? 0).padStart(4, "0")}).
-              <br />
-              لن يتم استهلاك أي رقم جديد من التسلسل، ولن يظهر قيد إضافي في اليومية.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmEditPosted}>متابعة</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!editPostedTarget}
+        onOpenChange={() => setEditPostedTarget(null)}
+        title={`تعديل سند مُرحّل #${editPostedTarget?.posted_number ?? editPostedTarget?.payment_number ?? ""}`}
+        description={
+          <>
+            سيتم فتح نموذج التعديل مباشرة، وعند الحفظ ستتم إعادة الكتابة فوق نفس السند وقيده المحاسبي كعملية واحدة —{" "}
+            <strong>بنفس رقم السند ورقم القيد</strong> ({prefix}
+            {String(editPostedTarget?.posted_number ?? 0).padStart(4, "0")}).
+            <br />
+            لن يتم استهلاك أي رقم جديد من التسلسل، ولن يظهر قيد إضافي في اليومية.
+          </>
+        }
+        confirmText="متابعة"
+        onConfirm={handleConfirmEditPosted}
+      />
+
     </div>
   );
 }

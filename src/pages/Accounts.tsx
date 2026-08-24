@@ -19,17 +19,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import {
   BookOpen,
@@ -418,8 +408,13 @@ export default function Accounts() {
                 </Button>
               )}
               {canDelete && !hasChildren && !account.is_system && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
+                <ConfirmDialog
+                  title="تأكيد الحذف"
+                  description={`هل أنت متأكد من حذف الحساب "${account.name}" (${account.code})؟`}
+                  confirmText="حذف"
+                  destructive
+                  onConfirm={() => handleDelete(account)}
+                  trigger={
                     <Button
                       variant="ghost"
                       size="icon"
@@ -428,25 +423,9 @@ export default function Accounts() {
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent dir="rtl">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        هل أنت متأكد من حذف الحساب "{account.name}" ({account.code})؟
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="flex-row-reverse gap-2">
-                      <AlertDialogAction
-                        onClick={() => handleDelete(account)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        حذف
-                      </AlertDialogAction>
-                      <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                  }
+                />
+
               )}
             </div>
           </TableCell>
@@ -656,8 +635,13 @@ export default function Accounts() {
                                   </Button>
                                 )}
                                 {canDelete && !accountTree.get(a.id)?.length && (
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
+                                  <ConfirmDialog
+                                    title="تأكيد الحذف"
+                                    description={`هل أنت متأكد من حذف "${a.name}" (${a.code})؟`}
+                                    confirmText="حذف"
+                                    destructive
+                                    onConfirm={() => handleDelete(a)}
+                                    trigger={
                                       <Button
                                         variant="ghost"
                                         size="icon"
@@ -666,25 +650,9 @@ export default function Accounts() {
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent dir="rtl">
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          هل أنت متأكد من حذف "{a.name}" ({a.code})؟
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter className="flex-row-reverse gap-2">
-                                        <AlertDialogAction
-                                          onClick={() => handleDelete(a)}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        >
-                                          حذف
-                                        </AlertDialogAction>
-                                        <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
+                                    }
+                                  />
+
                                 )}
                               </div>
                             </TableCell>

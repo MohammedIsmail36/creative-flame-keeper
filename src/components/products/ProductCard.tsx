@@ -8,17 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Eye, Pencil, MoreVertical, Package, CheckCircle2, Archive, Trash2 } from "lucide-react";
 import { TelegramPublishButton } from "./TelegramPublishButton";
 
@@ -175,8 +165,13 @@ export function ProductCard({
               {canDelete && (
                 <>
                   <DropdownMenuSeparator />
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
+                  <ConfirmDialog
+                    title="حذف المنتج نهائياً؟"
+                    description={`سيتم حذف المنتج "${p.name}" بشكل نهائي. لا يمكن التراجع.`}
+                    confirmText="حذف"
+                    destructive
+                    onConfirm={onDelete}
+                    trigger={
                       <DropdownMenuItem
                         onSelect={(e) => e.preventDefault()}
                         className="text-destructive focus:text-destructive"
@@ -184,22 +179,9 @@ export function ProductCard({
                         <Trash2 className="h-4 w-4 ml-2" />
                         حذف نهائي
                       </DropdownMenuItem>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent dir="rtl">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>حذف المنتج نهائياً؟</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          سيتم حذف المنتج "{p.name}" بشكل نهائي. لا يمكن التراجع.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                        <AlertDialogAction onClick={onDelete} className="bg-destructive hover:bg-destructive/90">
-                          حذف
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    }
+                  />
+
                 </>
               )}
             </DropdownMenuContent>
