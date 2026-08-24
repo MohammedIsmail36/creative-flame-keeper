@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -37,16 +38,6 @@ import { round2 } from "@/lib/utils";
 import { usePagedQuery, useDebouncedValue } from "@/hooks/use-paged-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatSupabaseError } from "@/lib/format-error";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 interface Customer {
   id: string;
