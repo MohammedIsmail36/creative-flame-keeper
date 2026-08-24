@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
