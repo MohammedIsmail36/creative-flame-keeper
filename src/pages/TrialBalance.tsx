@@ -30,10 +30,15 @@ import {
   Info,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { BALANCE_TOLERANCE } from "@/lib/constants";
 import {
-  BALANCE_TOLERANCE,
-  FISCAL_CLOSING_DESCRIPTION_PREFIX,
-} from "@/lib/constants";
+  excludeClosingEntries,
+  fetchLastClosingDate,
+  filterLinesByDate,
+  isResultAccountType,
+  sumDebitCreditByAccount,
+  toReportDate,
+} from "@/lib/report-period";
 
 interface Account {
   id: string;
@@ -135,8 +140,6 @@ export default function TrialBalance() {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.enable_fiscal_year_closing, dateFrom, dateTo]);
-
-  const revenueExpenseTypes = ["revenue", "expense", "expenses"];
 
   const trialBalanceData = useMemo(() => {
     const from = toReportDate(dateFrom);
