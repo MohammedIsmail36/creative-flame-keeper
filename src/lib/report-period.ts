@@ -139,9 +139,8 @@ export function sumNetByAccount(
   for (const l of lines) {
     const type = accountTypeOf(l.account_id);
     if (!type) continue;
-    const debitNatural = type === "asset" || isResultAccountType(type)
-      ? type !== "revenue"
-      : false;
+    const debitNatural =
+      type === "asset" || type === "expense" || type === "expenses";
     const delta = debitNatural
       ? num(l.debit) - num(l.credit)
       : num(l.credit) - num(l.debit);
