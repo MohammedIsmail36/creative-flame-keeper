@@ -30,7 +30,6 @@ import {
   Info,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FISCAL_CLOSING_DESCRIPTION_PREFIX } from "@/lib/constants";
 import {
   applyCurrentPeriod,
   fetchLastClosingDate,
