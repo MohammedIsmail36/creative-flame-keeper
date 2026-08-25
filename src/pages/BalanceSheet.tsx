@@ -36,10 +36,15 @@ import {
   Info,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { BALANCE_TOLERANCE } from "@/lib/constants";
 import {
-  BALANCE_TOLERANCE,
-  FISCAL_CLOSING_DESCRIPTION_PREFIX,
-} from "@/lib/constants";
+  applyCurrentPeriod,
+  fetchLastClosingDate,
+  filterLinesByDate,
+  sumNetByAccount,
+  toReportDate,
+} from "@/lib/report-period";
+
 
 interface Account {
   id: string;
