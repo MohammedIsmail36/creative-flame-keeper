@@ -30,7 +30,13 @@ import {
   Info,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FISCAL_CLOSING_DESCRIPTION_PREFIX } from "@/lib/constants";
+import {
+  applyCurrentPeriod,
+  fetchLastClosingDate,
+  filterLinesByDate,
+  sumNetByAccount,
+  toReportDate,
+} from "@/lib/report-period";
 import { notify } from "@/lib/notify";
 
 interface Account {
@@ -78,21 +84,10 @@ export default function IncomeStatement() {
       notify.error("خطأ", "فشل في جلب البيانات");
     }
 
-    // Find last closing entry date if fiscal year closing is enabled
-    if (settings?.enable_fiscal_year_closing) {
-      const { data: closingEntries } = await supabase
-        .from("journal_entries")
-        .select("entry_date")
-        .like("description", `%${FISCAL_CLOSING_DESCRIPTION_PREFIX}%`)
-        .in("status", ["posted", "approved"])
-        .order("entry_date", { ascending: false })
-        .limit(1);
-      if (closingEntries && closingEntries.length > 0) {
-        setLastClosingDate(closingEntries[0].entry_date);
-      } else {
-        setLastClosingDate(null);
-      }
-    }
+    setLastClosingDate(
+      await fetchLastClosingDate(settings?.enable_fiscal_year_closing),
+    );
+
     setLoading(false);
   };
 
@@ -102,45 +97,25 @@ export default function IncomeStatement() {
 
   const { revenueRows, expenseRows, totalRevenue, totalExpenses, netIncome } =
     useMemo(() => {
-      let filtered = lines.filter((l: any) => {
-        const d = (l.journal_entries as any)?.entry_date;
-        if (!d) return false;
-        if (dateFrom && d < format(dateFrom, "yyyy-MM-dd")) return false;
-        if (dateTo && d > format(dateTo, "yyyy-MM-dd")) return false;
-        return true;
-      });
+      const from = toReportDate(dateFrom);
+      const to = toReportDate(dateTo);
+      let filtered = filterLinesByDate(lines, from, to);
 
-      // If fiscal year closing is enabled and there's a closing entry,
-      // only show entries after the last closing date (exclude closing entry itself)
-      if (
-        settings?.enable_fiscal_year_closing &&
-        lastClosingDate &&
-        !dateFrom
-      ) {
-        filtered = filtered.filter((l: any) => {
-          const d = (l.journal_entries as any)?.entry_date;
-          const desc = (l.journal_entries as any)?.description || "";
-          if (desc.includes(FISCAL_CLOSING_DESCRIPTION_PREFIX)) return false;
-          return d > lastClosingDate;
+      // «الفترة الحالية»: استثناء قيود الإقفال وما قبلها عند عدم تحديد بداية يدوية
+      if (settings?.enable_fiscal_year_closing && lastClosingDate) {
+        filtered = applyCurrentPeriod(filtered, {
+          lastClosingDate,
+          manualDateFrom: from,
         });
       }
 
+      const accountTypeOf = (id: string) =>
+        accounts.find((a) => a.id === id)?.account_type;
+      const allTotals = sumNetByAccount(filtered, accountTypeOf);
       const totals = new Map<string, number>();
-      filtered.forEach((l: any) => {
-        const existing = totals.get(l.account_id) || 0;
-        const acc = accounts.find((a) => a.id === l.account_id);
-        if (!acc) return;
-        if (acc.account_type === "revenue") {
-          totals.set(
-            l.account_id,
-            existing + (Number(l.credit) - Number(l.debit)),
-          );
-        } else if (acc.account_type === "expense") {
-          totals.set(
-            l.account_id,
-            existing + (Number(l.debit) - Number(l.credit)),
-          );
-        }
+      allTotals.forEach((v, id) => {
+        const type = accountTypeOf(id);
+        if (type === "revenue" || type === "expense") totals.set(id, v);
       });
 
       const revenueRows: IncomeRow[] = [];

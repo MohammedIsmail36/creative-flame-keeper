@@ -30,10 +30,15 @@ import {
   Info,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { BALANCE_TOLERANCE } from "@/lib/constants";
 import {
-  BALANCE_TOLERANCE,
-  FISCAL_CLOSING_DESCRIPTION_PREFIX,
-} from "@/lib/constants";
+  excludeClosingEntries,
+  fetchLastClosingDate,
+  filterLinesByDate,
+  isResultAccountType,
+  sumDebitCreditByAccount,
+  toReportDate,
+} from "@/lib/report-period";
 
 interface Account {
   id: string;
@@ -64,21 +69,10 @@ export default function TrialBalance() {
     setLoading(true);
 
     // Last closing date (used to exclude pre-closing revenue/expense activity)
-    let closingDate: string | null = null;
-    if (settings?.enable_fiscal_year_closing) {
-      const { data: closingEntry } = await supabase
-        .from("journal_entries")
-        .select("entry_date")
-        .like("description", `%${FISCAL_CLOSING_DESCRIPTION_PREFIX}%`)
-        .in("status", ["posted", "approved"])
-        .order("entry_date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      closingDate = closingEntry?.entry_date || null;
-      setLastClosingDate(closingDate);
-    } else {
-      setLastClosingDate(null);
-    }
+    const closingDate = await fetchLastClosingDate(
+      settings?.enable_fiscal_year_closing,
+    );
+    setLastClosingDate(closingDate);
 
     // Fetch accounts (light) in parallel with lines
     const accountsPromise = supabase
@@ -147,54 +141,24 @@ export default function TrialBalance() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.enable_fiscal_year_closing, dateFrom, dateTo]);
 
-  const revenueExpenseTypes = ["revenue", "expense", "expenses"];
-
   const trialBalanceData = useMemo(() => {
-    const filteredLines = lines.filter((l: any) => {
-      const je = l.journal_entries as any;
-      const entryDate = je?.entry_date;
-      const entryDesc = je?.description || "";
-      if (!entryDate) return false;
+    const from = toReportDate(dateFrom);
+    const to = toReportDate(dateTo);
+    const filteredLines = excludeClosingEntries(
+      filterLinesByDate(lines, from, to),
+    );
 
-      // Exclude closing entries themselves
-      if (entryDesc.includes(FISCAL_CLOSING_DESCRIPTION_PREFIX)) return false;
-
-      if (dateFrom && entryDate < format(dateFrom, "yyyy-MM-dd")) return false;
-      if (dateTo && entryDate > format(dateTo, "yyyy-MM-dd")) return false;
-      return true;
-    });
-
-    // Build account type lookup
     const accountTypeMap = new Map<string, string>();
     accounts.forEach((acc) => accountTypeMap.set(acc.id, acc.account_type));
 
-    const accountTotals = new Map<
-      string,
-      { totalDebit: number; totalCredit: number }
-    >();
-    filteredLines.forEach((l: any) => {
-      const accType = accountTypeMap.get(l.account_id) || "";
-      const isRevenueExpense = revenueExpenseTypes.includes(accType);
-      const entryDate = (l.journal_entries as any)?.entry_date;
-
-      // For revenue/expense accounts, skip entries before last closing (if no manual dateFrom set)
-      if (
-        isRevenueExpense &&
-        lastClosingDate &&
-        !dateFrom &&
-        entryDate <= lastClosingDate
-      ) {
-        return;
-      }
-
-      const existing = accountTotals.get(l.account_id) || {
-        totalDebit: 0,
-        totalCredit: 0,
-      };
-      existing.totalDebit += Number(l.debit) || 0;
-      existing.totalCredit += Number(l.credit) || 0;
-      accountTotals.set(l.account_id, existing);
+    // حسابات النتيجة: تُستبعد الحركة قبل آخر إقفال إن لم يحدّد المستخدم بداية
+    const periodLines = filteredLines.filter((l: any) => {
+      if (!isResultAccountType(accountTypeMap.get(l.account_id))) return true;
+      if (!lastClosingDate || from) return true;
+      return (l.journal_entries as any)?.entry_date > lastClosingDate;
     });
+
+    const accountTotals = sumDebitCreditByAccount(periodLines);
 
     const rows: TrialBalanceRow[] = [];
     accounts.forEach((acc) => {

@@ -36,10 +36,15 @@ import {
   Info,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { BALANCE_TOLERANCE } from "@/lib/constants";
 import {
-  BALANCE_TOLERANCE,
-  FISCAL_CLOSING_DESCRIPTION_PREFIX,
-} from "@/lib/constants";
+  applyCurrentPeriod,
+  fetchLastClosingDate,
+  filterLinesByDate,
+  sumNetByAccount,
+  toReportDate,
+} from "@/lib/report-period";
+
 
 interface Account {
   id: string;
@@ -96,21 +101,10 @@ export default function BalanceSheet() {
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
     if (linesRes.data) setLines(linesRes.data);
 
-    // Find last closing entry date if fiscal year closing is enabled
-    if (settings?.enable_fiscal_year_closing) {
-      const { data: closingEntries } = await supabase
-        .from("journal_entries")
-        .select("entry_date")
-        .like("description", `%${FISCAL_CLOSING_DESCRIPTION_PREFIX}%`)
-        .in("status", ["posted", "approved"])
-        .order("entry_date", { ascending: false })
-        .limit(1);
-      if (closingEntries && closingEntries.length > 0) {
-        setLastClosingDate(closingEntries[0].entry_date);
-      } else {
-        setLastClosingDate(null);
-      }
-    }
+    setLastClosingDate(
+      await fetchLastClosingDate(settings?.enable_fiscal_year_closing),
+    );
+
     setLoading(false);
   };
 
@@ -127,64 +121,23 @@ export default function BalanceSheet() {
     totalEquity,
     netIncome,
   } = useMemo(() => {
-    const filtered = lines.filter((l: any) => {
-      const d = (l.journal_entries as any)?.entry_date;
-      if (!d) return false;
-      if (asOfDate && d > format(asOfDate, "yyyy-MM-dd")) return false;
-      return true;
-    });
+    const asOf = toReportDate(asOfDate);
+    const filtered = filterLinesByDate(lines, undefined, asOf);
 
-    const totals = new Map<string, number>();
-    filtered.forEach((l: any) => {
-      const acc = accounts.find((a) => a.id === l.account_id);
-      if (!acc) return;
-      const existing = totals.get(l.account_id) || 0;
-      if (acc.account_type === "asset" || acc.account_type === "expense") {
-        totals.set(
-          l.account_id,
-          existing + (Number(l.debit) - Number(l.credit)),
-        );
-      } else {
-        totals.set(
-          l.account_id,
-          existing + (Number(l.credit) - Number(l.debit)),
-        );
-      }
-    });
+    const accountTypeOf = (id: string) =>
+      accounts.find((a) => a.id === id)?.account_type;
+    const totals = sumNetByAccount(filtered, accountTypeOf);
 
-    // For net income: if fiscal year closing is enabled and there's a closing entry,
-    // only compute revenue/expense from entries AFTER the last closing date
+    // صافي الربح يُحسب من نشاط الفترة الحالية فقط (بعد آخر إقفال)
     const incomeFiltered =
       settings?.enable_fiscal_year_closing && lastClosingDate
-        ? filtered.filter((l: any) => {
-            const d = (l.journal_entries as any)?.entry_date;
-            const desc = (l.journal_entries as any)?.description || "";
-            // Exclude the closing entry itself and only include entries after closing date
-            if (desc.includes(FISCAL_CLOSING_DESCRIPTION_PREFIX)) return false;
-            return d > lastClosingDate;
-          })
+        ? applyCurrentPeriod(filtered, { lastClosingDate })
         : filtered;
 
     const incomeTotals = new Map<string, number>();
-    incomeFiltered.forEach((l: any) => {
-      const acc = accounts.find((a) => a.id === l.account_id);
-      if (
-        !acc ||
-        (acc.account_type !== "revenue" && acc.account_type !== "expense")
-      )
-        return;
-      const existing = incomeTotals.get(l.account_id) || 0;
-      if (acc.account_type === "expense") {
-        incomeTotals.set(
-          l.account_id,
-          existing + (Number(l.debit) - Number(l.credit)),
-        );
-      } else {
-        incomeTotals.set(
-          l.account_id,
-          existing + (Number(l.credit) - Number(l.debit)),
-        );
-      }
+    sumNetByAccount(incomeFiltered, accountTypeOf).forEach((v, id) => {
+      const type = accountTypeOf(id);
+      if (type === "revenue" || type === "expense") incomeTotals.set(id, v);
     });
 
     const assetRows: BalanceRow[] = [];
