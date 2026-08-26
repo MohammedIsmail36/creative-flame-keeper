@@ -425,10 +425,10 @@ export default function GrowthAnalytics() {
         const { data: lines, error: linesError } = await supabase
           .from("journal_entry_lines")
           .select(
-            "account_id, debit, credit, journal_entries!inner(entry_date, status)",
+            "account_id, debit, credit, journal_entries!inner(entry_date, status, description)",
           )
           .in("account_id", accountIds)
-          .in("journal_entries.status", ["posted", "approved"])
+          .in("journal_entries.status", [...REPORT_ENTRY_STATUSES])
           .gte("journal_entries.entry_date", dateFrom)
           .lte("journal_entries.entry_date", dateTo);
         if (linesError) throw linesError;
@@ -438,7 +438,9 @@ export default function GrowthAnalytics() {
         let inventoryGain = 0;
         let inventoryLoss = 0;
 
-        (lines || []).forEach((line: any) => {
+        // استثناء قيود الإقفال السنوي من جسر المطابقة المحاسبي
+        excludeClosingEntries((lines || []) as any[]).forEach((line: any) => {
+
           const account = accountMap.get(line.account_id);
           if (!account) return;
 
