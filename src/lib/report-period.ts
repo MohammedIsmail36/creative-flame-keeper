@@ -1,4 +1,12 @@
-import { format } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfQuarter,
+  startOfYear,
+  subMonths,
+  subDays,
+} from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { FISCAL_CLOSING_DESCRIPTION_PREFIX } from "@/lib/constants";
 
@@ -164,4 +172,58 @@ export function sumDebitCreditByAccount(
     totals.set(l.account_id, existing);
   }
   return totals;
+}
+
+// ─── فلاتر الفترة السريعة (موحّدة لكل التقارير التشغيلية) ───────────────────
+
+export interface QuickDateRange {
+  label: string;
+  from: string;
+  to: string;
+}
+
+/** نطاقات سريعة موحّدة: هذا الشهر / السابق / الربع / بداية السنة / 12 شهرًا */
+export function getQuickDateRanges(now: Date = new Date()): QuickDateRange[] {
+  return [
+    {
+      label: "هذا الشهر",
+      from: format(startOfMonth(now), "yyyy-MM-dd"),
+      to: format(endOfMonth(now), "yyyy-MM-dd"),
+    },
+    {
+      label: "الشهر السابق",
+      from: format(startOfMonth(subMonths(now, 1)), "yyyy-MM-dd"),
+      to: format(endOfMonth(subMonths(now, 1)), "yyyy-MM-dd"),
+    },
+    {
+      label: "هذا الربع",
+      from: format(startOfQuarter(now), "yyyy-MM-dd"),
+      to: format(endOfMonth(now), "yyyy-MM-dd"),
+    },
+    {
+      label: "من بداية السنة",
+      from: format(startOfYear(now), "yyyy-MM-dd"),
+      to: format(endOfMonth(now), "yyyy-MM-dd"),
+    },
+    {
+      label: "آخر 12 شهر",
+      from: format(startOfMonth(subMonths(now, 11)), "yyyy-MM-dd"),
+      to: format(endOfMonth(now), "yyyy-MM-dd"),
+    },
+  ];
+}
+
+/** الفترة السابقة بنفس طول الفترة الحالية (للمقارنة في المؤشرات) */
+export function getPreviousPeriod(
+  dateFrom: string,
+  dateTo: string,
+): { from: string; to: string } {
+  const from = new Date(dateFrom);
+  const to = new Date(dateTo);
+  const rangeDays =
+    Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return {
+    from: format(subDays(from, rangeDays), "yyyy-MM-dd"),
+    to: format(subDays(from, 1), "yyyy-MM-dd"),
+  };
 }
