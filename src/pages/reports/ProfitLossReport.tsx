@@ -12,6 +12,11 @@ import { exportToExcel } from "@/lib/excel-export";
 import { exportReportPdf } from "@/lib/report-pdf";
 import { format, startOfMonth, endOfMonth, subMonths, subYears, parseISO } from "date-fns";
 import { ar } from "date-fns/locale";
+import {
+  REPORT_ENTRY_STATUSES,
+  isClosingDescription,
+} from "@/lib/report-period";
+
 
 interface AccountLine {
   account_id: string;
@@ -101,16 +106,20 @@ export default function ProfitLossReport() {
       const chunk = entryIds.slice(i, i + 500);
       const { data: entries } = await supabase
         .from("journal_entries")
-        .select("id, entry_date, status")
+        .select("id, entry_date, status, description")
         .in("id", chunk)
-        .eq("status", "posted")
+        .in("status", [...REPORT_ENTRY_STATUSES])
         .gte("entry_date", prevYearStart)
         .lte("entry_date", currentYearEnd);
       if (entries) allEntries.push(...entries);
     }
 
     const entryMap = new Map<string, string>(); // id -> entry_date
-    allEntries.forEach((e) => entryMap.set(e.id, e.entry_date));
+    allEntries
+      // استثناء قيود الإقفال السنوي حتى لا تُصفّر نتائج ديسمبر
+      .filter((e) => !isClosingDescription(e.description))
+      .forEach((e) => entryMap.set(e.id, e.entry_date));
+
 
     // Build account data
     const accountMap = new Map<string, { months: Record<string, number>; prevYearTotal: number }>();
