@@ -12,6 +12,11 @@ import { exportToExcel } from "@/lib/excel-export";
 import { exportReportPdf } from "@/lib/report-pdf";
 import { format, startOfMonth, endOfMonth, subMonths, subYears, parseISO } from "date-fns";
 import { ar } from "date-fns/locale";
+import {
+  REPORT_ENTRY_STATUSES,
+  isClosingDescription,
+} from "@/lib/report-period";
+
 
 interface AccountLine {
   account_id: string;
