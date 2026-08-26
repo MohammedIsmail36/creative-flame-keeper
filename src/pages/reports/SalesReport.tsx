@@ -169,51 +169,14 @@ export default function SalesReport() {
     return null;
   }, [statusFilter, groupBy, timeMode, showExtras]);
 
-  // ── Quick date presets ──
-  const quickRanges = useMemo(() => {
-    const now = new Date();
-    return [
-      {
-        label: "هذا الشهر",
-        from: format(startOfMonth(now), "yyyy-MM-dd"),
-        to: format(endOfMonth(now), "yyyy-MM-dd"),
-      },
-      {
-        label: "الشهر السابق",
-        from: format(startOfMonth(subMonths(now, 1)), "yyyy-MM-dd"),
-        to: format(endOfMonth(subMonths(now, 1)), "yyyy-MM-dd"),
-      },
-      {
-        label: "هذا الربع",
-        from: format(startOfQuarter(now), "yyyy-MM-dd"),
-        to: format(endOfMonth(now), "yyyy-MM-dd"),
-      },
-      {
-        label: "من بداية السنة",
-        from: format(startOfYear(now), "yyyy-MM-dd"),
-        to: format(endOfMonth(now), "yyyy-MM-dd"),
-      },
-      {
-        label: "آخر 12 شهر",
-        from: format(startOfMonth(subMonths(now, 11)), "yyyy-MM-dd"),
-        to: format(endOfMonth(now), "yyyy-MM-dd"),
-      },
-    ];
-  }, []);
+  // ── Quick date presets (طبقة مشتركة) ──
+  const quickRanges = useMemo(() => getQuickDateRanges(), []);
 
-  // ── Previous period calculation ──
-  const prevPeriod = useMemo(() => {
-    const from = new Date(dateFrom);
-    const to = new Date(dateTo);
-    const rangeDays =
-      Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    const prevTo = subDays(from, 1);
-    const prevFrom = subDays(from, rangeDays);
-    return {
-      from: format(prevFrom, "yyyy-MM-dd"),
-      to: format(prevTo, "yyyy-MM-dd"),
-    };
-  }, [dateFrom, dateTo]);
+  // ── Previous period calculation (طبقة مشتركة) ──
+  const prevPeriod = useMemo(
+    () => getPreviousPeriod(dateFrom, dateTo),
+    [dateFrom, dateTo],
+  );
 
   const calcGrowth = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? 100 : 0;
