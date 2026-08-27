@@ -177,3 +177,47 @@ describe("aggregation", () => {
     expect(totals.get("cash")).toEqual({ totalDebit: 0, totalCredit: 25 });
   });
 });
+
+describe("getQuickDateRanges", () => {
+  const now = new Date(2026, 7, 26); // 2026-08-26
+
+  it("يعيد خمسة نطاقات موحّدة بنفس التسميات", () => {
+    const r = getQuickDateRanges(now);
+    expect(r.map((x) => x.label)).toEqual([
+      "هذا الشهر",
+      "الشهر السابق",
+      "هذا الربع",
+      "من بداية السنة",
+      "آخر 12 شهر",
+    ]);
+  });
+
+  it("يحسب حدود الشهر الحالي والشهر السابق بدقة", () => {
+    const r = getQuickDateRanges(now);
+    expect(r[0]).toMatchObject({ from: "2026-08-01", to: "2026-08-31" });
+    expect(r[1]).toMatchObject({ from: "2026-07-01", to: "2026-07-31" });
+  });
+
+  it("يحسب الربع وبداية السنة وآخر 12 شهرًا", () => {
+    const r = getQuickDateRanges(now);
+    expect(r[2].from).toBe("2026-07-01");
+    expect(r[3].from).toBe("2026-01-01");
+    expect(r[4].from).toBe("2025-09-01");
+  });
+});
+
+describe("getPreviousPeriod", () => {
+  it("يعيد فترة بنفس الطول تنتهي قبل بداية الفترة الحالية", () => {
+    expect(getPreviousPeriod("2026-08-01", "2026-08-31")).toEqual({
+      from: "2026-07-02",
+      to: "2026-07-31",
+    });
+  });
+
+  it("يتعامل مع فترة يوم واحد", () => {
+    expect(getPreviousPeriod("2026-08-10", "2026-08-10")).toEqual({
+      from: "2026-08-09",
+      to: "2026-08-09",
+    });
+  });
+});
