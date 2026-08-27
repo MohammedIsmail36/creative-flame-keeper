@@ -211,7 +211,7 @@ describe("getQuickDateRanges", () => {
 describe("getPreviousPeriod", () => {
   it("يعيد فترة بنفس الطول تنتهي قبل بداية الفترة الحالية", () => {
     expect(getPreviousPeriod("2026-08-01", "2026-08-31")).toEqual({
-      from: "2026-07-02",
+      from: "2026-07-01",
       to: "2026-07-31",
     });
   });
