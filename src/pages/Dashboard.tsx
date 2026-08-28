@@ -3,8 +3,12 @@ import { EmptyState as SharedEmptyState } from "@/components/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
 import { formatProductDisplay } from "@/lib/product-utils";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
-import { fetchAllPaged } from "@/lib/paged-fetch";
+import { computeDerivedTotals, RECENT_SALES_DAYS, type AccountBalance } from "@/lib/dashboard-metrics";
+import { useDashboardKpis } from "@/hooks/use-dashboard-kpis";
+import { useDashboardInsights } from "@/hooks/use-dashboard-insights";
+import { useDashboardTables } from "@/hooks/use-dashboard-tables";
 import { useSettings } from "@/contexts/SettingsContext";
+
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageHeader } from "@/components/PageHeader";
 import { Progress } from "@/components/ui/progress";
