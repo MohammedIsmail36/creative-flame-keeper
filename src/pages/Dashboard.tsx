@@ -297,13 +297,16 @@ export default function Dashboard() {
     topCustomers,
   } = useDashboardTables();
 
-
   // ── Derived ─────────────────────────────────────────────────────────────────
-  const netSales = totalSales - totalSalesReturns;
-  const netPurchases = totalPurchases - totalPurchaseReturns;
-  const grossProfit = netSales - totalCOGS;
-  const netProfit = grossProfit - totalExpenses;
-  const profitMargin = netSales > 0 ? ((netProfit / netSales) * 100).toFixed(1) : "0";
+  const { netSales, netPurchases, grossProfit, netProfit, profitMargin } = computeDerivedTotals({
+    totalSales,
+    totalSalesReturns,
+    totalPurchases,
+    totalPurchaseReturns,
+    totalCOGS,
+    totalExpenses,
+  });
+
 
   // ── UI helpers ───────────────────────────────────────────────────────────────
   const renderChange = (change: number | null) => {
