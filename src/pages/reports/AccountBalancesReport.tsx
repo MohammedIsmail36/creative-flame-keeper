@@ -125,17 +125,27 @@ export default function AccountBalancesReport() {
 
   // ── Data fetch ────────────────────────────────────────
 
-  const fetchData = async () => {
+  const loadBalances = async (
+    isCancelled: () => boolean = () => false,
+  ): Promise<void> => {
     setLoading(true);
     setError(null);
 
     const [balRes, accRes] = await Promise.all([
-      (supabase.rpc as any)("get_account_balances", { p_only_with_activity: false }),
-      supabase.from("accounts").select("id, code, name, account_type, parent_id, is_parent").order("code"),
+      (supabase.rpc as any)("get_account_balances", {
+        p_only_with_activity: false,
+      }),
+      supabase
+        .from("accounts")
+        .select("id, code, name, account_type, parent_id, is_parent")
+        .order("code"),
     ]);
 
+    if (isCancelled()) return;
+
     if (balRes.error || accRes.error) {
-      const msg = balRes.error?.message ?? accRes.error?.message ?? "خطأ غير معروف";
+      const msg =
+        balRes.error?.message ?? accRes.error?.message ?? "خطأ غير معروف";
       setError(`فشل تحميل البيانات: ${msg}`);
       setLoading(false);
       return;
@@ -178,67 +188,15 @@ export default function AccountBalancesReport() {
     setLoading(false);
   };
 
+  const fetchData = () => loadBalances();
+
   useEffect(() => {
     let cancelled = false;
-
-    (async () => {
-      setLoading(true);
-      setError(null);
-
-      const [balRes, accRes] = await Promise.all([
-        (supabase.rpc as any)("get_account_balances", { p_only_with_activity: false }),
-        supabase.from("accounts").select("id, code, name, account_type, parent_id, is_parent").order("code"),
-      ]);
-
-      if (cancelled) return;
-
-      if (balRes.error || accRes.error) {
-        const msg = balRes.error?.message ?? accRes.error?.message ?? "خطأ غير معروف";
-        setError(`فشل تحميل البيانات: ${msg}`);
-        setLoading(false);
-        return;
-      }
-
-      const rows = ((balRes.data?.rows ?? []) as any[]).map((r) => ({
-        ...r,
-        debit: Number(r.debit),
-        credit: Number(r.credit),
-        balance: Number(r.balance),
-      }));
-
-      const accMap = new Map<string, any>();
-      (accRes.data ?? []).forEach((a) => accMap.set(a.id, a));
-
-      const merged: AccountBalance[] = rows.map((r) => ({
-        ...r,
-        parent_id: accMap.get(r.id)?.parent_id ?? null,
-        is_parent: accMap.get(r.id)?.is_parent ?? false,
-      }));
-
-      const existingIds = new Set(merged.map((m) => m.id));
-      (accRes.data ?? []).forEach((a) => {
-        if (!existingIds.has(a.id) && !a.is_parent) {
-          merged.push({
-            id: a.id,
-            code: a.code,
-            name: a.name,
-            account_type: a.account_type,
-            parent_id: a.parent_id,
-            is_parent: a.is_parent,
-            debit: 0,
-            credit: 0,
-            balance: 0,
-          });
-        }
-      });
-
-      setBalances(merged);
-      setLoading(false);
-    })();
-
+    void loadBalances(() => cancelled);
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Aggregate by type ─────────────────────────────────

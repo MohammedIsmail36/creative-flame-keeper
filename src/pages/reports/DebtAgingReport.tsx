@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { REPORT_ENTRY_STATUSES } from "@/lib/report-period";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -192,7 +193,7 @@ export default function DebtAgingReport() {
         .select(
           "id, invoice_number, invoice_date, due_date, total, paid_amount, status, customer_id, customer:customers(name)",
         )
-        .in("status", ["approved", "posted"]);
+        .in("status", [...REPORT_ENTRY_STATUSES]);
       if (error) throw error;
       return data;
     },
@@ -207,7 +208,7 @@ export default function DebtAgingReport() {
           .select(
             "id, invoice_number, invoice_date, due_date, total, paid_amount, status, supplier_id, supplier:suppliers(name)",
           )
-          .in("status", ["approved", "posted"]);
+          .in("status", [...REPORT_ENTRY_STATUSES]);
         if (error) throw error;
         return data;
       },
