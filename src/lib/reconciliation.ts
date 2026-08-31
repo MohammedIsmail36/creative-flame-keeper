@@ -407,3 +407,63 @@ export function summarizeChecks(checks: CheckResult[]): ReconciliationSummary {
     healthy: errors === 0 && warnings === 0,
   };
 }
+
+/* ─── الرصيد المتوقع للجهات (نفس معادلة entity-balance بشكل مجمّع) ─── */
+
+export interface EntityDocRow {
+  entity_id: string;
+  total: number | string | null;
+}
+
+export interface EntityPaymentRow {
+  id: string;
+  entity_id: string;
+  amount: number | string | null;
+}
+
+export interface ReturnAllocationRow {
+  payment_id: string;
+  allocated_amount: number | string | null;
+}
+
+/**
+ * الرصيد المتوقع = الافتتاحي + الفواتير المنشورة − المرتجعات المنشورة
+ *                 − السدادات العادية + السدادات المخصّصة كاسترداد مرتجع.
+ * منطق مطابق لـ recalculateEntityBalance لكن لكل الجهات دفعة واحدة.
+ */
+export function computeExpectedEntityBalances(input: {
+  openingBalances: Map<string, number>;
+  invoices: EntityDocRow[];
+  returns: EntityDocRow[];
+  payments: EntityPaymentRow[];
+  returnAllocations: ReturnAllocationRow[];
+}): Map<string, number> {
+  const out = new Map<string, number>();
+  const add = (id: string, delta: number) => {
+    if (!id) return;
+    out.set(id, (out.get(id) ?? 0) + delta);
+  };
+
+  for (const [id, v] of input.openingBalances) add(id, Number(v ?? 0));
+  for (const r of input.invoices) add(r.entity_id, Number(r.total ?? 0));
+  for (const r of input.returns) add(r.entity_id, -Number(r.total ?? 0));
+
+  const allocByPayment = new Map<string, number>();
+  for (const a of input.returnAllocations) {
+    const pid = String(a.payment_id);
+    allocByPayment.set(
+      pid,
+      (allocByPayment.get(pid) ?? 0) + Number(a.allocated_amount ?? 0),
+    );
+  }
+
+  for (const p of input.payments) {
+    const amount = Number(p.amount ?? 0);
+    const refunded = Math.min(amount, Math.max(0, allocByPayment.get(String(p.id)) ?? 0));
+    // السداد العادي ينقص الرصيد، والمخصّص لمرتجع (استرداد) يزيده
+    add(p.entity_id, -(amount - refunded) + refunded);
+  }
+
+  for (const [id, v] of out) out.set(id, round2(v));
+  return out;
+}

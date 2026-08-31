@@ -30,6 +30,7 @@ import {
   Undo2,
   ShieldAlert,
   Eye,
+  ShieldCheck,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
@@ -293,6 +294,12 @@ const sections: MenuSection[] = [
         title: "تسوية المخزون (تشخيص)",
         url: "/reports/inventory-reconciliation",
         icon: Package,
+        roles: ["admin", "accountant"],
+      },
+      {
+        title: "سلامة البيانات",
+        url: "/reports/system-health",
+        icon: ShieldCheck,
         roles: ["admin", "accountant"],
       },
 
