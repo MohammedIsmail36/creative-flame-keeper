@@ -36,7 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/contexts/SettingsContext";
-import { ACCOUNT_CODES } from "@/lib/constants";
+import { ACCOUNT_CODES, BALANCE_TOLERANCE } from "@/lib/constants";
 import { ReportPurposeBar } from "@/components/shared/ReportPurposeBar";
 import {
   checkDocumentsHaveJournal,
@@ -230,6 +230,7 @@ export default function SystemHealthPage() {
           : null;
 
       const posted = (rows: any[]) => rows.filter((r) => r.status === "posted");
+      const postedEntries = posted(entries);
 
       const openingMap = (rows: any[]) =>
         new Map<string, number>(rows.map((r) => [r.id, num(r.opening_balance)]));
@@ -294,8 +295,8 @@ export default function SystemHealthPage() {
         inventoryCheck,
         checkTrialBalance(totalDebit, totalCredit),
         checkProductQuantities(products, movements),
-        checkJournalBalance(entries, lines),
-        checkOrphanEntries(entries, lines),
+        checkJournalBalance(postedEntries, lines),
+        checkOrphanEntries(postedEntries, lines),
         checkEntityBalances(
           customers,
           expectedFrom(customerDetails),
@@ -403,7 +404,7 @@ export default function SystemHealthPage() {
             what="فحوص مطابقة بين المستندات والقيود والمخزون وأرصدة العملاء والموردين، مع بيان السجلات المسبّبة لكل انحراف."
             decision="تحديد ما يحتاج تصحيحًا فعليًا قبل الاعتماد على التقارير المالية أو إغلاق الفترة."
             basis="القيود المرحّلة فقط + حركات المخزون + تقييم WAC من دالة تقييم المخزون (نفس مصدر تقرير التقييم)."
-            note={`حد التسامح للفروق المالية 1.00، ولكميات المخزون 0.01. الفحوص التي لا يتوفّر مصدر بياناتها تُعرض كـ «تعذّر الفحص» ولا تُحسب انحرافًا.${
+            note={`حد التسامح لتوازن القيود وبقية الفروق المالية والكميات ${BALANCE_TOLERANCE.toFixed(2)}، ولمطابقة قيمة المخزون 1.00. الفحوص التي لا يتوفّر مصدر بياناتها تُعرض كـ «تعذّر الفحص» ولا تُحسب انحرافًا.${
               lastRun ? ` آخر فحص: ${lastRun.toLocaleString("en-GB")}.` : ""
             }`}
           />

@@ -236,6 +236,35 @@ describe("checkJournalBalance", () => {
     expect(r.issues[0].diff).toBe(100);
   });
 
+  it("يجمع كل سطور القيد ولا يقتصر على سطرين", () => {
+    const r = checkJournalBalance(
+      [{ id: "j5", entry_number: 5, total_debit: 2799, total_credit: 2799 }],
+      [
+        { journal_entry_id: "j5", debit: 2799, credit: 0 },
+        { journal_entry_id: "j5", debit: 184.22, credit: 0 },
+        { journal_entry_id: "j5", debit: 0, credit: 2983.22 },
+      ],
+    );
+    expect(r.issues).toHaveLength(1);
+    expect(r.issues[0]).toMatchObject({
+      expected: 2983.22,
+      actual: 2799,
+      diff: -184.22,
+    });
+  });
+
+  it("يعرض انحراف الدائن عندما يكون رأس المدين صحيحًا", () => {
+    const r = checkJournalBalance(
+      [{ id: "j6", entry_number: 6, total_debit: 100, total_credit: 90 }],
+      [
+        { journal_entry_id: "j6", debit: 100, credit: 0 },
+        { journal_entry_id: "j6", debit: 0, credit: 100 },
+      ],
+    );
+    expect(r.issues[0]).toMatchObject({ expected: 100, actual: 90, diff: -10 });
+    expect(r.issues[0].note).toContain("الدائن");
+  });
+
   it("لا يبلّغ عن نفس القيد مرتين", () => {
     const r = checkJournalBalance(
       [{ id: "j4", entry_number: 4, total_debit: 999, total_credit: 999 }],

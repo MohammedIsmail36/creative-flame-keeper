@@ -332,12 +332,19 @@ export function checkJournalBalance(
       Math.abs(headDebit - debit) > tolerance ||
       Math.abs(headCredit - credit) > tolerance
     ) {
+      const debitMismatch = Math.abs(headDebit - debit) > tolerance;
+      const expected = debitMismatch ? debit : credit;
+      const actual = debitMismatch ? headDebit : headCredit;
       issues.push({
         id: e.id,
         label: `${entryLabel(e)} — الإجمالي لا يطابق السطور`,
-        expected: debit,
-        actual: headDebit,
-        diff: round2(headDebit - debit),
+        expected,
+        actual,
+        diff: round2(actual - expected),
+        unit: "currency",
+        note: debitMismatch
+          ? "إجمالي المدين المخزن في رأس القيد لا يساوي مجموع السطور"
+          : "إجمالي الدائن المخزن في رأس القيد لا يساوي مجموع السطور",
         link: `/journal/${e.id}`,
       });
     }
@@ -749,4 +756,3 @@ export function computeExpectedEntityBalances(input: {
   for (const [id, b] of details) out.set(id, b.expected);
   return out;
 }
-
