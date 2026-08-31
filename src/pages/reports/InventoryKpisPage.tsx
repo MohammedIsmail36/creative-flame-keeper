@@ -526,7 +526,8 @@ export default function InventoryKpisPage() {
           getRowId={(r) => r.product_id}
           globalFilter={search}
           onGlobalFilterChange={setSearch}
-          searchPlaceholder="بحث بالكود أو الاسم أو الماركة..."
+          globalFilterFn={productReportFilterFn}
+          searchPlaceholder="بحث بالكود أو الاسم أو الماركة أو رقم الموديل..."
           pageSize={25}
           compactRows
           emptyMessage="لا توجد بيانات في هذه الفترة"
@@ -552,32 +553,23 @@ export default function InventoryKpisPage() {
                   <SelectItem value="C">فئة C</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="w-[150px] h-9">
-                  <SelectValue placeholder="الفئة" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الفئات</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={brand} onValueChange={setBrand}>
-                <SelectTrigger className="w-[150px] h-9">
-                  <SelectValue placeholder="الماركة" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الماركات</SelectItem>
-                  {brands.map((b) => (
-                    <SelectItem key={b} value={b}>
-                      {b}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={category}
+                onChange={setCategory}
+                options={categories}
+                allLabel="كل الفئات"
+                searchPlaceholder="بحث في الفئات..."
+                className="w-[150px]"
+              />
+              <SearchableSelect
+                value={brand}
+                onChange={setBrand}
+                options={brands}
+                allLabel="كل الماركات"
+                searchPlaceholder="بحث في الماركات..."
+                className="w-[150px]"
+              />
+
             </div>
           }
         />
