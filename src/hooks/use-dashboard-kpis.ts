@@ -6,7 +6,6 @@ import {
   computeMonthlyChange,
   computeMonthNetSales,
   relationDate,
-  sumForMonth,
   sumNet,
   sumTotal,
 } from "@/lib/dashboard-metrics";
