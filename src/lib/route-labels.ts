@@ -43,6 +43,7 @@ export const routeLabels: Record<string, string> = {
   "inventory-valuation": "تقييم المخزون",
   "inventory-aging": "تعمير المخزون",
   "inventory-reorder": "إعادة الطلب والنواقص",
+  "inventory-kpis": "مؤشرات المخزون",
   "system-health": "سلامة البيانات",
 
   "inventory-turnover": "دوران المخزون",
