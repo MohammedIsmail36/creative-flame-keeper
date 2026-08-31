@@ -29,6 +29,13 @@
       "when": 1788182392858,
       "tag": "0003_inventory_reports_rpcs",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788184066894,
+      "tag": "0004_inventory_reports_add_model_number",
+      "breakpoints": true
     }
   ]
 }
