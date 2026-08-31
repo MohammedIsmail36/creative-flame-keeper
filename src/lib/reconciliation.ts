@@ -52,12 +52,8 @@ export interface CheckResult {
   unavailableReason?: string;
 }
 
-const ok = (
-  key: string,
-  title: string,
-  meaning: string,
-  checked: number,
-): CheckResult => ({ key, title, meaning, severity: "ok", checked, issues: [] });
+const withIssues = (
+
 
 const withIssues = (
   base: Omit<CheckResult, "severity" | "issues">,
