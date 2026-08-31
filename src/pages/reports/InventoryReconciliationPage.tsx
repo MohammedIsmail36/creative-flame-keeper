@@ -20,7 +20,6 @@ import { round2 } from "@/lib/utils";
 import { useSettings } from "@/contexts/SettingsContext";
 import { notify } from "@/lib/notify";
 import { fetchAllPaged } from "@/lib/paged-fetch";
-import { fetchAllPaged } from "@/lib/paged-fetch";
 
 
 interface Row {
