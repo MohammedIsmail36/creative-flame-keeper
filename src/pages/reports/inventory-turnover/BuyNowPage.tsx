@@ -33,6 +33,8 @@ import {
 } from "./types";
 import { ExportConfig } from "@/components/ExportMenu";
 import { LookupCombobox } from "@/components/LookupCombobox";
+import { ActionBadge } from "@/components/reports/ActionBadge";
+import { ACTION_LABELS } from "@/lib/inventory/definitions";
 
 type TabKey = "all" | "p1" | "p2" | "p3" | "plan";
 
@@ -308,11 +310,22 @@ export default function BuyNowPage() {
         ),
       },
       {
-        accessorKey: "actionLabel",
+        accessorKey: "recommendedAction",
         header: "الإجراء",
-        cell: ({ getValue }) => (
-          <span className="text-xs text-muted-foreground">
-            {(getValue() as string) || "—"}
+        cell: ({ row }) => (
+          <ActionBadge
+            action={row.original.recommendedAction}
+            basis={row.original.decisionBasis}
+          />
+        ),
+      },
+      {
+        id: "decisionBasis",
+        header: "على أي أساس؟",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="text-[11px] leading-5 text-muted-foreground block max-w-[280px]">
+            {row.original.decisionBasis || row.original.actionLabel || "—"}
           </span>
         ),
       },
@@ -359,6 +372,7 @@ export default function BuyNowPage() {
         "سعر الشراء",
         "آخر مورد",
         "الإجراء",
+        "على أي أساس",
       ],
       rows: data.map((p) => [
         p.actionPriority ? `P${p.actionPriority}` : "—",
@@ -372,7 +386,8 @@ export default function BuyNowPage() {
         (p.suggestedPurchaseQty ?? 0) * (p.lastPurchasePrice ?? 0) || "—",
         p.lastPurchasePrice ?? "—",
         p.lastSupplierName || "—",
-        p.actionLabel || "—",
+        ACTION_LABELS[p.recommendedAction],
+        p.decisionBasis || p.actionLabel || "—",
       ]),
       summaryCards: [
         { label: "إجمالي البنود", value: String(summary.totalItems) },
@@ -588,7 +603,8 @@ export default function BuyNowPage() {
               estimatedCost: "التكلفة",
               lastPurchasePrice: "سعر الشراء",
               lastSupplierName: "آخر مورد",
-              actionLabel: "الإجراء",
+              recommendedAction: "الإجراء",
+              decisionBasis: "على أي أساس؟",
             }}
           />
         </CardContent>

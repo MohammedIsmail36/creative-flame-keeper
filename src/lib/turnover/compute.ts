@@ -4,6 +4,11 @@
 
 import { differenceInDays } from "date-fns";
 import { formatProductDisplay } from "@/lib/product-utils";
+import { round2 } from "@/lib/utils";
+import {
+  INVENTORY_RULES,
+  type InventoryAction,
+} from "@/lib/inventory/definitions";
 import {
   ABCClass,
   DAYS_CONSIDERED_NEW,
@@ -11,6 +16,7 @@ import {
   TurnoverClass,
 } from "./constants";
 import type { PurchasesAgg, ReturnsAgg, SalesAgg } from "./aggregations";
+
 
 export interface TurnoverProductRow {
   id: string;
@@ -44,7 +50,7 @@ export interface ComputeTurnoverInput {
 }
 
 /** عتبة أيام بدون إعادة شراء تُعد بعدها فرصة بيع ضائعة */
-export const LOST_SALE_DAYS = 14;
+export const LOST_SALE_DAYS = INVENTORY_RULES.LOST_SALE_DAYS;
 
 export function computeTurnoverData(
   input: ComputeTurnoverInput,
@@ -241,7 +247,11 @@ export function computeTurnoverData(
         flagNegativeMargin ||
         flagZeroWac ||
         flagFullySupplierReturned,
+      recommendedAction: "watch" as InventoryAction,
+      decisionBasis: null as string | null,
+      moneyImpact: 0,
     };
+
 
     if (!isActive) {
       return {
@@ -308,9 +318,127 @@ export function computeTurnoverData(
   applyAbcClassification(items);
   applyActionPriorities(items);
   applySupplierReturnCandidates(items);
+  applyDecisions(items);
 
   return items;
 }
+
+/**
+ * طبقة القرار: تحوّل التصنيفات إلى (إجراء واحد + سبب بالأرقام + أثر مالي).
+ * تعمل بعد ABC وترشيح الإرجاع لأنها تعتمد عليهما.
+ */
+export function applyDecisions(items: ProductTurnoverData[]): void {
+  items.forEach((p) => {
+    const unitCost = p.wac ?? p.lastPurchasePrice ?? 0;
+    const frozen = round2(Math.max(0, p.currentStock) * unitCost);
+
+    // 1) لا نحكم على الجديد أو الموقوف
+    if (p.turnoverClass === "new" || p.turnoverClass === "new_unlisted") {
+      p.recommendedAction = "watch";
+      p.decisionBasis =
+        p.turnoverClass === "new_unlisted"
+          ? "أُضيف للنظام ولم يُشترَ بعد — لا يوجد ما يُقيَّم."
+          : `تحت الاختبار: لم يمضِ ${INVENTORY_RULES.NEW_PRODUCT_DAYS} يومًا على أول حركة (${p.daysSinceFirstActivity} يومًا).`;
+      p.moneyImpact = frozen;
+      return;
+    }
+    if (p.turnoverClass === "inactive") {
+      p.recommendedAction = p.currentStock > 0 ? "discount" : "keep";
+      p.decisionBasis =
+        p.currentStock > 0
+          ? `صنف موقوف ولا يزال به ${p.currentStock} وحدة بقيمة ${frozen.toLocaleString("en-US")} — صفِّ الكمية.`
+          : "صنف موقوف بلا مخزون — لا إجراء.";
+      p.moneyImpact = frozen;
+      return;
+    }
+
+    // 2) مشاكل تسعير تمنع أي قرار سليم
+    if (p.flagNoSellingPrice && p.currentStock > 0) {
+      p.recommendedAction = "fix_pricing";
+      p.decisionBasis = "لا يوجد سعر بيع للصنف — لا يمكن بيعه ولا حساب ربحه.";
+      p.moneyImpact = frozen;
+      return;
+    }
+    if (p.flagNegativeMargin) {
+      p.recommendedAction = "fix_pricing";
+      p.decisionBasis = `تكلفة الوحدة ${round2(unitCost).toLocaleString("en-US")} أعلى من سعر البيع ${round2(p.sellingPrice ?? 0).toLocaleString("en-US")} — كل بيعة خسارة.`;
+      p.moneyImpact = frozen;
+      return;
+    }
+
+    // 3) الشراء
+    if (p.lostSale) {
+      p.recommendedAction = "buy_now";
+      p.decisionBasis = `نفد المخزون ولم تُعِد الشراء منذ ${p.daysWithoutRepurchase ?? INVENTORY_RULES.LOST_SALE_DAYS} يومًا مع وجود طلب (${p.soldQty} وحدة مبيعة).`;
+      p.moneyImpact = round2(Math.max(p.suggestedPurchaseQty, 1) * unitCost);
+      return;
+    }
+    if (p.currentStock <= 0 && p.soldQty > 0) {
+      p.recommendedAction = "buy_now";
+      p.decisionBasis = `نفد المخزون وسبق بيع ${p.soldQty} وحدة — فئة ${p.abcClass}.`;
+      p.moneyImpact = round2(Math.max(p.suggestedPurchaseQty, 1) * unitCost);
+      return;
+    }
+    if (
+      p.coverageDays !== null &&
+      p.coverageDays < INVENTORY_RULES.URGENT_COVERAGE_DAYS &&
+      (p.abcClass === "A" || p.abcClass === "B")
+    ) {
+      p.recommendedAction = "buy_now";
+      p.decisionBasis = `يكفي ${p.coverageDays} يومًا فقط (أقل من ${INVENTORY_RULES.URGENT_COVERAGE_DAYS}) لصنف من فئة ${p.abcClass}.`;
+      p.moneyImpact = round2(p.suggestedPurchaseQty * unitCost);
+      return;
+    }
+    if (
+      p.coverageDays !== null &&
+      p.coverageDays < INVENTORY_RULES.COVERAGE_TARGET_DAYS &&
+      p.suggestedPurchaseQty > 0
+    ) {
+      p.recommendedAction = "buy_soon";
+      p.decisionBasis = `التغطية ${p.coverageDays} يومًا — أقل من هدف ${INVENTORY_RULES.COVERAGE_TARGET_DAYS} يومًا.`;
+      p.moneyImpact = round2(p.suggestedPurchaseQty * unitCost);
+      return;
+    }
+    if (p.belowMinStock && p.suggestedPurchaseQty > 0) {
+      p.recommendedAction = "buy_soon";
+      p.decisionBasis = `الكمية ${p.currentStock} تحت الحد الأدنى ${p.minStockLevel}.`;
+      p.moneyImpact = round2(p.suggestedPurchaseQty * unitCost);
+      return;
+    }
+
+    // 4) التخلص من الراكد
+    if (p.supplierReturnCandidate) {
+      p.recommendedAction = "supplier_return";
+      p.decisionBasis = `${p.supplierReturnReason ?? "راكد"} — المورد: ${p.lastSupplierName ?? "غير معروف"}.`;
+      p.moneyImpact = frozen;
+      return;
+    }
+    if (p.turnoverClass === "stagnant" && p.currentStock > 0) {
+      const bigEnough = frozen > INVENTORY_RULES.STAGNANT_VALUE_THRESHOLD;
+      p.recommendedAction = bigEnough ? "discount" : "watch";
+      p.decisionBasis = `${p.soldQty === 0 ? `لم يُبَع أي وحدة منذ ${p.effectiveAge} يومًا` : `دوران راكد وتغطية ${p.coverageDays ?? "∞"} يومًا`} — ${frozen.toLocaleString("en-US")} مجمّدة.`;
+      p.moneyImpact = frozen;
+      return;
+    }
+    if (
+      p.coverageDays !== null &&
+      p.coverageDays > INVENTORY_RULES.OVERSTOCK_COVERAGE_DAYS
+    ) {
+      p.recommendedAction = "reduce_orders";
+      p.decisionBasis = `مخزونك يكفي ${p.coverageDays} يومًا (أكثر من ${INVENTORY_RULES.OVERSTOCK_COVERAGE_DAYS}) — لا تشترِ الآن.`;
+      p.moneyImpact = frozen;
+      return;
+    }
+
+    p.recommendedAction = "keep";
+    p.decisionBasis =
+      p.coverageDays !== null
+        ? `تغطية ${p.coverageDays} يومًا ودوران ${p.turnoverClass === "excellent" ? "ممتاز" : "جيد"} — لا إجراء.`
+        : "الوضع مستقر — لا إجراء.";
+    p.moneyImpact = 0;
+  });
+}
+
 
 /** تصنيف ABC حسب الإيراد التراكمي (80% / 95%) */
 export function applyAbcClassification(items: ProductTurnoverData[]): void {

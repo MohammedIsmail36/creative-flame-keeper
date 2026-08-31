@@ -27,7 +27,6 @@ import {
   AlertTriangle,
   Sparkles,
   Archive,
-  Undo2,
   ShieldAlert,
   Eye,
   ShieldCheck,
@@ -267,7 +266,7 @@ const sections: MenuSection[] = [
         roles: ["admin", "accountant"],
       },
       {
-        title: "تحليل المنتجات",
+        title: "ربحية المنتجات",
         url: "/reports/products",
         icon: Award,
         roles: ["admin", "accountant"],
@@ -285,7 +284,7 @@ const sections: MenuSection[] = [
         roles: ["admin", "accountant"],
       },
       {
-        title: "تقرير المخزون",
+        title: "قيمة المخزون والمطابقة",
         url: "/reports/inventory",
         icon: Package,
         roles: ["admin", "accountant"],
@@ -334,13 +333,13 @@ const sections: MenuSection[] = [
         roles: ["admin", "accountant"],
       },
       {
-        title: "دوران المخزون",
+        title: "قرارات المخزون",
         url: "/reports/inventory-turnover",
         icon: TrendingUp,
         roles: ["admin", "accountant"],
         children: [
           {
-            title: "لوحة المؤشرات",
+            title: "مركز القرارات",
             url: "/reports/inventory-turnover",
             icon: ChartPie,
             roles: ["admin", "accountant"],
@@ -352,15 +351,9 @@ const sections: MenuSection[] = [
             roles: ["admin", "accountant"],
           },
           {
-            title: "المخزون الراكد",
+            title: "المخزون الذي يخسّرني",
             url: "/reports/inventory-turnover/dormant",
             icon: Archive,
-            roles: ["admin", "accountant"],
-          },
-          {
-            title: "إرجاع للمورد",
-            url: "/reports/inventory-turnover/supplier-returns",
-            icon: Undo2,
             roles: ["admin", "accountant"],
           },
           {
@@ -377,6 +370,7 @@ const sections: MenuSection[] = [
           },
         ],
       },
+
       {
         title: "تسوية المخزون",
         url: "/inventory-adjustments",

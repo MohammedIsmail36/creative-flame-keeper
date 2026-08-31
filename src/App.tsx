@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -86,11 +86,7 @@ const TurnoverLayout = lazy(() => import("./pages/reports/inventory-turnover/Tur
 const TurnoverDashboardPage = lazy(() => import("./pages/reports/inventory-turnover/TurnoverDashboardPage"));
 const BuyNowPage = lazy(() => import("./pages/reports/inventory-turnover/BuyNowPage"));
 const DormantInventoryPage = lazy(() => import("./pages/reports/inventory-turnover/DormantInventoryPage"));
-const SupplierReturnsPage = lazy(() => import("./pages/reports/inventory-turnover/SupplierReturnsPage"));
-const NewProductsPage = lazy(() => import("./pages/reports/inventory-turnover/NewProductsPage"));
-const UnlistedProductsPage = lazy(() => import("./pages/reports/inventory-turnover/UnlistedProductsPage"));
 const FullAnalysisPage = lazy(() => import("./pages/reports/inventory-turnover/FullAnalysisPage"));
-const ProductHealthPage = lazy(() => import("./pages/reports/inventory-turnover/ProductHealthPage"));
 const UnderObservationPage = lazy(() => import("./pages/reports/inventory-turnover/UnderObservationPage"));
 
 const queryClient = new QueryClient({
@@ -174,15 +170,16 @@ const App = () => (
             <Route path="/reports/inventory-turnover" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<TurnoverLayout />)}</AppLayout></ProtectedRoute>}>
               <Route index element={withSuspense(<TurnoverDashboardPage />)} />
               <Route path="dashboard" element={withSuspense(<TurnoverDashboardPage />)} />
-              <Route path="urgent-actions" element={withSuspense(<BuyNowPage />)} />
-              <Route path="purchase-planning" element={withSuspense(<BuyNowPage />)} />
+              <Route path="urgent-actions" element={<Navigate to="/reports/inventory-turnover/buy-now" replace />} />
+              <Route path="purchase-planning" element={<Navigate to="/reports/inventory-turnover/buy-now" replace />} />
               <Route path="buy-now" element={withSuspense(<BuyNowPage />)} />
               <Route path="dormant" element={withSuspense(<DormantInventoryPage />)} />
-              <Route path="supplier-returns" element={withSuspense(<SupplierReturnsPage />)} />
-              <Route path="new-products" element={withSuspense(<UnderObservationPage />)} />
-              <Route path="unlisted" element={withSuspense(<UnderObservationPage />)} />
-              <Route path="health" element={withSuspense(<UnderObservationPage />)} />
+              <Route path="supplier-returns" element={<Navigate to="/reports/inventory-turnover/dormant?tab=return" replace />} />
+              <Route path="new-products" element={<Navigate to="/reports/inventory-turnover/under-observation" replace />} />
+              <Route path="unlisted" element={<Navigate to="/reports/inventory-turnover/under-observation" replace />} />
+              <Route path="health" element={<Navigate to="/reports/inventory-turnover/under-observation" replace />} />
               <Route path="under-observation" element={withSuspense(<UnderObservationPage />)} />
+
               <Route path="analysis" element={withSuspense(<FullAnalysisPage />)} />
             </Route>
             <Route path="/inventory-adjustments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryAdjustments />)}</AppLayout></ProtectedRoute>} />

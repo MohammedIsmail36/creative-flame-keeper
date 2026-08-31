@@ -1,4 +1,9 @@
 import { ProductTurnoverData } from "./types";
+import {
+  ACTION_LABELS,
+  INVENTORY_RULES,
+  type InventoryAction,
+} from "@/lib/inventory/definitions";
 
 export type DormantBucket = "critical" | "watch" | "archive";
 
@@ -35,7 +40,9 @@ export interface DormantEnriched extends ProductTurnoverData {
   riskScore: number;
   bucket: DormantBucket;
   primaryReason: DormantReason;
-  recommendedAction: string;
+  recommendedAction: InventoryAction;
+  /** شرح "على أي أساس" ظهرت التوصية بلغة صاحب المتجر */
+  actionNote: string;
   lastActivityDays: number | null;
 }
 
@@ -84,16 +91,47 @@ function recommendAction(
   p: ProductTurnoverData,
   bucket: DormantBucket,
   reason: DormantReason,
-): string {
-  if (bucket === "critical") {
-    if (p.supplierReturnCandidate && p.lastSupplierName)
-      return "إرجاع للمورد فوراً";
-    if (reason === "negative_margin") return "تصحيح التسعير أو شطب";
-    return "تصفية بخصم حاد";
+): { action: InventoryAction; note: string } {
+  if (reason === "no_price" || reason === "negative_margin") {
+    return {
+      action: "fix_pricing",
+      note:
+        reason === "no_price"
+          ? "لا يوجد سعر بيع مسجّل، فلا يمكن بيعه أو قياس ربحه."
+          : "سعر البيع أقل من تكلفة الشراء، وكل وحدة تُباع تزيد الخسارة.",
+    };
   }
-  if (bucket === "archive") return "تعطيل المنتج (أرشفة)";
-  return "حملة ترويجية / عرض خاص";
+  if (p.supplierReturnCandidate && p.lastSupplierName) {
+    return {
+      action: "supplier_return",
+      note: `لم يُبَع منه شيء منذ أكثر من ${INVENTORY_RULES.SUPPLIER_RETURN_MIN_DAYS} يومًا ويوجد مورد معروف (${p.lastSupplierName}) — استرجاع النقد أفضل من الخصم.`,
+    };
+  }
+  if (bucket === "critical") {
+    return {
+      action: "discount",
+      note: `قيمة مجمّدة مرتفعة${
+        p.daysSinceLastSale === null
+          ? " ولم يُبَع الصنف إطلاقًا"
+          : ` وآخر بيع منذ ${p.daysSinceLastSale} يومًا`
+      } — خصم سريع يحوّله إلى نقد.`,
+    };
+  }
+  if (bucket === "archive") {
+    return {
+      action: "deactivate",
+      note: "الكمية المتبقية شبه معدومة والصنف متوقف — إيقافه ينظّف القوائم دون خسارة.",
+    };
+  }
+  return {
+    action: "discount",
+    note: `متوقف عن البيع${
+      p.daysSinceLastSale != null ? ` منذ ${p.daysSinceLastSale} يومًا` : ""
+    } — عرض ترويجي محدود يكفي لاختبار الطلب قبل التصفية.`,
+  };
 }
+
+export const dormantActionLabel = (a: InventoryAction) => ACTION_LABELS[a];
 
 export function enrichDormantList(
   list: ProductTurnoverData[],
@@ -103,7 +141,7 @@ export function enrichDormantList(
     const riskScore = computeRiskScore(p, maxValue);
     const primaryReason = detectReason(p);
     const bucket = determineBucket(p, primaryReason);
-    const recommendedAction = recommendAction(p, bucket, primaryReason);
+    const decision = recommendAction(p, bucket, primaryReason);
     const lastActivityDays =
       p.daysSinceLastSale !== null && p.daysSinceLastPurchase !== null
         ? Math.min(p.daysSinceLastSale, p.daysSinceLastPurchase)
@@ -113,7 +151,8 @@ export function enrichDormantList(
       riskScore,
       bucket,
       primaryReason,
-      recommendedAction,
+      recommendedAction: decision.action,
+      actionNote: decision.note,
       lastActivityDays,
     };
   });

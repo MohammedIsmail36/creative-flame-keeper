@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,8 @@ import {
   DormantEnriched,
 } from "./dormant-utils";
 import { DormantActionMenu } from "./DormantActionMenu";
+import { ActionBadge } from "@/components/reports/ActionBadge";
+import { ACTION_LABELS } from "@/lib/inventory/definitions";
 
 const BUCKET_META: Record<
   DormantBucket,
@@ -70,6 +72,14 @@ export default function DormantInventoryPage() {
     kpis,
   } = useTurnoverData();
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const returnOnly = searchParams.get("tab") === "return";
+  const setReturnOnly = (on: boolean) => {
+    const next = new URLSearchParams(searchParams);
+    if (on) next.set("tab", "return");
+    else next.delete("tab");
+    setSearchParams(next, { replace: true });
+  };
   const [bucket, setBucket] = useState<DormantBucket | "all">("all");
   const [reasonFilter, setReasonFilter] = useState<DormantReason | "all">("all");
   const [supplierFilter, setSupplierFilter] = useState("all");
@@ -126,8 +136,17 @@ export default function DormantInventoryPage() {
         (p) => categoryFilter === "all" || p.categoryId === categoryFilter,
       )
       .filter((p) => (p.stockValue ?? 0) >= minV)
+      .filter((p) => !returnOnly || p.supplierReturnCandidate)
       .sort((a, b) => b.riskScore - a.riskScore);
-  }, [enriched, bucket, reasonFilter, supplierFilter, categoryFilter, minValue]);
+  }, [
+    enriched,
+    bucket,
+    reasonFilter,
+    supplierFilter,
+    categoryFilter,
+    minValue,
+    returnOnly,
+  ]);
 
   // KPIs
   const summary = useMemo(() => {
@@ -337,12 +356,24 @@ export default function DormantInventoryPage() {
       {
         accessorKey: "recommendedAction",
         header: "الإجراء المقترح",
-        cell: ({ getValue }) => (
-          <span className="text-[11px] text-foreground/80">
-            {getValue() as string}
-          </span>
+        cell: ({ row }) => (
+          <ActionBadge
+            action={row.original.recommendedAction}
+            basis={row.original.actionNote}
+          />
         ),
       },
+      {
+        id: "actionNote",
+        header: "على أي أساس؟",
+        cell: ({ row }) => (
+          <span className="text-[11px] leading-5 text-muted-foreground block max-w-[280px]">
+            {row.original.actionNote}
+          </span>
+        ),
+        enableSorting: false,
+      },
+
       {
         accessorKey: "lastSupplierName",
         header: "المورد",
@@ -382,6 +413,7 @@ export default function DormantInventoryPage() {
         "آخر حركة (يوم)",
         "السبب",
         "الإجراء",
+        "على أي أساس",
         "المورد",
       ],
       rows: filtered.map((p) => [
@@ -392,7 +424,8 @@ export default function DormantInventoryPage() {
         p.stockValue ?? "—",
         p.lastActivityDays ?? "—",
         REASON_LABELS[p.primaryReason],
-        p.recommendedAction,
+        ACTION_LABELS[p.recommendedAction],
+        p.actionNote,
         p.lastSupplierName || "—",
       ]),
       summaryCards: [
@@ -474,10 +507,15 @@ export default function DormantInventoryPage() {
 
         <button
           type="button"
-          onClick={() => setBucket("critical")}
+          onClick={() => setReturnOnly(!returnOnly)}
           className="text-right"
         >
-          <Card className="border shadow-sm overflow-hidden hover:ring-2 hover:ring-purple-400 transition cursor-pointer">
+          <Card
+            className={cn(
+              "border shadow-sm overflow-hidden hover:ring-2 hover:ring-purple-400 transition cursor-pointer",
+              returnOnly && "ring-2 ring-purple-500",
+            )}
+          >
             <div className="h-1 bg-purple-500" />
             <CardContent className="pt-3 pb-3">
               <div className="flex items-center gap-2 mb-1">
@@ -700,6 +738,7 @@ export default function DormantInventoryPage() {
               lastActivityDays: "آخر حركة",
               primaryReason: "السبب",
               recommendedAction: "الإجراء",
+              actionNote: "على أي أساس؟",
               lastSupplierName: "المورد",
             }}
           />
