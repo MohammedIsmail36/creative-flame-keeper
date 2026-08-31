@@ -79,6 +79,8 @@ export default function InventoryValuationPage() {
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState("all");
   const [brand, setBrand] = useState("all");
+  const [supplier, setSupplier] = useState("all");
+
   const [search, setSearch] = useState("");
 
   const load = async (date: string) => {
