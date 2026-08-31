@@ -174,15 +174,16 @@ const App = () => (
             <Route path="/reports/inventory-turnover" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<TurnoverLayout />)}</AppLayout></ProtectedRoute>}>
               <Route index element={withSuspense(<TurnoverDashboardPage />)} />
               <Route path="dashboard" element={withSuspense(<TurnoverDashboardPage />)} />
-              <Route path="urgent-actions" element={withSuspense(<BuyNowPage />)} />
-              <Route path="purchase-planning" element={withSuspense(<BuyNowPage />)} />
+              <Route path="urgent-actions" element={<Navigate to="/reports/inventory-turnover/buy-now" replace />} />
+              <Route path="purchase-planning" element={<Navigate to="/reports/inventory-turnover/buy-now" replace />} />
               <Route path="buy-now" element={withSuspense(<BuyNowPage />)} />
               <Route path="dormant" element={withSuspense(<DormantInventoryPage />)} />
-              <Route path="supplier-returns" element={withSuspense(<SupplierReturnsPage />)} />
-              <Route path="new-products" element={withSuspense(<UnderObservationPage />)} />
-              <Route path="unlisted" element={withSuspense(<UnderObservationPage />)} />
-              <Route path="health" element={withSuspense(<UnderObservationPage />)} />
+              <Route path="supplier-returns" element={<Navigate to="/reports/inventory-turnover/dormant?tab=return" replace />} />
+              <Route path="new-products" element={<Navigate to="/reports/inventory-turnover/under-observation" replace />} />
+              <Route path="unlisted" element={<Navigate to="/reports/inventory-turnover/under-observation" replace />} />
+              <Route path="health" element={<Navigate to="/reports/inventory-turnover/under-observation" replace />} />
               <Route path="under-observation" element={withSuspense(<UnderObservationPage />)} />
+
               <Route path="analysis" element={withSuspense(<FullAnalysisPage />)} />
             </Route>
             <Route path="/inventory-adjustments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryAdjustments />)}</AppLayout></ProtectedRoute>} />
