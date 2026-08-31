@@ -125,11 +125,16 @@ export default function InventoryValuationPage() {
   const rows = data?.rows ?? [];
 
   const categories = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.category_name).filter(Boolean))) as string[],
+    () => Array.from(new Set(rows.map((r) => r.category_name).filter(Boolean))).sort() as string[],
     [rows],
   );
   const brands = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.brand_name).filter(Boolean))) as string[],
+    () => Array.from(new Set(rows.map((r) => r.brand_name).filter(Boolean))).sort() as string[],
+    [rows],
+  );
+  const suppliers = useMemo(
+    () =>
+      Array.from(new Set(rows.map((r) => r.last_supplier_name).filter(Boolean))).sort() as string[],
     [rows],
   );
 
@@ -138,10 +143,12 @@ export default function InventoryValuationPage() {
       rows.filter((r) => {
         if (category !== "all" && (r.category_name ?? "") !== category) return false;
         if (brand !== "all" && (r.brand_name ?? "") !== brand) return false;
+        if (supplier !== "all" && (r.last_supplier_name ?? "") !== supplier) return false;
         return true;
       }),
-    [rows, category, brand],
+    [rows, category, brand, supplier],
   );
+
 
   const totals = useMemo(
     () =>
