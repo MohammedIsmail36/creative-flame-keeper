@@ -507,10 +507,15 @@ export default function DormantInventoryPage() {
 
         <button
           type="button"
-          onClick={() => setBucket("critical")}
+          onClick={() => setReturnOnly(!returnOnly)}
           className="text-right"
         >
-          <Card className="border shadow-sm overflow-hidden hover:ring-2 hover:ring-purple-400 transition cursor-pointer">
+          <Card
+            className={cn(
+              "border shadow-sm overflow-hidden hover:ring-2 hover:ring-purple-400 transition cursor-pointer",
+              returnOnly && "ring-2 ring-purple-500",
+            )}
+          >
             <div className="h-1 bg-purple-500" />
             <CardContent className="pt-3 pb-3">
               <div className="flex items-center gap-2 mb-1">
