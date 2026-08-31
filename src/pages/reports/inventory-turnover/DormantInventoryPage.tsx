@@ -33,6 +33,8 @@ import {
   DormantEnriched,
 } from "./dormant-utils";
 import { DormantActionMenu } from "./DormantActionMenu";
+import { ActionBadge } from "@/components/reports/ActionBadge";
+import { ACTION_LABELS } from "@/lib/inventory/definitions";
 
 const BUCKET_META: Record<
   DormantBucket,
@@ -394,6 +396,7 @@ export default function DormantInventoryPage() {
         "آخر حركة (يوم)",
         "السبب",
         "الإجراء",
+        "على أي أساس",
         "المورد",
       ],
       rows: filtered.map((p) => [
@@ -404,7 +407,8 @@ export default function DormantInventoryPage() {
         p.stockValue ?? "—",
         p.lastActivityDays ?? "—",
         REASON_LABELS[p.primaryReason],
-        p.recommendedAction,
+        ACTION_LABELS[p.recommendedAction],
+        p.actionNote,
         p.lastSupplierName || "—",
       ]),
       summaryCards: [
@@ -712,6 +716,7 @@ export default function DormantInventoryPage() {
               lastActivityDays: "آخر حركة",
               primaryReason: "السبب",
               recommendedAction: "الإجراء",
+              actionNote: "على أي أساس؟",
               lastSupplierName: "المورد",
             }}
           />
