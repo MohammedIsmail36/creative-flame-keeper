@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { round2 } from "@/lib/utils";
 import { useSettings } from "@/contexts/SettingsContext";
 import { notify } from "@/lib/notify";
+import { fetchAllPaged } from "@/lib/paged-fetch";
 
 
 interface Row {
@@ -49,15 +50,23 @@ export default function InventoryReconciliationPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [{ data: products }, { data: moves }] = await Promise.all([
-        supabase
-          .from("products")
-          .select("id, code, name, quantity_on_hand, purchase_price")
-          .eq("is_active", true),
-        supabase
-          .from("inventory_movements")
-          .select("product_id, quantity, total_cost, movement_type"),
+      // جلب كل الصفوف على دفعات (تجاوز حد 1000 صف) حتى لا تُقارن الكميات بسجل حركات ناقص
+      const [products, moves] = await Promise.all([
+        fetchAllPaged<any>(() =>
+          supabase
+            .from("products")
+            .select("id, code, name, quantity_on_hand, purchase_price", { count: "exact" })
+            .eq("is_active", true)
+            .order("id", { ascending: true })
+        ),
+        fetchAllPaged<any>(() =>
+          supabase
+            .from("inventory_movements")
+            .select("product_id, quantity, total_cost, movement_type", { count: "exact" })
+            .order("id", { ascending: true })
+        ),
       ]);
+
 
       const agg = new Map<
         string,
