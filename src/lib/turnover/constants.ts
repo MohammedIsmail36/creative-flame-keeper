@@ -71,7 +71,15 @@ export interface ProductTurnoverData {
   flagFullySupplierReturned: boolean;
   flagNoMinStock: boolean;
   hasAnyHealthFlag: boolean;
+  // ── طبقة القرار: ماذا أفعل، على أي أساس، وكم أثره المالي ─────────
+  /** الإجراء المقترح من قائمة مغلقة موحّدة */
+  recommendedAction: InventoryAction;
+  /** جملة تشرح سبب هذا الإجراء بالأرقام */
+  decisionBasis: string | null;
+  /** الأثر المالي بالجنيه: تكلفة الشراء المقترح أو قيمة الأموال المجمّدة */
+  moneyImpact: number;
 }
+
 
 export const TURNOVER_LABELS: Record<TurnoverClass, string> = {
   excellent: "ممتاز",
