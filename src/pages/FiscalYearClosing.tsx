@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { createJournalEntry } from "@/lib/journal-writer";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -269,28 +270,12 @@ export default function FiscalYearClosing() {
         return;
       }
 
-      const { data: entry, error: entryError } = await supabase
-        .from("journal_entries")
-        .insert({
-          description,
-          entry_date: fiscalYear.endDate,
-          status: "posted",
-          total_debit: totalDebit,
-          total_credit: totalCredit,
-          created_by: user?.id || null,
-        })
-        .select("id, entry_number")
-        .single();
-
-      if (entryError) throw entryError;
-
       // 2. Build journal lines
       const journalLines: any[] = [];
 
       // Debit revenue accounts (to zero them out)
       revenueAccounts.forEach((acc) => {
         journalLines.push({
-          journal_entry_id: entry.id,
           account_id: acc.id,
           debit: acc.balance,
           credit: 0,
@@ -301,7 +286,6 @@ export default function FiscalYearClosing() {
       // Credit expense accounts (to zero them out)
       expenseAccounts.forEach((acc) => {
         journalLines.push({
-          journal_entry_id: entry.id,
           account_id: acc.id,
           debit: 0,
           credit: acc.balance,
@@ -310,49 +294,39 @@ export default function FiscalYearClosing() {
       });
 
       // Net income/loss to retained earnings
-      if (netIncome >= 0) {
-        journalLines.push({
-          journal_entry_id: entry.id,
-          account_id: retainedEarningsAccount.id,
-          debit: 0,
-          credit: netIncome,
-          description: `ترحيل صافي ربح السنة المالية ${fiscalYear.year}`,
-        });
-      } else {
-        journalLines.push({
-          journal_entry_id: entry.id,
-          account_id: retainedEarningsAccount.id,
-          debit: Math.abs(netIncome),
-          credit: 0,
-          description: `ترحيل صافي خسارة السنة المالية ${fiscalYear.year}`,
-        });
-      }
+      journalLines.push(
+        netIncome >= 0
+          ? {
+              account_id: retainedEarningsAccount.id,
+              debit: 0,
+              credit: netIncome,
+              description: `ترحيل صافي ربح السنة المالية ${fiscalYear.year}`,
+            }
+          : {
+              account_id: retainedEarningsAccount.id,
+              debit: Math.abs(netIncome),
+              credit: 0,
+              description: `ترحيل صافي خسارة السنة المالية ${fiscalYear.year}`,
+            },
+      );
 
-      const { error: linesError } = await supabase
-        .from("journal_entry_lines")
-        .insert(journalLines);
-      if (linesError) throw linesError;
+      const closingEntryId = await createJournalEntry({
+        entryDate: fiscalYear.endDate,
+        description,
+        status: "posted",
+        lines: journalLines,
+      });
 
-      // Assign posted_number
-      const { data: maxPosted } = await supabase
+      const { data: closingEntry } = await supabase
         .from("journal_entries")
-        .select("posted_number")
-        .not("posted_number", "is", null)
-        .order("posted_number", { ascending: false })
-        .limit(1);
-      const nextPosted =
-        (maxPosted && maxPosted.length > 0
-          ? maxPosted[0].posted_number || 0
-          : 0) + 1;
-      await supabase
-        .from("journal_entries")
-        .update({ posted_number: nextPosted })
-        .eq("id", entry.id);
+        .select("entry_number")
+        .eq("id", closingEntryId)
+        .single();
 
       notify.success(
-        `تم إقفال السنة المالية ${fiscalYear.label} بنجاح - قيد رقم ${entry.entry_number}`,
+        `تم إقفال السنة المالية ${fiscalYear.label} بنجاح - قيد رقم ${closingEntry?.entry_number ?? ""}`,
       );
-      setExistingClosing({ id: entry.id, description });
+      setExistingClosing({ id: closingEntryId, description });
       fetchData();
     } catch (err: any) {
       notify.error("خطأ في تنفيذ الإقفال: " + err.message);

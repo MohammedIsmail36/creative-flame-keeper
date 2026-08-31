@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { createJournalEntry } from "@/lib/journal-writer";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -191,37 +192,16 @@ export default function Customers() {
       throw new Error("تأكد من وجود حسابات العملاء ورأس المال");
 
     const roundedAmount = round2(amount);
-    const jePostedNum = await getNextPostedNumber("journal_entries");
-    const { data: je, error: jeError } = await supabase
-      .from("journal_entries")
-      .insert({
-        description: `رصيد افتتاحي - عميل: ${entityName}`,
-        entry_date: new Date().toISOString().split("T")[0],
-        total_debit: roundedAmount,
-        total_credit: roundedAmount,
-        status: "posted",
-        posted_number: jePostedNum,
-      } as any)
-      .select("id")
-      .single();
-    if (jeError) throw jeError;
-
-    await supabase.from("journal_entry_lines").insert([
-      {
-        journal_entry_id: je.id,
-        account_id: customersAcc.id,
-        debit: roundedAmount,
-        credit: 0,
-        description: `رصيد افتتاحي - عميل: ${entityName}`,
-      },
-      {
-        journal_entry_id: je.id,
-        account_id: equityAcc.id,
-        debit: 0,
-        credit: roundedAmount,
-        description: `رصيد افتتاحي - عميل: ${entityName}`,
-      },
-    ] as any);
+    const desc = `رصيد افتتاحي - عميل: ${entityName}`;
+    await createJournalEntry({
+      entryDate: new Date().toISOString().split("T")[0],
+      description: desc,
+      status: "posted",
+      lines: [
+        { account_id: customersAcc.id, debit: roundedAmount, credit: 0, description: desc },
+        { account_id: equityAcc.id, debit: 0, credit: roundedAmount, description: desc },
+      ],
+    });
 
     await (supabase.from("customers" as any) as any)
       .update({ balance: roundedAmount })

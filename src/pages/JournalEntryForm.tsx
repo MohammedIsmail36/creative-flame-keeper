@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { createJournalEntry, replaceJournalEntryLines } from "@/lib/journal-writer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useNavigationGuard } from "@/hooks/use-navigation-guard";
@@ -204,57 +205,34 @@ export default function JournalEntryForm() {
     }
     setSaving(true);
     try {
-      let newPostedNumber: number | null = null;
-      if (asPosted) {
-        newPostedNumber = await getNextPostedNumber("journal_entries");
-      }
-
-      const entryPayload: any = {
-        entry_date: entryDate,
-        description: description.trim(),
-        status: asPosted ? "posted" : "draft",
-        total_debit: totalDebit,
-        total_credit: totalCredit,
-        created_by: user?.id || null,
-      };
-      if (asPosted) {
-        entryPayload.posted_number = newPostedNumber;
-      }
+      const linesPayload = validLines.map((l) => ({
+        account_id: l.account_id,
+        debit: l.debit,
+        credit: l.credit,
+        description: l.description || null,
+      }));
 
       if (id) {
-        const { error } = await (supabase.from("journal_entries") as any).update(entryPayload).eq("id", id);
-        if (error) throw error;
-        await supabase.from("journal_entry_lines").delete().eq("journal_entry_id", id);
-        const linesPayload = validLines.map((l) => ({
-          journal_entry_id: id,
-          account_id: l.account_id,
-          debit: l.debit,
-          credit: l.credit,
-          description: l.description || null,
-        }));
-        await supabase.from("journal_entry_lines").insert(linesPayload as any);
+        await replaceJournalEntryLines(id, linesPayload, {
+          entryDate: entryDate,
+          description: description.trim(),
+          status: asPosted ? "posted" : "draft",
+        });
         notify.success("تم التحديث", "تم تعديل القيد بنجاح");
         setIsDirty(false);
         navGuard.allowNext();
         loadData();
       } else {
-        const { data, error } = await (supabase.from("journal_entries") as any)
-          .insert(entryPayload)
-          .select("id")
-          .single();
-        if (error) throw error;
-        const linesPayload = validLines.map((l) => ({
-          journal_entry_id: data.id,
-          account_id: l.account_id,
-          debit: l.debit,
-          credit: l.credit,
-          description: l.description || null,
-        }));
-        await supabase.from("journal_entry_lines").insert(linesPayload as any);
+        const newId = await createJournalEntry({
+          entryDate: entryDate,
+          description: description.trim(),
+          status: asPosted ? "posted" : "draft",
+          lines: linesPayload,
+        });
         notify.success("تمت الإضافة", "تم إنشاء القيد بنجاح");
         setIsDirty(false);
         navGuard.allowNext();
-        navigate(`/journal/${data.id}`);
+        navigate(`/journal/${newId}`);
       }
     } catch (error: any) {
       notify.error("خطأ", error.message || "حدث خطأ");

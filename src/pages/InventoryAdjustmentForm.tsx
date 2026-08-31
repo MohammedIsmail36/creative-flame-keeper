@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { createJournalEntry, createReverseJournalEntry } from "@/lib/journal-writer";
 import { getNextPostedNumber } from "@/lib/posted-number-utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -426,35 +427,15 @@ export default function InventoryAdjustmentForm() {
       }
       // netDifference === 0 → no JV lines; inventory movements still recorded per product.
 
-      const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
-      const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
-
-      // 3. Create journal entry with posted_number
+      // 3. Create journal entry through the single journal gateway
       let journalEntryId: string | null = null;
       if (lines.length > 0) {
-        const postedNumber = await getNextPostedNumber("journal_entries");
-        const { data: je, error: jeErr } = await (
-          supabase.from("journal_entries") as any
-        )
-          .insert({
-            entry_date: adjustmentDate,
-            description: `تسوية مخزون - جرد رقم ADJ-${adjustmentNumber}`,
-            status: "posted",
-            posted_number: postedNumber,
-            total_debit: totalDebit,
-            total_credit: totalCredit,
-            created_by: user?.id,
-          })
-          .select()
-          .single();
-        if (jeErr) throw jeErr;
-        journalEntryId = je.id;
-
-        const jeLines = lines.map((l) => ({ ...l, journal_entry_id: je.id }));
-        const { error: linesErr } = await (
-          supabase.from("journal_entry_lines") as any
-        ).insert(jeLines);
-        if (linesErr) throw linesErr;
+        journalEntryId = await createJournalEntry({
+          entryDate: adjustmentDate,
+          description: `تسوية مخزون - جرد رقم ADJ-${adjustmentNumber}`,
+          status: "posted",
+          lines,
+        });
       }
 
       // 4. Create inventory movements and update product quantities (atomic)
@@ -633,50 +614,11 @@ export default function InventoryAdjustmentForm() {
         .single();
 
       if (adj?.journal_entry_id) {
-        // Read original journal entry lines
-        const { data: origLines } = await supabase
-          .from("journal_entry_lines")
-          .select("*")
-          .eq("journal_entry_id", adj.journal_entry_id);
-
-        if (origLines && origLines.length > 0) {
-          const totalDebit = origLines.reduce(
-            (s, l) => s + Number(l.credit),
-            0,
-          ); // swap
-          const totalCredit = origLines.reduce(
-            (s, l) => s + Number(l.debit),
-            0,
-          ); // swap
-          const postedNumber = await getNextPostedNumber("journal_entries");
-
-          const { data: reverseJe } = await supabase
-            .from("journal_entries")
-            .insert({
-              description: `عكس تسوية مخزون - جرد رقم ADJ-${adjustmentNumber}`,
-              entry_date: new Date().toISOString().split("T")[0],
-              total_debit: totalDebit,
-              total_credit: totalCredit,
-              status: "posted",
-              posted_number: postedNumber,
-              created_by: user?.id,
-            } as any)
-            .select("id")
-            .single();
-
-          if (reverseJe) {
-            const reverseLines = origLines.map((line: any) => ({
-              journal_entry_id: reverseJe.id,
-              account_id: line.account_id,
-              debit: line.credit, // swap debit/credit
-              credit: line.debit, // swap debit/credit
-              description: `عكس - ${line.description}`,
-            }));
-            await supabase
-              .from("journal_entry_lines")
-              .insert(reverseLines as any);
-          }
-        }
+        await createReverseJournalEntry({
+          sourceEntryId: adj.journal_entry_id,
+          entryDate: new Date().toISOString().split("T")[0],
+          description: `عكس تسوية مخزون - جرد رقم ADJ-${adjustmentNumber}`,
+        });
       }
 
       // 4. Update adjustment status to cancelled

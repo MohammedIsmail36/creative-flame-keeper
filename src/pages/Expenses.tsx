@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { StatusFilterSelect } from "@/components/FilterBar";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { createReverseJournalEntry } from "@/lib/journal-writer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
@@ -348,12 +349,6 @@ export default function Expenses() {
     }
     setSaving(true);
     try {
-      const { data: lines } = await supabase
-        .from("journal_entry_lines")
-        .select("account_id, debit, credit, description")
-        .eq("journal_entry_id", cancelTarget.journal_entry_id);
-
-      const jePostedNum = await getNextPostedNumber("journal_entries");
       const expPrefix = (settings as any)?.expense_prefix || "EXP-";
       const displayNum = formatDisplayNumber(
         expPrefix,
@@ -363,30 +358,12 @@ export default function Expenses() {
       );
       const desc = `عكس مصروف ${displayNum}`;
 
-      const { data: je, error: jeError } = await supabase
-        .from("journal_entries")
-        .insert({
-          description: desc,
-          entry_date: cancelTarget.expense_date,
-          total_debit: cancelTarget.amount,
-          total_credit: cancelTarget.amount,
-          status: "posted",
-          posted_number: jePostedNum,
-        } as any)
-        .select("id")
-        .single();
-      if (jeError) throw jeError;
-
-      if (lines) {
-        const reversed = lines.map((l) => ({
-          journal_entry_id: je.id,
-          account_id: l.account_id,
-          debit: l.credit,
-          credit: l.debit,
-          description: desc,
-        }));
-        await supabase.from("journal_entry_lines").insert(reversed as any);
-      }
+      await createReverseJournalEntry({
+        sourceEntryId: cancelTarget.journal_entry_id,
+        entryDate: cancelTarget.expense_date,
+        description: desc,
+        useEntryDescriptionForLines: true,
+      });
 
       // NOTE: We intentionally KEEP the original JE as 'posted'.
       // The reversal entry above offsets it, so net P&L impact = 0.

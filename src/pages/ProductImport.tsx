@@ -1,6 +1,7 @@
 import { notify } from "@/lib/notify";
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { createJournalEntry } from "@/lib/journal-writer";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import {
@@ -502,49 +503,16 @@ export default function ProductImport() {
         }
 
         // 2) Single aggregated journal entry: DR Inventory / CR Capital
-        // Compute next posted_number so the entry shows with prefix (e.g. JV-160) instead of #160
-        const { data: lastPosted } = await supabase
-          .from("journal_entries")
-          .select("posted_number")
-          .not("posted_number", "is", null)
-          .order("posted_number", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const nextPostedNumber = ((lastPosted?.posted_number as number) || 0) + 1;
-
-        const { data: je, error: jeErr } = await supabase
-          .from("journal_entries")
-          .insert({
-            description: `رصيد افتتاحي - استيراد منتجات (${openingItems.length} صنف)`,
-            entry_date: today,
-            total_debit: openingTotal,
-            total_credit: openingTotal,
-            status: "posted",
-            posted_number: nextPostedNumber,
-          } as any)
-          .select("id")
-          .single();
-        if (jeErr) throw jeErr;
-
-        const { error: linesErr } = await supabase
-          .from("journal_entry_lines")
-          .insert([
-            {
-              journal_entry_id: je.id,
-              account_id: inventoryAcc.id,
-              debit: openingTotal,
-              credit: 0,
-              description: `رصيد افتتاحي مخزون - دفعة استيراد (${openingItems.length} صنف)`,
-            },
-            {
-              journal_entry_id: je.id,
-              account_id: capitalAcc.id,
-              debit: 0,
-              credit: openingTotal,
-              description: `رصيد افتتاحي مخزون - دفعة استيراد (${openingItems.length} صنف)`,
-            },
-          ] as any);
-        if (linesErr) throw linesErr;
+        const obDesc = `رصيد افتتاحي مخزون - دفعة استيراد (${openingItems.length} صنف)`;
+        await createJournalEntry({
+          entryDate: today,
+          description: `رصيد افتتاحي - استيراد منتجات (${openingItems.length} صنف)`,
+          status: "posted",
+          lines: [
+            { account_id: inventoryAcc.id, debit: openingTotal, credit: 0, description: obDesc },
+            { account_id: capitalAcc.id, debit: 0, credit: openingTotal, description: obDesc },
+          ],
+        });
 
         openingPosted = true;
       } catch (obErr: any) {

@@ -1,6 +1,7 @@
 import { notify } from "@/lib/notify";
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { createJournalEntry } from "@/lib/journal-writer";
 import { getNextPostedNumber } from "@/lib/posted-number-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -330,90 +331,33 @@ export default function InvoicePaymentSection({
             : type === "sales_return"
               ? `رد مبلغ لعميل - مرتجع ${formattedInvNum}`
               : `استلام مبلغ من مورد - مرتجع ${formattedInvNum}`;
-      const jePostedNum = await getNextPostedNumber("journal_entries");
-      const { data: je, error: jeError } = await supabase
-        .from("journal_entries")
-        .insert({
-          description: desc,
-          entry_date: paymentDate,
-          total_debit: amount,
-          total_credit: amount,
-          status: "posted",
-          posted_number: jePostedNum,
-        } as any)
-        .select("id")
-        .single();
-      if (jeError) throw jeError;
-
       const lines =
         type === "sales"
           ? [
-              {
-                journal_entry_id: je.id,
-                account_id: cashBankAcc.id,
-                debit: amount,
-                credit: 0,
-                description: desc,
-              },
-              {
-                journal_entry_id: je.id,
-                account_id: entityAcc.id,
-                debit: 0,
-                credit: amount,
-                description: `سداد ذمم عملاء`,
-              },
+              { account_id: cashBankAcc.id, debit: amount, credit: 0, description: desc },
+              { account_id: entityAcc.id, debit: 0, credit: amount, description: `سداد ذمم عملاء` },
             ]
           : type === "purchase"
             ? [
-                {
-                  journal_entry_id: je.id,
-                  account_id: entityAcc.id,
-                  debit: amount,
-                  credit: 0,
-                  description: `سداد ذمم موردين`,
-                },
-                {
-                  journal_entry_id: je.id,
-                  account_id: cashBankAcc.id,
-                  debit: 0,
-                  credit: amount,
-                  description: desc,
-                },
+                { account_id: entityAcc.id, debit: amount, credit: 0, description: `سداد ذمم موردين` },
+                { account_id: cashBankAcc.id, debit: 0, credit: amount, description: desc },
               ]
             : type === "sales_return"
               ? [
-                  {
-                    journal_entry_id: je.id,
-                    account_id: entityAcc.id,
-                    debit: amount,
-                    credit: 0,
-                    description: `رد ذمم عملاء - مرتجع`,
-                  },
-                  {
-                    journal_entry_id: je.id,
-                    account_id: cashBankAcc.id,
-                    debit: 0,
-                    credit: amount,
-                    description: desc,
-                  },
+                  { account_id: entityAcc.id, debit: amount, credit: 0, description: `رد ذمم عملاء - مرتجع` },
+                  { account_id: cashBankAcc.id, debit: 0, credit: amount, description: desc },
                 ]
               : [
-                  {
-                    journal_entry_id: je.id,
-                    account_id: cashBankAcc.id,
-                    debit: amount,
-                    credit: 0,
-                    description: desc,
-                  },
-                  {
-                    journal_entry_id: je.id,
-                    account_id: entityAcc.id,
-                    debit: 0,
-                    credit: amount,
-                    description: `استلام من مورد - مرتجع`,
-                  },
+                  { account_id: cashBankAcc.id, debit: amount, credit: 0, description: desc },
+                  { account_id: entityAcc.id, debit: 0, credit: amount, description: `استلام من مورد - مرتجع` },
                 ];
-      await supabase.from("journal_entry_lines").insert(lines as any);
+
+      const jeId = await createJournalEntry({
+        entryDate: paymentDate,
+        description: desc,
+        lines,
+        status: "posted",
+      });
 
       const paymentPostedNum = await getNextPostedNumber(paymentTable);
       const paymentResult: any = await supabase
@@ -425,7 +369,7 @@ export default function InvoicePaymentSection({
           payment_method: paymentMethod,
           reference: reference.trim() || null,
           notes: notes.trim() || null,
-          journal_entry_id: je.id,
+          journal_entry_id: jeId,
           status: "posted",
           posted_number: paymentPostedNum,
         } as any)

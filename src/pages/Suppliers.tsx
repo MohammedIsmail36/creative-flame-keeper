@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { createJournalEntry } from "@/lib/journal-writer";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -215,38 +216,17 @@ export default function Suppliers() {
       throw new Error("تأكد من وجود حسابات الموردين ورأس المال");
 
     const roundedAmount = round2(amount);
-    const jePostedNum = await getNextPostedNumber("journal_entries");
-    const { data: je, error: jeError } = await supabase
-      .from("journal_entries")
-      .insert({
-        description: `رصيد افتتاحي - مورد: ${entityName}`,
-        entry_date: new Date().toISOString().split("T")[0],
-        total_debit: roundedAmount,
-        total_credit: roundedAmount,
-        status: "posted",
-        posted_number: jePostedNum,
-      } as any)
-      .select("id")
-      .single();
-    if (jeError) throw jeError;
-
+    const desc = `رصيد افتتاحي - مورد: ${entityName}`;
     // Supplier opening balance: Debit Equity (3101), Credit Suppliers (2101)
-    await supabase.from("journal_entry_lines").insert([
-      {
-        journal_entry_id: je.id,
-        account_id: equityAcc.id,
-        debit: roundedAmount,
-        credit: 0,
-        description: `رصيد افتتاحي - مورد: ${entityName}`,
-      },
-      {
-        journal_entry_id: je.id,
-        account_id: suppliersAcc.id,
-        debit: 0,
-        credit: roundedAmount,
-        description: `رصيد افتتاحي - مورد: ${entityName}`,
-      },
-    ] as any);
+    await createJournalEntry({
+      entryDate: new Date().toISOString().split("T")[0],
+      description: desc,
+      status: "posted",
+      lines: [
+        { account_id: equityAcc.id, debit: roundedAmount, credit: 0, description: desc },
+        { account_id: suppliersAcc.id, debit: 0, credit: roundedAmount, description: desc },
+      ],
+    });
 
     // Update supplier balance
     await (supabase.from("suppliers" as any) as any)

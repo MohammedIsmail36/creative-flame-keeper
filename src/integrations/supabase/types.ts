@@ -2039,6 +2039,17 @@ export type Database = {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined
       }
+      create_journal_entry: {
+        Args: {
+          p_description: string
+          p_entry_date: string
+          p_entry_type?: string
+          p_lines: Json
+          p_posted_number?: number
+          p_status?: string
+        }
+        Returns: string
+      }
       edit_customer_payment: {
         Args: {
           p_amount: number
@@ -2071,6 +2082,10 @@ export type Database = {
           p_supplier_id: string
         }
         Returns: Json
+      }
+      fn_validate_journal_lines_json: {
+        Args: { p_lines: Json }
+        Returns: number
       }
       get_account_balances: {
         Args: {
@@ -2158,12 +2173,30 @@ export type Database = {
         }
         Returns: boolean
       }
+      inventory_signed_quantity: {
+        Args: { p_movement_type: string; p_quantity: number }
+        Returns: number
+      }
       is_system_journal_entry: {
         Args: { p_entry_id: string }
         Returns: boolean
       }
       post_purchase_invoice: { Args: { p_invoice_id: string }; Returns: Json }
       post_sales_invoice: { Args: { p_invoice_id: string }; Returns: Json }
+      product_computed_quantity: {
+        Args: { p_product_id: string }
+        Returns: number
+      }
+      replace_journal_entry_lines: {
+        Args: {
+          p_description?: string
+          p_entry_date?: string
+          p_entry_id: string
+          p_lines: Json
+          p_status?: string
+        }
+        Returns: string
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       unpost_purchase_invoice: { Args: { p_invoice_id: string }; Returns: Json }
