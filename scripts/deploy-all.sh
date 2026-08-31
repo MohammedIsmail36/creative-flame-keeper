@@ -218,15 +218,16 @@ build_and_deploy() {
 
 # تثبيت الحزم مرة واحدة
 if [[ "$DO_BUILD" == true ]]; then
-  log "تثبيت الحزم (npm ci)"
-  if [[ -f package-lock.json ]]; then
-    npm ci || die "فشل npm ci — تحقق من package-lock.json"
+  log "تثبيت الحزم"
+  if [[ -f package-lock.json ]] && npm ci; then
+    ok "الحزم جاهزة (npm ci)"
   else
-    warn "package-lock.json غير موجود — استخدام npm install"
+    warn "npm ci غير ممكن أو الـ lock غير متزامن — التحويل إلى npm install"
     npm install || die "فشل npm install"
+    ok "الحزم جاهزة (npm install)"
   fi
-  ok "الحزم جاهزة"
 fi
+
 
 for entry in "${COMPANIES[@]}"; do
   IFS=':' read -r name docker_dir www_dir api_scheme api_rest anon_key <<< "$entry"
