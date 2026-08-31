@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -72,6 +72,14 @@ export default function DormantInventoryPage() {
     kpis,
   } = useTurnoverData();
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const returnOnly = searchParams.get("tab") === "return";
+  const setReturnOnly = (on: boolean) => {
+    const next = new URLSearchParams(searchParams);
+    if (on) next.set("tab", "return");
+    else next.delete("tab");
+    setSearchParams(next, { replace: true });
+  };
   const [bucket, setBucket] = useState<DormantBucket | "all">("all");
   const [reasonFilter, setReasonFilter] = useState<DormantReason | "all">("all");
   const [supplierFilter, setSupplierFilter] = useState("all");
@@ -128,8 +136,17 @@ export default function DormantInventoryPage() {
         (p) => categoryFilter === "all" || p.categoryId === categoryFilter,
       )
       .filter((p) => (p.stockValue ?? 0) >= minV)
+      .filter((p) => !returnOnly || p.supplierReturnCandidate)
       .sort((a, b) => b.riskScore - a.riskScore);
-  }, [enriched, bucket, reasonFilter, supplierFilter, categoryFilter, minValue]);
+  }, [
+    enriched,
+    bucket,
+    reasonFilter,
+    supplierFilter,
+    categoryFilter,
+    minValue,
+    returnOnly,
+  ]);
 
   // KPIs
   const summary = useMemo(() => {
