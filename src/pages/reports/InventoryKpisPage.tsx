@@ -365,28 +365,32 @@ export default function InventoryKpisPage() {
       {/* المؤشرات الأربعة */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="معدل دوران المخزون"
+          label="معدل دوران المخزون"
           value={turnover === null ? "—" : `${fmtQty(turnover)} مرة`}
           icon={Repeat}
-          subtitle="تكلفة المبيعات ÷ متوسط قيمة المخزون"
+          tone="primary"
+          sub="تكلفة المبيعات ÷ متوسط قيمة المخزون"
         />
         <StatCard
-          title="أيام التغطية (DIO)"
+          label="أيام التغطية (DIO)"
           value={data?.dio === null || !data ? "—" : `${fmtQty(data.dio!)} يوم`}
           icon={CalendarClock}
-          subtitle="365 ÷ معدل الدوران"
+          tone="blue"
+          sub="365 ÷ معدل الدوران"
         />
         <StatCard
-          title="هامش الربح الإجمالي"
+          label="هامش الربح الإجمالي"
           value={`${marginPct.toFixed(1)}%`}
           icon={Percent}
-          subtitle={`ربح ${formatCurrency(data?.gross_profit ?? 0)}`}
+          tone="emerald"
+          sub={`ربح ${formatCurrency(data?.gross_profit ?? 0)}`}
         />
         <StatCard
-          title="العائد على المخزون (GMROI)"
+          label="العائد على المخزون (GMROI)"
           value={data?.gmroi === null || !data ? "—" : fmtQty(data.gmroi!)}
           icon={Coins}
-          subtitle="الربح الإجمالي ÷ متوسط قيمة المخزون"
+          tone="orange"
+          sub="الربح الإجمالي ÷ متوسط قيمة المخزون"
         />
       </div>
 
