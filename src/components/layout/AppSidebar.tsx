@@ -236,132 +236,169 @@ const sections: MenuSection[] = [
     colorVar: "var(--cat-reports)",
     items: [
       {
-        title: "ميزان المراجعة",
+        title: "مالية",
         url: "/trial-balance",
-        icon: BarChart3,
+        icon: Landmark,
         roles: ["admin", "accountant"],
+        children: [
+          {
+            title: "ميزان المراجعة",
+            url: "/trial-balance",
+            icon: BarChart3,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "قائمة الدخل",
+            url: "/income-statement",
+            icon: BarChart3,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "الميزانية العمومية",
+            url: "/balance-sheet",
+            icon: BarChart3,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "التدفقات النقدية",
+            url: "/cash-flow",
+            icon: BarChart3,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "الأرباح والخسائر",
+            url: "/reports/profit-loss",
+            icon: DollarSign,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "أرصدة الحسابات",
+            url: "/reports/balances",
+            icon: Calculator,
+            roles: ["admin", "accountant"],
+          },
+        ],
       },
       {
-        title: "قائمة الدخل",
-        url: "/income-statement",
-        icon: BarChart3,
-        roles: ["admin", "accountant"],
-      },
-      {
-        title: "الميزانية العمومية",
-        url: "/balance-sheet",
-        icon: BarChart3,
-        roles: ["admin", "accountant"],
-      },
-      {
-        title: "التدفقات النقدية",
-        url: "/cash-flow",
-        icon: BarChart3,
-        roles: ["admin", "accountant"],
-      },
-      {
-        title: "تحليلات النمو",
-        url: "/reports/growth",
-        icon: TrendingUp,
-        roles: ["admin", "accountant"],
-      },
-      {
-        title: "ربحية المنتجات",
-        url: "/reports/products",
-        icon: Award,
-        roles: ["admin", "accountant"],
-      },
-      {
-        title: "تقرير المبيعات",
+        title: "المبيعات والمشتريات",
         url: "/reports/sales",
-        icon: BarChart3,
+        icon: TrendingUp,
         roles: ["admin", "accountant", "sales"],
+        children: [
+          {
+            title: "تقرير المبيعات",
+            url: "/reports/sales",
+            icon: BarChart3,
+            roles: ["admin", "accountant", "sales"],
+          },
+          {
+            title: "تقرير المشتريات",
+            url: "/reports/purchases",
+            icon: ShoppingCart,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "ربحية المنتجات",
+            url: "/reports/products",
+            icon: Award,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "تحليلات النمو",
+            url: "/reports/growth",
+            icon: TrendingUp,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "حاسبة العمولة",
+            url: "/reports/commission",
+            icon: Calculator,
+            roles: ["admin", "accountant", "sales"],
+          },
+        ],
       },
       {
-        title: "تقرير المشتريات",
-        url: "/reports/purchases",
-        icon: ShoppingCart,
-        roles: ["admin", "accountant"],
-      },
-      {
-        title: "تقييم المخزون والمطابقة",
+        title: "المخزون",
         url: "/reports/inventory-valuation",
-        icon: Package,
+        icon: Boxes,
         roles: ["admin", "accountant"],
+        children: [
+          {
+            title: "تقييم المخزون والمطابقة",
+            url: "/reports/inventory-valuation",
+            icon: Package,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "مؤشرات المخزون ABC",
+            url: "/reports/inventory-kpis",
+            icon: ChartPie,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "تعمير المخزون والركود",
+            url: "/reports/inventory-aging",
+            icon: Archive,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "إعادة الطلب والنواقص",
+            url: "/reports/inventory-reorder",
+            icon: AlertTriangle,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "حركة المخزون",
+            url: "/inventory-movements",
+            icon: Package,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "تسوية المخزون",
+            url: "/inventory-adjustments",
+            icon: ClipboardCheck,
+            roles: ["admin", "accountant"],
+          },
+        ],
       },
       {
-        title: "تعمير المخزون والركود",
-        url: "/reports/inventory-aging",
-        icon: Package,
-        roles: ["admin", "accountant"],
-      },
-      {
-        title: "إعادة الطلب والنواقص",
-        url: "/reports/inventory-reorder",
-        icon: Package,
-        roles: ["admin", "accountant"],
-      },
-      {
-        title: "مؤشرات المخزون ABC",
-        url: "/reports/inventory-kpis",
-        icon: Package,
-        roles: ["admin", "accountant"],
-      },
-      {
-        title: "تسوية المخزون (تشخيص)",
-        url: "/reports/inventory-reconciliation",
-        icon: Package,
-        roles: ["admin", "accountant"],
-      },
-      {
-        title: "سلامة البيانات",
-        url: "/reports/system-health",
-        icon: ShieldCheck,
-        roles: ["admin", "accountant"],
-      },
-
-      {
-        title: "أعمار الديون",
+        title: "الذمم والتحصيل",
         url: "/reports/aging",
         icon: Clock,
         roles: ["admin", "accountant"],
+        children: [
+          {
+            title: "أعمار الديون",
+            url: "/reports/aging",
+            icon: Clock,
+            roles: ["admin", "accountant"],
+          },
+        ],
       },
       {
-        title: "أرصدة الحسابات",
-        url: "/reports/balances",
-        icon: Calculator,
+        title: "الرقابة والتشخيص",
+        url: "/reports/system-health",
+        icon: ShieldCheck,
         roles: ["admin", "accountant"],
-      },
-      {
-        title: "الأرباح والخسائر",
-        url: "/reports/profit-loss",
-        icon: DollarSign,
-        roles: ["admin", "accountant"],
-      },
-      {
-        title: "حاسبة العمولة",
-        url: "/reports/commission",
-        icon: Calculator,
-        roles: ["admin", "accountant", "sales"],
-      },
-      {
-        title: "حركة المخزون",
-        url: "/inventory-movements",
-        icon: Package,
-        roles: ["admin", "accountant"],
-      },
-
-
-
-      {
-        title: "تسوية المخزون",
-        url: "/inventory-adjustments",
-        icon: ClipboardCheck,
-        roles: ["admin", "accountant"],
+        children: [
+          {
+            title: "سلامة البيانات",
+            url: "/reports/system-health",
+            icon: ShieldCheck,
+            roles: ["admin", "accountant"],
+          },
+          {
+            title: "تسوية المخزون (تشخيص)",
+            url: "/reports/inventory-reconciliation",
+            icon: Eye,
+            roles: ["admin", "accountant"],
+          },
+        ],
       },
     ],
   },
 ];
+
 
 const settingsItems: MenuItem[] = [
   { title: "إدارة المستخدمين", url: "/users", icon: UserCog, roles: ["admin"] },
