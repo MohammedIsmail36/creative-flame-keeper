@@ -72,7 +72,6 @@ const LoyaltyReport = lazy(() => import("./pages/LoyaltyReport"));
 // Lazy — reports (heavy: recharts/jspdf/xlsx)
 const SalesReportPage = lazy(() => import("./pages/reports/SalesReportPage"));
 const PurchasesReportPage = lazy(() => import("./pages/reports/PurchasesReportPage"));
-const InventoryReportPage = lazy(() => import("./pages/reports/InventoryReportPage"));
 const DebtAgingReportPage = lazy(() => import("./pages/reports/DebtAgingReportPage"));
 const GrowthAnalyticsPage = lazy(() => import("./pages/reports/GrowthAnalyticsPage"));
 const ProductAnalyticsPage = lazy(() => import("./pages/reports/ProductAnalyticsPage"));
@@ -154,7 +153,7 @@ const App = () => (
             <Route path="/cash-flow" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<CashFlowStatement />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<SalesReportPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<PurchasesReportPage />)}</AppLayout></ProtectedRoute>} />
-            <Route path="/reports/inventory" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryReportPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/inventory" element={<Navigate to="/reports/inventory-valuation" replace />} />
             <Route path="/reports/aging" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<DebtAgingReportPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/growth" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<GrowthAnalyticsPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/products" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProductAnalyticsPage />)}</AppLayout></ProtectedRoute>} />
