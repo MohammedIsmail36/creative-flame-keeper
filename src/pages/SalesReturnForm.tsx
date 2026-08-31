@@ -9,6 +9,7 @@ import {
 } from "@/lib/posted-number-utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { createJournalEntry, createReverseJournalEntry } from "@/lib/journal-writer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useDocumentFormState } from "@/hooks/use-document-form";
@@ -442,36 +443,19 @@ export default function SalesReturnForm() {
         totalCost += finalCost * item.quantity;
       }
 
-      const totalDebit = grandTotal + totalCost;
-      const jePostedNum = await getNextPostedNumber("journal_entries");
       const nextPostedNum = await getNextPostedNumber("sales_returns");
       const retPrefix = settings?.sales_return_prefix || "SRN-";
       const displayRetNum = `${retPrefix}${String(nextPostedNum).padStart(4, "0")}`;
-      const { data: je, error: jeError } = await supabase
-        .from("journal_entries")
-        .insert({
-          description: `مرتجع بيع رقم ${displayRetNum}`,
-          entry_date: returnDate,
-          total_debit: totalDebit,
-          total_credit: totalDebit,
-          status: "posted",
-          posted_number: jePostedNum,
-        } as any)
-        .select("id")
-        .single();
-      if (jeError) throw jeError;
 
       const netRevenue = grandTotal - taxAmount;
       const lines: any[] = [
         {
-          journal_entry_id: je.id,
           account_id: revenueAcc.id,
           debit: netRevenue,
           credit: 0,
           description: `مرتجع مبيعات - ${displayRetNum}`,
         },
         {
-          journal_entry_id: je.id,
           account_id: customersAcc.id,
           debit: 0,
           credit: grandTotal,
@@ -480,7 +464,6 @@ export default function SalesReturnForm() {
       ];
       if (taxAmount > 0 && salesTaxAcc) {
         lines.push({
-          journal_entry_id: je.id,
           account_id: salesTaxAcc.id,
           debit: taxAmount,
           credit: 0,
@@ -490,14 +473,12 @@ export default function SalesReturnForm() {
       if (totalCost > 0 && inventoryAcc && cogsAcc) {
         lines.push(
           {
-            journal_entry_id: je.id,
             account_id: inventoryAcc.id,
             debit: totalCost,
             credit: 0,
             description: `إرجاع مخزون - ${displayRetNum}`,
           },
           {
-            journal_entry_id: je.id,
             account_id: cogsAcc.id,
             debit: 0,
             credit: totalCost,
@@ -505,12 +486,17 @@ export default function SalesReturnForm() {
           },
         );
       }
-      await supabase.from("journal_entry_lines").insert(lines as any);
+      const jeId = await createJournalEntry({
+        entryDate: returnDate,
+        description: `مرتجع بيع رقم ${displayRetNum}`,
+        lines,
+        status: "posted",
+      });
 
       await (supabase.from("sales_returns") as any)
         .update({
           status: "posted",
-          journal_entry_id: je.id,
+          journal_entry_id: jeId,
           posted_number: nextPostedNum,
         })
         .eq("id", id);
@@ -590,43 +576,11 @@ export default function SalesReturnForm() {
 
       // Create reverse journal entry
       if (ret?.journal_entry_id) {
-        const { data: origLines } = await supabase
-          .from("journal_entry_lines")
-          .select("*")
-          .eq("journal_entry_id", ret.journal_entry_id);
-        const totalDebit = (origLines || []).reduce(
-          (s: number, l: any) => s + Number(l.debit),
-          0,
-        );
-        const totalCredit = (origLines || []).reduce(
-          (s: number, l: any) => s + Number(l.credit),
-          0,
-        );
-        const postedNumber = await getNextPostedNumber("journal_entries");
-        const { data: reverseJe } = await supabase
-          .from("journal_entries")
-          .insert({
-            description: `عكس مرتجع بيع رقم ${formatDisplayNumber(settings?.sales_return_prefix || "SRN-", ret?.posted_number, ret?.return_number || 0, "posted")}`,
-            entry_date: new Date().toISOString().split("T")[0],
-            total_debit: totalCredit,
-            total_credit: totalDebit,
-            status: "posted",
-            posted_number: postedNumber,
-          } as any)
-          .select("id")
-          .single();
-        if (reverseJe && origLines) {
-          const reverseLines = origLines.map((line: any) => ({
-            journal_entry_id: reverseJe.id,
-            account_id: line.account_id,
-            debit: line.credit,
-            credit: line.debit,
-            description: `عكس - ${line.description}`,
-          }));
-          await supabase
-            .from("journal_entry_lines")
-            .insert(reverseLines as any);
-        }
+        await createReverseJournalEntry({
+          sourceEntryId: ret.journal_entry_id,
+          entryDate: new Date().toISOString().split("T")[0],
+          description: `عكس مرتجع بيع رقم ${formatDisplayNumber(settings?.sales_return_prefix || "SRN-", ret?.posted_number, ret?.return_number || 0, "posted")}`,
+        });
       }
 
       // status already set to cancelled above

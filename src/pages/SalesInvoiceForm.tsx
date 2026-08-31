@@ -7,6 +7,7 @@ import { useLineItems } from "@/hooks/use-line-items";
 import { round2, cn } from "@/lib/utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { createReverseJournalEntry } from "@/lib/journal-writer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useDocumentFormState } from "@/hooks/use-document-form";
@@ -456,35 +457,11 @@ export default function SalesInvoiceForm() {
       await recalculateEntityBalance("customer", customerId);
 
       if (inv?.journal_entry_id) {
-        const { data: origLines } = await supabase
-          .from("journal_entry_lines")
-          .select("*")
-          .eq("journal_entry_id", inv.journal_entry_id);
-        const totalDebit = (origLines || []).reduce((s: number, l: any) => s + Number(l.debit), 0);
-        const totalCredit = (origLines || []).reduce((s: number, l: any) => s + Number(l.credit), 0);
-        const postedNumber = await getNextPostedNumber("journal_entries");
-        const { data: reverseJe } = await supabase
-          .from("journal_entries")
-          .insert({
-            description: `عكس فاتورة بيع رقم ${formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", inv?.posted_number, inv?.invoice_number || 0, "posted")}`,
-            entry_date: new Date().toISOString().split("T")[0],
-            total_debit: totalCredit,
-            total_credit: totalDebit,
-            status: "posted",
-            posted_number: postedNumber,
-          } as any)
-          .select("id")
-          .single();
-        if (reverseJe && origLines) {
-          const reverseLines = origLines.map((line: any) => ({
-            journal_entry_id: reverseJe.id,
-            account_id: line.account_id,
-            debit: line.credit,
-            credit: line.debit,
-            description: `عكس - ${line.description}`,
-          }));
-          await supabase.from("journal_entry_lines").insert(reverseLines as any);
-        }
+        await createReverseJournalEntry({
+          sourceEntryId: inv.journal_entry_id,
+          entryDate: new Date().toISOString().split("T")[0],
+          description: `عكس فاتورة بيع رقم ${formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", inv?.posted_number, inv?.invoice_number || 0, "posted")}`,
+        });
       }
 
       // Reverse loyalty points (earned & redeemed) if customer + loyalty enabled

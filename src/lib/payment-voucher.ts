@@ -12,6 +12,7 @@
  * The only differences between the two kinds live in PAYMENT_VOUCHER_CONFIG.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { createJournalEntry } from "@/lib/journal-writer";
 import { ACCOUNT_CODES } from "@/lib/constants";
 import { getNextPostedNumber } from "@/lib/posted-number-utils";
 import { recalculateEntityBalance, recalculateInvoicePaidAmount } from "@/lib/entity-balance";
@@ -240,32 +241,22 @@ export async function postPaymentVoucher(input: PostPaymentVoucherInput): Promis
   const displayNumber = `${prefix}${String(postedNumber).padStart(4, "0")}`;
   const desc = `${cfg.voucherLabel} رقم ${displayNumber} - ${cfg.entityLabel} ${input.entityName}`.trim();
 
-  const jePostedNumber = await getNextPostedNumber("journal_entries");
-  const { data: je, error: jeError } = await supabase
-    .from("journal_entries")
-    .insert({
-      description: desc,
-      entry_date: date,
-      total_debit: amount,
-      total_credit: amount,
-      status: "posted",
-      posted_number: jePostedNumber,
-    } as any)
-    .select("id")
-    .single();
-  if (jeError) throw jeError;
-
   const debitAccountId = cfg.entityAccountSide === "debit" ? entityAcc.id : cashBankAcc.id;
   const creditAccountId = cfg.entityAccountSide === "debit" ? cashBankAcc.id : entityAcc.id;
 
-  await supabase.from("journal_entry_lines").insert([
-    { journal_entry_id: je.id, account_id: debitAccountId, debit: amount, credit: 0, description: desc },
-    { journal_entry_id: je.id, account_id: creditAccountId, debit: 0, credit: amount, description: desc },
-  ] as any);
+  const jeId = await createJournalEntry({
+    entryDate: date,
+    description: desc,
+    status: "posted",
+    lines: [
+      { account_id: debitAccountId, debit: amount, credit: 0, description: desc },
+      { account_id: creditAccountId, debit: 0, credit: amount, description: desc },
+    ],
+  });
 
   if (input.existingPaymentId) {
     await (supabase.from(cfg.table as any) as any)
-      .update({ status: "posted", journal_entry_id: je.id, posted_number: postedNumber })
+      .update({ status: "posted", journal_entry_id: jeId, posted_number: postedNumber })
       .eq("id", input.existingPaymentId);
   } else {
     await (supabase.from(cfg.table as any) as any).insert({
@@ -275,7 +266,7 @@ export async function postPaymentVoucher(input: PostPaymentVoucherInput): Promis
       payment_method: method,
       reference,
       notes,
-      journal_entry_id: je.id,
+      journal_entry_id: jeId,
       status: "posted",
       posted_number: postedNumber,
     });

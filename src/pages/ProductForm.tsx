@@ -2,6 +2,7 @@ import { notify } from "@/lib/notify";
 import React, { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { createJournalEntry } from "@/lib/journal-writer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -318,39 +319,16 @@ export default function ProductForm() {
             );
 
             if (inventoryAcc && capitalAcc) {
-              const { data: je, error: jeError } = await supabase
-                .from("journal_entries")
-                .insert({
-                  description: `رصيد افتتاحي - منتج ${name.trim()}`,
-                  entry_date: new Date().toISOString().split("T")[0],
-                  total_debit: totalCost,
-                  total_credit: totalCost,
-                  status: "posted",
-                } as any)
-                .select("id")
-                .single();
-
-              if (jeError) throw jeError;
-
-              const { error: linesError } = await supabase
-                .from("journal_entry_lines")
-                .insert([
-                  {
-                    journal_entry_id: je.id,
-                    account_id: inventoryAcc.id,
-                    debit: totalCost,
-                    credit: 0,
-                    description: `رصيد افتتاحي مخزون - ${name.trim()}`,
-                  },
-                  {
-                    journal_entry_id: je.id,
-                    account_id: capitalAcc.id,
-                    debit: 0,
-                    credit: totalCost,
-                    description: `رصيد افتتاحي مخزون - ${name.trim()}`,
-                  },
-                ] as any);
-              if (linesError) throw linesError;
+              const obDesc = `رصيد افتتاحي مخزون - ${name.trim()}`;
+              await createJournalEntry({
+                entryDate: new Date().toISOString().split("T")[0],
+                description: `رصيد افتتاحي - منتج ${name.trim()}`,
+                status: "posted",
+                lines: [
+                  { account_id: inventoryAcc.id, debit: totalCost, credit: 0, description: obDesc },
+                  { account_id: capitalAcc.id, debit: 0, credit: totalCost, description: obDesc },
+                ],
+              });
             }
 
             const { error: movError } = await (

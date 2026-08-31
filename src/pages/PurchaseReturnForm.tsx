@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { createJournalEntry, createReverseJournalEntry } from "@/lib/journal-writer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useDocumentFormState } from "@/hooks/use-document-form";
@@ -359,23 +360,9 @@ export default function PurchaseReturnForm() {
       }
       inventoryCreditWac = Math.round(inventoryCreditWac * 100) / 100;
 
-      const jePostedNum = await getNextPostedNumber("journal_entries");
       const nextPostedNum = await getNextPostedNumber("purchase_returns");
       const retPrefix = settings?.purchase_return_prefix || "PRN-";
       const displayRetNum = `${retPrefix}${String(nextPostedNum).padStart(4, "0")}`;
-      const { data: je, error: jeError } = await supabase
-        .from("journal_entries")
-        .insert({
-          description: `مرتجع شراء رقم ${displayRetNum}`,
-          entry_date: returnDate,
-          total_debit: grandTotal,
-          total_credit: grandTotal,
-          status: "posted",
-          posted_number: jePostedNum,
-        } as any)
-        .select("id")
-        .single();
-      if (jeError) throw jeError;
 
       const netCost = grandTotal - taxAmount;
       // Variance = invoice net cost − WAC inventory credit.
@@ -385,14 +372,12 @@ export default function PurchaseReturnForm() {
 
       const jeLines: any[] = [
         {
-          journal_entry_id: je.id,
           account_id: supplierAcc.id,
           debit: grandTotal,
           credit: 0,
           description: `مرتجع شراء - ${displayRetNum}`,
         },
         {
-          journal_entry_id: je.id,
           account_id: inventoryAcc.id,
           debit: 0,
           credit: inventoryCreditWac,
@@ -402,7 +387,6 @@ export default function PurchaseReturnForm() {
       if (Math.abs(variance) > 0.01 && ppvAcc) {
         if (variance > 0) {
           jeLines.push({
-            journal_entry_id: je.id,
             account_id: ppvAcc.id,
             debit: 0,
             credit: variance,
@@ -410,7 +394,6 @@ export default function PurchaseReturnForm() {
           });
         } else {
           jeLines.push({
-            journal_entry_id: je.id,
             account_id: ppvAcc.id,
             debit: -variance,
             credit: 0,
@@ -420,19 +403,23 @@ export default function PurchaseReturnForm() {
       }
       if (taxAmount > 0 && inputVatAcc) {
         jeLines.push({
-          journal_entry_id: je.id,
           account_id: inputVatAcc.id,
           debit: 0,
           credit: taxAmount,
           description: `عكس ضريبة مدخلات - ${displayRetNum}`,
         });
       }
-      await supabase.from("journal_entry_lines").insert(jeLines as any);
+      const jeId = await createJournalEntry({
+        entryDate: returnDate,
+        description: `مرتجع شراء رقم ${displayRetNum}`,
+        lines: jeLines,
+        status: "posted",
+      });
 
       await (supabase.from("purchase_returns") as any)
         .update({
           status: "posted",
-          journal_entry_id: je.id,
+          journal_entry_id: jeId,
           posted_number: nextPostedNum,
         })
         .eq("id", id);
@@ -514,35 +501,11 @@ export default function PurchaseReturnForm() {
 
       // Create reverse journal entry
       if (ret?.journal_entry_id) {
-        const { data: origLines } = await supabase
-          .from("journal_entry_lines")
-          .select("*")
-          .eq("journal_entry_id", ret.journal_entry_id);
-        const totalDebit = (origLines || []).reduce((s: number, l: any) => s + Number(l.debit), 0);
-        const totalCredit = (origLines || []).reduce((s: number, l: any) => s + Number(l.credit), 0);
-        const postedNumber = await getNextPostedNumber("journal_entries");
-        const { data: reverseJe } = await supabase
-          .from("journal_entries")
-          .insert({
-            description: `عكس مرتجع شراء رقم ${formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", ret?.posted_number, ret?.return_number || 0, "posted")}`,
-            entry_date: new Date().toISOString().split("T")[0],
-            total_debit: totalCredit,
-            total_credit: totalDebit,
-            status: "posted",
-            posted_number: postedNumber,
-          } as any)
-          .select("id")
-          .single();
-        if (reverseJe && origLines) {
-          const reverseLines = origLines.map((line: any) => ({
-            journal_entry_id: reverseJe.id,
-            account_id: line.account_id,
-            debit: line.credit,
-            credit: line.debit,
-            description: `عكس - ${line.description}`,
-          }));
-          await supabase.from("journal_entry_lines").insert(reverseLines as any);
-        }
+        await createReverseJournalEntry({
+          sourceEntryId: ret.journal_entry_id,
+          entryDate: new Date().toISOString().split("T")[0],
+          description: `عكس مرتجع شراء رقم ${formatDisplayNumber(settings?.purchase_return_prefix || "PRN-", ret?.posted_number, ret?.return_number || 0, "posted")}`,
+        });
       }
 
       // status already set to cancelled above

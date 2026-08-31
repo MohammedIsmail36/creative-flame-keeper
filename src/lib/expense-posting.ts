@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ACCOUNT_CODES } from "@/lib/constants";
 import { getNextPostedNumber } from "@/lib/posted-number-utils";
+import { createJournalEntry, replaceJournalEntryLines } from "@/lib/journal-writer";
 
 export interface PostExpenseInput {
   expenseId: string;
@@ -68,70 +69,39 @@ export async function postExpense(
     input.description?.trim() ? ` - ${input.description.trim()}` : ""
   }`;
 
+  const lines = [
+    {
+      account_id: input.accountId,
+      debit: input.amount,
+      credit: 0,
+      description: desc,
+    },
+    {
+      account_id: cashBankAcc.id,
+      debit: 0,
+      credit: input.amount,
+      description: desc,
+    },
+  ];
+
   let jeId: string;
 
   if (input.oldJournalEntryId) {
-    // Reuse the SAME journal entry: rebuild its lines in place (never delete it)
+    // Reuse the SAME journal entry: rebuild its lines atomically (never emptied)
     jeId = input.oldJournalEntryId;
-    const { error: delErr } = await supabase
-      .from("journal_entry_lines")
-      .delete()
-      .eq("journal_entry_id", jeId);
-    if (delErr) throw delErr;
-    const { error: updJeErr } = await supabase
-      .from("journal_entries")
-      .update({
-        description: desc,
-        entry_date: input.expenseDate,
-        total_debit: input.amount,
-        total_credit: input.amount,
-      } as any)
-      .eq("id", jeId);
-    if (updJeErr) throw updJeErr;
+    await replaceJournalEntryLines(jeId, lines, {
+      entryDate: input.expenseDate,
+      description: desc,
+      status: "posted",
+    });
   } else {
-    const jePostedNum = await getNextPostedNumber("journal_entries");
-    const { data: je, error: jeError } = await supabase
-      .from("journal_entries")
-      .insert({
-        description: desc,
-        entry_date: input.expenseDate,
-        total_debit: input.amount,
-        total_credit: input.amount,
-        status: "draft",
-        posted_number: jePostedNum,
-      } as any)
-      .select("id")
-      .single();
-    if (jeError) throw jeError;
-    jeId = je.id;
+    jeId = await createJournalEntry({
+      entryDate: input.expenseDate,
+      description: desc,
+      lines,
+      status: "posted",
+    });
   }
-
-  const { error: linesErr } = await supabase
-    .from("journal_entry_lines")
-    .insert([
-      {
-        journal_entry_id: jeId,
-        account_id: input.accountId,
-        debit: input.amount,
-        credit: 0,
-        description: desc,
-      },
-      {
-        journal_entry_id: jeId,
-        account_id: cashBankAcc.id,
-        debit: 0,
-        credit: input.amount,
-        description: desc,
-      },
-    ] as any);
-  if (linesErr) throw linesErr;
-
-  // Lines exist and are balanced → the entry can now be posted
-  const { error: postErr } = await supabase
-    .from("journal_entries")
-    .update({ status: "posted" } as any)
-    .eq("id", jeId);
-  if (postErr) throw postErr;
 
   const { error: updErr } = await (supabase.from("expenses" as any) as any)
     .update({
