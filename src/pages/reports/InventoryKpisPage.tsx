@@ -25,7 +25,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { ReportPurposeBar } from "@/components/shared/ReportPurposeBar";
+import { productReportFilterFn } from "@/lib/report-filters";
 import { supabase } from "@/integrations/supabase/client";
+
 import { useSettings } from "@/contexts/SettingsContext";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
