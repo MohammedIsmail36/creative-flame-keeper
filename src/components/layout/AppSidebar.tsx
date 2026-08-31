@@ -332,44 +332,8 @@ const sections: MenuSection[] = [
         icon: Package,
         roles: ["admin", "accountant"],
       },
-      {
-        title: "قرارات المخزون",
-        url: "/reports/inventory-turnover",
-        icon: TrendingUp,
-        roles: ["admin", "accountant"],
-        children: [
-          {
-            title: "مركز القرارات",
-            url: "/reports/inventory-turnover",
-            icon: ChartPie,
-            roles: ["admin", "accountant"],
-          },
-          {
-            title: "اشترِ الآن",
-            url: "/reports/inventory-turnover/buy-now",
-            icon: ShoppingCart,
-            roles: ["admin", "accountant"],
-          },
-          {
-            title: "المخزون الذي يخسّرني",
-            url: "/reports/inventory-turnover/dormant",
-            icon: Archive,
-            roles: ["admin", "accountant"],
-          },
-          {
-            title: "تحت المراقبة",
-            url: "/reports/inventory-turnover/under-observation",
-            icon: Eye,
-            roles: ["admin", "accountant"],
-          },
-          {
-            title: "مستكشف البيانات",
-            url: "/reports/inventory-turnover/analysis",
-            icon: BarChart3,
-            roles: ["admin", "accountant"],
-          },
-        ],
-      },
+
+
 
       {
         title: "تسوية المخزون",
@@ -429,7 +393,7 @@ function NestedMenuItem({
                 <SidebarMenuButton asChild className="h-7">
                   <NavLink
                     to={child.url}
-                    end={child.url === "/reports/inventory-turnover"}
+                    end
                     className="text-muted-foreground hover:text-foreground hover:bg-muted/50 text-[12px]"
                     activeClassName="text-primary bg-accent font-semibold"
                   >
