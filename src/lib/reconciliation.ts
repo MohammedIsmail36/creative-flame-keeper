@@ -613,6 +613,10 @@ export interface ReconciliationSummary {
   passed: number;
   warnings: number;
   errors: number;
+  /** فحوص تعذّر تنفيذها (لا تُحسب انحرافًا) */
+  unavailable: number;
+  /** ملاحظات للعلم فقط */
+  info: number;
   totalIssues: number;
   /** سليم تمامًا؟ */
   healthy: boolean;
@@ -621,15 +625,20 @@ export interface ReconciliationSummary {
 export function summarizeChecks(checks: CheckResult[]): ReconciliationSummary {
   const errors = checks.filter((c) => c.severity === "error").length;
   const warnings = checks.filter((c) => c.severity === "warning").length;
+  const unavailable = checks.filter((c) => c.severity === "unavailable").length;
+  const info = checks.filter((c) => c.severity === "info").length;
   return {
     total: checks.length,
     passed: checks.filter((c) => c.severity === "ok").length,
     warnings,
     errors,
+    unavailable,
+    info,
     totalIssues: checks.reduce((s, c) => s + c.issues.length, 0),
-    healthy: errors === 0 && warnings === 0,
+    healthy: errors === 0 && warnings === 0 && unavailable === 0,
   };
 }
+
 
 /* ─── الرصيد المتوقع للجهات (نفس معادلة entity-balance بشكل مجمّع) ─── */
 
