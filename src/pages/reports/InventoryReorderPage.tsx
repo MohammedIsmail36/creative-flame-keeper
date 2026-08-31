@@ -51,6 +51,11 @@ interface ReorderRow {
   days_of_cover: number | null;
   suggested_qty: number;
   shortage_cost: number;
+  last_supplier_id: string | null;
+  last_supplier_name: string | null;
+  last_purchase_date: string | null;
+  last_purchase_price: number | null;
+
 }
 
 interface ReorderResult {
