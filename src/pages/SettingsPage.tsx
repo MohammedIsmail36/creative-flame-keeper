@@ -1142,6 +1142,61 @@ export default function SettingsPage() {
           </SectionCard>
         </TabsContent>
 
+        {/* ── Inventory Tab ── */}
+        <TabsContent value="inventory" className="space-y-6 mt-0">
+          <SectionCard icon={Settings2} title="معايير تقارير المخزون">
+            <p className="text-sm text-muted-foreground mb-6">
+              تتحكم هذه القيم في حسابات تقارير إعادة الطلب والتعمير والركود
+              ومؤشرات المخزون.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+              {(
+                [
+                  {
+                    key: "inventory_lead_time_days",
+                    label: "مدة التوريد (أيام)",
+                    hint: "متوسط الأيام من إصدار أمر الشراء حتى استلام البضاعة",
+                  },
+                  {
+                    key: "inventory_target_cover_days",
+                    label: "أيام التغطية المستهدفة",
+                    hint: "عدد الأيام التي يجب أن يغطيها المخزون بعد إعادة الطلب",
+                  },
+                  {
+                    key: "inventory_slow_days",
+                    label: "حد الحركة البطيئة (أيام)",
+                    hint: "الصنف الذي لم يُبع خلال هذه المدة يُعتبر بطيء الحركة",
+                  },
+                  {
+                    key: "inventory_dead_days",
+                    label: "حد المخزون الراكد (أيام)",
+                    hint: "الصنف الذي لم يُبع خلال هذه المدة يُعتبر راكداً",
+                  },
+                  {
+                    key: "inventory_new_days",
+                    label: "فترة الصنف الجديد (أيام)",
+                    hint: "تُستثنى الأصناف الأحدث من هذه المدة من تحليلات الركود و ABC",
+                  },
+                ] as const
+              ).map(({ key, label, hint }) => (
+                <div key={key} className="space-y-2">
+                  <Label className="text-sm font-bold">{label}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={settings[key] ?? 0}
+                    onChange={(e) =>
+                      updateField(key, Math.max(0, Number(e.target.value) || 0))
+                    }
+                    className="rounded-lg"
+                  />
+                  <p className="text-xs text-muted-foreground">{hint}</p>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        </TabsContent>
+
         {/* ── Telegram Tab ── */}
         <TabsContent value="telegram" className="space-y-6 mt-0">
           <TelegramSettingsTab isAdmin={role === "admin"} />
