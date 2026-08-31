@@ -391,59 +391,80 @@ export interface PostedNumberRow {
   status?: string | null;
 }
 
+/**
+ * تُمرَّر كل الصفوف (مرحّلة وملغاة ومسودات سبق ترحيلها) لأن الرقم يبقى
+ * مستهلكًا بعد الإلغاء أو الإرجاع لمسودة — وهذه حالة مشروعة لا انحراف.
+ */
 export function checkPostedNumberSequence(
   rows: PostedNumberRow[],
   label: string,
 ): CheckResult {
   const numbers = rows
-    .map((r) => ({ id: r.id, n: Number(r.posted_number ?? 0) }))
+    .map((r) => ({ id: r.id, n: Number(r.posted_number ?? 0), status: r.status ?? null }))
     .filter((r) => r.n > 0)
     .sort((a, b) => a.n - b.n);
 
-  const issues: CheckIssue[] = [];
-  const seen = new Map<number, string>();
+  const holders = new Map<number, PostedNumberRow[]>();
+  for (const r of numbers) {
+    const list = holders.get(r.n) ?? [];
+    list.push({ id: r.id, posted_number: r.n, status: r.status });
+    holders.set(r.n, list);
+  }
 
-  for (let i = 0; i < numbers.length; i += 1) {
-    const { id, n } = numbers[i];
+  const duplicates: CheckIssue[] = [];
+  const gaps: CheckIssue[] = [];
 
-    // تكرار
-    if (seen.has(n)) {
-      issues.push({
-        id,
+  for (const [n, list] of holders) {
+    if (list.length > 1) {
+      duplicates.push({
+        id: list[0].id,
         label: `${label} — رقم مكرر ${n}`,
         expected: "رقم فريد",
-        actual: n,
+        actual: `${list.length} مستندات بنفس الرقم`,
+        unit: "text",
+        note: "ترقيم مزدوج فعلي — يجب تصحيح أحد المستندين",
       });
-    } else {
-      seen.set(n, id);
-    }
-
-    // فراغ
-    if (i > 0) {
-      const prev = numbers[i - 1].n;
-      if (n > prev + 1) {
-        issues.push({
-          id,
-          label: `${label} — فراغ في التسلسل`,
-          expected: prev + 1,
-          actual: n,
-          diff: n - prev - 1,
-        });
-      }
     }
   }
 
-  return withIssues(
-    {
-      key: `posted_sequence_${label}`,
-      title: `تسلسل أرقام ${label}`,
-      meaning:
-        "أرقام المستندات المنشورة يجب أن تكون متسلسلة وفريدة — الفراغ أو التكرار يعني مستندًا محذوفًا أو ترقيمًا مزدوجًا.",
-      checked: numbers.length,
-    },
+  for (let i = 1; i < numbers.length; i += 1) {
+    const prev = numbers[i - 1].n;
+    const n = numbers[i].n;
+    if (n <= prev) continue;
+    const missing: number[] = [];
+    for (let m = prev + 1; m < n; m += 1) {
+      if (!holders.has(m)) missing.push(m);
+    }
+    if (missing.length > 0) {
+      gaps.push({
+        id: numbers[i].id,
+        label: `${label} — أرقام غير مستخدمة`,
+        expected: missing.length === 1 ? missing[0] : `${missing[0]}–${missing[missing.length - 1]}`,
+        actual: n,
+        diff: missing.length,
+        unit: "text",
+        note: "الأرقام غير محتجزة بأي مستند (ملغى أو مسودة) — للعلم فقط ولا تعني خطأً محاسبيًا",
+      });
+    }
+  }
+
+  const issues = [...duplicates, ...gaps];
+  const base = {
+    key: `posted_sequence_${label}`,
+    title: `تسلسل أرقام ${label}`,
+    meaning:
+      "أرقام النشر يجب أن تكون فريدة. الأرقام المستهلكة بمستند ملغى أو مُرجَع لمسودة لا تُعدّ انحرافًا.",
+    formula: "تكرار = رقمان لمستندين مختلفين • فراغ = رقم لا يحتجزه أي مستند (معلومة فقط)",
+    action: "التكرار يُصحَّح بإعادة ترحيل أحد المستندين. الفراغ لا يحتاج إجراء.",
+    checked: numbers.length,
+  };
+
+  return {
+    ...base,
+    severity:
+      duplicates.length > 0 ? "error" : gaps.length > 0 ? "info" : "ok",
     issues,
-    "warning",
-  );
+  };
 }
 
 /* ─── 6) رصيد الجهة (عميل/مورد) = رصيده في دفتر الأستاذ ─── */
@@ -460,6 +481,7 @@ export function checkEntityBalances(
   ledgerBalances: Map<string, number>,
   kind: "customer" | "supplier",
   tolerance = BALANCE_TOLERANCE,
+  details?: Map<string, EntityBalanceBreakdown>,
 ): CheckResult {
   const issues: CheckIssue[] = [];
   const basePath = kind === "customer" ? "/customers" : "/suppliers";
@@ -469,12 +491,17 @@ export function checkEntityBalances(
     const actual = round2(Number(e.balance ?? 0));
     const diff = round2(actual - expected);
     if (Math.abs(diff) > tolerance) {
+      const d = details?.get(e.id);
       issues.push({
         id: e.id,
         label: `[${e.code}] ${e.name}`,
         expected,
         actual,
         diff,
+        unit: "currency",
+        note: d
+          ? `افتتاحي ${d.opening} + فواتير ${d.invoices} − مرتجعات ${d.returns} − سدادات ${d.payments} + استردادات ${d.refunds}`
+          : undefined,
         link: basePath,
       });
     }
@@ -489,11 +516,95 @@ export function checkEntityBalances(
           : "أرصدة الموردين مطابقة لدفتر الأستاذ",
       meaning:
         "الرصيد المخزّن في بطاقة الجهة يجب أن يساوي صافي حركتها في حساب الذمم — أي فرق يعني ترحيلًا ناقصًا.",
+      formula:
+        "المتوقع = الافتتاحي + الفواتير المرحّلة − المرتجعات المرحّلة − السدادات + استردادات المرتجعات",
+      action: "افتح كشف حساب الجهة وأعد احتساب الرصيد من زر إعادة الحساب في بطاقتها.",
       checked: entities.length,
     },
     issues,
   );
 }
+
+/* ─── 7) ربط المستندات المرحّلة بقيودها ─── */
+
+export interface LinkedDocRow {
+  id: string;
+  label: string;
+  journal_entry_id?: string | null;
+  status?: string | null;
+  link?: string;
+}
+
+/** مستند مرحّل بلا قيد = أثر محاسبي مفقود */
+export function checkDocumentsHaveJournal(
+  docs: LinkedDocRow[],
+  label: string,
+): CheckResult {
+  const posted = docs.filter((d) => (d.status ?? "posted") === "posted");
+  const issues: CheckIssue[] = posted
+    .filter((d) => !d.journal_entry_id)
+    .map((d) => ({
+      id: d.id,
+      label: d.label,
+      expected: "قيد مرتبط",
+      actual: "بلا قيد",
+      unit: "text" as const,
+      note: "مستند مرحّل بلا قيد محاسبي — الأثر في دفتر الأستاذ مفقود",
+      link: d.link,
+    }));
+
+  return withIssues(
+    {
+      key: `docs_journal_${label}`,
+      title: `ربط ${label} المرحّلة بقيودها`,
+      meaning: "كل مستند مرحّل يجب أن يكون له قيد محاسبي مرتبط.",
+      formula: "الحالة = مرحّل ⇒ journal_entry_id غير فارغ",
+      action: "أعِد المستند لمسودة ثم رحّله من جديد لإنشاء القيد.",
+      checked: posted.length,
+    },
+    issues,
+  );
+}
+
+/* ─── 8) حركات مخزون بلا مستند مصدر ─── */
+
+export interface MovementSourceRow {
+  id: string;
+  product_label?: string | null;
+  reference_id?: string | null;
+  reference_type?: string | null;
+  movement_type?: string | null;
+  movement_date?: string | null;
+}
+
+export function checkMovementsHaveSource(rows: MovementSourceRow[]): CheckResult {
+  const issues: CheckIssue[] = rows
+    .filter((m) => !m.reference_id && m.movement_type !== "opening_balance")
+    .map((m) => ({
+      id: m.id,
+      label: m.product_label || `حركة ${m.movement_type ?? ""}`,
+      expected: "مستند مصدر",
+      actual: "بلا مرجع",
+      unit: "text" as const,
+      note: `حركة بتاريخ ${m.movement_date ?? "—"} غير مرتبطة بفاتورة أو تسوية`,
+      link: "/reports/inventory-movements",
+    }));
+
+  return withIssues(
+    {
+      key: "movements_source",
+      title: "حركات المخزون مرتبطة بمستند مصدر",
+      meaning:
+        "كل حركة مخزون (غير الرصيد الافتتاحي) يجب أن تنشأ من فاتورة أو مرتجع أو تسوية.",
+      formula: "reference_id غير فارغ لكل حركة ما لم تكن رصيدًا افتتاحيًا",
+      action: "احذف الحركة اليدوية وأنشئ تسوية مخزون رسمية بدلًا منها.",
+      checked: rows.length,
+    },
+    issues,
+    "warning",
+  );
+}
+
 
 /* ─── ملخّص عام ─── */
 
