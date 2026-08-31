@@ -177,6 +177,25 @@ export function sumForMonth(
 }
 
 /**
+ * صافي مبيعات شهر معيّن = إجمالي الفواتير المرحّلة − مرتجعات المبيعات المرحّلة.
+ * مصدر واحد للحقيقة يستخدمه كل من لوحة التحكم وتقرير المبيعات (هدف المبيعات الشهري).
+ */
+export function computeMonthNetSales(
+  invoiceRows: any[],
+  returnRows: any[],
+  month: number,
+  year: number,
+  getInvoiceDate: (row: any) => string,
+  getInvoiceValue: (row: any) => number,
+  getReturnDate: (row: any) => string,
+  getReturnValue: (row: any) => number,
+): number {
+  const gross = sumForMonth(invoiceRows, month, year, getInvoiceDate, getInvoiceValue);
+  const returns = sumForMonth(returnRows, month, year, getReturnDate, getReturnValue);
+  return gross - returns;
+}
+
+/**
  * Percentage change of the current month vs. the previous month.
  * Returns null when there is no comparable previous-month base.
  */

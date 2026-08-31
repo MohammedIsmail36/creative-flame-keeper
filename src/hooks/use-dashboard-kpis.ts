@@ -4,8 +4,8 @@ import {
   bucketExpenseLines,
   computeCOGS,
   computeMonthlyChange,
+  computeMonthNetSales,
   relationDate,
-  sumForMonth,
   sumNet,
   sumTotal,
 } from "@/lib/dashboard-metrics";
@@ -119,7 +119,20 @@ export function useDashboardKpis() {
       const invoiceDate = (row: any) => relationDate(row, "invoice", "invoice_date");
       const itemValue = (row: any) => Number(row.net_total || row.total || 0);
 
-      setCurrentMonthSales(sumForMonth(salesItems, cm, cy, invoiceDate, itemValue));
+      const returnDate = (row: any) => relationDate(row, "return", "return_date");
+      const returnValue = (row: any) => Number(row.total || 0);
+      setCurrentMonthSales(
+        computeMonthNetSales(
+          salesItems,
+          srItemsR.data || [],
+          cm,
+          cy,
+          invoiceDate,
+          itemValue,
+          returnDate,
+          returnValue,
+        ),
+      );
       setSalesChange(computeMonthlyChange(salesItems, invoiceDate, itemValue, now));
       setPurchasesChange(computeMonthlyChange(purchaseItems, invoiceDate, itemValue, now));
       setExpensesChange(
