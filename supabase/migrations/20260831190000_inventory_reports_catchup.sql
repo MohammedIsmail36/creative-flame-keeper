@@ -25,6 +25,72 @@ DROP FUNCTION IF EXISTS public.get_ledger_lines(p_account_id uuid, p_date_from d
 DROP FUNCTION IF EXISTS public.inventory_product_state(p_as_of date);
 DROP FUNCTION IF EXISTS public.inventory_signed_quantity(p_movement_type text, p_quantity numeric);
 
+CREATE OR REPLACE FUNCTION public.inventory_signed_quantity(p_movement_type text, p_quantity numeric)
+ RETURNS numeric
+ LANGUAGE sql
+ IMMUTABLE
+AS $function$
+  SELECT CASE
+    WHEN p_movement_type = 'adjustment' THEN COALESCE(p_quantity, 0)
+    WHEN p_movement_type IN ('sale', 'purchase_return') THEN -abs(COALESCE(p_quantity, 0))
+    ELSE abs(COALESCE(p_quantity, 0))
+  END;
+$function$
+;
+
+REVOKE ALL ON FUNCTION public.inventory_signed_quantity(p_movement_type text, p_quantity numeric) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.inventory_signed_quantity(p_movement_type text, p_quantity numeric) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.inventory_product_state(p_as_of date)
+ RETURNS TABLE(product_id uuid, quantity numeric, moves_value numeric, wac numeric, purchased_qty numeric, purchased_cost numeric, sold_qty numeric, sold_cost numeric, last_sale_date date, last_receipt_date date, first_movement_date date)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT
+    m.product_id,
+    round(SUM(public.inventory_signed_quantity(m.movement_type::text, m.quantity)), 2),
+    round(SUM(
+      CASE
+        WHEN m.movement_type = 'adjustment'
+          THEN sign(COALESCE(m.quantity, 0)) * abs(COALESCE(m.total_cost, 0))
+        WHEN m.movement_type IN ('sale', 'purchase_return')
+          THEN -abs(COALESCE(m.total_cost, 0))
+        ELSE abs(COALESCE(m.total_cost, 0))
+      END
+    ), 2),
+    CASE
+      WHEN SUM(CASE WHEN m.movement_type IN ('purchase', 'opening_balance')
+                    THEN abs(COALESCE(m.quantity, 0)) ELSE 0 END) > 0
+      THEN round(
+        SUM(CASE WHEN m.movement_type IN ('purchase', 'opening_balance')
+                 THEN abs(COALESCE(m.total_cost, 0)) ELSE 0 END)
+        / SUM(CASE WHEN m.movement_type IN ('purchase', 'opening_balance')
+                   THEN abs(COALESCE(m.quantity, 0)) ELSE 0 END), 2)
+      ELSE NULL
+    END,
+    round(SUM(CASE WHEN m.movement_type IN ('purchase', 'opening_balance')
+                   THEN abs(COALESCE(m.quantity, 0)) ELSE 0 END), 2),
+    round(SUM(CASE WHEN m.movement_type IN ('purchase', 'opening_balance')
+                   THEN abs(COALESCE(m.total_cost, 0)) ELSE 0 END), 2),
+    round(SUM(CASE WHEN m.movement_type = 'sale' THEN abs(COALESCE(m.quantity, 0))
+                   WHEN m.movement_type = 'sale_return' THEN -abs(COALESCE(m.quantity, 0))
+                   ELSE 0 END), 2),
+    round(SUM(CASE WHEN m.movement_type = 'sale' THEN abs(COALESCE(m.total_cost, 0))
+                   WHEN m.movement_type = 'sale_return' THEN -abs(COALESCE(m.total_cost, 0))
+                   ELSE 0 END), 2),
+    MAX(CASE WHEN m.movement_type = 'sale' THEN m.movement_date END),
+    MAX(CASE WHEN m.movement_type IN ('purchase', 'opening_balance') THEN m.movement_date END),
+    MIN(m.movement_date)
+  FROM public.inventory_movements m
+  WHERE m.movement_date <= COALESCE(p_as_of, current_date)
+  GROUP BY m.product_id;
+$function$
+;
+
+REVOKE ALL ON FUNCTION public.inventory_product_state(p_as_of date) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.inventory_product_state(p_as_of date) TO authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION public.get_account_balances(p_date_from date DEFAULT NULL::date, p_date_to date DEFAULT NULL::date, p_only_with_activity boolean DEFAULT false)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -781,69 +847,3 @@ $function$
 
 REVOKE ALL ON FUNCTION public.get_ledger_lines(p_account_id uuid, p_date_from date, p_date_to date, p_limit integer, p_offset integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_ledger_lines(p_account_id uuid, p_date_from date, p_date_to date, p_limit integer, p_offset integer) TO authenticated, service_role;
-
-CREATE OR REPLACE FUNCTION public.inventory_product_state(p_as_of date)
- RETURNS TABLE(product_id uuid, quantity numeric, moves_value numeric, wac numeric, purchased_qty numeric, purchased_cost numeric, sold_qty numeric, sold_cost numeric, last_sale_date date, last_receipt_date date, first_movement_date date)
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-  SELECT
-    m.product_id,
-    round(SUM(public.inventory_signed_quantity(m.movement_type::text, m.quantity)), 2),
-    round(SUM(
-      CASE
-        WHEN m.movement_type = 'adjustment'
-          THEN sign(COALESCE(m.quantity, 0)) * abs(COALESCE(m.total_cost, 0))
-        WHEN m.movement_type IN ('sale', 'purchase_return')
-          THEN -abs(COALESCE(m.total_cost, 0))
-        ELSE abs(COALESCE(m.total_cost, 0))
-      END
-    ), 2),
-    CASE
-      WHEN SUM(CASE WHEN m.movement_type IN ('purchase', 'opening_balance')
-                    THEN abs(COALESCE(m.quantity, 0)) ELSE 0 END) > 0
-      THEN round(
-        SUM(CASE WHEN m.movement_type IN ('purchase', 'opening_balance')
-                 THEN abs(COALESCE(m.total_cost, 0)) ELSE 0 END)
-        / SUM(CASE WHEN m.movement_type IN ('purchase', 'opening_balance')
-                   THEN abs(COALESCE(m.quantity, 0)) ELSE 0 END), 2)
-      ELSE NULL
-    END,
-    round(SUM(CASE WHEN m.movement_type IN ('purchase', 'opening_balance')
-                   THEN abs(COALESCE(m.quantity, 0)) ELSE 0 END), 2),
-    round(SUM(CASE WHEN m.movement_type IN ('purchase', 'opening_balance')
-                   THEN abs(COALESCE(m.total_cost, 0)) ELSE 0 END), 2),
-    round(SUM(CASE WHEN m.movement_type = 'sale' THEN abs(COALESCE(m.quantity, 0))
-                   WHEN m.movement_type = 'sale_return' THEN -abs(COALESCE(m.quantity, 0))
-                   ELSE 0 END), 2),
-    round(SUM(CASE WHEN m.movement_type = 'sale' THEN abs(COALESCE(m.total_cost, 0))
-                   WHEN m.movement_type = 'sale_return' THEN -abs(COALESCE(m.total_cost, 0))
-                   ELSE 0 END), 2),
-    MAX(CASE WHEN m.movement_type = 'sale' THEN m.movement_date END),
-    MAX(CASE WHEN m.movement_type IN ('purchase', 'opening_balance') THEN m.movement_date END),
-    MIN(m.movement_date)
-  FROM public.inventory_movements m
-  WHERE m.movement_date <= COALESCE(p_as_of, current_date)
-  GROUP BY m.product_id;
-$function$
-;
-
-REVOKE ALL ON FUNCTION public.inventory_product_state(p_as_of date) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.inventory_product_state(p_as_of date) TO authenticated, service_role;
-
-CREATE OR REPLACE FUNCTION public.inventory_signed_quantity(p_movement_type text, p_quantity numeric)
- RETURNS numeric
- LANGUAGE sql
- IMMUTABLE
-AS $function$
-  SELECT CASE
-    WHEN p_movement_type = 'adjustment' THEN COALESCE(p_quantity, 0)
-    WHEN p_movement_type IN ('sale', 'purchase_return') THEN -abs(COALESCE(p_quantity, 0))
-    ELSE abs(COALESCE(p_quantity, 0))
-  END;
-$function$
-;
-
-REVOKE ALL ON FUNCTION public.inventory_signed_quantity(p_movement_type text, p_quantity numeric) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.inventory_signed_quantity(p_movement_type text, p_quantity numeric) TO authenticated, service_role;
