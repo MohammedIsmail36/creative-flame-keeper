@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { round2 } from "@/lib/utils";
 import { useSettings } from "@/contexts/SettingsContext";
 import { notify } from "@/lib/notify";
+import { fetchAllPaged } from "@/lib/paged-fetch";
 
 
 interface Row {
