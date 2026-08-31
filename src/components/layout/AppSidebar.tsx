@@ -284,7 +284,7 @@ const sections: MenuSection[] = [
         roles: ["admin", "accountant"],
       },
       {
-        title: "تقييم المخزون",
+        title: "تقييم المخزون والمطابقة",
         url: "/reports/inventory-valuation",
         icon: Package,
         roles: ["admin", "accountant"],
@@ -304,12 +304,6 @@ const sections: MenuSection[] = [
       {
         title: "مؤشرات المخزون ABC",
         url: "/reports/inventory-kpis",
-        icon: Package,
-        roles: ["admin", "accountant"],
-      },
-      {
-        title: "قيمة المخزون والمطابقة",
-        url: "/reports/inventory",
         icon: Package,
         roles: ["admin", "accountant"],
       },
