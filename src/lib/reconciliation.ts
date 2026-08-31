@@ -54,8 +54,6 @@ export interface CheckResult {
 
 const withIssues = (
 
-
-const withIssues = (
   base: Omit<CheckResult, "severity" | "issues">,
   issues: CheckIssue[],
   severity: CheckSeverity = "error",
