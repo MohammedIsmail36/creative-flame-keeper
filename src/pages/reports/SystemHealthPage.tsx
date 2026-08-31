@@ -248,7 +248,7 @@ export default function SystemHealthPage() {
       ]);
       setLastRun(new Date());
     } catch (error) {
-      notify.fromError(error, "تعذّر تشغيل فحوص سلامة البيانات");
+      notify.dbError("تعذّر تشغيل فحوص سلامة البيانات", error);
     } finally {
       setLoading(false);
     }
