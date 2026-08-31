@@ -48,7 +48,11 @@ interface ValuationRow {
   unit_cost: number;
   value: number;
   moves_value: number;
+  last_supplier_name: string | null;
+  last_purchase_date: string | null;
+  last_purchase_price: number | null;
 }
+
 
 interface ValuationResult {
   as_of: string;
