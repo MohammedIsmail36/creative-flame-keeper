@@ -418,52 +418,37 @@ function NestedMenuItem({
   item: MenuItem;
   userRole: string | null;
 }) {
-  const location = useLocation();
   const children = (item.children || []).filter(
     (c) => userRole && c.roles.includes(userRole as AppRole),
   );
-  const isActive = children.some(
-    (c) =>
-      location.pathname === c.url || location.pathname.startsWith(c.url + "/"),
-  );
-  const [open, setOpen] = useState(isActive);
   if (children.length === 0) return null;
   return (
-    <SidebarMenuItem>
-      <Collapsible open={open} onOpenChange={setOpen}>
-        <CollapsibleTrigger className="w-full">
-          <SidebarMenuButton className="h-8 justify-between">
-            <span className="text-muted-foreground text-[13px]">
-              {item.title}
-            </span>
-            <ChevronDown
-              className={`w-3 h-3 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-            />
-          </SidebarMenuButton>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <SidebarMenu className="pr-3 pt-0.5">
-            {children.map((child) => (
-              <SidebarMenuItem key={child.title}>
-                <SidebarMenuButton asChild className="h-7">
-                  <NavLink
-                    to={child.url}
-                    end
-                    className="text-muted-foreground hover:text-foreground hover:bg-muted/50 text-[12px]"
-                    activeClassName="text-primary bg-accent font-semibold"
-                  >
-                    <child.icon className="w-3 h-3 ml-1.5" />
-                    <span>{child.title}</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </CollapsibleContent>
-      </Collapsible>
+    <SidebarMenuItem className="flex flex-col gap-0.5 py-1">
+      <div className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground/80">
+        <item.icon className="w-3 h-3" />
+        <span>{item.title}</span>
+      </div>
+      <SidebarMenu className="pr-3">
+        {children.map((child) => (
+          <SidebarMenuItem key={child.title}>
+            <SidebarMenuButton asChild className="h-7">
+              <NavLink
+                to={child.url}
+                end
+                className="text-muted-foreground hover:text-foreground hover:bg-muted/50 text-[12px]"
+                activeClassName="text-primary bg-accent font-semibold"
+              >
+                <child.icon className="w-3 h-3 ml-1.5" />
+                <span>{child.title}</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ))}
+      </SidebarMenu>
     </SidebarMenuItem>
   );
 }
+
 
 function CollapsibleSection({
   section,
