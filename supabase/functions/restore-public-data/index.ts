@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const RESTORE_BUCKET = "restore-backups";
-const RESTORE_FILE = "public_data_clean.sql";
+const RESTORE_FILE = "public_data_clean.sql.gz";
+const PRESERVE_TABLES = ["profiles", "user_roles"];
 
 interface FkConstraint {
   conname: string;
@@ -21,6 +22,11 @@ async function readSqlFromStorage(
 
   if (error) throw new Error(`Storage download failed: ${error.message}`);
   if (!data) throw new Error("Storage returned empty file");
+
+  if (RESTORE_FILE.endsWith(".gz")) {
+    const stream = data.stream().pipeThrough(new DecompressionStream("gzip"));
+    return await new Response(stream).text();
+  }
 
   return await data.text();
 }
@@ -320,7 +326,9 @@ Deno.serve(async (req) => {
             AND table_type = 'BASE TABLE'
           ORDER BY table_name;
         `;
-        const tableNames = tables.map((t) => t.table_name);
+        const tableNames = tables
+          .map((t) => t.table_name)
+          .filter((n) => !PRESERVE_TABLES.includes(n));
         const tableList = tableNames.map((n) => `"public"."${n}"`).join(", ");
         await tx.unsafe(`TRUNCATE TABLE ${tableList} CASCADE`);
         log(`Truncated ${tableNames.length} public tables`);
@@ -376,18 +384,14 @@ Deno.serve(async (req) => {
       await sql.end();
     }
 
-    log("Creating admin user...");
-    const admin = await createAdminUser(serviceClient);
-    log(`Created admin user ${admin.email} (${admin.id})`);
+    log("Preserved existing users, profiles and roles");
 
     return new Response(
       JSON.stringify({
         success: true,
-        admin_email: admin.email,
-        admin_id: admin.id,
         logs,
         note:
-          "Auth users were not restored from the backup. A fresh admin user has been created. Other users can be recreated from the app.",
+          "Public data restored from backup. Existing auth users, profiles and roles were preserved; created_by references were cleared.",
       }),
       {
         status: 200,
