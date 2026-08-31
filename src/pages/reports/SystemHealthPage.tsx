@@ -185,25 +185,54 @@ export default function SystemHealthPage() {
             .range(f, t),
         ),
         (supabase.rpc as any)("get_account_balances", { p_only_with_activity: false }),
+        (supabase.rpc as any)("get_inventory_valuation", {
+          p_as_of: new Date().toISOString().slice(0, 10),
+        }),
       ]);
 
-      // رصيد حساب المخزون من دفتر الأستاذ
-      const balanceRows: any[] = Array.isArray(balancesRes?.data)
-        ? balancesRes.data
-        : (balancesRes?.data?.accounts ?? []);
+      // ── أرصدة دفتر الأستاذ: الدالة تُعيد المصفوفة تحت المفتاح rows
+      const payload = balancesRes?.data;
+      const balanceRows: any[] = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.rows)
+          ? payload.rows
+          : Array.isArray(payload?.accounts)
+            ? payload.accounts
+            : [];
       const inventoryRow = balanceRows.find(
         (r: any) => String(r.code ?? r.account_code) === ACCOUNT_CODES.INVENTORY,
       );
-      const ledgerInventory =
-        num(inventoryRow?.balance) ||
-        num(inventoryRow?.debit) - num(inventoryRow?.credit);
+      // لا نستخدم || لأنها تبتلع الرصيد الصفري الصحيح
+      const ledgerInventory: number | null = inventoryRow
+        ? num(inventoryRow.debit) - num(inventoryRow.credit)
+        : null;
+
+      const totalDebit =
+        payload && payload.total_debit !== undefined && payload.total_debit !== null
+          ? num(payload.total_debit)
+          : balanceRows.length > 0
+            ? balanceRows.reduce((s: number, r: any) => s + num(r.debit), 0)
+            : null;
+      const totalCredit =
+        payload && payload.total_credit !== undefined && payload.total_credit !== null
+          ? num(payload.total_credit)
+          : balanceRows.length > 0
+            ? balanceRows.reduce((s: number, r: any) => s + num(r.credit), 0)
+            : null;
+
+      // ── قيمة المخزون من نفس مصدر تقرير التقييم (WAC)
+      const valuation = valuationRes?.data as any;
+      const computedInventory =
+        valuation && valuation.total_value !== undefined && valuation.total_value !== null
+          ? num(valuation.total_value)
+          : null;
 
       const posted = (rows: any[]) => rows.filter((r) => r.status === "posted");
 
       const openingMap = (rows: any[]) =>
         new Map<string, number>(rows.map((r) => [r.id, num(r.opening_balance)]));
 
-      const expectedCustomers = computeExpectedEntityBalances({
+      const customerDetails = computeEntityBalanceDetails({
         openingBalances: openingMap(customers),
         invoices: posted(salesInvoices).map((r) => ({
           entity_id: r.customer_id,
@@ -221,7 +250,7 @@ export default function SystemHealthPage() {
         returnAllocations: salesReturnAllocs,
       });
 
-      const expectedSuppliers = computeExpectedEntityBalances({
+      const supplierDetails = computeEntityBalanceDetails({
         openingBalances: openingMap(suppliers),
         invoices: posted(purchaseInvoices).map((r) => ({
           entity_id: r.supplier_id,
@@ -239,26 +268,90 @@ export default function SystemHealthPage() {
         returnAllocations: purchaseReturnAllocs,
       });
 
-      const inventoryCheck = checkInventoryValue(products, movements, ledgerInventory);
+      const expectedFrom = (m: Map<string, { expected: number }>) =>
+        new Map<string, number>([...m].map(([id, b]) => [id, b.expected]));
+
+      const inventoryCheck = checkInventoryValue({
+        computedValue: computedInventory,
+        ledgerBalance: ledgerInventory,
+        productsChecked: products.length,
+      });
       setInventoryValues({
         ledger: inventoryCheck.ledgerValue,
         computed: inventoryCheck.computedValue,
       });
 
+      const productLabel = new Map<string, string>(
+        products.map((p: any) => [p.id, `[${p.code}] ${p.name}`]),
+      );
+
+      const docLabel = (prefix: string, r: any) =>
+        `${prefix} #${r.posted_number ?? "بلا رقم"}`;
+
       setChecks([
-        checkProductQuantities(products, movements),
         inventoryCheck,
+        checkTrialBalance(totalDebit, totalCredit),
+        checkProductQuantities(products, movements),
         checkJournalBalance(entries, lines),
         checkOrphanEntries(entries, lines),
-        checkEntityBalances(customers, expectedCustomers, "customer"),
-        checkEntityBalances(suppliers, expectedSuppliers, "supplier"),
-        checkPostedNumberSequence(posted(salesInvoices), "فواتير البيع"),
-        checkPostedNumberSequence(posted(purchaseInvoices), "فواتير الشراء"),
-        checkPostedNumberSequence(
-          entries.filter((e) => e.status === "posted"),
-          "القيود المنشورة",
+        checkEntityBalances(
+          customers,
+          expectedFrom(customerDetails),
+          "customer",
+          undefined,
+          customerDetails,
         ),
+        checkEntityBalances(
+          suppliers,
+          expectedFrom(supplierDetails),
+          "supplier",
+          undefined,
+          supplierDetails,
+        ),
+        checkDocumentsHaveJournal(
+          salesInvoices.map((r: any) => ({
+            id: r.id,
+            label: docLabel("فاتورة بيع", r),
+            status: r.status,
+            journal_entry_id: r.journal_entry_id,
+            link: `/sales/invoices/${r.id}`,
+          })),
+          "فواتير البيع",
+        ),
+        checkDocumentsHaveJournal(
+          purchaseInvoices.map((r: any) => ({
+            id: r.id,
+            label: docLabel("فاتورة شراء", r),
+            status: r.status,
+            journal_entry_id: r.journal_entry_id,
+            link: `/purchases/invoices/${r.id}`,
+          })),
+          "فواتير الشراء",
+        ),
+        checkDocumentsHaveJournal(
+          [...salesReturns, ...purchaseReturns].map((r: any) => ({
+            id: r.id,
+            label: docLabel("مرتجع", r),
+            status: r.status,
+            journal_entry_id: r.journal_entry_id,
+          })),
+          "المرتجعات",
+        ),
+        checkMovementsHaveSource(
+          movements.map((m: any) => ({
+            id: m.id,
+            product_label: productLabel.get(m.product_id) ?? null,
+            reference_id: m.reference_id,
+            reference_type: m.reference_type,
+            movement_type: m.movement_type,
+            movement_date: m.movement_date,
+          })),
+        ),
+        checkPostedNumberSequence(salesInvoices, "فواتير البيع"),
+        checkPostedNumberSequence(purchaseInvoices, "فواتير الشراء"),
+        checkPostedNumberSequence(entries, "القيود"),
       ]);
+
       setLastRun(new Date());
     } catch (error) {
       notify.dbError("تعذّر تشغيل فحوص سلامة البيانات", error);
