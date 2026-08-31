@@ -15,7 +15,7 @@ import {
  *  الشاشة تعرض فقط — لا تحسب.
  */
 
-export type CheckSeverity = "ok" | "warning" | "error";
+export type CheckSeverity = "ok" | "info" | "warning" | "error" | "unavailable";
 
 export interface CheckIssue {
   /** معرّف السجل المسبّب (منتج، قيد، عميل...) */
@@ -30,6 +30,10 @@ export interface CheckIssue {
   diff?: number;
   /** مسار لفتح المستند المسبّب */
   link?: string;
+  /** تفسير منشأ الفرق (يظهر تحت اسم السجل) */
+  note?: string;
+  /** كيف تُنسَّق الأرقام في العرض */
+  unit?: "currency" | "qty" | "text";
 }
 
 export interface CheckResult {
@@ -37,10 +41,16 @@ export interface CheckResult {
   title: string;
   /** ما يعنيه الانحراف عمليًا */
   meaning: string;
+  /** المعادلة/القاعدة المستخدمة بصيغة مقروءة */
+  formula?: string;
+  /** الإجراء المقترح عند وجود انحراف */
+  action?: string;
   severity: CheckSeverity;
   /** عدد السجلات التي فُحصت */
   checked: number;
   issues: CheckIssue[];
+  /** سبب تعذّر تنفيذ الفحص (عند severity = unavailable) */
+  unavailableReason?: string;
 }
 
 const ok = (
@@ -68,6 +78,7 @@ export interface ProductQtyRow {
   name: string;
   quantity_on_hand: number | string | null;
   purchase_price?: number | string | null;
+  is_active?: boolean | null;
 }
 
 export function checkProductQuantities(
@@ -78,17 +89,33 @@ export function checkProductQuantities(
   const summaries = summarizeMovements(movements);
   const issues: CheckIssue[] = [];
 
-  for (const p of products) {
-    const expected = round2(summaries.get(p.id)?.quantity ?? 0);
+  // نستثني المنتجات غير النشطة التي لا كمية لها ولا حركات — لا معنى لفحصها
+  const scoped = products.filter((p) => {
+    const hasMoves = summaries.has(p.id);
+    const qty = Number(p.quantity_on_hand ?? 0);
+    if (p.is_active === false && !hasMoves && Math.abs(qty) <= tolerance) return false;
+    return true;
+  });
+
+  for (const p of scoped) {
+    const summary = summaries.get(p.id);
+    const expected = round2(summary?.quantity ?? 0);
     const actual = round2(Number(p.quantity_on_hand ?? 0));
     const diff = round2(actual - expected);
     if (Math.abs(diff) > tolerance) {
+      const note = !summary
+        ? "كمية في بطاقة المنتج بدون أي حركة مخزون — تحتاج حركة/تسوية مقابلة"
+        : Math.abs(actual) <= tolerance
+          ? "حركات مخزون بدون كمية في بطاقة المنتج — الكمية لم تُحدَّث"
+          : "الكمية المخزّنة لا تساوي صافي الحركات — ترحيل ناقص أو تعديل يدوي";
       issues.push({
         id: p.id,
         label: `[${p.code}] ${p.name}`,
         expected,
         actual,
         diff,
+        note,
+        unit: "qty",
         link: `/products/${p.id}`,
       });
     }
@@ -100,66 +127,158 @@ export function checkProductQuantities(
       title: "كمية المنتجات مطابقة لحركات المخزون",
       meaning:
         "الكمية المتاحة في بطاقة المنتج يجب أن تساوي صافي حركات المخزون. أي فرق يعني كمية غير مبرّرة بمستند.",
-      checked: products.length,
+      formula: "الكمية المتوقعة = Σ (الوارد − المنصرف) من حركات المخزون",
+      action: "افتح بطاقة المنتج وأنشئ تسوية مخزون بالفرق، أو أعد ترحيل المستند الناقص.",
+      checked: scoped.length,
     },
     issues,
   );
 }
 
-/* ─── 2) قيمة المخزون الدفترية = مجموع (كمية × WAC) ─── */
+/* ─── 2) قيمة المخزون الدفترية = التقييم الرسمي بـ WAC ─── */
 
 export interface InventoryValueCheck extends CheckResult {
-  ledgerValue: number;
-  computedValue: number;
+  ledgerValue: number | null;
+  computedValue: number | null;
 }
 
-export function checkInventoryValue(
-  products: ProductQtyRow[],
-  movements: InventoryMovementRow[],
-  ledgerInventoryBalance: number,
-  tolerance = 1,
-): InventoryValueCheck {
-  const summaries = summarizeMovements(movements);
-  let computed = 0;
+/**
+ * مقارنة رصيد حساب المخزون (1104) مع قيمة التقييم القادمة من دالة
+ * `get_inventory_valuation` — نفس مصدر تقرير تقييم المخزون.
+ * إن تعذّر قراءة أي من الطرفين لا يُعلن انحراف إطلاقًا (لا مقارنة مع صفر وهمي).
+ */
+export function checkInventoryValue(input: {
+  computedValue: number | null | undefined;
+  ledgerBalance: number | null | undefined;
+  productsChecked: number;
+  /** ما دون هذا الحد يُعدّ مطابقًا */
+  tolerance?: number;
+  /** ما دون هذا الحد يُعدّ تحذيرًا وليس انحرافًا حرجًا */
+  warnTolerance?: number;
+}): InventoryValueCheck {
+  const { productsChecked } = input;
+  const tolerance = input.tolerance ?? 1;
+  const warnTolerance = input.warnTolerance ?? 1000;
 
-  for (const p of products) {
-    const s = summaries.get(p.id);
-    const wac = weightedAverageCost(s, Number(p.purchase_price ?? 0));
-    computed += inventoryValue(Number(p.quantity_on_hand ?? 0), wac);
+  const base = {
+    key: "inventory_value",
+    title: "قيمة المخزون الدفترية مطابقة للتقييم بـ WAC",
+    meaning:
+      "رصيد حساب المخزون في دفتر الأستاذ يجب أن يساوي قيمة التقييم بمتوسط التكلفة المرجّح لكل الأصناف.",
+    formula:
+      "المتوقع = قيمة التقييم من get_inventory_valuation • الفعلي = مدين − دائن لحساب 1104 من القيود المرحّلة",
+    action:
+      "راجع شاشة مطابقة المخزون: الفرق عادةً تسوية مخزون بلا قيد، أو قيد مخزون يدوي بلا حركة.",
+    checked: productsChecked,
+  };
+
+  const computed =
+    input.computedValue === null || input.computedValue === undefined
+      ? null
+      : round2(input.computedValue);
+  const ledger =
+    input.ledgerBalance === null || input.ledgerBalance === undefined
+      ? null
+      : round2(input.ledgerBalance);
+
+  if (computed === null || ledger === null) {
+    return {
+      ...base,
+      severity: "unavailable",
+      issues: [],
+      unavailableReason:
+        computed === null && ledger === null
+          ? "تعذّر قراءة قيمة التقييم ورصيد حساب المخزون — لم تُنفَّذ المقارنة."
+          : computed === null
+            ? "تعذّر قراءة قيمة التقييم (get_inventory_valuation) — لم تُنفَّذ المقارنة."
+            : "تعذّر قراءة رصيد حساب المخزون 1104 — لم تُنفَّذ المقارنة.",
+      ledgerValue: ledger,
+      computedValue: computed,
+    };
   }
 
-  computed = round2(computed);
-  const ledger = round2(ledgerInventoryBalance);
   const diff = round2(ledger - computed);
-  const issues: CheckIssue[] =
-    Math.abs(diff) > tolerance
-      ? [
-          {
-            id: "inventory_account",
-            label: "حساب المخزون (1104)",
-            expected: computed,
-            actual: ledger,
-            diff,
-            link: "/reports/inventory-reconciliation",
-          },
-        ]
-      : [];
+  const isIssue = Math.abs(diff) > tolerance;
+  const issues: CheckIssue[] = isIssue
+    ? [
+        {
+          id: "inventory_account",
+          label: "حساب المخزون (1104)",
+          expected: computed,
+          actual: ledger,
+          diff,
+          unit: "currency",
+          note:
+            Math.abs(diff) <= warnTolerance
+              ? "فرق محدود — يُراجع كتسوية تكلفة أو تقريب"
+              : "فرق كبير — يوجد قيد مخزون بلا حركة أو حركة بلا قيد",
+          link: "/reports/inventory-reconciliation",
+        },
+      ]
+    : [];
 
   return {
-    ...withIssues(
-      {
-        key: "inventory_value",
-        title: "قيمة المخزون الدفترية مطابقة للتقييم بـ WAC",
-        meaning:
-          "رصيد حساب المخزون في دفتر الأستاذ يجب أن يساوي مجموع (الكمية × متوسط التكلفة المرجّح) لكل المنتجات.",
-        checked: products.length,
-      },
-      issues,
-    ),
+    ...base,
+    severity: !isIssue ? "ok" : Math.abs(diff) <= warnTolerance ? "warning" : "error",
+    issues,
     ledgerValue: ledger,
     computedValue: computed,
   };
 }
+
+/* ─── 2ب) توازن ميزان المراجعة (إجمالي مدين = إجمالي دائن) ─── */
+
+export function checkTrialBalance(
+  totalDebit: number | null | undefined,
+  totalCredit: number | null | undefined,
+  tolerance = BALANCE_TOLERANCE,
+): CheckResult {
+  const base = {
+    key: "trial_balance",
+    title: "ميزان المراجعة متوازن",
+    meaning: "مجموع المدين لكل الحسابات يجب أن يساوي مجموع الدائن في القيود المرحّلة.",
+    formula: "Σ مدين (كل الحسابات) = Σ دائن (كل الحسابات) — القيود المرحّلة فقط",
+    action: "افتح دفتر اليومية وابحث عن قيد غير متوازن أو قيد بسطور ناقصة.",
+    checked: 1,
+  };
+
+  if (
+    totalDebit === null ||
+    totalDebit === undefined ||
+    totalCredit === null ||
+    totalCredit === undefined
+  ) {
+    return {
+      ...base,
+      severity: "unavailable",
+      issues: [],
+      unavailableReason: "تعذّر قراءة إجماليات الأرصدة — لم تُنفَّذ المقارنة.",
+    };
+  }
+
+  const debit = round2(totalDebit);
+  const credit = round2(totalCredit);
+  const diff = round2(debit - credit);
+
+  return withIssues(
+    base,
+    Math.abs(diff) > tolerance
+      ? [
+          {
+            id: "trial_balance",
+            label: "إجمالي دفتر الأستاذ",
+            expected: credit,
+            actual: debit,
+            diff,
+            unit: "currency",
+            note: "فرق بين إجمالي المدين والدائن في القيود المرحّلة",
+            link: "/journal",
+          },
+        ]
+      : [],
+  );
+}
+
 
 /* ─── 3) توازن القيود (رأس القيد وسطوره) ─── */
 
