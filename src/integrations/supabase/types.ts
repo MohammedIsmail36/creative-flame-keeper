@@ -114,6 +114,11 @@ export type Database = {
           expense_prefix: string
           fiscal_year_start: string
           id: string
+          inventory_dead_days: number
+          inventory_lead_time_days: number
+          inventory_new_days: number
+          inventory_slow_days: number
+          inventory_target_cover_days: number
           invoice_footer: string | null
           invoice_notes: string | null
           journal_entry_prefix: string
@@ -160,6 +165,11 @@ export type Database = {
           expense_prefix?: string
           fiscal_year_start?: string
           id?: string
+          inventory_dead_days?: number
+          inventory_lead_time_days?: number
+          inventory_new_days?: number
+          inventory_slow_days?: number
+          inventory_target_cover_days?: number
           invoice_footer?: string | null
           invoice_notes?: string | null
           journal_entry_prefix?: string
@@ -206,6 +216,11 @@ export type Database = {
           expense_prefix?: string
           fiscal_year_start?: string
           id?: string
+          inventory_dead_days?: number
+          inventory_lead_time_days?: number
+          inventory_new_days?: number
+          inventory_slow_days?: number
+          inventory_target_cover_days?: number
           invoice_footer?: string | null
           invoice_notes?: string | null
           journal_entry_prefix?: string
@@ -2108,6 +2123,14 @@ export type Database = {
       }
       get_avg_purchase_price: { Args: { _product_id: string }; Returns: number }
       get_avg_selling_price: { Args: { _product_id: string }; Returns: number }
+      get_inventory_aging: {
+        Args: { p_as_of?: string; p_dead_days?: number; p_slow_days?: number }
+        Returns: Json
+      }
+      get_inventory_kpis: {
+        Args: { p_date_from?: string; p_date_to?: string }
+        Returns: Json
+      }
       get_inventory_movements_summary: {
         Args: {
           p_date_from?: string
@@ -2116,6 +2139,16 @@ export type Database = {
         }
         Returns: Json
       }
+      get_inventory_reorder: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_lead_time_days?: number
+          p_target_days?: number
+        }
+        Returns: Json
+      }
+      get_inventory_valuation: { Args: { p_as_of?: string }; Returns: Json }
       get_journal_summary: {
         Args: { p_date_from?: string; p_date_to?: string }
         Returns: Json
@@ -2172,6 +2205,22 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      inventory_product_state: {
+        Args: { p_as_of: string }
+        Returns: {
+          first_movement_date: string
+          last_receipt_date: string
+          last_sale_date: string
+          moves_value: number
+          product_id: string
+          purchased_cost: number
+          purchased_qty: number
+          quantity: number
+          sold_cost: number
+          sold_qty: number
+          wac: number
+        }[]
       }
       inventory_signed_quantity: {
         Args: { p_movement_type: string; p_quantity: number }
