@@ -337,12 +337,24 @@ export default function DormantInventoryPage() {
       {
         accessorKey: "recommendedAction",
         header: "الإجراء المقترح",
-        cell: ({ getValue }) => (
-          <span className="text-[11px] text-foreground/80">
-            {getValue() as string}
-          </span>
+        cell: ({ row }) => (
+          <ActionBadge
+            action={row.original.recommendedAction}
+            basis={row.original.actionNote}
+          />
         ),
       },
+      {
+        id: "actionNote",
+        header: "على أي أساس؟",
+        cell: ({ row }) => (
+          <span className="text-[11px] leading-5 text-muted-foreground block max-w-[280px]">
+            {row.original.actionNote}
+          </span>
+        ),
+        enableSorting: false,
+      },
+
       {
         accessorKey: "lastSupplierName",
         header: "المورد",
