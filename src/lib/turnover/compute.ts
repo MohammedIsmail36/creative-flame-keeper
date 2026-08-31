@@ -241,7 +241,11 @@ export function computeTurnoverData(
         flagNegativeMargin ||
         flagZeroWac ||
         flagFullySupplierReturned,
+      recommendedAction: "watch" as InventoryAction,
+      decisionBasis: null as string | null,
+      moneyImpact: 0,
     };
+
 
     if (!isActive) {
       return {
