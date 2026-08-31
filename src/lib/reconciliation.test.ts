@@ -69,34 +69,134 @@ describe("checkProductQuantities", () => {
 });
 
 describe("checkInventoryValue", () => {
-  const products = [
-    { id: "p1", code: "A1", name: "أ", quantity_on_hand: 6, purchase_price: 0 },
-    { id: "p2", code: "A2", name: "ب", quantity_on_hand: 5, purchase_price: 0 },
-  ];
-
-  it("يطابق رصيد الدفتر مع التقييم بـ WAC", () => {
-    // p1: 6 × 100 = 600 ، p2: 5 × 50 = 250 ⇒ 850
-    const r = checkInventoryValue(products, moves, 850);
+  it("يطابق رصيد الدفتر مع قيمة التقييم", () => {
+    const r = checkInventoryValue({
+      computedValue: 850,
+      ledgerBalance: 850,
+      productsChecked: 2,
+    });
     expect(r.computedValue).toBe(850);
+    expect(r.ledgerValue).toBe(850);
     expect(r.severity).toBe("ok");
+    expect(r.issues).toHaveLength(0);
   });
 
-  it("يرصد انحراف الرصيد الدفتري", () => {
-    const r = checkInventoryValue(products, moves, 1000);
+  it("يعدّ الفرق المحدود تحذيرًا لا انحرافًا حرجًا", () => {
+    const r = checkInventoryValue({
+      computedValue: 496732.97,
+      ledgerBalance: 496986.28,
+      productsChecked: 40,
+    });
+    expect(r.severity).toBe("warning");
+    expect(r.issues[0].diff).toBe(253.31);
+    expect(r.issues[0].unit).toBe("currency");
+  });
+
+  it("يعلن انحرافًا حرجًا عند الفرق الكبير", () => {
+    const r = checkInventoryValue({
+      computedValue: 850,
+      ledgerBalance: 50000,
+      productsChecked: 2,
+    });
     expect(r.severity).toBe("error");
-    expect(r.issues[0].diff).toBe(150);
   });
 
-  it("يستخدم سعر الشراء عند غياب حركات الشراء", () => {
-    const r = checkInventoryValue(
-      [{ id: "pX", code: "X", name: "س", quantity_on_hand: 2, purchase_price: 30 }],
-      [],
-      60,
-    );
-    expect(r.computedValue).toBe(60);
+  it("لا يقارن مع صفر وهمي عند تعذّر قراءة رصيد الدفتر", () => {
+    const r = checkInventoryValue({
+      computedValue: 496732.97,
+      ledgerBalance: null,
+      productsChecked: 40,
+    });
+    expect(r.severity).toBe("unavailable");
+    expect(r.issues).toHaveLength(0);
+    expect(r.unavailableReason).toContain("1104");
+  });
+
+  it("لا يقارن عند تعذّر قراءة قيمة التقييم", () => {
+    const r = checkInventoryValue({
+      computedValue: undefined,
+      ledgerBalance: 496986.28,
+      productsChecked: 40,
+    });
+    expect(r.severity).toBe("unavailable");
+    expect(r.issues).toHaveLength(0);
+  });
+
+  it("يتجاهل فروق التقريب داخل حد التسامح", () => {
+    const r = checkInventoryValue({
+      computedValue: 100,
+      ledgerBalance: 100.4,
+      productsChecked: 1,
+    });
     expect(r.severity).toBe("ok");
   });
 });
+
+describe("checkTrialBalance", () => {
+  it("يمرّ عند تساوي المدين والدائن", () => {
+    expect(checkTrialBalance(1000, 1000).severity).toBe("ok");
+  });
+
+  it("يرصد عدم التوازن", () => {
+    const r = checkTrialBalance(1000, 900);
+    expect(r.severity).toBe("error");
+    expect(r.issues[0].diff).toBe(100);
+  });
+
+  it("يعلن تعذّر الفحص عند غياب الإجماليات", () => {
+    expect(checkTrialBalance(null, null).severity).toBe("unavailable");
+  });
+});
+
+describe("checkDocumentsHaveJournal", () => {
+  it("يرصد المستند المرحّل بلا قيد فقط", () => {
+    const r = checkDocumentsHaveJournal(
+      [
+        { id: "d1", label: "INV-1", status: "posted", journal_entry_id: "j1" },
+        { id: "d2", label: "INV-2", status: "posted", journal_entry_id: null },
+        { id: "d3", label: "INV-3", status: "draft", journal_entry_id: null },
+        { id: "d4", label: "INV-4", status: "cancelled", journal_entry_id: null },
+      ],
+      "فواتير البيع",
+    );
+    expect(r.checked).toBe(2);
+    expect(r.issues).toHaveLength(1);
+    expect(r.issues[0].id).toBe("d2");
+    expect(r.severity).toBe("error");
+  });
+});
+
+describe("checkMovementsHaveSource", () => {
+  it("يتجاهل الرصيد الافتتاحي ويرصد الحركات بلا مرجع", () => {
+    const r = checkMovementsHaveSource([
+      { id: "m1", reference_id: "x", movement_type: "purchase" },
+      { id: "m2", reference_id: null, movement_type: "opening_balance" },
+      { id: "m3", reference_id: null, movement_type: "sale", product_label: "منتج" },
+    ]);
+    expect(r.issues).toHaveLength(1);
+    expect(r.issues[0].id).toBe("m3");
+    expect(r.severity).toBe("warning");
+  });
+});
+
+describe("computeEntityBalanceDetails", () => {
+  it("يفصّل مكوّنات الرصيد المتوقع", () => {
+    const details = computeEntityBalanceDetails({
+      openingBalances: new Map([["c1", 100]]),
+      invoices: [{ entity_id: "c1", total: 1000 }],
+      returns: [{ entity_id: "c1", total: 200 }],
+      payments: [{ entity_id: "c1", amount: 300 }],
+      returnAllocations: [],
+    });
+    const b = details.get("c1")!;
+    expect(b.opening).toBe(100);
+    expect(b.invoices).toBe(1000);
+    expect(b.returns).toBe(200);
+    expect(b.payments).toBe(300);
+    expect(b.expected).toBe(600);
+  });
+});
+
 
 describe("checkJournalBalance", () => {
   const entries = [
