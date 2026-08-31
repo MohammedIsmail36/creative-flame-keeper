@@ -724,7 +724,7 @@ export default function Dashboard() {
                       ) : (
                         <>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">المحقق</span>
+                            <span className="text-xs text-muted-foreground">المحقق (صافي المبيعات)</span>
                             <span
                               className={`text-sm font-bold tabular-nums ${exceeded ? "text-emerald-600 dark:text-emerald-400" : ""}`}
                             >
