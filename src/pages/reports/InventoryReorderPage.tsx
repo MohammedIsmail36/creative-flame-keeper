@@ -307,6 +307,29 @@ export default function InventoryReorderPage() {
         ),
       },
       {
+        id: "last_supplier",
+        header: "آخر مورد",
+        cell: ({ row }) => {
+          const r = row.original;
+          if (!r.last_supplier_name)
+            return <span className="text-xs text-muted-foreground">لا توريد سابق</span>;
+          return (
+            <div className="min-w-[150px]">
+              <div className="font-medium text-sm">{r.last_supplier_name}</div>
+              <div className="text-xs text-muted-foreground">
+                {[
+                  r.last_purchase_date ?? null,
+                  r.last_purchase_price === null ? null : `بسعر ${fmtNum(r.last_purchase_price)}`,
+                ]
+                  .filter(Boolean)
+                  .join(" • ")}
+              </div>
+            </div>
+          );
+        },
+        meta: { hideOnMobile: true },
+
+      {
         id: "urgency",
         header: "الأولوية",
         cell: ({ row }) => {
