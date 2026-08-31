@@ -1,7 +1,10 @@
 // ─── Inventory turnover: shared types & runtime constants (UI-free) ─────────
 // يُستورد من طبقة الحساب النقية والاختبارات، وتعيد types.tsx تصديره للتوافق.
 
-export const DAYS_CONSIDERED_NEW = 30;
+import { INVENTORY_RULES, type InventoryAction } from "@/lib/inventory/definitions";
+
+export const DAYS_CONSIDERED_NEW = INVENTORY_RULES.NEW_PRODUCT_DAYS;
+
 
 export type TurnoverClass =
   | "excellent"
