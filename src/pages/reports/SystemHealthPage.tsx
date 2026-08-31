@@ -397,6 +397,15 @@ export default function SystemHealthPage() {
         />
       ) : (
         <>
+          <ReportPurposeBar
+            what="فحوص مطابقة بين المستندات والقيود والمخزون وأرصدة العملاء والموردين، مع بيان السجلات المسبّبة لكل انحراف."
+            decision="تحديد ما يحتاج تصحيحًا فعليًا قبل الاعتماد على التقارير المالية أو إغلاق الفترة."
+            basis="القيود المرحّلة فقط + حركات المخزون + تقييم WAC من دالة تقييم المخزون (نفس مصدر تقرير التقييم)."
+            note={`حد التسامح للفروق المالية 1.00، ولكميات المخزون 0.01. الفحوص التي لا يتوفّر مصدر بياناتها تُعرض كـ «تعذّر الفحص» ولا تُحسب انحرافًا.${
+              lastRun ? ` آخر فحص: ${lastRun.toLocaleString("ar-EG")}.` : ""
+            }`}
+          />
+
           <StatGrid>
             <StatCard
               icon={summary.healthy ? CheckCircle2 : AlertTriangle}
@@ -409,8 +418,8 @@ export default function SystemHealthPage() {
                     ? "يحتاج تصحيحًا"
                     : "ملاحظات"
               }
-              sub={`${summary.passed} من ${summary.total} فحص ناجح`}
-              hint="يظهر «سليم» فقط عند نجاح جميع الفحوص بلا تحذيرات."
+              sub={`${summary.passed} من ${summary.total} فحص مطابق`}
+              hint="يظهر «سليم» فقط عند نجاح جميع الفحوص بلا تحذيرات أو فحوص متعذّرة."
             />
             <StatCard
               icon={XCircle}
@@ -422,24 +431,37 @@ export default function SystemHealthPage() {
             <StatCard
               icon={AlertTriangle}
               tone="amber"
-              label="تحذيرات"
-              value={summary.warnings}
-              sub="فراغات أو تكرار في الترقيم"
+              label="تحذيرات وملاحظات"
+              value={summary.warnings + summary.info}
+              sub={
+                summary.unavailable > 0
+                  ? `${summary.unavailable} فحص تعذّر تنفيذه`
+                  : "فروق محدودة أو معلومات ترقيم"
+              }
             />
             <StatCard
               icon={Activity}
               tone="blue"
-              label="قيمة المخزون"
-              value={formatCurrency(inventoryValues.computed)}
-              sub={`الدفتر: ${formatCurrency(inventoryValues.ledger)}`}
-              hint="المحسوبة بمتوسط التكلفة المرجّح مقابل رصيد حساب المخزون."
+              label="قيمة المخزون (WAC)"
+              value={
+                inventoryValues.computed === null
+                  ? "غير متاح"
+                  : formatCurrency(inventoryValues.computed)
+              }
+              sub={`الدفتر (1104): ${
+                inventoryValues.ledger === null
+                  ? "غير متاح"
+                  : formatCurrency(inventoryValues.ledger)
+              }`}
+              hint="قيمة التقييم بمتوسط التكلفة المرجّح مقابل رصيد حساب المخزون في دفتر الأستاذ."
             />
           </StatGrid>
 
           <div className="space-y-3">
             {checks.map((check) => (
-              <CheckCard key={check.key} check={check} />
+              <CheckCard key={check.key} check={check} formatCurrency={formatCurrency} />
             ))}
+
           </div>
         </>
       )}
