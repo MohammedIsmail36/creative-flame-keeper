@@ -469,22 +469,70 @@ export default function SystemHealthPage() {
   );
 }
 
-function CheckCard({ check }: { check: CheckResult }) {
+const TONE: Record<
+  string,
+  { border: string; chip: string; badge: "outline" | "secondary" | "destructive"; label: string }
+> = {
+  ok: {
+    border: "border-border",
+    chip: "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    badge: "outline",
+    label: "مطابق",
+  },
+  info: {
+    border: "border-sky-300 dark:border-sky-500/40",
+    chip: "bg-sky-100 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400",
+    badge: "secondary",
+    label: "للعلم فقط",
+  },
+  warning: {
+    border: "border-amber-300 dark:border-amber-500/40",
+    chip: "bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400",
+    badge: "secondary",
+    label: "تحذير",
+  },
+  error: {
+    border: "border-red-300 dark:border-red-500/40",
+    chip: "bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400",
+    badge: "destructive",
+    label: "انحراف",
+  },
+  unavailable: {
+    border: "border-border",
+    chip: "bg-muted text-muted-foreground",
+    badge: "outline",
+    label: "تعذّر الفحص",
+  },
+};
+
+function CheckCard({
+  check,
+  formatCurrency,
+}: {
+  check: CheckResult;
+  formatCurrency: (v: number) => string;
+}) {
   const [open, setOpen] = useState(check.severity === "error");
+  const tone = TONE[check.severity] ?? TONE.ok;
   const isOk = check.severity === "ok";
-  const Icon = isOk ? CheckCircle2 : check.severity === "warning" ? AlertTriangle : XCircle;
+  const isUnavailable = check.severity === "unavailable";
+  const Icon = isOk
+    ? CheckCircle2
+    : isUnavailable
+      ? HelpCircle
+      : check.severity === "error"
+        ? XCircle
+        : AlertTriangle;
+
+  const fmt = (v: number | string | undefined, unit?: string) => {
+    if (v === undefined || v === null) return "—";
+    if (typeof v !== "number") return v;
+    if (unit === "currency") return formatCurrency(v);
+    return new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 2 }).format(v);
+  };
 
   return (
-    <Card
-      className={cn(
-        "rounded-xl overflow-hidden border",
-        isOk
-          ? "border-border"
-          : check.severity === "warning"
-            ? "border-amber-300 dark:border-amber-500/40"
-            : "border-red-300 dark:border-red-500/40",
-      )}
-    >
+    <Card className={cn("rounded-xl overflow-hidden border", tone.border)}>
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger asChild>
           <button
@@ -495,11 +543,7 @@ function CheckCard({ check }: { check: CheckResult }) {
             <span
               className={cn(
                 "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
-                isOk
-                  ? "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : check.severity === "warning"
-                    ? "bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400"
-                    : "bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400",
+                tone.chip,
               )}
             >
               <Icon className="h-5 w-5" />
@@ -507,15 +551,17 @@ function CheckCard({ check }: { check: CheckResult }) {
             <span className="flex-1 min-w-0">
               <span className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-foreground">{check.title}</span>
-                <Badge variant={isOk ? "outline" : "destructive"} className="font-normal">
-                  {isOk ? "مطابق" : `${check.issues.length} انحراف`}
+                <Badge variant={tone.badge} className="font-normal">
+                  {isOk || isUnavailable
+                    ? tone.label
+                    : `${check.issues.length} ${tone.label}`}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  ({check.checked} سجل مفحوص)
+                  ({new Intl.NumberFormat("ar-EG").format(check.checked)} سجل مفحوص)
                 </span>
               </span>
               <span className="block text-sm text-muted-foreground mt-1 leading-relaxed">
-                {check.meaning}
+                {isUnavailable ? check.unavailableReason : check.meaning}
               </span>
             </span>
             {!isOk && (
@@ -530,56 +576,89 @@ function CheckCard({ check }: { check: CheckResult }) {
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <CardContent className="pt-0">
-            <div className="rounded-xl border border-border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="text-right">السجل</TableHead>
-                    <TableHead className="text-right">المتوقع</TableHead>
-                    <TableHead className="text-right">الفعلي</TableHead>
-                    <TableHead className="text-right">الفرق</TableHead>
-                    <TableHead className="text-right w-24">المستند</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {check.issues.slice(0, 100).map((issue, i) => (
-                    <TableRow key={`${issue.id}-${i}`}>
-                      <TableCell className="font-medium">{issue.label}</TableCell>
-                      <TableCell className="tabular-nums">{issue.expected}</TableCell>
-                      <TableCell className="tabular-nums">{issue.actual}</TableCell>
-                      <TableCell
-                        className={cn(
-                          "tabular-nums font-semibold",
-                          (issue.diff ?? 0) !== 0 && "text-red-600 dark:text-red-400",
-                        )}
-                      >
-                        {issue.diff ?? "—"}
-                      </TableCell>
-                      <TableCell>
-                        {issue.link ? (
-                          <Button asChild variant="ghost" size="sm">
-                            <Link to={issue.link}>
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Link>
-                          </Button>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
+          <CardContent className="pt-0 space-y-3">
+            {(check.formula || check.action) && (
+              <div className="rounded-lg bg-muted/40 p-3 text-xs space-y-1">
+                {check.formula && (
+                  <p>
+                    <span className="text-muted-foreground">طريقة الحساب: </span>
+                    {check.formula}
+                  </p>
+                )}
+                {check.action && !isUnavailable && check.issues.length > 0 && (
+                  <p>
+                    <span className="text-muted-foreground">الإجراء المقترح: </span>
+                    {check.action}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {check.issues.length > 0 && (
+              <div className="rounded-xl border border-border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="text-right">السجل</TableHead>
+                      <TableHead className="text-right">المتوقع</TableHead>
+                      <TableHead className="text-right">الفعلي</TableHead>
+                      <TableHead className="text-right">الفرق</TableHead>
+                      <TableHead className="text-right w-24">المستند</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {check.issues.slice(0, 100).map((issue, i) => (
+                      <TableRow key={`${issue.id}-${i}`}>
+                        <TableCell className="font-medium">
+                          {issue.label}
+                          {issue.note && (
+                            <span className="block text-xs text-muted-foreground font-normal mt-0.5">
+                              {issue.note}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="tabular-nums">
+                          {fmt(issue.expected, issue.unit)}
+                        </TableCell>
+                        <TableCell className="tabular-nums">
+                          {fmt(issue.actual, issue.unit)}
+                        </TableCell>
+                        <TableCell
+                          className={cn(
+                            "tabular-nums font-semibold",
+                            (issue.diff ?? 0) !== 0 &&
+                              check.severity === "error" &&
+                              "text-red-600 dark:text-red-400",
+                          )}
+                        >
+                          {issue.diff === undefined ? "—" : fmt(issue.diff, issue.unit)}
+                        </TableCell>
+                        <TableCell>
+                          {issue.link ? (
+                            <Button asChild variant="ghost" size="sm">
+                              <Link to={issue.link}>
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Link>
+                            </Button>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
             {check.issues.length > 100 && (
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-xs text-muted-foreground">
                 يتم عرض أول 100 سجل من {check.issues.length}.
               </p>
             )}
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
+
     </Card>
   );
 }
