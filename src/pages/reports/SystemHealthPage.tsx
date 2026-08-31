@@ -138,27 +138,28 @@ export default function SystemHealthPage() {
         fetchAll<any>((f, t) =>
           supabase
             .from("sales_invoices")
-            .select("id, customer_id, total, status, posted_number")
+            .select("id, customer_id, total, status, posted_number, journal_entry_id")
             .range(f, t),
         ),
         fetchAll<any>((f, t) =>
           supabase
             .from("purchase_invoices")
-            .select("id, supplier_id, total, status, posted_number")
+            .select("id, supplier_id, total, status, posted_number, journal_entry_id")
             .range(f, t),
         ),
         fetchAll<any>((f, t) =>
           supabase
             .from("sales_returns")
-            .select("id, customer_id, total, status, posted_number")
+            .select("id, customer_id, total, status, posted_number, journal_entry_id")
             .range(f, t),
         ),
         fetchAll<any>((f, t) =>
           supabase
             .from("purchase_returns")
-            .select("id, supplier_id, total, status, posted_number")
+            .select("id, supplier_id, total, status, posted_number, journal_entry_id")
             .range(f, t),
         ),
+
         fetchAll<any>((f, t) =>
           supabase
             .from("customer_payments")
