@@ -377,7 +377,7 @@ export default function SystemHealthPage() {
         badge={
           lastRun ? (
             <Badge variant="outline" className="font-normal">
-              آخر فحص {lastRun.toLocaleTimeString("ar-EG")}
+              آخر فحص {lastRun.toLocaleTimeString("en-GB")}
             </Badge>
           ) : undefined
         }
@@ -404,7 +404,7 @@ export default function SystemHealthPage() {
             decision="تحديد ما يحتاج تصحيحًا فعليًا قبل الاعتماد على التقارير المالية أو إغلاق الفترة."
             basis="القيود المرحّلة فقط + حركات المخزون + تقييم WAC من دالة تقييم المخزون (نفس مصدر تقرير التقييم)."
             note={`حد التسامح للفروق المالية 1.00، ولكميات المخزون 0.01. الفحوص التي لا يتوفّر مصدر بياناتها تُعرض كـ «تعذّر الفحص» ولا تُحسب انحرافًا.${
-              lastRun ? ` آخر فحص: ${lastRun.toLocaleString("ar-EG")}.` : ""
+              lastRun ? ` آخر فحص: ${lastRun.toLocaleString("en-GB")}.` : ""
             }`}
           />
 
@@ -530,7 +530,7 @@ function CheckCard({
     if (v === undefined || v === null) return "—";
     if (typeof v !== "number") return v;
     if (unit === "currency") return formatCurrency(v);
-    return new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 2 }).format(v);
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(v);
   };
 
   return (
@@ -559,7 +559,7 @@ function CheckCard({
                     : `${check.issues.length} ${tone.label}`}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  ({new Intl.NumberFormat("ar-EG").format(check.checked)} سجل مفحوص)
+                  ({new Intl.NumberFormat("en-US").format(check.checked)} سجل مفحوص)
                 </span>
               </span>
               <span className="block text-sm text-muted-foreground mt-1 leading-relaxed">

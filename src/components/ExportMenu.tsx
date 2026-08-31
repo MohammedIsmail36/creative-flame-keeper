@@ -182,7 +182,7 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
                 <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
                   <span>
                     {determinate
-                      ? `${progress.loaded.toLocaleString("ar-EG")} من ${progress.total.toLocaleString("ar-EG")} سجل`
+                      ? `${progress.loaded.toLocaleString("en-US")} من ${progress.total.toLocaleString("en-US")} سجل`
                       : "جاري حساب الإجمالي..."}
                   </span>
                   <span className="font-medium text-foreground">
