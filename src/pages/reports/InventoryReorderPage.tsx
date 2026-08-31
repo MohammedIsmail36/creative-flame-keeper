@@ -109,7 +109,9 @@ export default function InventoryReorderPage() {
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState("all");
   const [brand, setBrand] = useState("all");
+  const [supplier, setSupplier] = useState("all");
   const [urgency, setUrgency] = useState<"all" | Urgency>("all");
+
   const [search, setSearch] = useState("");
 
   const load = async (from: string, to: string) => {
