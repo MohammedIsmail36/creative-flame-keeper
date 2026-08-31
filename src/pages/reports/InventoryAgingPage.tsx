@@ -110,7 +110,15 @@ export default function InventoryAgingPage() {
     setError(null);
     const { data: res, error: err } = await (supabase.rpc as any)(
       "get_inventory_aging",
-      { p_as_of: date },
+      {
+        p_as_of: date,
+        ...(settings?.inventory_slow_days
+          ? { p_slow_days: settings.inventory_slow_days }
+          : {}),
+        ...(settings?.inventory_dead_days
+          ? { p_dead_days: settings.inventory_dead_days }
+          : {}),
+      },
     );
     if (err) {
       setError(err.message);
