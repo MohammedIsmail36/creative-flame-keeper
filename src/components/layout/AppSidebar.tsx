@@ -535,7 +535,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-l-0 border-e border-border/60" side="right">
-      <SidebarHeader className="p-4 border-b border-border/60">
+      <SidebarHeader className="h-16 px-4 border-b border-border/60 flex items-center">
         <div className="flex items-center gap-3">
           {settings?.logo_url ? (
             <img
