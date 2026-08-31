@@ -328,6 +328,8 @@ export default function InventoryReorderPage() {
           );
         },
         meta: { hideOnMobile: true },
+      },
+
 
       {
         id: "urgency",
