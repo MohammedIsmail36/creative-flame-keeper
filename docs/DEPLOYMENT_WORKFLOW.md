@@ -153,3 +153,39 @@ Ctrl+Shift+P → TypeScript: Restart TS Server
 - لا تشارك `VITE_SUPABASE_PUBLISHABLE_KEY` خارج هذا الملف علناً — رغم أنه مفتاح عام (anon) إلا أن الأفضل بقاؤه ضمن أدوات النشر فقط.
 - `service_role key` لا يوضع أبداً في أوامر البناء أو الواجهة الأمامية.
 - الحماية الفعلية للبيانات تعتمد على **RLS Policies** في قاعدة البيانات.
+
+---
+
+## 8) تحقق بعد الميجريشن (مهم للتحديث الأخير)
+
+التحديث الأخير أضاف دوال تقارير المخزون وإعدادات المخزون. بعد تشغيل الميجريشن تأكد من وجودها في كل شركة:
+
+```bash
+for c in farida-db alibea-db; do
+  echo "== $c"
+  docker exec -i $c psql -U postgres -d postgres -tAc "
+    SELECT proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='public' AND proname IN (
+      'get_inventory_valuation','get_inventory_aging','get_inventory_reorder',
+      'get_inventory_kpis','inventory_product_state','inventory_signed_quantity',
+      'get_account_balances','get_ledger_lines'
+    ) ORDER BY 1;"
+  docker exec -i $c psql -U postgres -d postgres -tAc "
+    SELECT count(*) AS inventory_settings_columns FROM information_schema.columns
+    WHERE table_name='company_settings' AND column_name LIKE 'inventory%';"
+done
+```
+
+المتوقع: ظهور الدوال الثمانية، والعدد `5` لأعمدة إعدادات المخزون.
+
+> ملف الميجريشن `20260831190000_inventory_reports_catchup.sql` **آمن للتكرار** (Idempotent): يستخدم
+> `ADD COLUMN IF NOT EXISTS` و `DROP FUNCTION IF EXISTS` قبل إعادة الإنشاء، ويعيد ضبط صلاحيات
+> التنفيذ (`authenticated`, `service_role` فقط) بعد الإنشاء.
+
+### إن ظهرت أخطاء RPC في الشاشات (404 / function does not exist)
+معناها أن الميجريشن لم يُطبّق على تلك الشركة:
+
+```bash
+cd /opt/accounting-app
+./scripts/migrate-all-companies.sh
+```
