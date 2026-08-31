@@ -155,6 +155,11 @@ export default function InventoryReorderPage() {
           days_of_cover: r.days_of_cover === null ? null : num(r.days_of_cover),
           suggested_qty: num(r.suggested_qty),
           shortage_cost: num(r.shortage_cost),
+          last_purchase_price:
+            r.last_purchase_price === null || r.last_purchase_price === undefined
+              ? null
+              : num(r.last_purchase_price),
+
         })),
       });
     }
