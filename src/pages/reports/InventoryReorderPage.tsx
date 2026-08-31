@@ -22,10 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { ReportPurposeBar } from "@/components/shared/ReportPurposeBar";
+import { productReportFilterFn } from "@/lib/report-filters";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
+
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -47,6 +51,11 @@ interface ReorderRow {
   days_of_cover: number | null;
   suggested_qty: number;
   shortage_cost: number;
+  last_supplier_id: string | null;
+  last_supplier_name: string | null;
+  last_purchase_date: string | null;
+  last_purchase_price: number | null;
+
 }
 
 interface ReorderResult {
@@ -100,7 +109,9 @@ export default function InventoryReorderPage() {
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState("all");
   const [brand, setBrand] = useState("all");
+  const [supplier, setSupplier] = useState("all");
   const [urgency, setUrgency] = useState<"all" | Urgency>("all");
+
   const [search, setSearch] = useState("");
 
   const load = async (from: string, to: string) => {
@@ -144,6 +155,11 @@ export default function InventoryReorderPage() {
           days_of_cover: r.days_of_cover === null ? null : num(r.days_of_cover),
           suggested_qty: num(r.suggested_qty),
           shortage_cost: num(r.shortage_cost),
+          last_purchase_price:
+            r.last_purchase_price === null || r.last_purchase_price === undefined
+              ? null
+              : num(r.last_purchase_price),
+
         })),
       });
     }
@@ -158,11 +174,16 @@ export default function InventoryReorderPage() {
   const rows = data?.rows ?? [];
 
   const categories = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.category_name).filter(Boolean))) as string[],
+    () => Array.from(new Set(rows.map((r) => r.category_name).filter(Boolean))).sort() as string[],
     [rows],
   );
   const brands = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.brand_name).filter(Boolean))) as string[],
+    () => Array.from(new Set(rows.map((r) => r.brand_name).filter(Boolean))).sort() as string[],
+    [rows],
+  );
+  const suppliers = useMemo(
+    () =>
+      Array.from(new Set(rows.map((r) => r.last_supplier_name).filter(Boolean))).sort() as string[],
     [rows],
   );
 
@@ -171,11 +192,13 @@ export default function InventoryReorderPage() {
       rows.filter((r) => {
         if (category !== "all" && (r.category_name ?? "") !== category) return false;
         if (brand !== "all" && (r.brand_name ?? "") !== brand) return false;
+        if (supplier !== "all" && (r.last_supplier_name ?? "") !== supplier) return false;
         if (urgency !== "all" && urgencyOf(r) !== urgency) return false;
         return true;
       }),
-    [rows, category, brand, urgency],
+    [rows, category, brand, supplier, urgency],
   );
+
 
   const totals = useMemo(() => {
     const acc = { cost: 0, qty: 0, out: 0, critical: 0, watch: 0, outCost: 0 };
@@ -284,6 +307,31 @@ export default function InventoryReorderPage() {
         ),
       },
       {
+        id: "last_supplier",
+        header: "آخر مورد",
+        cell: ({ row }) => {
+          const r = row.original;
+          if (!r.last_supplier_name)
+            return <span className="text-xs text-muted-foreground">لا توريد سابق</span>;
+          return (
+            <div className="min-w-[150px]">
+              <div className="font-medium text-sm">{r.last_supplier_name}</div>
+              <div className="text-xs text-muted-foreground">
+                {[
+                  r.last_purchase_date ?? null,
+                  r.last_purchase_price === null ? null : `بسعر ${fmtNum(r.last_purchase_price)}`,
+                ]
+                  .filter(Boolean)
+                  .join(" • ")}
+              </div>
+            </div>
+          );
+        },
+        meta: { hideOnMobile: true },
+      },
+
+
+      {
         id: "urgency",
         header: "الأولوية",
         cell: ({ row }) => {
@@ -316,6 +364,9 @@ export default function InventoryReorderPage() {
         "أيام التغطية",
         "الكمية المقترحة",
         "تكلفة الطلب",
+        "آخر مورد",
+        "تاريخ آخر توريد",
+        "آخر سعر شراء",
         "الأولوية",
       ],
       rows: filtered.map((r) => [
@@ -330,8 +381,12 @@ export default function InventoryReorderPage() {
         r.days_of_cover === null ? "-" : fmtQty(r.days_of_cover),
         fmtQty(r.suggested_qty),
         fmtNum(r.shortage_cost),
+        r.last_supplier_name || "-",
+        r.last_purchase_date || "-",
+        r.last_purchase_price === null ? "-" : fmtNum(r.last_purchase_price),
         URGENCY_META[urgencyOf(r)].label,
       ]),
+
       settings,
       summaryCards: [
         { label: "عدد الأصناف", value: String(filtered.length) },
@@ -365,6 +420,14 @@ export default function InventoryReorderPage() {
           </>
         }
       />
+
+      <ReportPurposeBar
+        what="قائمة الأصناف التي وصلت أو نزلت عن نقطة إعادة الطلب، مع الكمية المقترحة وتكلفتها وآخر مورد وردها."
+        decision="ماذا نشتري، بأي كمية، ومن أي مورد — لإصدار أوامر الشراء وتجنّب النفاد."
+        basis="معدل البيع اليومي من صافي حركات البيع خلال الفترة × مهلة التوريد + مخزون الأمان، والتكلفة بالمتوسط المرجح (WAC)."
+        note="مهلة التوريد وأيام التغطية المستهدفة تُضبط من: الإعدادات ← إعدادات المخزون. البحث يشمل الكود والاسم والماركة ورقم موديل المصنع واسم المورد."
+      />
+
 
       {/* شريط القرار */}
       <Card
@@ -441,7 +504,8 @@ export default function InventoryReorderPage() {
           getRowId={(r) => r.product_id}
           globalFilter={search}
           onGlobalFilterChange={setSearch}
-          searchPlaceholder="بحث بالكود أو الاسم أو الماركة..."
+          globalFilterFn={productReportFilterFn}
+          searchPlaceholder="بحث بالكود أو الاسم أو الماركة أو رقم الموديل أو المورد..."
           pageSize={25}
           compactRows
           emptyMessage="لا توجد أصناف تحت نقطة إعادة الطلب في هذه الفترة"
@@ -467,33 +531,32 @@ export default function InventoryReorderPage() {
                   <SelectItem value="watch">للمراقبة</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="w-[150px] h-9">
-                  <SelectValue placeholder="الفئة" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الفئات</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={brand} onValueChange={setBrand}>
-                <SelectTrigger className="w-[150px] h-9">
-                  <SelectValue placeholder="الماركة" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الماركات</SelectItem>
-                  {brands.map((b) => (
-                    <SelectItem key={b} value={b}>
-                      {b}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={category}
+                onChange={setCategory}
+                options={categories}
+                allLabel="كل الفئات"
+                searchPlaceholder="بحث في الفئات..."
+                className="w-[150px]"
+              />
+              <SearchableSelect
+                value={brand}
+                onChange={setBrand}
+                options={brands}
+                allLabel="كل الماركات"
+                searchPlaceholder="بحث في الماركات..."
+                className="w-[150px]"
+              />
+              <SearchableSelect
+                value={supplier}
+                onChange={setSupplier}
+                options={suppliers}
+                allLabel="كل الموردين"
+                searchPlaceholder="بحث في الموردين..."
+                className="w-[150px]"
+              />
             </div>
+
           }
         />
       )}

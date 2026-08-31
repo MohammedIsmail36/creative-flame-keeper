@@ -18,14 +18,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DatePickerInput } from "@/components/DatePickerInput";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
+
+import { ReportPurposeBar } from "@/components/shared/ReportPurposeBar";
+import { productReportFilterFn } from "@/lib/report-filters";
 import { supabase } from "@/integrations/supabase/client";
+
 import { useSettings } from "@/contexts/SettingsContext";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
@@ -44,7 +42,11 @@ interface ValuationRow {
   unit_cost: number;
   value: number;
   moves_value: number;
+  last_supplier_name: string | null;
+  last_purchase_date: string | null;
+  last_purchase_price: number | null;
 }
+
 
 interface ValuationResult {
   as_of: string;
@@ -71,6 +73,8 @@ export default function InventoryValuationPage() {
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState("all");
   const [brand, setBrand] = useState("all");
+  const [supplier, setSupplier] = useState("all");
+
   const [search, setSearch] = useState("");
 
   const load = async (date: string) => {
@@ -98,6 +102,11 @@ export default function InventoryValuationPage() {
           unit_cost: num(r.unit_cost),
           value: num(r.value),
           moves_value: num(r.moves_value),
+          last_purchase_price:
+            r.last_purchase_price === null || r.last_purchase_price === undefined
+              ? null
+              : num(r.last_purchase_price),
+
         })),
       });
     }
@@ -112,11 +121,16 @@ export default function InventoryValuationPage() {
   const rows = data?.rows ?? [];
 
   const categories = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.category_name).filter(Boolean))) as string[],
+    () => Array.from(new Set(rows.map((r) => r.category_name).filter(Boolean))).sort() as string[],
     [rows],
   );
   const brands = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.brand_name).filter(Boolean))) as string[],
+    () => Array.from(new Set(rows.map((r) => r.brand_name).filter(Boolean))).sort() as string[],
+    [rows],
+  );
+  const suppliers = useMemo(
+    () =>
+      Array.from(new Set(rows.map((r) => r.last_supplier_name).filter(Boolean))).sort() as string[],
     [rows],
   );
 
@@ -125,10 +139,12 @@ export default function InventoryValuationPage() {
       rows.filter((r) => {
         if (category !== "all" && (r.category_name ?? "") !== category) return false;
         if (brand !== "all" && (r.brand_name ?? "") !== brand) return false;
+        if (supplier !== "all" && (r.last_supplier_name ?? "") !== supplier) return false;
         return true;
       }),
-    [rows, category, brand],
+    [rows, category, brand, supplier],
   );
+
 
   const totals = useMemo(
     () =>
@@ -264,7 +280,19 @@ export default function InventoryValuationPage() {
       filenamePrefix: "inventory-valuation",
       sheetName: "تقييم المخزون",
       pdfTitle: `تقييم المخزون حتى ${asOf}`,
-      headers: ["الكود", "الصنف", "الماركة", "رقم الموديل", "الفئة", "الكمية", "متوسط التكلفة", "قيمة المخزون"],
+      headers: [
+        "الكود",
+        "الصنف",
+        "الماركة",
+        "رقم الموديل",
+        "الفئة",
+        "الكمية",
+        "متوسط التكلفة",
+        "قيمة المخزون",
+        "آخر مورد",
+        "تاريخ آخر توريد",
+        "آخر سعر شراء",
+      ],
       rows: filtered.map((r) => [
         r.code,
         r.name,
@@ -274,7 +302,11 @@ export default function InventoryValuationPage() {
         fmtQty(r.quantity),
         fmtNum(r.unit_cost),
         fmtNum(r.value),
+        r.last_supplier_name || "-",
+        r.last_purchase_date || "-",
+        r.last_purchase_price === null ? "-" : fmtNum(r.last_purchase_price),
       ]),
+
       settings,
       summaryCards: [
         { label: "قيمة المخزون (WAC)", value: fmtNum(totals.value) },
@@ -303,6 +335,14 @@ export default function InventoryValuationPage() {
           </>
         }
       />
+
+      <ReportPurposeBar
+        what="قيمة المخزون لكل صنف بالكمية ومتوسط التكلفة حتى تاريخ محدد، مع شريط مطابقة مقابل حساب المخزون 1104."
+        decision="التأكد من صحة أرقام المخزون المحاسبية قبل إغلاق الفترة، وتحديد الأصناف ذات الأرصدة الشاذة (سالبة أو صفرية بقيمة)."
+        basis="متوسط التكلفة المرجح (WAC) محسوب من حركات المخزون الفعلية حتى تاريخ التقييم، ومقارنته برصيد 1104 في القيود المرحلة."
+        note="التصدير يشمل آخر مورد وتاريخ وسعر آخر توريد لكل صنف. البحث يشمل الكود والاسم والماركة ورقم موديل المصنع والمورد."
+      />
+
 
       {/* شريط المطابقة مع الدفاتر */}
       <Card
@@ -413,7 +453,8 @@ export default function InventoryValuationPage() {
           getRowId={(r) => r.product_id}
           globalFilter={search}
           onGlobalFilterChange={setSearch}
-          searchPlaceholder="بحث بالكود أو الاسم أو الماركة..."
+          globalFilterFn={productReportFilterFn}
+          searchPlaceholder="بحث بالكود أو الاسم أو الماركة أو رقم الموديل أو المورد..."
           pageSize={25}
           compactRows
           emptyMessage="لا توجد أصناف بقيمة أو حركة في هذا التاريخ"
@@ -422,32 +463,31 @@ export default function InventoryValuationPage() {
               <div className="w-[150px]">
                 <DatePickerInput value={asOf} onChange={(v) => setAsOf(v || todayISO())} />
               </div>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="w-[150px] h-9">
-                  <SelectValue placeholder="الفئة" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الفئات</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={brand} onValueChange={setBrand}>
-                <SelectTrigger className="w-[150px] h-9">
-                  <SelectValue placeholder="الماركة" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الماركات</SelectItem>
-                  {brands.map((b) => (
-                    <SelectItem key={b} value={b}>
-                      {b}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={category}
+                onChange={setCategory}
+                options={categories}
+                allLabel="كل الفئات"
+                searchPlaceholder="بحث في الفئات..."
+                className="w-[150px]"
+              />
+              <SearchableSelect
+                value={brand}
+                onChange={setBrand}
+                options={brands}
+                allLabel="كل الماركات"
+                searchPlaceholder="بحث في الماركات..."
+                className="w-[150px]"
+              />
+              <SearchableSelect
+                value={supplier}
+                onChange={setSupplier}
+                options={suppliers}
+                allLabel="كل الموردين"
+                searchPlaceholder="بحث في الموردين..."
+                className="w-[150px]"
+              />
+
             </div>
           }
         />

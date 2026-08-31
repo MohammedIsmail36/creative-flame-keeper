@@ -24,7 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { ReportPurposeBar } from "@/components/shared/ReportPurposeBar";
+import { productReportFilterFn } from "@/lib/report-filters";
 import { supabase } from "@/integrations/supabase/client";
+
 import { useSettings } from "@/contexts/SettingsContext";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
@@ -392,7 +396,15 @@ export default function InventoryAgingPage() {
         }
       />
 
+      <ReportPurposeBar
+        what="توزيع أصناف المخزون على شرائح عمرية حسب آخر توريد، مع تصنيف حالة الحركة (متحرك / بطيء / راكد) حسب آخر بيع."
+        decision="تحديد الأصناف المجمّدة للمال والتي تحتاج تخفيض سعر أو تصفية أو إيقاف شراء، وقياس نسبة رأس المال المحتجز."
+        basis="عمر الصنف = الأيام من آخر عملية توريد. حالة الحركة = الأيام من آخر بيع مقارنة بحدود البطيء/الركود من إعدادات المخزون. القيمة بمتوسط التكلفة المرجح (WAC)."
+        note="مؤشر NRV يقارن سعر البيع بالتكلفة لتحديد الأصناف المهددة بخسارة عند التصفية."
+      />
+
       {/* شريط القاعدة المستخدمة */}
+
       <Card
         className={cn(
           "border-r-4 rounded-xl",
@@ -528,7 +540,8 @@ export default function InventoryAgingPage() {
           getRowId={(r) => r.product_id}
           globalFilter={search}
           onGlobalFilterChange={setSearch}
-          searchPlaceholder="بحث بالكود أو الاسم أو الماركة..."
+          globalFilterFn={productReportFilterFn}
+          searchPlaceholder="بحث بالكود أو الاسم أو الماركة أو رقم الموديل..."
           pageSize={25}
           compactRows
           emptyMessage="لا توجد أصناف بكمية موجبة في هذا التاريخ"
@@ -561,32 +574,23 @@ export default function InventoryAgingPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="w-[150px] h-9">
-                  <SelectValue placeholder="الفئة" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الفئات</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={brand} onValueChange={setBrand}>
-                <SelectTrigger className="w-[150px] h-9">
-                  <SelectValue placeholder="الماركة" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الماركات</SelectItem>
-                  {brands.map((b) => (
-                    <SelectItem key={b} value={b}>
-                      {b}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={category}
+                onChange={setCategory}
+                options={categories}
+                allLabel="كل الفئات"
+                searchPlaceholder="بحث في الفئات..."
+                className="w-[150px]"
+              />
+              <SearchableSelect
+                value={brand}
+                onChange={setBrand}
+                options={brands}
+                allLabel="كل الماركات"
+                searchPlaceholder="بحث في الماركات..."
+                className="w-[150px]"
+              />
+
             </div>
           }
         />
