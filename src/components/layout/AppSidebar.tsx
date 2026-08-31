@@ -27,7 +27,6 @@ import {
   AlertTriangle,
   Sparkles,
   Archive,
-  Undo2,
   ShieldAlert,
   Eye,
   ShieldCheck,
