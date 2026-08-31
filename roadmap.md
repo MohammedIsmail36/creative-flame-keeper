@@ -6,7 +6,8 @@
 - [x] `src/lib/journal-writer.ts` كبوابة وحيدة لكتابة القيود
 - [x] تحويل كل مواضع كتابة القيود (فواتير، مرتجعات، سندات، مصروفات، تسويات، أرصدة افتتاحية، إقفال، قيود يدوية)
 - [x] اختبارات وحدة للبوابة (`journal-writer.test.ts`)
-- [ ] تفكيك الملفات الضخمة: `TurnoverDataContext` → `InventoryReport` → `ProductAnalytics` → `SalesReport` → `PurchasesReport` → `GrowthAnalytics`
+- [x] تفكيك `TurnoverDataContext` (1402 → 343 سطر) إلى `src/lib/turnover/*` + `useTurnoverQueries` مع 21 اختبارًا
+- [ ] تفكيك الملفات الضخمة المتبقية: `InventoryReport` → `ProductAnalytics` → `SalesReport` → `PurchasesReport` → `GrowthAnalytics`
 - [ ] تحميل مؤجل للتقارير الثقيلة و`pdf-arabic.ts`
 - [ ] تدقيق الحسابات المكررة محليًا وحذفها
 
