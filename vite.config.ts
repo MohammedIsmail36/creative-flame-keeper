@@ -19,5 +19,8 @@ export default defineConfig(() => ({
   },
   build: {
     chunkSizeWarningLimit: 800,
+    // Avoid the extra memory spike from gzipping every output chunk during
+    // production builds on the deployment server.
+    reportCompressedSize: false,
   },
 }));

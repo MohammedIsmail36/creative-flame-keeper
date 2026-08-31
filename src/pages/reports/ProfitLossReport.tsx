@@ -16,6 +16,7 @@ import {
   REPORT_ENTRY_STATUSES,
   isClosingDescription,
 } from "@/lib/report-period";
+import { notify } from "@/lib/notify";
 
 
 interface AccountLine {
@@ -31,6 +32,23 @@ interface MonthColumn {
   key: string; // "2026-01"
   label: string; // "يناير 2026"
 }
+
+interface ReportJournalLine {
+  id: string;
+  account_id: string;
+  debit: number;
+  credit: number;
+  journal_entries: {
+    entry_date: string;
+    status: string;
+    description: string | null;
+  };
+}
+
+// PostgREST encodes `in` filters in the URL. Keep account batches short, and
+// page the result so the report remains correct beyond the API's row limit.
+const ACCOUNT_ID_BATCH_SIZE = 40;
+const QUERY_PAGE_SIZE = 1_000;
 
 export default function ProfitLossReport() {
   const { formatCurrency, settings } = useSettings();
@@ -84,41 +102,45 @@ export default function ProfitLossReport() {
 
     const accountIds = accounts.map((a) => a.id);
 
-    // Fetch journal entry lines for these accounts (current + prev year)
-    const { data: lines } = await supabase
-      .from("journal_entry_lines")
-      .select("account_id, debit, credit, journal_entry_id")
-      .in("account_id", accountIds);
+    // Fetch only lines whose entries are in the report period. Joining here
+    // avoids a second `journal_entries?id=in.(...)` request containing hundreds
+    // of UUIDs, which exceeds the production reverse proxy's URL limit.
+    const lines: ReportJournalLine[] = [];
+    for (let i = 0; i < accountIds.length; i += ACCOUNT_ID_BATCH_SIZE) {
+      const accountIdBatch = accountIds.slice(i, i + ACCOUNT_ID_BATCH_SIZE);
 
-    if (!lines?.length) {
+      for (let from = 0; ; from += QUERY_PAGE_SIZE) {
+        const { data: page, error } = await supabase
+          .from("journal_entry_lines")
+          .select(
+            "id, account_id, debit, credit, journal_entries!inner(entry_date, status, description)",
+          )
+          .in("account_id", accountIdBatch)
+          .in("journal_entries.status", [...REPORT_ENTRY_STATUSES])
+          .gte("journal_entries.entry_date", prevYearStart)
+          .lte("journal_entries.entry_date", currentYearEnd)
+          .order("id", { ascending: true })
+          .range(from, from + QUERY_PAGE_SIZE - 1);
+
+        if (error) {
+          notify.error("تعذر تحميل قائمة الأرباح والخسائر", error.message);
+          setRevenueLines([]);
+          setExpenseLines([]);
+          setLoading(false);
+          return;
+        }
+
+        if (page) lines.push(...page);
+        if (!page || page.length < QUERY_PAGE_SIZE) break;
+      }
+    }
+
+    if (!lines.length) {
       setRevenueLines([]);
       setExpenseLines([]);
       setLoading(false);
       return;
     }
-
-    // Get posted entries within date range
-    const entryIds = [...new Set(lines.map((l) => l.journal_entry_id))];
-    
-    // Fetch entries in chunks to handle large datasets
-    const allEntries: any[] = [];
-    for (let i = 0; i < entryIds.length; i += 500) {
-      const chunk = entryIds.slice(i, i + 500);
-      const { data: entries } = await supabase
-        .from("journal_entries")
-        .select("id, entry_date, status, description")
-        .in("id", chunk)
-        .in("status", [...REPORT_ENTRY_STATUSES])
-        .gte("entry_date", prevYearStart)
-        .lte("entry_date", currentYearEnd);
-      if (entries) allEntries.push(...entries);
-    }
-
-    const entryMap = new Map<string, string>(); // id -> entry_date
-    allEntries
-      // استثناء قيود الإقفال السنوي حتى لا تُصفّر نتائج ديسمبر
-      .filter((e) => !isClosingDescription(e.description))
-      .forEach((e) => entryMap.set(e.id, e.entry_date));
 
 
     // Build account data
@@ -129,8 +151,10 @@ export default function ProfitLossReport() {
     });
 
     lines.forEach((l) => {
-      const entryDate = entryMap.get(l.journal_entry_id);
-      if (!entryDate) return;
+      const entry = l.journal_entries;
+      const entryDate = entry?.entry_date;
+      // استثناء قيود الإقفال السنوي حتى لا تُصفّر نتائج ديسمبر
+      if (!entryDate || isClosingDescription(entry.description)) return;
 
       const acc = accountMap.get(l.account_id);
       if (!acc) return;
