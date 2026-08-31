@@ -362,6 +362,9 @@ export default function InventoryReorderPage() {
         "أيام التغطية",
         "الكمية المقترحة",
         "تكلفة الطلب",
+        "آخر مورد",
+        "تاريخ آخر توريد",
+        "آخر سعر شراء",
         "الأولوية",
       ],
       rows: filtered.map((r) => [
@@ -376,8 +379,12 @@ export default function InventoryReorderPage() {
         r.days_of_cover === null ? "-" : fmtQty(r.days_of_cover),
         fmtQty(r.suggested_qty),
         fmtNum(r.shortage_cost),
+        r.last_supplier_name || "-",
+        r.last_purchase_date || "-",
+        r.last_purchase_price === null ? "-" : fmtNum(r.last_purchase_price),
         URGENCY_META[urgencyOf(r)].label,
       ]),
+
       settings,
       summaryCards: [
         { label: "عدد الأصناف", value: String(filtered.length) },
