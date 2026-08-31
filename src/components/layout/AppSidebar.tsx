@@ -290,6 +290,12 @@ const sections: MenuSection[] = [
         roles: ["admin", "accountant"],
       },
       {
+        title: "تعمير المخزون والركود",
+        url: "/reports/inventory-aging",
+        icon: Package,
+        roles: ["admin", "accountant"],
+      },
+      {
         title: "قيمة المخزون والمطابقة",
         url: "/reports/inventory",
         icon: Package,

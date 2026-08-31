@@ -41,6 +41,7 @@ export const routeLabels: Record<string, string> = {
   commission: "حاسبة العمولة",
   "inventory-reconciliation": "تسوية المخزون",
   "inventory-valuation": "تقييم المخزون",
+  "inventory-aging": "تعمير المخزون",
   "system-health": "سلامة البيانات",
 
   "inventory-turnover": "دوران المخزون",

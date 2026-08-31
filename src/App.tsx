@@ -81,6 +81,7 @@ const ProfitLossPage = lazy(() => import("./pages/reports/ProfitLossPage"));
 const CommissionCalculatorPage = lazy(() => import("./pages/reports/CommissionCalculatorPage"));
 const InventoryReconciliationPage = lazy(() => import("./pages/reports/InventoryReconciliationPage"));
 const InventoryValuationPage = lazy(() => import("./pages/reports/InventoryValuationPage"));
+const InventoryAgingPage = lazy(() => import("./pages/reports/InventoryAgingPage"));
 const SystemHealthPage = lazy(() => import("./pages/reports/SystemHealthPage"));
 
 
@@ -159,6 +160,7 @@ const App = () => (
             <Route path="/reports/profit-loss" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProfitLossPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/commission" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<CommissionCalculatorPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/inventory-valuation" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryValuationPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/inventory-aging" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryAgingPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/inventory-reconciliation" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryReconciliationPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/system-health" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<SystemHealthPage />)}</AppLayout></ProtectedRoute>} />
 
