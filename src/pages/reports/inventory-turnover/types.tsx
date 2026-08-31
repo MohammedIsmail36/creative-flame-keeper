@@ -1,4 +1,3 @@
-import { ReactNode } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -7,6 +6,19 @@ import {
 } from "@/components/ui/tooltip";
 import { ArrowUp, ArrowDown, Minus, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// الأنواع والثوابت الحسابية موحّدة في src/lib/turnover/constants.ts
+export {
+  DAYS_CONSIDERED_NEW,
+  TURNOVER_LABELS,
+  TURNOVER_PIE_COLORS,
+  getTurnoverSpeed,
+} from "@/lib/turnover/constants";
+export type {
+  ABCClass,
+  ProductTurnoverData,
+  TurnoverClass,
+} from "@/lib/turnover/constants";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -19,97 +31,7 @@ export const fmt = (n: number) =>
 export const fmtInt = (n: number) =>
   n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 
-export const DAYS_CONSIDERED_NEW = 30;
-
-// ─── types ───────────────────────────────────────────────────────────────────
-
-export type TurnoverClass =
-  | "excellent"
-  | "good"
-  | "slow"
-  | "stagnant"
-  | "new"
-  | "new_unlisted"
-  | "inactive";
-
-export type ABCClass = "A" | "B" | "C" | "excluded";
-
-export interface ProductTurnoverData {
-  productId: string;
-  productCode: string;
-  productName: string;
-  categoryName: string;
-  categoryId: string | null;
-  currentStock: number;
-  stockValue: number | null;
-  soldQty: number;
-  grossSoldQty: number;
-  returnedQty: number;
-  purchasedQty: number;
-  grossPurchasedQty: number;
-  purchaseReturnedQty: number;
-  avgDailySales: number;
-  lastSaleDate: string | null;
-  lastPurchaseDate: string | null;
-  lastPurchasePrice: number | null;
-  wac: number | null;
-  sellingPrice: number | null;
-  profitMargin: number | null;
-  turnoverRate: number | null;
-  turnoverClass: TurnoverClass;
-  abcClass: ABCClass;
-  coverageDays: number | null;
-  actionPriority: 1 | 2 | 3 | null;
-  actionLabel: string | null;
-  revenue: number;
-  lastSupplierName: string | null;
-  isActive: boolean;
-  minStockLevel: number | null;
-  belowMinStock: boolean;
-  suggestedPurchaseQty: number;
-  daysSinceLastSale: number | null;
-  daysSinceLastPurchase: number | null;
-  effectiveAge: number;
-  supplierReturnCandidate: boolean;
-  supplierReturnReason: string | null;
-  // ── Deep analysis fields (decision-maker friendly) ──────────────
-  firstActivityDate: string | null;          // أقل تاريخ من (شراء، بيع، إنشاء)
-  daysSinceFirstActivity: number;            // عمر فعلي من أول حركة
-  salesVariability: number | null;           // CV للمبيعات الأسبوعية
-  isSeasonalOrVolatile: boolean;             // CV > 1.5
-  priorYearSalesQty: number | null;          // مبيعات نفس الفترة العام الماضي
-  lostSale: boolean;                         // currentStock=0 + soldQty>0 + لم يُشترى منذ +14 يوم
-  daysWithoutRepurchase: number | null;      // أيام منذ آخر شراء عند نفاد المخزون
-  // Health Flags
-  flagHighReturns: boolean;                  // returnedQty/grossSold > 30%
-  flagNoSellingPrice: boolean;               // sellingPrice null/0
-  flagNegativeMargin: boolean;               // wac > sellingPrice
-  flagZeroWac: boolean;                      // مخزون موجود بدون WAC
-  flagFullySupplierReturned: boolean;        // اشتُري ثم أُرجِع كله للمورد
-  flagNoMinStock: boolean;                   // A/B بدون min_stock_level
-  hasAnyHealthFlag: boolean;
-}
-
-// ─── constants ───────────────────────────────────────────────────────────────
-
-export const TURNOVER_LABELS: Record<TurnoverClass, string> = {
-  excellent: "ممتاز",
-  good: "جيد",
-  slow: "بطيء",
-  stagnant: "راكد",
-  new: "جديد",
-  new_unlisted: "جديد",
-  inactive: "غير نشط",
-};
-
-export const TURNOVER_PIE_COLORS: Record<string, string> = {
-  ممتاز: "hsl(152, 69%, 41%)",
-  جيد: "hsl(217, 91%, 60%)",
-  بطيء: "hsl(45, 93%, 47%)",
-  راكد: "hsl(0, 72%, 51%)",
-  جديد: "hsl(220, 14%, 70%)",
-  "غير نشط": "hsl(0, 0%, 50%)",
-};
+// ─── constants (UI only) ────────────────────────────────────────────────────
 
 export const MATRIX_DECISIONS: Record<
   string,
@@ -170,12 +92,6 @@ export const MATRIX_DECISIONS: Record<
     border: "border-red-200 dark:border-red-500/30",
   },
 };
-
-export function getTurnoverSpeed(tc: TurnoverClass): "fast" | "medium" | "slow" {
-  if (tc === "excellent") return "fast";
-  if (tc === "good") return "medium";
-  return "slow";
-}
 
 // ─── shared sub-components ───────────────────────────────────────────────────
 
@@ -241,9 +157,7 @@ export const PriorityDot = ({ priority }: { priority: 1 | 2 | 3 | null }) => {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span
-            className={cn("inline-block w-2 h-2 rounded-full ring-2", cls)}
-          />
+          <span className={cn("inline-block w-2 h-2 rounded-full ring-2", cls)} />
         </TooltipTrigger>
         <TooltipContent side="top" className="text-xs">
           {tip}

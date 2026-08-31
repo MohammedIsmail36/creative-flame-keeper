@@ -1,45 +1,36 @@
-import { createContext, useContext, useState, useMemo, useEffect, useRef, ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  createContext,
+  useContext,
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  ReactNode,
+} from "react";
 import { useSettings } from "@/contexts/SettingsContext";
 import { format, differenceInDays, subDays } from "date-fns";
-import { formatProductDisplay } from "@/lib/product-utils";
 import { buildCategoryTree, getDescendantIds } from "@/lib/category-utils";
 import {
-  ProductTurnoverData,
-  TurnoverClass,
-  ABCClass,
-  TURNOVER_LABELS,
-  TURNOVER_PIE_COLORS,
-  DAYS_CONSIDERED_NEW,
-  getTurnoverSpeed,
-} from "./types";
+  aggregatePrevSalesByProduct,
+  aggregatePurchasesByProduct,
+  aggregateQuantityByProduct,
+  aggregateReturnsByProduct,
+  aggregateSalesByProduct,
+  computeFirstActivityMap,
+  computeVariabilityByProduct,
+  computeWacMap,
+} from "@/lib/turnover/aggregations";
+import { computeTurnoverData } from "@/lib/turnover/compute";
+import { computeTurnoverDerived } from "@/lib/turnover/derived";
+import { computeTurnoverKpis, TurnoverKPIValues } from "@/lib/turnover/kpis";
+import { ProductTurnoverData } from "@/lib/turnover/constants";
+import {
+  CategoryRow,
+  useLastActivityDate,
+  useTurnoverQueries,
+} from "./useTurnoverQueries";
 
-// ─── KPI values ──────────────────────────────────────────────────────────────
-
-export interface TurnoverKPIValues {
-  avgTurnover: number;
-  stagnantVal: number;
-  urgentBuy: number;
-  classACount: number;
-  classAPct: number;
-  turnoverChange: number | null;
-  stagnantChange: number | null;
-  belowMinCount: number;
-  totalSuggestedCost: number;
-  inactiveStockValue: number;
-  supplierReturnValue: number;
-  // GL reconciliation
-  glInventoryBalance: number;
-  operationalTotalValue: number;
-  inventoryDiff: number;
-  // Deep analytics KPIs
-  frozenCapitalPct: number;          // (stagnant + inactive) / operationalTotalValue × 100
-  customerReturnRate: number;        // Σ returnedQty / Σ grossSoldQty × 100
-  shortPeriodWarning: boolean;       // periodDays < 14
-  lostSaleCount: number;             // عدد فرص البيع الضائعة
-  healthFlagsCount: number;          // عدد المنتجات بأي علامة صحة
-}
+export type { TurnoverKPIValues };
 
 // ─── context value ───────────────────────────────────────────────────────────
 
@@ -51,17 +42,12 @@ interface TurnoverDataContextValue {
   setDateTo: (v: string) => void;
   categoryFilter: string;
   setCategoryFilter: (v: string) => void;
-  // Last sales activity date in the system (for default period anchor)
   lastActivityDate: string | null;
-  // Whether the displayed period was auto-aligned to last activity (i.e. user hasn't touched dates)
   isPeriodAutoAligned: boolean;
-  // Reset dates back to "last 30 days ending at last activity"
   resetPeriodToLastActivity: () => void;
 
-  // Loading
   isLoading: boolean;
 
-  // Core data
   allTurnoverData: ProductTurnoverData[];
 
   // Derived datasets
@@ -83,17 +69,10 @@ interface TurnoverDataContextValue {
   newProductsCount: number;
   allProductsNew: boolean;
 
-  // KPIs
   kpis: TurnoverKPIValues;
-
-  // Categories for filter
-  categories: any[];
-
-  // Unique suppliers list
+  categories: CategoryRow[];
   uniqueSuppliers: string[];
-
-  // Settings
-  settings: any;
+  settings: ReturnType<typeof useSettings>["settings"];
 }
 
 const TurnoverDataContext = createContext<TurnoverDataContextValue | null>(
@@ -117,7 +96,7 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
   );
   const [dateTo, setDateToState] = useState(format(new Date(), "yyyy-MM-dd"));
   const [categoryFilter, setCategoryFilter] = useState("all");
-  // Track whether the user has manually changed dates (touched = true → don't auto-align)
+  // هل عدّل المستخدم التواريخ يدويًا؟ (حينها لا نعيد المحاذاة تلقائيًا)
   const userTouchedDatesRef = useRef(false);
   const setDateFrom = (v: string) => {
     userTouchedDatesRef.current = true;
@@ -128,1212 +107,186 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
     setDateToState(v);
   };
 
-  // ── fetch last sales activity date (anchor for default period) ───────────
-  const { data: lastActivityDate = null } = useQuery({
-    queryKey: ["turnover-last-activity-date"],
-    staleTime: 10 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_invoices")
-        .select("invoice_date")
-        .eq("status", "posted")
-        .order("invoice_date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return (data?.invoice_date as string) ?? null;
-    },
-  });
+  const { data: lastActivityDate = null } = useLastActivityDate();
 
-  // Auto-align default period to "last 30 days ending at last activity" — once, only if untouched
+  // محاذاة الفترة الافتراضية مع آخر نشاط — مرة واحدة وفقط إن لم يعدّلها المستخدم
   useEffect(() => {
     if (!lastActivityDate || userTouchedDatesRef.current) return;
     const todayStr = format(new Date(), "yyyy-MM-dd");
-    // Only realign if current dateTo is "today" (i.e. still the initial default)
     if (dateTo !== todayStr) return;
-    const newTo = lastActivityDate;
-    const newFrom = format(subDays(new Date(lastActivityDate), 30), "yyyy-MM-dd");
-    setDateFromState(newFrom);
-    setDateToState(newTo);
+    setDateFromState(
+      format(subDays(new Date(lastActivityDate), 30), "yyyy-MM-dd"),
+    );
+    setDateToState(lastActivityDate);
   }, [lastActivityDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isPeriodAutoAligned = !userTouchedDatesRef.current && !!lastActivityDate && dateTo === lastActivityDate;
+  const isPeriodAutoAligned =
+    !userTouchedDatesRef.current &&
+    !!lastActivityDate &&
+    dateTo === lastActivityDate;
 
   const resetPeriodToLastActivity = () => {
     if (!lastActivityDate) return;
     userTouchedDatesRef.current = false;
     setDateToState(lastActivityDate);
-    setDateFromState(format(subDays(new Date(lastActivityDate), 30), "yyyy-MM-dd"));
+    setDateFromState(
+      format(subDays(new Date(lastActivityDate), 30), "yyyy-MM-dd"),
+    );
   };
 
   const rawPeriodDays = Math.max(
     differenceInDays(new Date(dateTo), new Date(dateFrom)),
     1,
   );
-  // حماية رياضية: نضمن حد أدنى 7 أيام لتجنب تطرف coverageDays/avgDailySales في الفترات القصيرة
+  // حماية رياضية: حد أدنى 7 أيام لتجنب تطرف التغطية/المتوسط اليومي
   const periodDays = Math.max(rawPeriodDays, 7);
   const prevFrom = format(
     subDays(new Date(dateFrom), rawPeriodDays),
     "yyyy-MM-dd",
   );
   const prevTo = format(subDays(new Date(dateFrom), 1), "yyyy-MM-dd");
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
 
-  // ── queries ──────────────────────────────────────────────────────────────
-
-  const { data: products = [], isLoading: loadingProducts } = useQuery({
-    queryKey: ["turnover-products"],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select(
-          "id, code, name, quantity_on_hand, purchase_price, selling_price, category_id, is_active, created_at, min_stock_level, model_number, product_categories(name), product_brands(name)",
-        )
-        .order("name");
-      if (error) throw error;
-      return data as any[];
-    },
+  const {
+    products,
+    salesData,
+    prevSalesData,
+    purchaseData,
+    categories,
+    salesReturnData,
+    prevSalesReturnData,
+    purchaseReturnData,
+    movements,
+    firstActivityMovements,
+    priorYearSalesData,
+    weeklySalesData,
+    glInventoryBalance,
+    isLoading,
+  } = useTurnoverQueries({
+    dateFrom,
+    dateTo,
+    prevFrom,
+    prevTo,
+    lockedUntilDate: settings?.locked_until_date,
   });
-
-  const { data: salesData = [], isLoading: loadingSales } = useQuery({
-    queryKey: ["turnover-sales", dateFrom, dateTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_invoice_items")
-        .select(
-          "product_id, quantity, total, unit_price, invoice:sales_invoices!inner(invoice_date, status)",
-        )
-        .gte("invoice.invoice_date", dateFrom)
-        .lte("invoice.invoice_date", dateTo)
-        .eq("invoice.status", "posted");
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  const { data: prevSalesData = [] } = useQuery({
-    queryKey: ["turnover-prev-sales", prevFrom, prevTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_invoice_items")
-        .select(
-          "product_id, quantity, total, invoice:sales_invoices!inner(invoice_date, status)",
-        )
-        .gte("invoice.invoice_date", prevFrom)
-        .lte("invoice.invoice_date", prevTo)
-        .eq("invoice.status", "posted");
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  const twoYearsAgo = format(subDays(new Date(), 730), "yyyy-MM-dd");
-  const { data: purchaseData = [], isLoading: loadingPurchases } = useQuery({
-    queryKey: ["turnover-purchases"],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("purchase_invoice_items")
-        .select(
-          "product_id, quantity, unit_price, invoice:purchase_invoices!inner(invoice_date, status, supplier_id, suppliers(name))",
-        )
-        .eq("invoice.status", "posted")
-        .gte("invoice.invoice_date", twoYearsAgo)
-        .order("invoice_date", {
-          ascending: false,
-          foreignTable: "purchase_invoices",
-        });
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  const { data: categories = [] } = useQuery({
-    queryKey: ["turnover-categories"],
-    staleTime: 10 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("product_categories")
-        .select("id, name, parent_id")
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  const { data: salesReturnData = [] } = useQuery({
-    queryKey: ["turnover-sales-returns", dateFrom, dateTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_return_items")
-        .select(
-          "product_id, quantity, total, ret:sales_returns!inner(return_date, status)",
-        )
-        .gte("ret.return_date", dateFrom)
-        .lte("ret.return_date", dateTo)
-        .eq("ret.status", "posted");
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  // Previous-period sales returns (لخصمها من مبيعات الفترة السابقة في المقارنة)
-  const { data: prevSalesReturnData = [] } = useQuery({
-    queryKey: ["turnover-prev-sales-returns", prevFrom, prevTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_return_items")
-        .select(
-          "product_id, quantity, ret:sales_returns!inner(return_date, status)",
-        )
-        .gte("ret.return_date", prevFrom)
-        .lte("ret.return_date", prevTo)
-        .eq("ret.status", "posted");
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  // GL balance لحساب المخزون 1104 (مصدر الحقيقة المحاسبي)
-  const { data: glInventoryBalance = 0 } = useQuery({
-    queryKey: ["turnover-gl-1104", settings?.locked_until_date],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data: acc, error: accErr } = await supabase
-        .from("accounts")
-        .select("id")
-        .eq("code", "1104")
-        .maybeSingle();
-      if (accErr) throw accErr;
-      if (!acc?.id) return 0;
-      let q = supabase
-        .from("journal_entry_lines")
-        .select("debit, credit, journal_entries!inner(status, entry_date)")
-        .eq("account_id", acc.id)
-        .eq("journal_entries.status", "posted");
-      if (settings?.locked_until_date) {
-        q = q.gt("journal_entries.entry_date", settings.locked_until_date);
-      }
-      const { data, error } = await q;
-      if (error) throw error;
-      const balance = (data ?? []).reduce(
-        (s: number, l: any) => s + Number(l.debit || 0) - Number(l.credit || 0),
-        0,
-      );
-      return Math.round(balance * 100) / 100;
-    },
-  });
-
-  const { data: purchaseReturnData = [] } = useQuery({
-    queryKey: ["turnover-purchase-returns"],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("purchase_return_items")
-        .select(
-          "product_id, quantity, total, ret:purchase_returns!inner(return_date, status)",
-        )
-        .gte("ret.return_date", twoYearsAgo)
-        .eq("ret.status", "posted");
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  // ── WAC per product (يشمل adjustments للاتساق مع GL 1104) ──────────────
-  const { data: wacMap = {} } = useQuery({
-    queryKey: ["turnover-wac"],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("inventory_movements")
-        .select("product_id, movement_type, quantity, total_cost");
-      if (error) throw error;
-      const agg: Record<string, { qty: number; cost: number }> = {};
-      (data ?? []).forEach((m: any) => {
-        const pid = m.product_id;
-        if (!agg[pid]) agg[pid] = { qty: 0, cost: 0 };
-        const q = Number(m.quantity);
-        const c = Number(m.total_cost);
-        // الزيادات: شراء، رصيد افتتاحي، تسوية موجبة
-        // النقصان: مرتجع شراء، تسوية سالبة (لكن لا نطرح المبيعات لأنها لا تؤثر على WAC)
-        if (m.movement_type === "purchase_return") {
-          agg[pid].qty -= q;
-          agg[pid].cost -= c;
-        } else if (
-          m.movement_type === "purchase" ||
-          m.movement_type === "opening_balance" ||
-          m.movement_type === "adjustment"
-        ) {
-          agg[pid].qty += q;
-          agg[pid].cost += c;
-        }
-        // باقي أنواع الحركات (sale, sale_return) لا تؤثر على WAC
-      });
-      const result: Record<string, number> = {};
-      Object.entries(agg).forEach(([pid, { qty, cost }]) => {
-        result[pid] = qty > 0 ? cost / qty : 0;
-      });
-      return result;
-    },
-  });
-
-  // ── First-activity date per product (أول حركة شراء أو بيع) ──────────
-  const { data: firstActivityMap = {} } = useQuery({
-    queryKey: ["turnover-first-activity"],
-    staleTime: 10 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("inventory_movements")
-        .select("product_id, movement_date, movement_type")
-        .in("movement_type", ["purchase", "opening_balance", "sale"])
-        .order("movement_date", { ascending: true });
-      if (error) throw error;
-      const map: Record<string, string> = {};
-      (data ?? []).forEach((m: any) => {
-        const pid = m.product_id;
-        if (!map[pid]) map[pid] = m.movement_date;
-      });
-      return map;
-    },
-  });
-
-  // ── Prior year same-period sales (للكشف عن الموسمية) ──────────────────
-  const priorYearFrom = format(subDays(new Date(dateFrom), 365), "yyyy-MM-dd");
-  const priorYearTo = format(subDays(new Date(dateTo), 365), "yyyy-MM-dd");
-  const { data: priorYearSalesData = [] } = useQuery({
-    queryKey: ["turnover-prior-year-sales", priorYearFrom, priorYearTo],
-    staleTime: 10 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_invoice_items")
-        .select(
-          "product_id, quantity, invoice:sales_invoices!inner(invoice_date, status)",
-        )
-        .gte("invoice.invoice_date", priorYearFrom)
-        .lte("invoice.invoice_date", priorYearTo)
-        .eq("invoice.status", "posted");
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  // ── Weekly sales for variability/seasonality (CV) ─────────────────────
-  const variabilityFrom = format(subDays(new Date(), 84), "yyyy-MM-dd"); // 12 أسابيع
-  const { data: weeklySalesData = [] } = useQuery({
-    queryKey: ["turnover-weekly-sales", variabilityFrom],
-    staleTime: 10 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_invoice_items")
-        .select(
-          "product_id, quantity, invoice:sales_invoices!inner(invoice_date, status)",
-        )
-        .gte("invoice.invoice_date", variabilityFrom)
-        .eq("invoice.status", "posted");
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  const isLoading = loadingProducts || loadingSales || loadingPurchases;
 
   // ── aggregations ─────────────────────────────────────────────────────────
 
-  const salesReturnsByProduct = useMemo(() => {
-    const map: Record<string, { returnedQty: number; returnedValue: number }> =
-      {};
-    salesReturnData.forEach((item: any) => {
-      const pid = item.product_id;
-      if (!pid) return;
-      if (!map[pid]) map[pid] = { returnedQty: 0, returnedValue: 0 };
-      map[pid].returnedQty += Number(item.quantity);
-      map[pid].returnedValue += Number(item.total);
-    });
-    return map;
-  }, [salesReturnData]);
-
-  const purchaseReturnsByProduct = useMemo(() => {
-    const map: Record<string, { returnedQty: number; returnedValue: number }> =
-      {};
-    purchaseReturnData.forEach((item: any) => {
-      const pid = item.product_id;
-      if (!pid) return;
-      if (!map[pid]) map[pid] = { returnedQty: 0, returnedValue: 0 };
-      map[pid].returnedQty += Number(item.quantity);
-      map[pid].returnedValue += Number(item.total);
-    });
-    return map;
-  }, [purchaseReturnData]);
-
-  const salesByProduct = useMemo(() => {
-    const map: Record<
-      string,
-      { soldQty: number; revenue: number; lastDate: string | null }
-    > = {};
-    salesData.forEach((item: any) => {
-      const pid = item.product_id;
-      if (!pid) return;
-      if (!map[pid]) map[pid] = { soldQty: 0, revenue: 0, lastDate: null };
-      map[pid].soldQty += Number(item.quantity);
-      map[pid].revenue += Number(item.total);
-      const d = item.invoice?.invoice_date;
-      if (d && (!map[pid].lastDate || d > map[pid].lastDate!))
-        map[pid].lastDate = d;
-    });
-    return map;
-  }, [salesData]);
-
-  // مرتجعات الفترة السابقة لكل منتج (لخصمها من المبيعات السابقة في المقارنة)
-  const prevSalesReturnsByProduct = useMemo(() => {
-    const map: Record<string, number> = {};
-    prevSalesReturnData.forEach((item: any) => {
-      const pid = item.product_id;
-      if (!pid) return;
-      map[pid] = (map[pid] || 0) + Number(item.quantity);
-    });
-    return map;
-  }, [prevSalesReturnData]);
-
-  const prevSalesByProduct = useMemo(() => {
-    const map: Record<string, { soldQty: number; revenue: number }> = {};
-    prevSalesData.forEach((item: any) => {
-      const pid = item.product_id;
-      if (!pid) return;
-      if (!map[pid]) map[pid] = { soldQty: 0, revenue: 0 };
-      map[pid].soldQty += Number(item.quantity);
-      map[pid].revenue += Number(item.total);
-    });
-    // خصم المرتجعات من نفس الفترة السابقة لمقارنة عادلة
-    Object.entries(prevSalesReturnsByProduct).forEach(([pid, retQty]) => {
-      if (map[pid]) {
-        map[pid].soldQty = Math.max(0, map[pid].soldQty - retQty);
-      }
-    });
-    return map;
-  }, [prevSalesData, prevSalesReturnsByProduct]);
-
-  const purchasesByProduct = useMemo(() => {
-    const map: Record<
-      string,
-      {
-        purchasedQty: number;
-        lastDate: string | null;
-        lastPrice: number | null;
-        lastSupplierName: string | null;
-      }
-    > = {};
-    purchaseData.forEach((item: any) => {
-      const pid = item.product_id;
-      if (!pid) return;
-      const d = item.invoice?.invoice_date;
-      if (!map[pid]) {
-        map[pid] = {
-          purchasedQty: 0,
-          lastDate: d || null,
-          lastPrice: item.unit_price != null ? Number(item.unit_price) : null,
-          lastSupplierName: item.invoice?.suppliers?.name || null,
-        };
-      }
-      map[pid].purchasedQty += Number(item.quantity);
-      if (d && (!map[pid].lastDate || d > map[pid].lastDate!)) {
-        map[pid].lastDate = d;
-        map[pid].lastPrice =
-          item.unit_price != null
-            ? Number(item.unit_price)
-            : map[pid].lastPrice;
-        map[pid].lastSupplierName =
-          item.invoice?.suppliers?.name || map[pid].lastSupplierName;
-      }
-    });
-    return map;
-  }, [purchaseData]);
-
-  // ── Prior year same-period sales (للموسمية) ──────────────────────────
-  const priorYearSalesByProduct = useMemo(() => {
-    const map: Record<string, number> = {};
-    priorYearSalesData.forEach((item: any) => {
-      const pid = item.product_id;
-      if (!pid) return;
-      map[pid] = (map[pid] || 0) + Number(item.quantity);
-    });
-    return map;
-  }, [priorYearSalesData]);
-
-  // ── Sales variability (CV) — معامل اختلاف المبيعات الأسبوعية ─────────
-  const variabilityByProduct = useMemo(() => {
-    const weekKey = (d: string) => {
-      const dt = new Date(d);
-      const onejan = new Date(dt.getFullYear(), 0, 1);
-      const week = Math.ceil(
-        ((dt.getTime() - onejan.getTime()) / 86400000 +
-          onejan.getDay() + 1) / 7,
-      );
-      return `${dt.getFullYear()}-W${week}`;
-    };
-    const buckets: Record<string, Record<string, number>> = {};
-    weeklySalesData.forEach((item: any) => {
-      const pid = item.product_id;
-      const d = item.invoice?.invoice_date;
-      if (!pid || !d) return;
-      const wk = weekKey(d);
-      if (!buckets[pid]) buckets[pid] = {};
-      buckets[pid][wk] = (buckets[pid][wk] || 0) + Number(item.quantity);
-    });
-    const result: Record<string, number | null> = {};
-    Object.entries(buckets).forEach(([pid, weeks]) => {
-      const vals = Object.values(weeks);
-      if (vals.length < 4) {
-        result[pid] = null;
-        return;
-      }
-      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-      if (mean <= 0) {
-        result[pid] = null;
-        return;
-      }
-      const variance =
-        vals.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / vals.length;
-      result[pid] = Math.sqrt(variance) / mean; // CV
-    });
-    return result;
-  }, [weeklySalesData]);
+  const salesByProduct = useMemo(
+    () => aggregateSalesByProduct(salesData),
+    [salesData],
+  );
+  const salesReturnsByProduct = useMemo(
+    () => aggregateReturnsByProduct(salesReturnData),
+    [salesReturnData],
+  );
+  const purchaseReturnsByProduct = useMemo(
+    () => aggregateReturnsByProduct(purchaseReturnData),
+    [purchaseReturnData],
+  );
+  const prevSalesReturnsByProduct = useMemo(
+    () => aggregateQuantityByProduct(prevSalesReturnData),
+    [prevSalesReturnData],
+  );
+  const prevSalesByProduct = useMemo(
+    () => aggregatePrevSalesByProduct(prevSalesData, prevSalesReturnsByProduct),
+    [prevSalesData, prevSalesReturnsByProduct],
+  );
+  const purchasesByProduct = useMemo(
+    () => aggregatePurchasesByProduct(purchaseData),
+    [purchaseData],
+  );
+  const priorYearSalesByProduct = useMemo(
+    () => aggregateQuantityByProduct(priorYearSalesData),
+    [priorYearSalesData],
+  );
+  const variabilityByProduct = useMemo(
+    () => computeVariabilityByProduct(weeklySalesData),
+    [weeklySalesData],
+  );
+  const wacMap = useMemo(() => computeWacMap(movements), [movements]);
+  const firstActivityMap = useMemo(
+    () => computeFirstActivityMap(firstActivityMovements),
+    [firstActivityMovements],
+  );
 
   // ── core calculation ─────────────────────────────────────────────────────
 
-  const allTurnoverData = useMemo(() => {
-    const items: ProductTurnoverData[] = products.map((p: any) => {
-      const sales = salesByProduct[p.id];
-      const purchases = purchasesByProduct[p.id];
-      const sReturns = salesReturnsByProduct[p.id];
-      const pReturns = purchaseReturnsByProduct[p.id];
-
-      const currentStock = Number(p.quantity_on_hand);
-      const grossSoldQty = sales?.soldQty || 0;
-      const returnedQty = sReturns?.returnedQty || 0;
-      const soldQty = Math.max(0, grossSoldQty - returnedQty);
-      const grossPurchasedQty = purchases?.purchasedQty || 0;
-      const purchaseReturnedQty = pReturns?.returnedQty || 0;
-      const purchasedQty = Math.max(0, grossPurchasedQty - purchaseReturnedQty);
-      const lastPurchasePrice =
-        purchases?.lastPrice ??
-        (p.purchase_price != null ? Number(p.purchase_price) : null);
-      // WAC = نفس مصدر تقرير المخزون و GL (حساب 1104)
-      // fallback: لو لا توجد حركات، نستخدم آخر سعر شراء
-      const wacFromMovements = wacMap[p.id];
-      const wac =
-        typeof wacFromMovements === "number" && wacFromMovements > 0
-          ? wacFromMovements
-          : lastPurchasePrice;
-      const lastSupplierName = purchases?.lastSupplierName || null;
-      const revenue = Math.max(
-        0,
-        (sales?.revenue || 0) - (sReturns?.returnedValue || 0),
-      );
-      const lastSaleDate = sales?.lastDate || null;
-      const lastPurchaseDate = purchases?.lastDate || null;
-      const sellingPrice =
-        p.selling_price != null ? Number(p.selling_price) : null;
-      const minStockLevel =
-        p.min_stock_level != null ? Number(p.min_stock_level) : null;
-      const isActive = p.is_active !== false;
-      const belowMinStock =
-        minStockLevel !== null && currentStock < minStockLevel;
-
-      // هامش الربح يُحتسب على WAC للاتساق مع COGS و GL
-      const profitMargin =
-        sellingPrice && wac && sellingPrice > 0
-          ? ((sellingPrice - wac) / sellingPrice) * 100
-          : null;
-
-      const daysSinceAdded = p.created_at
-        ? differenceInDays(today, new Date(p.created_at))
-        : Infinity;
-      const daysSinceLastPurchaseVal = lastPurchaseDate
-        ? differenceInDays(today, new Date(lastPurchaseDate))
-        : Infinity;
-      const daysSinceLastSaleVal = lastSaleDate
-        ? differenceInDays(today, new Date(lastSaleDate))
-        : null;
-
-      // ── أول حركة فعلية للمنتج (شراء/بيع/افتتاحي) — حماية المنتجات الحديثة ─
-      const firstMovement = firstActivityMap[p.id] || null;
-      const candidateDates: string[] = [];
-      if (firstMovement) candidateDates.push(firstMovement);
-      if (lastPurchaseDate) candidateDates.push(lastPurchaseDate);
-      if (lastSaleDate) candidateDates.push(lastSaleDate);
-      if (p.created_at) candidateDates.push(String(p.created_at).slice(0, 10));
-      const firstActivityDate =
-        candidateDates.length > 0
-          ? candidateDates.sort()[0]
-          : null;
-      const daysSinceFirstActivity = firstActivityDate
-        ? differenceInDays(today, new Date(firstActivityDate))
-        : daysSinceAdded === Infinity
-          ? 9999
-          : daysSinceAdded;
-
-      // ── effectiveAge محسّن: نأخذ الأقدم من (آخر شراء، أول حركة) ─────────
-      // يضمن أن منتج اشتُري قبل 60 يوم لكن أول حركة قبل 20 يوم لا يُحكَم عليه كراكد
-      const effectiveAge = Math.min(
-        lastPurchaseDate ? daysSinceLastPurchaseVal : Infinity,
-        daysSinceFirstActivity,
-        daysSinceAdded === Infinity ? 9999 : daysSinceAdded,
-      );
-
-      const isNeverPurchased = lastPurchaseDate === null && soldQty === 0;
-      // المنتج "جديد" إذا أول حركة له < 30 يوم، حتى لو بِيعت منه وحدة (H17)
-      const isNewProduct =
-        !isNeverPurchased && daysSinceFirstActivity < DAYS_CONSIDERED_NEW;
-      const isRecentlyAdded =
-        soldQty === 0 &&
-        isNeverPurchased &&
-        daysSinceAdded < DAYS_CONSIDERED_NEW;
-
-      // قيمة المخزون التشغيلية = الكمية × WAC (تتطابق مع جدول InventoryReport)
-      const stockValue = wac !== null ? currentStock * wac : null;
-      const productName = formatProductDisplay(
-        p.name,
-        p.product_brands?.name,
-        p.model_number,
-      );
-
-      // ── Health Flags (لا تؤثر على التصنيف، فقط للعرض) ─────────────────
-      const flagHighReturns =
-        grossSoldQty > 0 && returnedQty / grossSoldQty > 0.3;
-      const flagNoSellingPrice = !sellingPrice || sellingPrice <= 0;
-      const flagNegativeMargin =
-        sellingPrice !== null &&
-        sellingPrice > 0 &&
-        wac !== null &&
-        wac > sellingPrice;
-      const flagZeroWac = currentStock > 0 && (!wac || wac <= 0);
-      const flagFullySupplierReturned =
-        grossPurchasedQty > 0 &&
-        purchaseReturnedQty >= grossPurchasedQty;
-
-      // ── Sales variability (CV) ──────────────────────────────────────
-      const salesVariability = variabilityByProduct[p.id] ?? null;
-      const isSeasonalOrVolatile =
-        salesVariability !== null && salesVariability > 1.5;
-
-      // ── Prior year same-period sales ────────────────────────────────
-      const priorYearSalesQty =
-        daysSinceFirstActivity >= 365
-          ? priorYearSalesByProduct[p.id] ?? 0
-          : null;
-
-      // ── Lost sale: نفد ولديه مبيعات ولم يُشترى منذ +14 يوم ───────────
-      const lostSale =
-        currentStock === 0 &&
-        soldQty > 0 &&
-        (daysSinceLastPurchaseVal === Infinity ||
-          daysSinceLastPurchaseVal >= 14);
-      const daysWithoutRepurchase = lostSale
-        ? daysSinceLastPurchaseVal === Infinity
-          ? null
-          : daysSinceLastPurchaseVal
-        : null;
-
-      const baseProps = {
-        productId: p.id,
-        productCode: p.code,
-        productName,
-        categoryName: p.product_categories?.name || "بدون تصنيف",
-        categoryId: p.category_id,
-        currentStock,
-        stockValue,
-        soldQty,
-        grossSoldQty,
-        returnedQty,
-        purchasedQty,
-        grossPurchasedQty,
-        purchaseReturnedQty,
-        avgDailySales: 0,
-        lastSaleDate,
-        lastPurchaseDate,
-        lastPurchasePrice,
-        wac,
-        sellingPrice,
-        profitMargin,
-        abcClass: "excluded" as ABCClass,
-        actionPriority: null as 1 | 2 | 3 | null,
-        actionLabel: null as string | null,
-        revenue,
-        lastSupplierName,
-        isActive,
-        minStockLevel,
-        belowMinStock,
-        suggestedPurchaseQty: 0,
-        daysSinceLastSale: daysSinceLastSaleVal,
-        daysSinceLastPurchase:
-          daysSinceLastPurchaseVal === Infinity
-            ? null
-            : daysSinceLastPurchaseVal,
-        effectiveAge: effectiveAge === Infinity ? 9999 : effectiveAge,
-        supplierReturnCandidate: false,
-        supplierReturnReason: null as string | null,
-        // Deep analytics fields
-        firstActivityDate,
-        daysSinceFirstActivity,
-        salesVariability,
-        isSeasonalOrVolatile,
-        priorYearSalesQty,
-        lostSale,
-        daysWithoutRepurchase,
-        flagHighReturns,
-        flagNoSellingPrice,
-        flagNegativeMargin,
-        flagZeroWac,
-        flagFullySupplierReturned,
-        flagNoMinStock: false, // سيُحدَّد بعد ABC
-        hasAnyHealthFlag:
-          flagHighReturns ||
-          flagNoSellingPrice ||
-          flagNegativeMargin ||
-          flagZeroWac ||
-          flagFullySupplierReturned,
-      };
-
-      if (!isActive) {
-        return {
-          ...baseProps,
-          turnoverRate: null,
-          coverageDays: null,
-          turnoverClass: "inactive" as TurnoverClass,
-        };
-      }
-      if (isNeverPurchased && !isRecentlyAdded) {
-        return {
-          ...baseProps,
-          turnoverRate: null,
-          coverageDays: null,
-          turnoverClass: "new_unlisted" as TurnoverClass,
-        };
-      }
-      if (isNewProduct || isRecentlyAdded) {
-        return {
-          ...baseProps,
-          turnoverRate: null,
-          coverageDays: null,
-          turnoverClass: "new" as TurnoverClass,
-        };
-      }
-
-      let turnoverRate: number;
-      let turnoverClass: TurnoverClass;
-      let coverageDays: number | null;
-
-      if (currentStock === 0 && soldQty > 0) {
-        turnoverRate = soldQty;
-        turnoverClass = "excellent";
-        coverageDays = 0;
-      } else {
-        turnoverRate = soldQty / Math.max(currentStock, 1);
-        const annualizedRate = turnoverRate * (365 / periodDays);
-        if (annualizedRate >= 6) turnoverClass = "excellent";
-        else if (annualizedRate >= 3) turnoverClass = "good";
-        else if (
-          annualizedRate >= 1 &&
-          (daysSinceLastSaleVal ?? Infinity) <= 90
-        )
-          turnoverClass = "slow";
-        else turnoverClass = "stagnant";
-        const avgDaily = soldQty / periodDays;
-        coverageDays =
-          avgDaily > 0 ? Math.round(currentStock / avgDaily) : null;
-      }
-
-      const avgDailySales = soldQty / periodDays;
-      const suggestedPurchaseQty =
-        avgDailySales > 0 && turnoverClass !== "stagnant"
-          ? Math.max(0, Math.ceil(avgDailySales * 30) - currentStock)
-          : 0;
-
-      return {
-        ...baseProps,
-        turnoverRate,
-        coverageDays,
-        avgDailySales,
-        turnoverClass,
-        suggestedPurchaseQty,
-        abcClass: "C" as ABCClass,
-      };
-    });
-
-    // Step C: ABC
-    const eligible = items.filter((p) => p.abcClass !== "excluded");
-    const sorted = [...eligible].sort((a, b) => b.revenue - a.revenue);
-    const totalRev = sorted.reduce((s, p) => s + p.revenue, 0);
-    let cumulative = 0;
-    sorted.forEach((p) => {
-      cumulative += p.revenue;
-      const pct = totalRev > 0 ? cumulative / totalRev : 1;
-      p.abcClass = pct <= 0.8 ? "A" : pct <= 0.95 ? "B" : "C";
-    });
-    const abcMap = new Map(sorted.map((p) => [p.productId, p.abcClass]));
-    items.forEach((p) => {
-      if (p.abcClass !== "excluded")
-        p.abcClass = abcMap.get(p.productId) || "C";
-    });
-
-    // Step D: action priorities
-    items.forEach((p) => {
-      if (
-        p.turnoverClass === "new" ||
-        p.turnoverClass === "new_unlisted" ||
-        p.turnoverClass === "inactive"
-      )
-        return;
-
-      // H4 — فرصة بيع ضائعة: نفد + بِيع + لم يُشترَ منذ +14 يوم (أي ABC)
-      if (p.lostSale) {
-        p.actionPriority = 1;
-        p.actionLabel = `فرصة بيع ضائعة منذ ${p.daysWithoutRepurchase ?? "+14"} يوم — أعد الشراء`;
-        return;
-      }
-
-      if (p.currentStock === 0 && p.soldQty > 0 && p.abcClass === "A") {
-        p.actionPriority = 1;
-        p.actionLabel = `نفد المخزون — ${p.lastSupplierName ?? "راجع الموردين"}`;
-      } else if (
-        p.coverageDays !== null &&
-        p.coverageDays < 15 &&
-        (p.abcClass === "A" || p.abcClass === "B") &&
-        p.currentStock > 0
-      ) {
-        p.actionPriority = 1;
-        p.actionLabel = `شراء عاجل (${p.coverageDays} يوم) — ${p.lastSupplierName ?? ""}`;
-      } else if (p.turnoverClass === "stagnant" && (p.stockValue ?? 0) > 1000) {
-        p.actionPriority = 2;
-        p.actionLabel = "مخزون راكد — فكّر في تخفيض السعر";
-      } else if (
-        p.coverageDays !== null &&
-        p.coverageDays > 180 &&
-        p.abcClass === "A"
-      ) {
-        p.actionPriority = 2;
-        p.actionLabel = "مخزون زائد — قلّل كمية الطلب";
-      } else if (p.turnoverClass === "slow" && p.abcClass === "C") {
-        p.actionPriority = 3;
-        p.actionLabel = "إيراد منخفض ودوران بطيء — راجع الاستمرار";
-      } else if (
-        p.coverageDays !== null &&
-        p.coverageDays > 180 &&
-        p.abcClass !== "A"
-      ) {
-        p.actionPriority = 3;
-        p.actionLabel = "مخزون فائض";
-      }
-
-      // H16 — flag منتج A/B بدون حد أدنى محدد
-      if (
-        (p.abcClass === "A" || p.abcClass === "B") &&
-        (p.minStockLevel === null || p.minStockLevel === 0)
-      ) {
-        p.flagNoMinStock = true;
-        p.hasAnyHealthFlag = true;
-      }
-    });
-
-    // Step E: supplier returns
-    // الحماية الأساسية: لا نرشّح أي منتج للإرجاع إلا بعد فترة ملاحظة كافية
-    // (نفس عتبة المنتجات الجديدة = 30 يوم) لتفادي الحكم على منتجات حديثة
-    // الشراء/الإضافة بأنها راكدة.
-    const MIN_OBSERVATION_DAYS = DAYS_CONSIDERED_NEW; // 30 يوم
-    items.forEach((p) => {
-      if (
-        p.turnoverClass === "new" ||
-        p.turnoverClass === "new_unlisted" ||
-        p.turnoverClass === "inactive"
-      )
-        return;
-      if (p.currentStock <= 0) return;
-
-      // حماية المنتجات حديثة الشراء/الإضافة (بصرف النظر عن المبيعات/المرتجعات)
-      if (p.effectiveAge < MIN_OBSERVATION_DAYS) return;
-      if (p.daysSinceFirstActivity < MIN_OBSERVATION_DAYS) return;
-
-      // حماية إضافية: إذا اشتُري المنتج خلال آخر 30 يوم فلا يُرشَّح للإرجاع
-      if (
-        p.daysSinceLastPurchase !== null &&
-        p.daysSinceLastPurchase < MIN_OBSERVATION_DAYS
-      )
-        return;
-
-      // H3 — استثناء المنتجات الموسمية/المتذبذبة من توصية الإرجاع
-      if (p.isSeasonalOrVolatile) return;
-
-      // H3 — استثناء إذا كان لها مبيعات في نفس الفترة من العام الماضي
-      if (p.priorYearSalesQty !== null && p.priorYearSalesQty > 0) return;
-
-      if (
-        p.turnoverClass === "stagnant" &&
-        p.currentStock > 0 &&
-        p.lastSupplierName
-      ) {
-        p.supplierReturnCandidate = true;
-        p.supplierReturnReason =
-          p.soldQty === 0
-            ? `لم يُباع أي وحدة منذ ${p.effectiveAge} يوم`
-            : `دوران راكد — تغطية ${p.coverageDays ?? "∞"} يوم`;
-      } else if (
-        p.abcClass === "C" &&
-        p.turnoverClass === "slow" &&
-        (p.coverageDays ?? 0) > 120 &&
-        p.lastSupplierName
-      ) {
-        p.supplierReturnCandidate = true;
-        p.supplierReturnReason = `فئة C + تغطية ${p.coverageDays} يوم — استبدل بمنتج أفضل`;
-      }
-    });
-
-    return items;
-  }, [
-    products,
-    salesByProduct,
-    purchasesByProduct,
-    salesReturnsByProduct,
-    purchaseReturnsByProduct,
-    wacMap,
-    firstActivityMap,
-    variabilityByProduct,
-    priorYearSalesByProduct,
-    periodDays,
-    today,
-  ]);
+  const allTurnoverData = useMemo(
+    () =>
+      computeTurnoverData({
+        products,
+        salesByProduct,
+        purchasesByProduct,
+        salesReturnsByProduct,
+        purchaseReturnsByProduct,
+        wacMap,
+        firstActivityMap,
+        variabilityByProduct,
+        priorYearSalesByProduct,
+        periodDays,
+        today,
+      }),
+    [
+      products,
+      salesByProduct,
+      purchasesByProduct,
+      salesReturnsByProduct,
+      purchaseReturnsByProduct,
+      wacMap,
+      firstActivityMap,
+      variabilityByProduct,
+      priorYearSalesByProduct,
+      periodDays,
+      today,
+    ],
+  );
 
   // ── derived data ─────────────────────────────────────────────────────────
 
   const categoryDescendantIds = useMemo(() => {
     if (categoryFilter === "all") return null;
     const tree = buildCategoryTree(
-      categories.map((c: any) => ({ ...c, is_active: true })),
+      categories.map((c) => ({ ...c, is_active: true })),
     );
-    const ids = getDescendantIds(tree, categoryFilter);
-    return new Set(ids);
+    return new Set(getDescendantIds(tree, categoryFilter));
   }, [categoryFilter, categories]);
 
-  const categoryFilteredData = useMemo(
-    () =>
-      allTurnoverData.filter((p) => {
-        if (
-          categoryDescendantIds &&
-          !categoryDescendantIds.has(p.categoryId ?? "")
-        )
-          return false;
-        return true;
-      }),
+  const derived = useMemo(
+    () => computeTurnoverDerived(allTurnoverData, categoryDescendantIds),
     [allTurnoverData, categoryDescendantIds],
   );
 
-  const eligibleData = useMemo(
-    () => categoryFilteredData.filter((p) => p.abcClass !== "excluded"),
-    [categoryFilteredData],
-  );
-
-  const newProductsCount = useMemo(
+  const kpis = useMemo(
     () =>
-      categoryFilteredData.filter(
-        (p) => p.turnoverClass === "new" || p.turnoverClass === "new_unlisted",
-      ).length,
-    [categoryFilteredData],
-  );
-
-  const inactiveProducts = useMemo(
-    () =>
-      categoryFilteredData.filter(
-        (p) => p.turnoverClass === "inactive" && p.currentStock > 0,
-      ),
-    [categoryFilteredData],
-  );
-
-  const allProductsNew =
-    eligibleData.length === 0 && categoryFilteredData.length > 0;
-
-  const newProductsUnderTest = useMemo(
-    () =>
-      categoryFilteredData.filter(
-        (p) =>
-          p.turnoverClass === "new" &&
-          !(p.lastPurchaseDate === null && p.soldQty === 0),
-      ),
-    [categoryFilteredData],
-  );
-
-  const unlistedProducts = useMemo(
-    () =>
-      categoryFilteredData.filter(
-        (p) =>
-          p.turnoverClass === "new_unlisted" ||
-          (p.turnoverClass === "new" &&
-            p.lastPurchaseDate === null &&
-            p.soldQty === 0),
-      ),
-    [categoryFilteredData],
-  );
-
-  const purchaseSuggestions = useMemo(
-    () =>
-      eligibleData
-        .filter((p) => p.suggestedPurchaseQty > 0 || p.belowMinStock)
-        .sort((a, b) => {
-          if (a.currentStock === 0 && b.currentStock !== 0) return -1;
-          if (b.currentStock === 0 && a.currentStock !== 0) return 1;
-          if (a.belowMinStock && !b.belowMinStock) return -1;
-          if (b.belowMinStock && !a.belowMinStock) return 1;
-          return (a.coverageDays ?? 9999) - (b.coverageDays ?? 9999);
-        }),
-    [eligibleData],
-  );
-
-  const supplierReturnCandidates = useMemo(
-    () =>
-      categoryFilteredData
-        .filter((p) => p.supplierReturnCandidate && p.currentStock > 0)
-        .sort((a, b) => (b.stockValue ?? 0) - (a.stockValue ?? 0)),
-    [categoryFilteredData],
-  );
-
-  const dormantProducts = useMemo(
-    () =>
-      eligibleData.filter(
-        (p) =>
-          p.turnoverClass === "stagnant" &&
-          p.soldQty === 0 &&
-          p.currentStock > 0,
-      ),
-    [eligibleData],
-  );
-
-  const filteredData = categoryFilteredData;
-
-  const alerts = useMemo(
-    () => ({
-      urgent: eligibleData.filter((p) => p.actionPriority === 1),
-      followup: eligibleData.filter((p) => p.actionPriority === 2),
-      review: eligibleData.filter((p) => p.actionPriority === 3),
-    }),
-    [eligibleData],
-  );
-
-  const matrixCounts = useMemo(() => {
-    const c: Record<string, number> = {};
-    ["A", "B", "C"].forEach((abc) =>
-      ["fast", "medium", "slow"].forEach((speed) => {
-        c[`${abc}-${speed}`] = eligibleData.filter(
-          (p) =>
-            p.abcClass === abc && getTurnoverSpeed(p.turnoverClass) === speed,
-        ).length;
+      computeTurnoverKpis({
+        eligibleData: derived.eligibleData,
+        allTurnoverData,
+        purchaseSuggestions: derived.purchaseSuggestions,
+        inactiveProducts: derived.inactiveProducts,
+        supplierReturnCandidates: derived.supplierReturnCandidates,
+        products,
+        prevSalesByProduct,
+        purchasesByProduct,
+        wacMap,
+        glInventoryBalance,
+        periodDays,
+        rawPeriodDays,
+        today,
       }),
-    );
-    return c;
-  }, [eligibleData]);
-
-  const pieData = useMemo(() => {
-    const groups: Record<string, number> = {
-      ممتاز: 0,
-      جيد: 0,
-      بطيء: 0,
-      راكد: 0,
-      جديد: 0,
-      "غير نشط": 0,
-    };
-    categoryFilteredData.forEach((p) => {
-      const label =
-        p.turnoverClass === "new" || p.turnoverClass === "new_unlisted"
-          ? "جديد"
-          : TURNOVER_LABELS[p.turnoverClass];
-      if (label in groups) groups[label] += p.stockValue ?? 0;
-    });
-    return Object.entries(groups)
-      .filter(([, v]) => v > 0)
-      .map(([name, value]) => ({
-        name,
-        value,
-        color: TURNOVER_PIE_COLORS[name] || "hsl(0,0%,60%)",
-      }));
-  }, [categoryFilteredData]);
-
-  // ── KPIs ─────────────────────────────────────────────────────────────────
-
-  const kpis = useMemo<TurnoverKPIValues>(() => {
-    const withSales = eligibleData.filter((p) => p.soldQty > 0);
-    const avgTurnover =
-      withSales.length > 0
-        ? withSales.reduce((s, p) => s + (p.turnoverRate ?? 0), 0) /
-          withSales.length
-        : 0;
-    const stagnantVal = eligibleData
-      .filter((p) => p.turnoverClass === "stagnant")
-      .reduce((s, p) => s + (p.stockValue ?? 0), 0);
-    const urgentBuy = eligibleData.filter((p) => p.actionPriority === 1).length;
-    const classA = eligibleData.filter((p) => p.abcClass === "A");
-    const totalRev = eligibleData.reduce((s, p) => s + p.revenue, 0);
-    const classAPct =
-      totalRev > 0
-        ? (classA.reduce((s, p) => s + p.revenue, 0) / totalRev) * 100
-        : 0;
-
-    // Previous period comparison
-    const prevCalc = products
-      .filter((p: any) => {
-        const purchases = purchasesByProduct[p.id];
-        const soldQty = prevSalesByProduct[p.id]?.soldQty || 0;
-        const lpd = purchases?.lastDate || null;
-        const dsa = p.created_at
-          ? differenceInDays(today, new Date(p.created_at))
-          : Infinity;
-        const dslp = lpd ? differenceInDays(today, new Date(lpd)) : Infinity;
-        const neverPurchased = lpd === null && soldQty === 0;
-        if (neverPurchased && dsa >= DAYS_CONSIDERED_NEW) return false;
-        if (soldQty === 0 && !neverPurchased && dslp < DAYS_CONSIDERED_NEW)
-          return false;
-        if (soldQty === 0 && neverPurchased && dsa < DAYS_CONSIDERED_NEW)
-          return false;
-        return true;
-      })
-      .map((p: any) => {
-        const ps = prevSalesByProduct[p.id];
-        const stock = Number(p.quantity_on_hand);
-        const sold = ps?.soldQty || 0;
-        // مقارنة عادلة: نفس أساس WAC المستخدم في الفترة الحالية
-        const wacFromMovements = wacMap[p.id];
-        const lpp =
-          purchasesByProduct[p.id]?.lastPrice ??
-          (p.purchase_price ? Number(p.purchase_price) : null);
-        const wac =
-          typeof wacFromMovements === "number" && wacFromMovements > 0
-            ? wacFromMovements
-            : lpp;
-        const tr = stock > 0 ? sold / stock : sold > 0 ? sold : 0;
-        const ann = tr * (365 / periodDays);
-        const tc: TurnoverClass =
-          ann >= 6
-            ? "excellent"
-            : ann >= 3
-              ? "good"
-              : ann >= 1
-                ? "slow"
-                : "stagnant";
-        return {
-          turnoverRate: tr,
-          turnoverClass: tc,
-          stockValue: wac !== null ? stock * wac : 0,
-        };
-      });
-
-    const prevWithSales = prevCalc.filter((p) => p.turnoverRate > 0);
-    const prevAvgTR =
-      prevWithSales.length > 0
-        ? prevWithSales.reduce((s, p) => s + p.turnoverRate, 0) /
-          prevWithSales.length
-        : 0;
-    const prevStagnantV = prevCalc
-      .filter((p) => p.turnoverClass === "stagnant")
-      .reduce((s, p) => s + p.stockValue, 0);
-
-    const belowMinCount = eligibleData.filter((p) => p.belowMinStock).length;
-    // تكلفة الشراء المقترح: lastPurchasePrice ?? wac (يضمن قيمة حتى لو لم يكن هناك آخر سعر شراء)
-    const totalSuggestedCost = purchaseSuggestions.reduce(
-      (s, p) =>
-        s + p.suggestedPurchaseQty * (p.lastPurchasePrice ?? p.wac ?? 0),
-      0,
-    );
-    const inactiveStockValue = inactiveProducts.reduce(
-      (s, p) => s + (p.stockValue ?? 0),
-      0,
-    );
-    const supplierReturnValue = supplierReturnCandidates.reduce(
-      (s, p) => s + (p.stockValue ?? 0),
-      0,
-    );
-
-    // قيمة المخزون التشغيلية الإجمالية (Σ stockValue شامل inactive للمطابقة مع GL)
-    const operationalTotalValue = allTurnoverData.reduce(
-      (s, p) => s + (p.stockValue ?? 0),
-      0,
-    );
-    const inventoryDiff = operationalTotalValue - glInventoryBalance;
-
-    // H19 — نسبة رأس المال المجمَّد
-    const frozenCapitalPct =
-      operationalTotalValue > 0
-        ? ((stagnantVal + inactiveStockValue) / operationalTotalValue) * 100
-        : 0;
-
-    // H20 — معدل إرجاع العملاء
-    const totalGrossSold = eligibleData.reduce((s, p) => s + p.grossSoldQty, 0);
-    const totalReturned = eligibleData.reduce((s, p) => s + p.returnedQty, 0);
-    const customerReturnRate =
-      totalGrossSold > 0 ? (totalReturned / totalGrossSold) * 100 : 0;
-
-    // H14 — تحذير فترة قصيرة
-    const shortPeriodWarning = rawPeriodDays < 14;
-
-    // H4 — عدد فرص البيع الضائعة + علامات الصحة
-    const lostSaleCount = eligibleData.filter((p) => p.lostSale).length;
-    const healthFlagsCount = allTurnoverData.filter(
-      (p) => p.hasAnyHealthFlag,
-    ).length;
-
-    return {
-      avgTurnover,
-      stagnantVal,
-      urgentBuy,
-      classACount: classA.length,
-      classAPct,
-      turnoverChange: shortPeriodWarning
-        ? null
-        : prevAvgTR > 0
-          ? ((avgTurnover - prevAvgTR) / prevAvgTR) * 100
-          : null,
-      stagnantChange: shortPeriodWarning
-        ? null
-        : prevStagnantV > 0
-          ? ((stagnantVal - prevStagnantV) / prevStagnantV) * 100
-          : null,
-      belowMinCount,
-      totalSuggestedCost,
-      inactiveStockValue,
-      supplierReturnValue,
+    [
+      derived,
+      allTurnoverData,
+      products,
+      prevSalesByProduct,
+      purchasesByProduct,
+      wacMap,
       glInventoryBalance,
-      operationalTotalValue,
-      inventoryDiff,
-      frozenCapitalPct,
-      customerReturnRate,
-      shortPeriodWarning,
-      lostSaleCount,
-      healthFlagsCount,
-    };
-  }, [
-    eligibleData,
-    allTurnoverData,
-    products,
-    prevSalesByProduct,
-    purchasesByProduct,
-    purchaseSuggestions,
-    inactiveProducts,
-    supplierReturnCandidates,
-    glInventoryBalance,
-    wacMap,
-    periodDays,
-    today,
-  ]);
-
-  // ── unique suppliers ─────────────────────────────────────────────────────
-
-  const uniqueSuppliers = useMemo(() => {
-    const set = new Set<string>();
-    allTurnoverData.forEach((p) => {
-      if (p.lastSupplierName) set.add(p.lastSupplierName);
-    });
-    return Array.from(set).sort();
-  }, [allTurnoverData]);
-
-  // ── context value ────────────────────────────────────────────────────────
+      periodDays,
+      rawPeriodDays,
+      today,
+    ],
+  );
 
   const value = useMemo<TurnoverDataContextValue>(
     () => ({
@@ -1348,24 +301,25 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       resetPeriodToLastActivity,
       isLoading,
       allTurnoverData,
-      eligibleData,
-      filteredData,
-      purchaseSuggestions,
-      supplierReturnCandidates,
-      dormantProducts,
-      inactiveProducts,
-      newProductsUnderTest,
-      unlistedProducts,
-      alerts,
-      matrixCounts,
-      pieData,
-      newProductsCount,
-      allProductsNew,
+      eligibleData: derived.eligibleData,
+      filteredData: derived.filteredData,
+      purchaseSuggestions: derived.purchaseSuggestions,
+      supplierReturnCandidates: derived.supplierReturnCandidates,
+      dormantProducts: derived.dormantProducts,
+      inactiveProducts: derived.inactiveProducts,
+      newProductsUnderTest: derived.newProductsUnderTest,
+      unlistedProducts: derived.unlistedProducts,
+      alerts: derived.alerts,
+      matrixCounts: derived.matrixCounts,
+      pieData: derived.pieData,
+      newProductsCount: derived.newProductsCount,
+      allProductsNew: derived.allProductsNew,
       kpis,
       categories,
-      uniqueSuppliers,
+      uniqueSuppliers: derived.uniqueSuppliers,
       settings,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       dateFrom,
       dateTo,
@@ -1374,22 +328,9 @@ export function TurnoverDataProvider({ children }: { children: ReactNode }) {
       isPeriodAutoAligned,
       isLoading,
       allTurnoverData,
-      eligibleData,
-      filteredData,
-      purchaseSuggestions,
-      supplierReturnCandidates,
-      dormantProducts,
-      inactiveProducts,
-      newProductsUnderTest,
-      unlistedProducts,
-      alerts,
-      matrixCounts,
-      pieData,
-      newProductsCount,
-      allProductsNew,
+      derived,
       kpis,
       categories,
-      uniqueSuppliers,
       settings,
     ],
   );
