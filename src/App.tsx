@@ -72,7 +72,6 @@ const LoyaltyReport = lazy(() => import("./pages/LoyaltyReport"));
 // Lazy — reports (heavy: recharts/jspdf/xlsx)
 const SalesReportPage = lazy(() => import("./pages/reports/SalesReportPage"));
 const PurchasesReportPage = lazy(() => import("./pages/reports/PurchasesReportPage"));
-const InventoryReportPage = lazy(() => import("./pages/reports/InventoryReportPage"));
 const DebtAgingReportPage = lazy(() => import("./pages/reports/DebtAgingReportPage"));
 const GrowthAnalyticsPage = lazy(() => import("./pages/reports/GrowthAnalyticsPage"));
 const ProductAnalyticsPage = lazy(() => import("./pages/reports/ProductAnalyticsPage"));
