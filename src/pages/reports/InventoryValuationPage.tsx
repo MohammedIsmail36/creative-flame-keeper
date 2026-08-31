@@ -106,6 +106,11 @@ export default function InventoryValuationPage() {
           unit_cost: num(r.unit_cost),
           value: num(r.value),
           moves_value: num(r.moves_value),
+          last_purchase_price:
+            r.last_purchase_price === null || r.last_purchase_price === undefined
+              ? null
+              : num(r.last_purchase_price),
+
         })),
       });
     }
