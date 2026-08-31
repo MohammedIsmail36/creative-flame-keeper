@@ -15,6 +15,13 @@
       "when": 1788177648579,
       "tag": "0001_replace_journal_entry_lines_posted_number",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788177931893,
+      "tag": "0002_journal_and_document_integrity_guards",
+      "breakpoints": true
     }
   ]
 }
