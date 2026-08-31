@@ -33,6 +33,7 @@ interface ReorderRow {
   product_id: string;
   code: string;
   name: string;
+  model_number: string | null;
   brand_name: string | null;
   category_name: string | null;
   quantity: number;
@@ -195,8 +196,9 @@ export default function InventoryReorderPage() {
           <div className="min-w-[180px]">
             <div className="font-medium">{row.original.name}</div>
             <div className="text-xs text-muted-foreground">
-              {row.original.brand_name || "—"}
-              {row.original.category_name ? ` • ${row.original.category_name}` : ""}
+              {[row.original.brand_name, row.original.model_number]
+                .filter(Boolean)
+                .join(" • ") || "—"}
             </div>
           </div>
         ),
@@ -297,6 +299,7 @@ export default function InventoryReorderPage() {
         "الكود",
         "الصنف",
         "الماركة",
+        "رقم الموديل",
         "الفئة",
         "المتاح",
         "نقطة إعادة الطلب",
@@ -310,6 +313,7 @@ export default function InventoryReorderPage() {
         r.code,
         r.name,
         r.brand_name || "-",
+        r.model_number || "-",
         r.category_name || "-",
         fmtQty(r.quantity),
         fmtQty(r.reorder_point),

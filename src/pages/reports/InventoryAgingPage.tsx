@@ -38,6 +38,7 @@ interface AgingRow {
   product_id: string;
   code: string;
   name: string;
+  model_number: string | null;
   brand_name: string | null;
   category_name: string | null;
   quantity: number;
@@ -234,7 +235,9 @@ export default function InventoryAgingPage() {
           <div className="min-w-[180px]">
             <div className="font-medium">{row.original.name}</div>
             <div className="text-xs text-muted-foreground">
-              {row.original.brand_name || "—"}
+              {[row.original.brand_name, row.original.model_number]
+                .filter(Boolean)
+                .join(" • ") || "—"}
             </div>
           </div>
         ),
@@ -332,6 +335,7 @@ export default function InventoryAgingPage() {
         "الكود",
         "الصنف",
         "الماركة",
+        "رقم الموديل",
         "الفئة",
         "الكمية",
         "قيمة المخزون",
@@ -343,6 +347,7 @@ export default function InventoryAgingPage() {
         r.code,
         r.name,
         r.brand_name || "-",
+        r.model_number || "-",
         r.category_name || "-",
         fmtQty(r.quantity),
         fmtNum(r.value),
