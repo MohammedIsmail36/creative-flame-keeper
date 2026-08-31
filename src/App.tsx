@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -86,11 +86,7 @@ const TurnoverLayout = lazy(() => import("./pages/reports/inventory-turnover/Tur
 const TurnoverDashboardPage = lazy(() => import("./pages/reports/inventory-turnover/TurnoverDashboardPage"));
 const BuyNowPage = lazy(() => import("./pages/reports/inventory-turnover/BuyNowPage"));
 const DormantInventoryPage = lazy(() => import("./pages/reports/inventory-turnover/DormantInventoryPage"));
-const SupplierReturnsPage = lazy(() => import("./pages/reports/inventory-turnover/SupplierReturnsPage"));
-const NewProductsPage = lazy(() => import("./pages/reports/inventory-turnover/NewProductsPage"));
-const UnlistedProductsPage = lazy(() => import("./pages/reports/inventory-turnover/UnlistedProductsPage"));
 const FullAnalysisPage = lazy(() => import("./pages/reports/inventory-turnover/FullAnalysisPage"));
-const ProductHealthPage = lazy(() => import("./pages/reports/inventory-turnover/ProductHealthPage"));
 const UnderObservationPage = lazy(() => import("./pages/reports/inventory-turnover/UnderObservationPage"));
 
 const queryClient = new QueryClient({
