@@ -46,6 +46,11 @@ export interface CompanySettings {
   loyalty_egp_per_point: number;
   loyalty_points_per_redeem: number;
   loyalty_redeem_value: number;
+  inventory_lead_time_days: number;
+  inventory_target_cover_days: number;
+  inventory_slow_days: number;
+  inventory_dead_days: number;
+  inventory_new_days: number;
 }
 
 interface SettingsContextType {
