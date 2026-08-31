@@ -658,27 +658,50 @@ export interface ReturnAllocationRow {
   allocated_amount: number | string | null;
 }
 
+export interface EntityBalanceBreakdown {
+  opening: number;
+  invoices: number;
+  returns: number;
+  payments: number;
+  refunds: number;
+  expected: number;
+}
+
 /**
- * الرصيد المتوقع = الافتتاحي + الفواتير المنشورة − المرتجعات المنشورة
+ * تفصيل مكوّنات الرصيد المتوقع لكل جهة (لعرض منشأ الفرق في التشخيص).
+ * الرصيد المتوقع = الافتتاحي + الفواتير المرحّلة − المرتجعات المرحّلة
  *                 − السدادات العادية + السدادات المخصّصة كاسترداد مرتجع.
- * منطق مطابق لـ recalculateEntityBalance لكن لكل الجهات دفعة واحدة.
  */
-export function computeExpectedEntityBalances(input: {
+export function computeEntityBalanceDetails(input: {
   openingBalances: Map<string, number>;
   invoices: EntityDocRow[];
   returns: EntityDocRow[];
   payments: EntityPaymentRow[];
   returnAllocations: ReturnAllocationRow[];
-}): Map<string, number> {
-  const out = new Map<string, number>();
-  const add = (id: string, delta: number) => {
-    if (!id) return;
-    out.set(id, (out.get(id) ?? 0) + delta);
+}): Map<string, EntityBalanceBreakdown> {
+  const out = new Map<string, EntityBalanceBreakdown>();
+  const bucket = (id: string): EntityBalanceBreakdown | null => {
+    if (!id) return null;
+    let b = out.get(id);
+    if (!b) {
+      b = { opening: 0, invoices: 0, returns: 0, payments: 0, refunds: 0, expected: 0 };
+      out.set(id, b);
+    }
+    return b;
   };
 
-  for (const [id, v] of input.openingBalances) add(id, Number(v ?? 0));
-  for (const r of input.invoices) add(r.entity_id, Number(r.total ?? 0));
-  for (const r of input.returns) add(r.entity_id, -Number(r.total ?? 0));
+  for (const [id, v] of input.openingBalances) {
+    const b = bucket(id);
+    if (b) b.opening += Number(v ?? 0);
+  }
+  for (const r of input.invoices) {
+    const b = bucket(r.entity_id);
+    if (b) b.invoices += Number(r.total ?? 0);
+  }
+  for (const r of input.returns) {
+    const b = bucket(r.entity_id);
+    if (b) b.returns += Number(r.total ?? 0);
+  }
 
   const allocByPayment = new Map<string, number>();
   for (const a of input.returnAllocations) {
@@ -690,12 +713,40 @@ export function computeExpectedEntityBalances(input: {
   }
 
   for (const p of input.payments) {
+    const b = bucket(p.entity_id);
+    if (!b) continue;
     const amount = Number(p.amount ?? 0);
     const refunded = Math.min(amount, Math.max(0, allocByPayment.get(String(p.id)) ?? 0));
     // السداد العادي ينقص الرصيد، والمخصّص لمرتجع (استرداد) يزيده
-    add(p.entity_id, -(amount - refunded) + refunded);
+    b.payments += amount - refunded;
+    b.refunds += refunded;
   }
 
-  for (const [id, v] of out) out.set(id, round2(v));
+  for (const [, b] of out) {
+    b.opening = round2(b.opening);
+    b.invoices = round2(b.invoices);
+    b.returns = round2(b.returns);
+    b.payments = round2(b.payments);
+    b.refunds = round2(b.refunds);
+    b.expected = round2(
+      b.opening + b.invoices - b.returns - b.payments + b.refunds,
+    );
+  }
+
   return out;
 }
+
+/** الرصيد المتوقع لكل جهة (مبني على نفس تفصيل computeEntityBalanceDetails) */
+export function computeExpectedEntityBalances(input: {
+  openingBalances: Map<string, number>;
+  invoices: EntityDocRow[];
+  returns: EntityDocRow[];
+  payments: EntityPaymentRow[];
+  returnAllocations: ReturnAllocationRow[];
+}): Map<string, number> {
+  const details = computeEntityBalanceDetails(input);
+  const out = new Map<string, number>();
+  for (const [id, b] of details) out.set(id, b.expected);
+  return out;
+}
+
