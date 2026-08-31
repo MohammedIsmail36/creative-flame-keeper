@@ -12,6 +12,19 @@ ALTER TABLE public.company_settings
   ADD COLUMN IF NOT EXISTS inventory_new_days integer NOT NULL DEFAULT 30;
 
 -- 2) Reporting / inventory analytics functions (current definitions)
+
+-- 2a) Drop old versions first (return types may differ on older databases)
+DROP FUNCTION IF EXISTS public.get_account_balances(p_date_from date, p_date_to date, p_only_with_activity boolean);
+DROP FUNCTION IF EXISTS public.get_account_statement(p_entity_type text, p_entity_id uuid, p_date_from date, p_date_to date, p_limit integer, p_offset integer);
+DROP FUNCTION IF EXISTS public.get_inventory_aging(p_as_of date, p_slow_days integer, p_dead_days integer);
+DROP FUNCTION IF EXISTS public.get_inventory_kpis(p_date_from date, p_date_to date);
+DROP FUNCTION IF EXISTS public.get_inventory_reorder(p_date_from date, p_date_to date, p_lead_time_days integer, p_target_days integer);
+DROP FUNCTION IF EXISTS public.get_inventory_valuation(p_as_of date);
+DROP FUNCTION IF EXISTS public.get_ledger_active_accounts();
+DROP FUNCTION IF EXISTS public.get_ledger_lines(p_account_id uuid, p_date_from date, p_date_to date, p_limit integer, p_offset integer);
+DROP FUNCTION IF EXISTS public.inventory_product_state(p_as_of date);
+DROP FUNCTION IF EXISTS public.inventory_signed_quantity(p_movement_type text, p_quantity numeric);
+
 CREATE OR REPLACE FUNCTION public.get_account_balances(p_date_from date DEFAULT NULL::date, p_date_to date DEFAULT NULL::date, p_only_with_activity boolean DEFAULT false)
  RETURNS jsonb
  LANGUAGE plpgsql
