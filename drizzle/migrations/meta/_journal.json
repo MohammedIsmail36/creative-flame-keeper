@@ -36,6 +36,13 @@
       "when": 1788184066894,
       "tag": "0004_inventory_reports_add_model_number",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788184290173,
+      "tag": "0005_inventory_kpis_add_product_identity",
+      "breakpoints": true
     }
   ]
 }
