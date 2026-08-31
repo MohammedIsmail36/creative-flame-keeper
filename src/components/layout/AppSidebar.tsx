@@ -267,7 +267,7 @@ const sections: MenuSection[] = [
         roles: ["admin", "accountant"],
       },
       {
-        title: "تحليل المنتجات",
+        title: "ربحية المنتجات",
         url: "/reports/products",
         icon: Award,
         roles: ["admin", "accountant"],
@@ -285,7 +285,7 @@ const sections: MenuSection[] = [
         roles: ["admin", "accountant"],
       },
       {
-        title: "تقرير المخزون",
+        title: "قيمة المخزون والمطابقة",
         url: "/reports/inventory",
         icon: Package,
         roles: ["admin", "accountant"],
