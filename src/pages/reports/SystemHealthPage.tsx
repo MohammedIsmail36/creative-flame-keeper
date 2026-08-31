@@ -35,17 +35,22 @@ import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/contexts/SettingsContext";
 import { ACCOUNT_CODES } from "@/lib/constants";
+import { ReportPurposeBar } from "@/components/shared/ReportPurposeBar";
 import {
+  checkDocumentsHaveJournal,
   checkEntityBalances,
   checkInventoryValue,
   checkJournalBalance,
+  checkMovementsHaveSource,
   checkOrphanEntries,
   checkPostedNumberSequence,
   checkProductQuantities,
-  computeExpectedEntityBalances,
+  checkTrialBalance,
+  computeEntityBalanceDetails,
   summarizeChecks,
   type CheckResult,
 } from "@/lib/reconciliation";
+
 
 const num = (v: unknown) => Number(v ?? 0);
 
