@@ -168,7 +168,7 @@ export default function InventoryValuationPage() {
             <div className="min-w-[180px]">
               <div className="font-medium">{r.name}</div>
               <div className="text-xs text-muted-foreground">
-                {[r.brand_name, r.model_number].filter(Boolean).join(" - ") || "—"}
+                {[r.brand_name, r.model_number].filter(Boolean).join(" • ") || "—"}
               </div>
             </div>
           );
@@ -264,11 +264,12 @@ export default function InventoryValuationPage() {
       filenamePrefix: "inventory-valuation",
       sheetName: "تقييم المخزون",
       pdfTitle: `تقييم المخزون حتى ${asOf}`,
-      headers: ["الكود", "الصنف", "الماركة", "الفئة", "الكمية", "متوسط التكلفة", "قيمة المخزون"],
+      headers: ["الكود", "الصنف", "الماركة", "رقم الموديل", "الفئة", "الكمية", "متوسط التكلفة", "قيمة المخزون"],
       rows: filtered.map((r) => [
         r.code,
         r.name,
         r.brand_name || "-",
+        r.model_number || "-",
         r.category_name || "-",
         fmtQty(r.quantity),
         fmtNum(r.unit_cost),
