@@ -50,7 +50,7 @@ export interface ComputeTurnoverInput {
 }
 
 /** عتبة أيام بدون إعادة شراء تُعد بعدها فرصة بيع ضائعة */
-export const LOST_SALE_DAYS = 14;
+export const LOST_SALE_DAYS = INVENTORY_RULES.LOST_SALE_DAYS;
 
 export function computeTurnoverData(
   input: ComputeTurnoverInput,
