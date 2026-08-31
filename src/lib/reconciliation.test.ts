@@ -185,7 +185,7 @@ describe("computeEntityBalanceDetails", () => {
       openingBalances: new Map([["c1", 100]]),
       invoices: [{ entity_id: "c1", total: 1000 }],
       returns: [{ entity_id: "c1", total: 200 }],
-      payments: [{ entity_id: "c1", amount: 300 }],
+      payments: [{ id: "pay1", entity_id: "c1", amount: 300 }],
       returnAllocations: [],
     });
     const b = details.get("c1")!;
@@ -288,7 +288,7 @@ describe("checkPostedNumberSequence", () => {
     expect(r.severity).toBe("ok");
   });
 
-  it("يرصد الفراغ كتحذير", () => {
+  it("يعرض الفراغ كمعلومة فقط لا تحذير", () => {
     const r = checkPostedNumberSequence(
       [
         { id: "a", posted_number: 1 },
@@ -296,7 +296,7 @@ describe("checkPostedNumberSequence", () => {
       ],
       "فواتير البيع",
     );
-    expect(r.severity).toBe("warning");
+    expect(r.severity).toBe("info");
     expect(r.issues[0].diff).toBe(2);
   });
 
@@ -361,7 +361,8 @@ describe("summarizeChecks", () => {
     const s = summarizeChecks(checks);
     expect(s.total).toBe(3);
     expect(s.passed).toBe(1);
-    expect(s.warnings).toBe(1);
+    expect(s.info).toBe(1);
+    expect(s.warnings).toBe(0);
     expect(s.errors).toBe(1);
     expect(s.totalIssues).toBe(2);
     expect(s.healthy).toBe(false);
