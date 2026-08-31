@@ -286,7 +286,19 @@ export default function InventoryValuationPage() {
       filenamePrefix: "inventory-valuation",
       sheetName: "تقييم المخزون",
       pdfTitle: `تقييم المخزون حتى ${asOf}`,
-      headers: ["الكود", "الصنف", "الماركة", "رقم الموديل", "الفئة", "الكمية", "متوسط التكلفة", "قيمة المخزون"],
+      headers: [
+        "الكود",
+        "الصنف",
+        "الماركة",
+        "رقم الموديل",
+        "الفئة",
+        "الكمية",
+        "متوسط التكلفة",
+        "قيمة المخزون",
+        "آخر مورد",
+        "تاريخ آخر توريد",
+        "آخر سعر شراء",
+      ],
       rows: filtered.map((r) => [
         r.code,
         r.name,
@@ -296,7 +308,11 @@ export default function InventoryValuationPage() {
         fmtQty(r.quantity),
         fmtNum(r.unit_cost),
         fmtNum(r.value),
+        r.last_supplier_name || "-",
+        r.last_purchase_date || "-",
+        r.last_purchase_price === null ? "-" : fmtNum(r.last_purchase_price),
       ]),
+
       settings,
       summaryCards: [
         { label: "قيمة المخزون (WAC)", value: fmtNum(totals.value) },
