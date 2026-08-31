@@ -2,10 +2,9 @@ import { round2 } from "@/lib/utils";
 import { BALANCE_TOLERANCE } from "@/lib/constants";
 import {
   summarizeMovements,
-  weightedAverageCost,
-  inventoryValue,
   type InventoryMovementRow,
 } from "@/lib/inventory-metrics";
+
 
 /**
  * ─────────────────────────────────────────────────────────────
