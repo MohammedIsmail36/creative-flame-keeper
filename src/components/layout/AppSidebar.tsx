@@ -284,6 +284,12 @@ const sections: MenuSection[] = [
         roles: ["admin", "accountant"],
       },
       {
+        title: "تقييم المخزون",
+        url: "/reports/inventory-valuation",
+        icon: Package,
+        roles: ["admin", "accountant"],
+      },
+      {
         title: "قيمة المخزون والمطابقة",
         url: "/reports/inventory",
         icon: Package,
