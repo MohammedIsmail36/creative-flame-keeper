@@ -4,6 +4,11 @@
 
 import { differenceInDays } from "date-fns";
 import { formatProductDisplay } from "@/lib/product-utils";
+import { round2 } from "@/lib/utils";
+import {
+  INVENTORY_RULES,
+  type InventoryAction,
+} from "@/lib/inventory/definitions";
 import {
   ABCClass,
   DAYS_CONSIDERED_NEW,
@@ -11,6 +16,7 @@ import {
   TurnoverClass,
 } from "./constants";
 import type { PurchasesAgg, ReturnsAgg, SalesAgg } from "./aggregations";
+
 
 export interface TurnoverProductRow {
   id: string;
