@@ -108,7 +108,16 @@ export default function InventoryReorderPage() {
     setError(null);
     const { data: res, error: err } = await (supabase.rpc as any)(
       "get_inventory_reorder",
-      { p_date_from: from, p_date_to: to },
+      {
+        p_date_from: from,
+        p_date_to: to,
+        ...(settings?.inventory_lead_time_days
+          ? { p_lead_time_days: settings.inventory_lead_time_days }
+          : {}),
+        ...(settings?.inventory_target_cover_days
+          ? { p_target_days: settings.inventory_target_cover_days }
+          : {}),
+      },
     );
     if (err) {
       setError(err.message);
