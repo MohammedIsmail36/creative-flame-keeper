@@ -2,12 +2,17 @@ import { describe, it, expect } from "vitest";
 import {
   checkProductQuantities,
   checkInventoryValue,
+  checkTrialBalance,
   checkJournalBalance,
   checkOrphanEntries,
   checkPostedNumberSequence,
   checkEntityBalances,
+  checkDocumentsHaveJournal,
+  checkMovementsHaveSource,
+  computeEntityBalanceDetails,
   summarizeChecks,
 } from "./reconciliation";
+
 import type { InventoryMovementRow } from "./inventory-metrics";
 
 const moves: InventoryMovementRow[] = [
