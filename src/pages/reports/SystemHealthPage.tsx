@@ -75,7 +75,10 @@ export default function SystemHealthPage() {
   const { formatCurrency } = useSettings();
   const [loading, setLoading] = useState(true);
   const [checks, setChecks] = useState<CheckResult[]>([]);
-  const [inventoryValues, setInventoryValues] = useState({ ledger: 0, computed: 0 });
+  const [inventoryValues, setInventoryValues] = useState<{
+    ledger: number | null;
+    computed: number | null;
+  }>({ ledger: null, computed: null });
   const [lastRun, setLastRun] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
@@ -97,19 +100,23 @@ export default function SystemHealthPage() {
         salesReturnAllocs,
         purchaseReturnAllocs,
         balancesRes,
+        valuationRes,
       ] = await Promise.all([
         fetchAll<any>((f, t) =>
           supabase
             .from("products")
-            .select("id, code, name, quantity_on_hand, purchase_price")
+            .select("id, code, name, quantity_on_hand, purchase_price, is_active")
             .range(f, t),
         ),
         fetchAll<any>((f, t) =>
           supabase
             .from("inventory_movements")
-            .select("product_id, movement_type, quantity, total_cost, movement_date")
+            .select(
+              "id, product_id, movement_type, quantity, total_cost, movement_date, reference_id, reference_type",
+            )
             .range(f, t),
         ),
+
         fetchAll<any>((f, t) =>
           supabase
             .from("journal_entries")
