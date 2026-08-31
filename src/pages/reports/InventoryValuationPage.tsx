@@ -20,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 
-import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { ReportPurposeBar } from "@/components/shared/ReportPurposeBar";
 import { productReportFilterFn } from "@/lib/report-filters";
 import { supabase } from "@/integrations/supabase/client";
