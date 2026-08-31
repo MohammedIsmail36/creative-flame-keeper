@@ -208,6 +208,10 @@ export function DataTable<TData, TValue>({
   });
   const paginationValue = externalPagination ?? internalPagination;
   const handlePaginationChange = onPaginationChange ?? setInternalPagination;
+  const pageSizeOptions = React.useMemo(
+    () => Array.from(new Set([10, 15, 20, 30, 50, 100, paginationValue.pageSize])).sort((a, b) => a - b),
+    [paginationValue.pageSize],
+  );
 
   const table = useReactTable({
     data,
@@ -439,7 +443,7 @@ export function DataTable<TData, TValue>({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[10, 15, 20, 30, 50, 100].map((size) => (
+                  {pageSizeOptions.map((size) => (
                     <SelectItem key={size} value={`${size}`} className="text-xs">
                       {size}
                     </SelectItem>

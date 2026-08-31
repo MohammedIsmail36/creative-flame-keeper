@@ -471,26 +471,29 @@ export default function InventoryAgingPage() {
 
       {/* شرائح العمر */}
       <Card className="rounded-xl">
-        <CardContent className="p-4 space-y-3">
+        <CardContent className="p-3 space-y-2">
           <div className="font-semibold text-sm">توزيع قيمة المخزون على شرائح العمر</div>
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
             {bucketSummary.map((b) => (
-              <button
+              <Button
                 key={b.bucket}
                 type="button"
+                variant="ghost"
                 onClick={() => setBucket(bucket === b.bucket ? "all" : b.bucket)}
                 className={cn(
-                  "w-full text-right rounded-lg px-3 py-2 transition-colors hover:bg-muted/60",
+                  "h-auto min-w-0 flex-col items-stretch gap-1.5 rounded-md px-2.5 py-2 text-right hover:bg-muted/60",
                   bucket === b.bucket && "bg-muted",
                 )}
               >
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{BUCKET_LABELS[b.bucket]}</span>
-                  <span className="text-muted-foreground tabular-nums">
-                    {b.count} صنف • {fmtNum(b.value)} ({b.pct.toFixed(1)}%)
-                  </span>
+                <div className="flex w-full min-w-0 items-center justify-between gap-2 text-xs">
+                  <span className="truncate font-medium">{BUCKET_LABELS[b.bucket]}</span>
+                  <span className="shrink-0 text-muted-foreground tabular-nums">{b.pct.toFixed(1)}%</span>
                 </div>
-                <div className="mt-1 h-2 rounded-full bg-muted overflow-hidden">
+                <div className="flex w-full min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span className="shrink-0 tabular-nums">{b.count} صنف</span>
+                  <span className="truncate tabular-nums">{fmtNum(b.value)}</span>
+                </div>
+                <div className="h-1 rounded-full bg-muted overflow-hidden">
                   <div
                     className={cn(
                       "h-full rounded-full",
@@ -503,7 +506,7 @@ export default function InventoryAgingPage() {
                     style={{ width: `${Math.min(100, b.pct)}%` }}
                   />
                 </div>
-              </button>
+              </Button>
             ))}
           </div>
         </CardContent>
