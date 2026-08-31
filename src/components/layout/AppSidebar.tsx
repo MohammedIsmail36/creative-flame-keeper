@@ -295,6 +295,12 @@ const sections: MenuSection[] = [
         icon: Package,
         roles: ["admin", "accountant"],
       },
+      {
+        title: "سلامة البيانات",
+        url: "/reports/system-health",
+        icon: ShieldCheck,
+        roles: ["admin", "accountant"],
+      },
 
       {
         title: "أعمار الديون",
