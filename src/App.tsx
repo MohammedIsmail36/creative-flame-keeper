@@ -81,6 +81,7 @@ const ProfitLossPage = lazy(() => import("./pages/reports/ProfitLossPage"));
 const CommissionCalculatorPage = lazy(() => import("./pages/reports/CommissionCalculatorPage"));
 const InventoryReconciliationPage = lazy(() => import("./pages/reports/InventoryReconciliationPage"));
 const InventoryValuationPage = lazy(() => import("./pages/reports/InventoryValuationPage"));
+const InventoryAgingPage = lazy(() => import("./pages/reports/InventoryAgingPage"));
 const SystemHealthPage = lazy(() => import("./pages/reports/SystemHealthPage"));
 
 
