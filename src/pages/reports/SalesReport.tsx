@@ -62,7 +62,6 @@ import {
   AlertTriangle,
   Target,
   ChevronDown,
-  Sparkles,
   Info,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -122,9 +121,8 @@ export default function SalesReport() {
   const [timeMode, setTimeMode] = useState<"daily" | "monthly">(
     savedPrefs.timeMode ?? "daily",
   );
-  const [showExtras, setShowExtras] = useState<boolean>(
-    savedPrefs.showExtras ?? false,
-  );
+  // Secondary indicators start collapsed on every report visit to preserve focus.
+  const [showExtras, setShowExtras] = useState(false);
   const [invoiceSort, setInvoiceSort] = useState<SortingState>([]);
   const [productSort, setProductSort] = useState<SortingState>([]);
 
@@ -173,11 +171,11 @@ export default function SalesReport() {
     try {
       localStorage.setItem(
         LS_KEY,
-        JSON.stringify({ statusFilter, groupBy, timeMode, showExtras }),
+        JSON.stringify({ statusFilter, groupBy, timeMode }),
       );
     } catch {}
     return null;
-  }, [statusFilter, groupBy, timeMode, showExtras]);
+  }, [statusFilter, groupBy, timeMode]);
 
   // ── Quick date presets (طبقة مشتركة) ──
   const quickRanges = useMemo(() => getQuickDateRanges(), []);
@@ -367,7 +365,6 @@ export default function SalesReport() {
       returnSettled: invoiceCoverage.returnSettled,
       totalCovered: invoiceCoverage.totalCovered,
       cashCollectionRate: invoiceCoverage.cashCollectionRate,
-      totalCoverageRate: invoiceCoverage.totalCoverageRate,
       cogs: metrics.netCogs,
     };
   }, [invoices, returns, movements, invoiceCoverage]);
@@ -2256,90 +2253,34 @@ export default function SalesReport() {
         </CardContent>
       </Card>
 
-      {/* ── Insight Banner ── */}
-      {!isLoading && kpi.count > 0 && (
-        <Card className="border-primary/20 bg-gradient-to-l from-primary/5 via-primary/[0.02] to-transparent">
-          <CardContent className="py-3 px-4 flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4 text-primary" />
-            </div>
-            <div className="flex-1 text-sm leading-relaxed">
-              {(() => {
-                const parts: string[] = [];
-                const growth = calcGrowth(kpi.netSales, prevKpi.netSales);
-                if (prevKpi.netSales > 0) {
-                  parts.push(
-                    growth >= 0
-                      ? `نمو ${growth.toFixed(1)}% في صافي المبيعات مقارنة بالفترة السابقة`
-                      : `تراجع ${Math.abs(growth).toFixed(1)}% في صافي المبيعات مقارنة بالفترة السابقة`,
-                  );
-                }
-                if (kpi.grossMarginPercent !== null) {
-                  parts.push(`هامش ربح ${kpi.grossMarginPercent.toFixed(1)}%`);
-                }
-                if (kpi.grossSales > 0 && kpi.returnsTotal > 0) {
-                  const retPct = (kpi.returnsTotal / kpi.grossSales) * 100;
-                  if (retPct >= 5)
-                    parts.push(`نسبة مرتجعات مرتفعة ${retPct.toFixed(1)}%`);
-                }
-                if (customerData.length >= 3) {
-                  const top3 = customerData
-                    .slice(0, 3)
-                    .reduce((s, c) => s + c.total, 0);
-                  const totalCust = customerData.reduce(
-                    (s, c) => s + c.total,
-                    0,
-                  );
-                  if (totalCust > 0) {
-                    const pct = (top3 / totalCust) * 100;
-                    if (pct >= 50)
-                      parts.push(
-                        `تركّز عالٍ: أعلى 3 عملاء = ${pct.toFixed(0)}% من المبيعات`,
-                      );
-                  }
-                }
-                if (overdueInfo.count > 0)
-                  parts.push(
-                    `${overdueInfo.count} فاتورة متأخرة بقيمة ${fmt(overdueInfo.total)}`,
-                  );
-                if (parts.length === 0)
-                  return (
-                    <span className="text-muted-foreground">
-                      {kpi.count} فاتورة في هذه الفترة بإجمالي صافي{" "}
-                      {fmt(kpi.netSales)}.
-                    </span>
-                  );
-                return (
-                  <span>
-                    <span className="font-semibold">قراءة سريعة:</span>{" "}
-                    {parts.join(" • ")}.
-                  </span>
-                );
-              })()}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Financial/document scope note ── */}
+      {/* ── Compact scope and insight ── */}
       {!isLoading && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
-          <Info className="w-3.5 h-3.5" />
-          <span>المؤشرات المالية:</span>
-          <Badge variant="outline" className="font-medium">
-            المستندات المُرحّلة فقط
-          </Badge>
-          <span>
-            • {groupBy === "return"
-              ? "المرتجعات مستندات مستقلة ومُرحّلة"
-              : "الجدول حسب فلتر الحالة المحدد"}
-          </span>
-          <span>• التحصيل والتسويات يغطيان الفواتير المُرحّلة المختارة، شامل الضريبة</span>
+        <div className="rounded-lg border bg-muted/20 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2">
+            <Info className="w-3.5 h-3.5" />
+            <span>المؤشرات المالية</span>
+            <Badge variant="outline" className="h-5 font-medium bg-background">
+              المُرحّلة فقط
+            </Badge>
+            <span className="text-border">|</span>
+            <span>
+              تفاصيل الجدول: {groupBy === "return"
+                ? "المرتجعات المُرحّلة"
+                : statusFilter === "posted"
+                  ? "الفواتير المُرحّلة"
+                  : statusFilter === "draft"
+                    ? "الفواتير المسودة"
+                    : statusFilter === "cancelled"
+                      ? "الفواتير الملغاة"
+                      : "كل حالات الفواتير"}
+            </span>
+          </div>
+          <span>تغطية الفواتير تُحسب شامل الضريبة</span>
         </div>
       )}
 
-      {/* ── 5 Primary KPI Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      {/* ── 4 Primary KPI Cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {/* صافي المبيعات (الرقم الأهم) */}
         <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow lg:col-span-1">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
@@ -2462,64 +2403,6 @@ export default function SalesReport() {
           </CardContent>
         </Card>
 
-        {/* التحصيل النقدي/البنكي المخصص للفواتير */}
-        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-transparent pointer-events-none" />
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center shrink-0 shadow-inner">
-                <Percent className="w-5 h-5 text-amber-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground mb-1">
-                  التحصيل النقدي للفواتير
-                </p>
-                {isLoading ? (
-                  <Skeleton className="h-7 w-16" />
-                ) : (
-                  <p className="text-2xl font-extrabold tracking-tight tabular-nums">
-                    {kpi.cashCollectionRate === null
-                      ? "—"
-                      : `${kpi.cashCollectionRate.toFixed(1)}%`}
-                  </p>
-                )}
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {fmt(kpi.cashCollected)} من {fmt(kpi.invoiceGrossTotal)} شامل الضريبة
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* تسويات أرصدة المرتجعات المطبقة على الفواتير */}
-        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-transparent pointer-events-none" />
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-violet-500/10 flex items-center justify-center shrink-0 shadow-inner">
-                <ArrowDownLeft className="w-5 h-5 text-violet-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground mb-1">
-                  تسويات أرصدة المرتجعات
-                </p>
-                {isLoading ? (
-                  <Skeleton className="h-7 w-16" />
-                ) : (
-                  <p className="text-2xl font-extrabold tracking-tight tabular-nums">
-                    {fmt(kpi.returnSettled)}
-                  </p>
-                )}
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  إجمالي تغطية الفواتير {kpi.totalCoverageRate === null
-                    ? "—"
-                    : `${kpi.totalCoverageRate.toFixed(1)}%`}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* المتأخرات (إجراء) */}
         <Card
           className={`relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow ${overdueInfo.count > 0 ? "border-destructive/30" : ""}`}
@@ -2564,18 +2447,57 @@ export default function SalesReport() {
         </Card>
       </div>
 
-      {/* ── Document table filter indicator ── */}
-      {statusFilter !== "all" && groupBy !== "return" && (
-        <p className="text-[11px] text-muted-foreground -mt-2 px-1">
-          <Info className="inline w-3 h-3 ml-1" />
-          تفاصيل الجدول مبنية على الفواتير{" "}
-          {statusFilter === "posted"
-            ? "المُرحّلة فقط"
-            : statusFilter === "draft"
-              ? "المسودة فقط"
-              : "الملغاة فقط"}
-        </p>
-      )}
+      {/* ── Invoice coverage — separate concepts in one compact region ── */}
+      <Card className="border shadow-sm">
+        <CardContent className="p-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <Percent className="w-4 h-4 text-amber-600" />
+              <span className="text-sm font-semibold">تغطية فواتير الفترة</span>
+              <Badge variant="outline" className="h-5 text-[10px]">
+                شامل الضريبة
+              </Badge>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              إجمالي الفواتير {fmt(kpi.invoiceGrossTotal)}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 divide-y sm:grid-cols-3 sm:divide-x sm:divide-x-reverse sm:divide-y-0">
+            <div className="px-4 py-3">
+              <p className="text-xs text-muted-foreground">تحصيل نقدي/بنكي</p>
+              <div className="mt-1 flex items-baseline justify-between gap-2">
+                <span className="text-lg font-bold tabular-nums">
+                  {isLoading ? "—" : fmt(kpi.cashCollected)}
+                </span>
+                <Badge variant="secondary" className="font-mono">
+                  {kpi.cashCollectionRate === null
+                    ? "—"
+                    : `${kpi.cashCollectionRate.toFixed(1)}%`}
+                </Badge>
+              </div>
+            </div>
+            <div className="px-4 py-3">
+              <p className="text-xs text-muted-foreground">تسويات أرصدة المرتجعات</p>
+              <p className="mt-1 text-lg font-bold tabular-nums text-violet-600 dark:text-violet-400">
+                {isLoading ? "—" : fmt(kpi.returnSettled)}
+              </p>
+            </div>
+            <div className="px-4 py-3">
+              <p className="text-xs text-muted-foreground">إجمالي التغطية والمتبقي</p>
+              <div className="mt-1 flex items-baseline justify-between gap-2">
+                <span className="text-lg font-bold tabular-nums">
+                  {isLoading ? "—" : fmt(kpi.totalCovered)}
+                </span>
+                <span
+                  className={`text-xs font-medium ${invoiceCoverage.outstanding > 0 ? "text-destructive" : "text-emerald-600"}`}
+                >
+                  المتبقي {isLoading ? "—" : fmt(invoiceCoverage.outstanding)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ── Collapsible: Extra KPIs ── */}
       <Collapsible open={showExtras} onOpenChange={setShowExtras}>
@@ -2685,67 +2607,38 @@ export default function SalesReport() {
                 </CardContent>
               </Card>
             )}
+
+            {targetInfo && (
+              <Card className="border shadow-sm md:col-span-2">
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">
+                        تحقيق الهدف {targetInfo.monthsInRange > 1
+                          ? `(${targetInfo.monthsInRange} أشهر)`
+                          : "الشهري"}
+                      </p>
+                      <p className="text-lg font-bold tabular-nums">
+                        {targetInfo.pct.toFixed(0)}%
+                      </p>
+                    </div>
+                    <Target className="w-5 h-5 text-cyan-600" />
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-1.5 mt-2">
+                    <div
+                      className={`h-1.5 rounded-full ${targetInfo.pct >= 100 ? "bg-emerald-500" : targetInfo.pct >= 80 ? "bg-primary" : "bg-amber-500"}`}
+                      style={{ width: `${Math.min(targetInfo.pct, 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {fmt(kpi.netSales)} / {fmt(targetInfo.scaledTarget)}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>
-
-      {/* ── Sales Target ── */}
-      {targetInfo && (
-        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
-          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-transparent pointer-events-none" />
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-cyan-500/10 flex items-center justify-center shrink-0 shadow-inner">
-                <Target className="w-5 h-5 text-cyan-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    الهدف{" "}
-                    {targetInfo.monthsInRange > 1
-                      ? `(${targetInfo.monthsInRange} أشهر)`
-                      : "الشهري"}
-                  </p>
-                  <Badge
-                    variant={
-                      targetInfo.pct >= 100
-                        ? "default"
-                        : targetInfo.pct >= 80
-                          ? "secondary"
-                          : "destructive"
-                    }
-                    className="text-[10px] px-1.5 py-0"
-                  >
-                    {targetInfo.pct >= 100
-                      ? "تحقق"
-                      : targetInfo.pct >= 80
-                        ? "قريب"
-                        : "متأخر"}
-                  </Badge>
-                </div>
-                {isLoading ? (
-                  <Skeleton className="h-7 w-20" />
-                ) : (
-                  <>
-                    <p className="text-2xl font-extrabold tracking-tight tabular-nums">
-                      {targetInfo.pct.toFixed(0)}%
-                    </p>
-                    <div className="w-full bg-muted rounded-full h-1.5 mt-1.5">
-                      <div
-                        className={`h-1.5 rounded-full transition-all ${targetInfo.pct >= 100 ? "bg-emerald-500" : targetInfo.pct >= 80 ? "bg-primary" : "bg-amber-500"}`}
-                        style={{ width: `${Math.min(targetInfo.pct, 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      {fmt(kpi.netSales)} / {fmt(targetInfo.scaledTarget)}
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* ── Chart (for time/customer/product modes) ── */}
       {groupBy !== "invoice" && chartData.length > 0 && (
