@@ -69,6 +69,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { formatProductDisplay } from "@/lib/product-utils";
 import { fetchAllPaged } from "@/lib/paged-fetch";
+import { computeSalesReportMetrics } from "@/lib/sales-report-metrics";
 
 // ── helpers ──
 const fmt = (n: number) =>
@@ -212,7 +213,7 @@ export default function SalesReport() {
           supabase
             .from("sales_returns")
             .select(
-              "id, return_date, total, status, customer_id, customer:customers(name), items:sales_return_items(quantity, total, product_id, product:products(category_id, category:product_categories(name)))",
+              "id, return_date, total, tax, status, customer_id, customer:customers(name), items:sales_return_items(quantity, total, product_id, product:products(category_id, category:product_categories(name)))",
               { count: "exact" },
             )
             .eq("status", "posted")
@@ -255,7 +256,7 @@ export default function SalesReport() {
         () =>
           supabase
             .from("sales_invoices")
-            .select("id, total", { count: "exact" })
+            .select("id, status, total, tax", { count: "exact" })
             .eq("status", "posted")
             .gte("invoice_date", prevPeriod.from)
             .lte("invoice_date", prevPeriod.to)
@@ -272,7 +273,7 @@ export default function SalesReport() {
         () =>
           supabase
             .from("sales_returns")
-            .select("id, total", { count: "exact" })
+            .select("id, status, total, tax", { count: "exact" })
             .eq("status", "posted")
             .gte("return_date", prevPeriod.from)
             .lte("return_date", prevPeriod.to)
@@ -290,42 +291,41 @@ export default function SalesReport() {
 
   const isPostedOnly = statusFilter === "posted";
 
-  // ── KPI summary (always from posted invoices) ──
+  // ── Financial KPI summary (posted documents only) ──
   const kpi = useMemo(() => {
     const posted = invoices.filter((i) => i.status === "posted");
-    const grossSales = posted.reduce((s, i) => s + Number(i.total), 0);
     const paid = posted.reduce((s, i) => s + Number(i.paid_amount), 0);
-    const returnsTotal = returns.reduce((s, r) => s + Number(r.total), 0);
-    const netSales = grossSales - returnsTotal;
-    const cogs =
-      movements
-        .filter((m) => m.movement_type === "sale")
-        .reduce((s, m) => s + Number(m.total_cost), 0) -
-      movements
-        .filter((m) => m.movement_type === "sale_return")
-        .reduce((s, m) => s + Number(m.total_cost), 0);
-    const grossProfit = netSales - cogs;
-    const collectionRate = netSales > 0 ? (paid / netSales) * 100 : 0;
+    const metrics = computeSalesReportMetrics({ invoices, returns, movements });
+    const collectionRate =
+      metrics.netSalesRevenue > 0
+        ? (paid / metrics.netSalesRevenue) * 100
+        : 0;
+
     return {
-      count: posted.length,
-      grossSales,
-      returnsTotal,
-      netSales,
-      grossProfit,
+      count: metrics.invoiceCount,
+      grossSales: metrics.salesRevenueExcludingTax,
+      returnsTotal: metrics.returnRevenueExcludingTax,
+      netSales: metrics.netSalesRevenue,
+      grossProfit: metrics.grossProfit,
+      grossMarginPercent: metrics.grossMarginPercent,
       paid,
       collectionRate: Math.min(collectionRate, 100),
-      cogs,
+      cogs: metrics.netCogs,
     };
   }, [invoices, returns, movements]);
 
   // ── Previous period KPIs ──
   const prevKpi = useMemo(() => {
-    const grossSales = prevInvoices.reduce((s, i) => s + Number(i.total), 0);
-    const returnsTotal = prevReturns.reduce((s, r) => s + Number(r.total), 0);
+    const metrics = computeSalesReportMetrics({
+      invoices: prevInvoices,
+      returns: prevReturns,
+      movements: [],
+    });
+
     return {
-      count: prevInvoices.length,
-      grossSales,
-      netSales: grossSales - returnsTotal,
+      count: metrics.invoiceCount,
+      grossSales: metrics.salesRevenueExcludingTax,
+      netSales: metrics.netSalesRevenue,
     };
   }, [prevInvoices, prevReturns]);
 
@@ -1444,11 +1444,13 @@ export default function SalesReport() {
       });
     const summaryCards = [
       { label: "عدد الفواتير", value: String(kpi.count) },
-      { label: "إجمالي المبيعات", value: fmtN(kpi.grossSales) },
-      { label: "المرتجعات", value: fmtN(kpi.returnsTotal) },
-      { label: "صافي المبيعات", value: fmtN(kpi.netSales) },
+      { label: "إجمالي المبيعات قبل الضريبة", value: fmtN(kpi.grossSales) },
+      { label: "المرتجعات قبل الضريبة", value: fmtN(kpi.returnsTotal) },
+      { label: "صافي المبيعات قبل الضريبة", value: fmtN(kpi.netSales) },
+      { label: "صافي تكلفة البضاعة", value: fmtN(kpi.cogs) },
+      { label: "إجمالي الربح", value: fmtN(kpi.grossProfit) },
       {
-        label: "متوسط الفاتورة",
+        label: "متوسط الفاتورة قبل الضريبة",
         value: fmtN(kpi.count > 0 ? kpi.grossSales / kpi.count : 0),
       },
       {
@@ -1833,9 +1835,8 @@ export default function SalesReport() {
                       : `تراجع ${Math.abs(growth).toFixed(1)}% في صافي المبيعات مقارنة بالفترة السابقة`,
                   );
                 }
-                if (isPostedOnly && kpi.netSales > 0) {
-                  const marginPct = (kpi.grossProfit / kpi.netSales) * 100;
-                  parts.push(`هامش ربح ${marginPct.toFixed(1)}%`);
+                if (kpi.grossMarginPercent !== null) {
+                  parts.push(`هامش ربح ${kpi.grossMarginPercent.toFixed(1)}%`);
                 }
                 if (kpi.grossSales > 0 && kpi.returnsTotal > 0) {
                   const retPct = (kpi.returnsTotal / kpi.grossSales) * 100;
@@ -1881,25 +1882,15 @@ export default function SalesReport() {
         </Card>
       )}
 
-      {/* ── Status Scope Note ── */}
+      {/* ── Financial/document scope note ── */}
       {!isLoading && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
           <Info className="w-3.5 h-3.5" />
-          <span>الأرقام مبنية على:</span>
+          <span>المؤشرات المالية:</span>
           <Badge variant="outline" className="font-medium">
-            {statusFilter === "posted"
-              ? "الفواتير المُرحّلة فقط"
-              : statusFilter === "draft"
-                ? "المسودات فقط"
-                : statusFilter === "cancelled"
-                  ? "الفواتير الملغاة فقط"
-                  : "كل الحالات"}
+            المستندات المُرحّلة فقط
           </Badge>
-          {!isPostedOnly && (
-            <span className="text-amber-600 dark:text-amber-400">
-              • الربح وتكلفة البضاعة لا تُحسب إلا للمُرحّل
-            </span>
-          )}
+          <span>• الجدول حسب فلتر الحالة المحدد</span>
         </div>
       )}
 
@@ -1915,7 +1906,7 @@ export default function SalesReport() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
-                  صافي المبيعات
+                  صافي المبيعات قبل الضريبة
                 </p>
                 {isLoading ? (
                   <Skeleton className="h-7 w-20" />
@@ -1977,31 +1968,19 @@ export default function SalesReport() {
                   <p className="text-xs font-medium text-muted-foreground">
                     إجمالي الربح
                   </p>
-                  {!isPostedOnly && (
-                    <TooltipProvider>
-                      <UITooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="w-3 h-3 text-muted-foreground/60" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          الربح يُحسب فقط على الفواتير المُرحّلة
-                        </TooltipContent>
-                      </UITooltip>
-                    </TooltipProvider>
-                  )}
                 </div>
                 {isLoading ? (
                   <Skeleton className="h-7 w-20" />
                 ) : (
                   <p
-                    className={`text-2xl font-extrabold tracking-tight tabular-nums truncate ${isPostedOnly ? (kpi.grossProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive") : "text-muted-foreground"}`}
+                    className={`text-2xl font-extrabold tracking-tight tabular-nums truncate ${kpi.grossProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}
                   >
-                    {isPostedOnly ? fmt(kpi.grossProfit) : "—"}
+                    {fmt(kpi.grossProfit)}
                   </p>
                 )}
-                {isPostedOnly && kpi.netSales > 0 && (
+                {kpi.grossMarginPercent !== null && (
                   <p className="text-[10px] text-muted-foreground mt-0.5">
-                    هامش {((kpi.grossProfit / kpi.netSales) * 100).toFixed(1)}%
+                    هامش {kpi.grossMarginPercent.toFixed(1)}%
                   </p>
                 )}
               </div>
@@ -2019,7 +1998,7 @@ export default function SalesReport() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
-                  المرتجعات
+                  المرتجعات قبل الضريبة
                 </p>
                 {isLoading ? (
                   <Skeleton className="h-7 w-16" />
@@ -2110,11 +2089,11 @@ export default function SalesReport() {
         </Card>
       </div>
 
-      {/* ── Status filter indicator ── */}
+      {/* ── Document table filter indicator ── */}
       {statusFilter !== "all" && (
         <p className="text-[11px] text-muted-foreground -mt-2 px-1">
           <Info className="inline w-3 h-3 ml-1" />
-          الأرقام مبنية على الفواتير{" "}
+          تفاصيل الجدول مبنية على الفواتير{" "}
           {statusFilter === "posted"
             ? "المُرحّلة فقط"
             : statusFilter === "draft"
@@ -2143,7 +2122,7 @@ export default function SalesReport() {
             <Card className="border shadow-sm">
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
-                  إجمالي المبيعات
+                  إجمالي المبيعات قبل الضريبة
                 </p>
                 {isLoading ? (
                   <Skeleton className="h-6 w-16" />
@@ -2178,7 +2157,7 @@ export default function SalesReport() {
             <Card className="border shadow-sm">
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
-                  متوسط الفاتورة
+                  متوسط الفاتورة قبل الضريبة
                 </p>
                 {isLoading ? (
                   <Skeleton className="h-6 w-16" />
