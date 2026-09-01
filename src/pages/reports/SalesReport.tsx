@@ -45,12 +45,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   Line,
   ComposedChart,
-  Legend,
 } from "recharts";
 import { useSettings } from "@/contexts/SettingsContext";
 import {
@@ -83,14 +79,6 @@ const fmt = (n: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-const CHART_COLORS = [
-  "#3b82f6",
-  "#22c55e",
-  "#f97316",
-  "#ec4899",
-  "#a855f7",
-  "#eab308",
-];
 const FLAT_ACTION_CLASS =
   "h-9 gap-2 rounded-lg border-0 bg-muted/50 px-3 text-xs font-medium text-foreground shadow-none hover:bg-muted hover:text-foreground";
 const FLAT_SEGMENT_CLASS =
@@ -1800,47 +1788,66 @@ export default function SalesReport() {
     return cols;
   }, [isPostedOnly]);
 
-  // ── Chart data for time and customer/product ──
+  // ── One decision-oriented chart for the active aggregate view ──
+  const chartMeta = useMemo(() => {
+    if (groupBy === "time") {
+      return {
+        title: `اتجاه صافي المبيعات ${timeMode === "daily" ? "اليومي" : "الشهري"}`,
+        description:
+          "صافي المبيعات قبل الضريبة بعد طرح المرتجعات المستقلة في كل فترة.",
+      };
+    }
+    if (groupBy === "customer") {
+      return {
+        title: "أعلى 10 عملاء بصافي المبيعات",
+        description:
+          "ترتيب العملاء حسب المبيعات قبل الضريبة بعد طرح مرتجعات كل عميل.",
+      };
+    }
+    if (groupBy === "product") {
+      return {
+        title: "أعلى 10 منتجات بصافي المبيعات",
+        description:
+          "ترتيب المنتجات حسب إيراد البيع الصافي بعد طرح مرتجعات المنتج.",
+      };
+    }
+    if (groupBy === "category") {
+      return {
+        title: "أعلى 10 تصنيفات بصافي المبيعات",
+        description:
+          "ترتيب التصنيفات حسب إيراد البيع الصافي بعد طرح المرتجعات.",
+      };
+    }
+    return null;
+  }, [groupBy, timeMode]);
+
   const chartData = useMemo(() => {
     if (groupBy === "time") {
       return timeData.map((d) => ({
         name: d.label,
-        مبيعات: d.total,
-        مرتجعات: d.returns,
-        صافي: d.total - d.returns,
+        "صافي المبيعات": d.net,
       }));
     }
     if (groupBy === "customer") {
       return customerData.slice(0, 10).map((c) => ({
-        name: c.name.length > 12 ? c.name.substring(0, 12) + "…" : c.name,
-        المبيعات: c.total,
+        name: c.name.length > 18 ? c.name.substring(0, 18) + "…" : c.name,
+        "صافي المبيعات": c.total - c.returns,
       }));
     }
     if (groupBy === "product") {
       return productData.slice(0, 10).map((p) => ({
-        name: p.name.length > 12 ? p.name.substring(0, 12) + "…" : p.name,
-        الإيرادات: p.revenue,
+        name: p.name.length > 18 ? p.name.substring(0, 18) + "…" : p.name,
+        "صافي المبيعات": p.revenue,
       }));
     }
     if (groupBy === "category") {
       return categoryData.slice(0, 10).map((c) => ({
-        name: c.name.length > 12 ? c.name.substring(0, 12) + "…" : c.name,
-        الإيرادات: c.revenue,
+        name: c.name.length > 18 ? c.name.substring(0, 18) + "…" : c.name,
+        "صافي المبيعات": c.net,
       }));
     }
     return [];
   }, [groupBy, timeData, customerData, productData, categoryData]);
-
-  // ── Pie data for customer mode ──
-  const pieData = useMemo(() => {
-    if (groupBy !== "customer") return [];
-    const top5 = customerData.slice(0, 5);
-    const rest = customerData.slice(5);
-    const restTotal = rest.reduce((s, c) => s + c.total, 0);
-    const result = top5.map((c) => ({ name: c.name, value: c.total }));
-    if (restTotal > 0) result.push({ name: "أخرى", value: restTotal });
-    return result;
-  }, [groupBy, customerData]);
 
   // ── Export config ──
   const exportConfig = useMemo(() => {
@@ -2661,7 +2668,7 @@ export default function SalesReport() {
         </CollapsibleContent>
       </Collapsible>
 
-      {groupBy !== "invoice" && chartData.length > 0 && (
+      {chartMeta && chartData.length > 0 && (
         <Button
           variant="ghost"
           size="sm"
@@ -2671,25 +2678,24 @@ export default function SalesReport() {
           <ChevronDown
             className={`h-3.5 w-3.5 transition-transform ${showChart ? "rotate-180" : ""}`}
           />
-          {showChart ? "إخفاء الرسم" : "عرض الرسم البياني"}
+          {showChart ? "إخفاء التحليل البصري" : "عرض التحليل البصري"}
         </Button>
       )}
       </div>
 
-      {/* ── Chart (for time/customer/product modes) ── */}
-      {showChart && groupBy !== "invoice" && chartData.length > 0 && (
-        <div
-          className={
-            groupBy === "customer"
-              ? "grid grid-cols-1 md:grid-cols-2 gap-4"
-              : ""
-          }
-        >
-          <Card>
-            <CardContent className="pt-4">
-              <ResponsiveContainer width="100%" height={260}>
-                {groupBy === "time" ? (
-                  <ComposedChart data={chartData}>
+      {/* ── One chart matched to the active aggregate view ── */}
+      {showChart && chartMeta && chartData.length > 0 && (
+        <Card className="overflow-hidden">
+          <div className="border-b bg-muted/15 px-4 py-3">
+            <p className="text-sm font-semibold">{chartMeta.title}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {chartMeta.description}
+            </p>
+          </div>
+          <CardContent className="px-3 pb-3 pt-4 sm:px-4">
+            <ResponsiveContainer width="100%" height={260}>
+              {groupBy === "time" ? (
+                <ComposedChart data={chartData}>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       stroke="hsl(var(--border))"
@@ -2699,6 +2705,8 @@ export default function SalesReport() {
                       fontSize={11}
                       axisLine={false}
                       tickLine={false}
+                      interval="preserveStartEnd"
+                      minTickGap={24}
                     />
                     <YAxis fontSize={11} axisLine={false} tickLine={false} />
                     <Tooltip
@@ -2707,26 +2715,14 @@ export default function SalesReport() {
                         border: "1px solid hsl(var(--border))",
                         fontSize: "12px",
                       }}
-                    />
-                    <Legend wrapperStyle={{ fontSize: "12px" }} />
-                    <Bar
-                      dataKey="مبيعات"
-                      fill="hsl(var(--primary))"
-                      radius={[4, 4, 0, 0]}
-                      barSize={28}
-                    />
-                    <Bar
-                      dataKey="مرتجعات"
-                      fill="hsl(var(--destructive))"
-                      radius={[4, 4, 0, 0]}
-                      barSize={28}
+                      formatter={(value: number) => [fmt(Number(value)), "صافي المبيعات"]}
                     />
                     <Line
                       type="monotone"
-                      dataKey="صافي"
-                      stroke="hsl(152, 60%, 42%)"
+                      dataKey="صافي المبيعات"
+                      stroke="hsl(var(--primary))"
                       strokeWidth={2.5}
-                      dot={{ r: 3 }}
+                      dot={chartData.length <= 15 ? { r: 3 } : false}
                     />
                   </ComposedChart>
                 ) : (
@@ -2748,7 +2744,7 @@ export default function SalesReport() {
                       fontSize={11}
                       axisLine={false}
                       tickLine={false}
-                      width={100}
+                      width={130}
                     />
                     <Tooltip
                       contentStyle={{
@@ -2756,61 +2752,18 @@ export default function SalesReport() {
                         border: "1px solid hsl(var(--border))",
                         fontSize: "12px",
                       }}
+                      formatter={(value: number) => [fmt(Number(value)), "صافي المبيعات"]}
                     />
                     <Bar
-                      dataKey={
-                        groupBy === "customer" ? "المبيعات" : "الإيرادات"
-                      }
+                      dataKey="صافي المبيعات"
                       fill="hsl(var(--primary))"
                       radius={[0, 4, 4, 0]}
                     />
                   </BarChart>
-                )}
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-          {groupBy === "customer" && pieData.length > 0 && (
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-xs font-medium text-muted-foreground mb-2 text-center">
-                  توزيع المبيعات بالعميل
-                </p>
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={85}
-                      label={({ name, percent }) =>
-                        `${name} ${(percent * 100).toFixed(0)}%`
-                      }
-                      labelLine={false}
-                      fontSize={10}
-                    >
-                      {pieData.map((_, i) => (
-                        <Cell
-                          key={i}
-                          fill={CHART_COLORS[i % CHART_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: "8px",
-                        border: "1px solid hsl(var(--border))",
-                        fontSize: "12px",
-                      }}
-                      formatter={(v: any) => fmt(v)}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              )}
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       )}
 
       {/* ── Data Table ── */}
