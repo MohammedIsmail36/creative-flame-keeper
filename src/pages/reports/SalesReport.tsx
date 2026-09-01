@@ -1,5 +1,5 @@
 import { useCallback, useState, useMemo } from "react";
-import type { SortingState } from "@tanstack/react-table";
+import type { SortingState, VisibilityState } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -137,6 +137,43 @@ export default function SalesReport() {
   const [showChart, setShowChart] = useState(false);
   const [invoiceSort, setInvoiceSort] = useState<SortingState>([]);
   const [productSort, setProductSort] = useState<SortingState>([]);
+  const [invoiceColumnVisibility, setInvoiceColumnVisibility] =
+    useState<VisibilityState>({
+      cashCollected: false,
+      returnSettled: false,
+      cogs: false,
+      margin: false,
+    });
+  const [returnColumnVisibility, setReturnColumnVisibility] =
+    useState<VisibilityState>({ itemsCount: false, documentType: false });
+  const [customerColumnVisibility, setCustomerColumnVisibility] =
+    useState<VisibilityState>({
+      invoiceGrossTotal: false,
+      cashCollected: false,
+      returnSettled: false,
+      remaining: false,
+      collection: false,
+    });
+  const [productColumnVisibility, setProductColumnVisibility] =
+    useState<VisibilityState>({
+      qtySold: false,
+      qtyReturned: false,
+      cogs: false,
+    });
+  const [categoryColumnVisibility, setCategoryColumnVisibility] =
+    useState<VisibilityState>({
+      qtySold: false,
+      qtyReturned: false,
+      revenue: false,
+      returns: false,
+      returnRate: false,
+    });
+  const [timeColumnVisibility, setTimeColumnVisibility] =
+    useState<VisibilityState>({
+      aov: false,
+      returnRate: false,
+      margin: false,
+    });
 
   // Quick sort toolbar (next to search) — sorts by profit or margin
   const QuickSortToolbar = ({
@@ -598,12 +635,20 @@ export default function SalesReport() {
         id: "remaining",
         header: "المتبقي",
         accessorFn: (r: any) => Number(r.total) - getCoverage(r.id).totalCovered,
-        cell: ({ getValue }) => {
+        cell: ({ getValue, row }) => {
           const v = getValue() as number;
           return (
-            <span className={v > 0 ? "text-destructive font-medium" : ""}>
-              {fmt(v)}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className={v > 0 ? "text-destructive font-medium" : ""}>
+                {fmt(v)}
+              </span>
+              {isOverdue(row.original) && (
+                <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">
+                  <AlertTriangle className="me-0.5 h-3 w-3" />
+                  متأخر
+                </Badge>
+              )}
+            </div>
           );
         },
         footer: ({ table }) => {
@@ -694,17 +739,6 @@ export default function SalesReport() {
           const v = ((rev - cogs) / rev) * 100;
           return <span className="font-mono">{v.toFixed(1)}%</span>;
         },
-      },
-      {
-        id: "overdue",
-        header: "متأخر",
-        cell: ({ row }) =>
-          isOverdue(row.original) ? (
-            <Badge variant="destructive" className="text-[10px] px-1.5">
-              <AlertTriangle className="w-3 h-3 ml-0.5" />
-              متأخر
-            </Badge>
-          ) : null,
       },
     ],
     [navigate, cogsByInvoice, getCoverage, isOverdue, settings?.sales_invoice_prefix],
@@ -2804,6 +2838,10 @@ export default function SalesReport() {
                   setSorting={setInvoiceSort}
                 />
               }
+              columnVisibility={invoiceColumnVisibility}
+              onColumnVisibilityChange={setInvoiceColumnVisibility}
+              columnToggleLabel="أعمدة إضافية"
+              compactRows
             />
           ) : groupBy === "return" ? (
             <>
@@ -2816,6 +2854,10 @@ export default function SalesReport() {
                 showSearch
                 searchPlaceholder="بحث في مستندات المرتجعات..."
                 emptyMessage="لا توجد مرتجعات مُرحّلة في هذه الفترة"
+                columnVisibility={returnColumnVisibility}
+                onColumnVisibilityChange={setReturnColumnVisibility}
+                columnToggleLabel="أعمدة إضافية"
+                compactRows
               />
               <p className="text-xs text-muted-foreground mt-2 text-center">
                 كل مرتجع مستند مستقل ويؤثر في الفترة حسب تاريخ المرتجع، دون
@@ -2832,6 +2874,10 @@ export default function SalesReport() {
               showSearch
               searchPlaceholder="بحث بالعميل..."
               emptyMessage="لا توجد بيانات"
+              columnVisibility={customerColumnVisibility}
+              onColumnVisibilityChange={setCustomerColumnVisibility}
+              columnToggleLabel="أعمدة إضافية"
+              compactRows
             />
           ) : groupBy === "product" ? (
             <>
@@ -2858,6 +2904,10 @@ export default function SalesReport() {
                     setSorting={setProductSort}
                   />
                 }
+                columnVisibility={productColumnVisibility}
+                onColumnVisibilityChange={setProductColumnVisibility}
+                columnToggleLabel="أعمدة إضافية"
+                compactRows
               />
 
               <p className="text-xs text-muted-foreground mt-2 text-center">
@@ -2875,6 +2925,10 @@ export default function SalesReport() {
               showSearch
               searchPlaceholder="بحث بالتصنيف..."
               emptyMessage="لا توجد بيانات"
+              columnVisibility={categoryColumnVisibility}
+              onColumnVisibilityChange={setCategoryColumnVisibility}
+              columnToggleLabel="أعمدة إضافية"
+              compactRows
             />
           ) : (
             <DataTable
@@ -2885,6 +2939,10 @@ export default function SalesReport() {
               showPagination
               showSearch={false}
               emptyMessage="لا توجد بيانات"
+              columnVisibility={timeColumnVisibility}
+              onColumnVisibilityChange={setTimeColumnVisibility}
+              columnToggleLabel="أعمدة إضافية"
+              compactRows
             />
           )}
         </CardContent>

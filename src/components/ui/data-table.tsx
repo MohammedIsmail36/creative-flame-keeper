@@ -72,6 +72,8 @@ interface DataTableProps<TData, TValue> {
   showSearch?: boolean;
   /** Show column visibility toggle */
   showColumnToggle?: boolean;
+  /** Label for the column visibility toggle */
+  columnToggleLabel?: string;
   /** Show pagination */
   showPagination?: boolean;
   /** Initial page size */
@@ -121,6 +123,7 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = "بحث...",
   showSearch = true,
   showColumnToggle = true,
+  columnToggleLabel = "الأعمدة",
   showPagination = true,
   pageSize = 20,
   isLoading = false,
@@ -291,7 +294,7 @@ export function DataTable<TData, TValue>({
               {/* ↓ mr-auto يدفع الزر لليسار في RTL */}
               <Button variant="outline" size="sm" className="mr-auto gap-1.5 h-8 text-xs">
                 <Settings2 className="h-3.5 w-3.5" />
-                الأعمدة
+                {columnToggleLabel}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
@@ -352,8 +355,8 @@ export function DataTable<TData, TValue>({
               {isLoading ? (
                 Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
                   <TableRow key={`skeleton-${i}`} className="hover:bg-transparent">
-                    {columns.map((_, j) => (
-                      <TableCell key={j} className="px-3 h-8">
+                    {table.getVisibleLeafColumns().map((column) => (
+                      <TableCell key={column.id} className="px-3 h-8">
                         <Skeleton className="h-4 w-full max-w-[160px]" />
                       </TableCell>
                     ))}
@@ -383,7 +386,7 @@ export function DataTable<TData, TValue>({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-28 text-center text-muted-foreground">
+                  <TableCell colSpan={table.getVisibleLeafColumns().length} className="h-28 text-center text-muted-foreground">
                     <div className="flex flex-col items-center gap-2">
                       <Search className="h-7 w-7 text-muted-foreground/30" />
                       <p className="text-sm">{emptyMessage}</p>
