@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useCallback, useState, useMemo } from "react";
 import type { SortingState } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -75,6 +75,11 @@ import {
   getSalesLineNetAmount,
 } from "@/lib/sales-report-metrics";
 import { groupSalesAndReturns } from "@/lib/sales-report-grouping";
+import {
+  computeInvoiceCoverage,
+  type InvoicePaymentAllocation,
+  type InvoiceReturnSettlement,
+} from "@/lib/sales-report-collections";
 
 // ── helpers ──
 const fmt = (n: number) =>
@@ -197,7 +202,7 @@ export default function SalesReport() {
           supabase
             .from("sales_invoices")
             .select(
-              "id, invoice_number, posted_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, customer_id, customer:customers(name), items:sales_invoice_items(description, quantity, total, net_total, product_id, product:products(name, model_number, category_id, category:product_categories(name), brand:product_brands(name)))",
+              "id, invoice_number, posted_number, invoice_date, due_date, status, subtotal, discount, tax, total, customer_id, customer:customers(name), items:sales_invoice_items(description, quantity, total, net_total, product_id, product:products(name, model_number, category_id, category:product_categories(name), brand:product_brands(name)))",
               { count: "exact" },
             )
             .gte("invoice_date", dateFrom)
@@ -253,7 +258,51 @@ export default function SalesReport() {
   });
   const movements = movementsQuery.data ?? [];
 
-  // ── Query 4: Previous period (for comparison) ──
+  // ── Query 4: Cash allocations to invoices in the selected invoice period ──
+  const paymentAllocationsQuery = useQuery({
+    queryKey: ["sr-payment-allocations", dateFrom, dateTo],
+    queryFn: () =>
+      fetchAllPaged<InvoicePaymentAllocation>(
+        () =>
+          supabase
+            .from("customer_payment_allocations")
+            .select(
+              "id, invoice_id, allocated_amount, payment:customer_payments!inner(status), invoice:sales_invoices!inner(status, invoice_date)",
+              { count: "exact" },
+            )
+            .eq("payment.status", "posted")
+            .eq("invoice.status", "posted")
+            .gte("invoice.invoice_date", dateFrom)
+            .lte("invoice.invoice_date", dateTo)
+            .order("id", { ascending: true }),
+        { batchSize: 500, maxRows: 250000 },
+      ),
+  });
+  const paymentAllocations = paymentAllocationsQuery.data ?? [];
+
+  // ── Query 5: Return credits applied to the selected invoices ──
+  const returnSettlementsQuery = useQuery({
+    queryKey: ["sr-return-settlements", dateFrom, dateTo],
+    queryFn: () =>
+      fetchAllPaged<InvoiceReturnSettlement>(
+        () =>
+          supabase
+            .from("sales_invoice_return_settlements")
+            .select(
+              "id, invoice_id, return_id, settled_amount, invoice:sales_invoices!inner(status, invoice_date), sales_return:sales_returns!inner(status)",
+              { count: "exact" },
+            )
+            .eq("invoice.status", "posted")
+            .eq("sales_return.status", "posted")
+            .gte("invoice.invoice_date", dateFrom)
+            .lte("invoice.invoice_date", dateTo)
+            .order("id", { ascending: true }),
+        { batchSize: 500, maxRows: 250000 },
+      ),
+  });
+  const returnSettlements = returnSettlementsQuery.data ?? [];
+
+  // ── Query 6: Previous period (for comparison) ──
   const prevInvoicesQuery = useQuery({
     queryKey: ["sr-prev-invoices", prevPeriod.from, prevPeriod.to],
     queryFn: () =>
@@ -296,15 +345,15 @@ export default function SalesReport() {
 
   const isPostedOnly = statusFilter === "posted";
 
+  const invoiceCoverage = useMemo(
+    () =>
+      computeInvoiceCoverage(invoices, paymentAllocations, returnSettlements),
+    [invoices, paymentAllocations, returnSettlements],
+  );
+
   // ── Financial KPI summary (posted documents only) ──
   const kpi = useMemo(() => {
-    const posted = invoices.filter((i) => i.status === "posted");
-    const paid = posted.reduce((s, i) => s + Number(i.paid_amount), 0);
     const metrics = computeSalesReportMetrics({ invoices, returns, movements });
-    const collectionRate =
-      metrics.netSalesRevenue > 0
-        ? (paid / metrics.netSalesRevenue) * 100
-        : 0;
 
     return {
       count: metrics.invoiceCount,
@@ -313,11 +362,15 @@ export default function SalesReport() {
       netSales: metrics.netSalesRevenue,
       grossProfit: metrics.grossProfit,
       grossMarginPercent: metrics.grossMarginPercent,
-      paid,
-      collectionRate: Math.min(collectionRate, 100),
+      invoiceGrossTotal: invoiceCoverage.invoiceGrossTotal,
+      cashCollected: invoiceCoverage.cashCollected,
+      returnSettled: invoiceCoverage.returnSettled,
+      totalCovered: invoiceCoverage.totalCovered,
+      cashCollectionRate: invoiceCoverage.cashCollectionRate,
+      totalCoverageRate: invoiceCoverage.totalCoverageRate,
       cogs: metrics.netCogs,
     };
-  }, [invoices, returns, movements]);
+  }, [invoices, returns, movements, invoiceCoverage]);
 
   // ── Previous period KPIs ──
   const prevKpi = useMemo(() => {
@@ -379,10 +432,27 @@ export default function SalesReport() {
 
   // ── Overdue check ──
   const today = format(new Date(), "yyyy-MM-dd");
-  const isOverdue = (inv: any) =>
-    inv.due_date &&
-    inv.due_date < today &&
-    Number(inv.total) - Number(inv.paid_amount) > 0;
+  const getCoverage = useCallback(
+    (invoiceId: string) =>
+      invoiceCoverage.byInvoice[invoiceId] ?? {
+        cashCollected: 0,
+        returnSettled: 0,
+        totalCovered: 0,
+      },
+    [invoiceCoverage],
+  );
+  const isOverdue = useCallback(
+    (inv: any) => {
+      const remaining = Number(inv.total) - getCoverage(inv.id).totalCovered;
+      return (
+        inv.status === "posted" &&
+        inv.due_date &&
+        inv.due_date < today &&
+        remaining > 0
+      );
+    },
+    [getCoverage, today],
+  );
 
   const overdueInfo = useMemo(() => {
     const posted = invoices.filter((i) => i.status === "posted");
@@ -390,11 +460,11 @@ export default function SalesReport() {
     return {
       count: ov.length,
       total: ov.reduce(
-        (s, i) => s + Number(i.total) - Number(i.paid_amount),
+        (s, i) => s + Number(i.total) - getCoverage(i.id).totalCovered,
         0,
       ),
     };
-  }, [invoices]);
+  }, [invoices, getCoverage, isOverdue]);
 
   const discountTaxInfo = useMemo(() => {
     const posted = invoices.filter((i) => i.status === "posted");
@@ -483,21 +553,42 @@ export default function SalesReport() {
         },
       },
       {
-        id: "paid",
-        header: "المدفوع",
-        accessorFn: (r: any) => Number(r.paid_amount),
+        id: "cashCollected",
+        header: "تحصيل نقدي/بنكي",
+        accessorFn: (r: any) => getCoverage(r.id).cashCollected,
         cell: ({ getValue }) => fmt(getValue() as number),
         footer: ({ table }) => {
           const total = table
             .getFilteredRowModel()
-            .rows.reduce((s, r) => s + Number(r.original.paid_amount), 0);
+            .rows.reduce(
+              (sum, row) => sum + getCoverage(row.original.id).cashCollected,
+              0,
+            );
           return <span className="font-mono">{fmt(total)}</span>;
         },
       },
       {
+        id: "returnSettled",
+        header: "تسوية بمرتجع",
+        accessorFn: (r: any) => getCoverage(r.id).returnSettled,
+        cell: ({ getValue }) => fmt(getValue() as number),
+        footer: ({ table }) => (
+          <span className="font-mono">
+            {fmt(
+              table
+                .getFilteredRowModel()
+                .rows.reduce(
+                  (sum, row) => sum + getCoverage(row.original.id).returnSettled,
+                  0,
+                ),
+            )}
+          </span>
+        ),
+      },
+      {
         id: "remaining",
         header: "المتبقي",
-        accessorFn: (r: any) => Number(r.total) - Number(r.paid_amount),
+        accessorFn: (r: any) => Number(r.total) - getCoverage(r.id).totalCovered,
         cell: ({ getValue }) => {
           const v = getValue() as number;
           return (
@@ -511,7 +602,7 @@ export default function SalesReport() {
             .getFilteredRowModel()
             .rows.reduce(
               (s, r) =>
-                s + Number(r.original.total) - Number(r.original.paid_amount),
+                s + Number(r.original.total) - getCoverage(r.original.id).totalCovered,
               0,
             );
           return (
@@ -607,7 +698,7 @@ export default function SalesReport() {
           ) : null,
       },
     ],
-    [navigate, today, cogsByInvoice],
+    [navigate, cogsByInvoice, getCoverage, isOverdue, settings?.sales_invoice_prefix],
   );
 
   // ═══ STANDALONE SALES RETURNS ═══
@@ -695,7 +786,9 @@ export default function SalesReport() {
       name: string;
       count: number;
       total: number;
-      paid: number;
+      invoiceGrossTotal: number;
+      cashCollected: number;
+      returnSettled: number;
       returns: number;
       returnOnly: boolean;
     };
@@ -703,7 +796,9 @@ export default function SalesReport() {
       name: row.customer?.name || "عميل نقدي",
       count: 0,
       total: 0,
-      paid: 0,
+      invoiceGrossTotal: 0,
+      cashCollected: 0,
+      returnSettled: 0,
       returns: 0,
       returnOnly: false,
     });
@@ -718,7 +813,11 @@ export default function SalesReport() {
         addSale: (group, invoice) => {
           group.count += 1;
           group.total += getDocumentAmountExcludingTax(invoice);
-          group.paid += Number(invoice.paid_amount || 0);
+          if (invoice.status === "posted") {
+            group.invoiceGrossTotal += Number(invoice.total || 0);
+            group.cashCollected += getCoverage(invoice.id).cashCollected;
+            group.returnSettled += getCoverage(invoice.id).returnSettled;
+          }
         },
         addReturn: (group, salesReturn) => {
           group.returns += getDocumentAmountExcludingTax(salesReturn);
@@ -732,7 +831,7 @@ export default function SalesReport() {
         returnOnly: group.count === 0 && group.returns > 0,
       }))
       .sort((a, b) => b.total - b.returns - (a.total - a.returns));
-  }, [filtered, returns]);
+  }, [filtered, returns, getCoverage]);
 
   const customerColumns = useMemo<ColumnDef<any, any>[]>(
     () => [
@@ -808,15 +907,43 @@ export default function SalesReport() {
         ),
       },
       {
-        accessorKey: "paid",
-        header: "المدفوع",
+        accessorKey: "invoiceGrossTotal",
+        header: "الفواتير شامل الضريبة",
         cell: ({ getValue }) => fmt(getValue() as number),
         footer: ({ table }) => (
           <span className="font-mono">
             {fmt(
               table
                 .getFilteredRowModel()
-                .rows.reduce((s, r) => s + r.original.paid, 0),
+                .rows.reduce((s, r) => s + r.original.invoiceGrossTotal, 0),
+            )}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "cashCollected",
+        header: "تحصيل نقدي/بنكي",
+        cell: ({ getValue }) => fmt(getValue() as number),
+        footer: ({ table }) => (
+          <span className="font-mono">
+            {fmt(
+              table
+                .getFilteredRowModel()
+                .rows.reduce((s, r) => s + r.original.cashCollected, 0),
+            )}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "returnSettled",
+        header: "تسوية بمرتجع",
+        cell: ({ getValue }) => fmt(getValue() as number),
+        footer: ({ table }) => (
+          <span className="font-mono">
+            {fmt(
+              table
+                .getFilteredRowModel()
+                .rows.reduce((s, r) => s + r.original.returnSettled, 0),
             )}
           </span>
         ),
@@ -824,7 +951,8 @@ export default function SalesReport() {
       {
         id: "remaining",
         header: "المتبقي",
-        accessorFn: (r: any) => r.total - r.paid,
+        accessorFn: (r: any) =>
+          r.invoiceGrossTotal - r.cashCollected - r.returnSettled,
         cell: ({ getValue }) => {
           const v = getValue() as number;
           return (
@@ -834,22 +962,33 @@ export default function SalesReport() {
         footer: ({ table }) => {
           const t = table
             .getFilteredRowModel()
-            .rows.reduce((s, r) => s + r.original.total - r.original.paid, 0);
+            .rows.reduce(
+              (s, r) =>
+                s +
+                r.original.invoiceGrossTotal -
+                r.original.cashCollected -
+                r.original.returnSettled,
+              0,
+            );
           return <span className="text-destructive font-mono">{fmt(t)}</span>;
         },
       },
       {
         id: "collection",
-        header: "التحصيل%",
+        header: "التحصيل النقدي%",
         accessorFn: (r: any) => {
-          const net = r.total - r.returns;
-          return net > 0 ? Math.min((r.paid / net) * 100, 100) : 0;
+          return r.invoiceGrossTotal > 0
+            ? (r.cashCollected / r.invoiceGrossTotal) * 100
+            : null;
         },
-        cell: ({ getValue }) => (
-          <span className="font-mono">
-            {(getValue() as number).toFixed(1)}%
-          </span>
-        ),
+        cell: ({ getValue }) => {
+          const value = getValue() as number | null;
+          return (
+            <span className="font-mono">
+              {value === null ? "—" : `${value.toFixed(1)}%`}
+            </span>
+          );
+        },
       },
     ],
     [],
@@ -1675,6 +1814,19 @@ export default function SalesReport() {
       { label: "صافي تكلفة البضاعة", value: fmtN(kpi.cogs) },
       { label: "إجمالي الربح", value: fmtN(kpi.grossProfit) },
       {
+        label: "التحصيل النقدي/البنكي المخصص للفواتير",
+        value: fmtN(kpi.cashCollected),
+      },
+      {
+        label: "نسبة التحصيل النقدي من الفواتير شامل الضريبة",
+        value:
+          kpi.cashCollectionRate === null
+            ? "—"
+            : `${kpi.cashCollectionRate.toFixed(1)}%`,
+      },
+      { label: "تسويات أرصدة المرتجعات", value: fmtN(kpi.returnSettled) },
+      { label: "إجمالي تغطية الفواتير", value: fmtN(kpi.totalCovered) },
+      {
         label: "متوسط الفاتورة قبل الضريبة",
         value: fmtN(kpi.count > 0 ? kpi.grossSales / kpi.count : 0),
       },
@@ -1700,7 +1852,8 @@ export default function SalesReport() {
           "العميل",
           "الحالة",
           "الإجمالي",
-          "المدفوع",
+          "التحصيل النقدي/البنكي",
+          "تسوية بمرتجع",
           "المتبقي",
           "تكلفة البضاعة",
           "الربح قبل المرتجعات المستقلة",
@@ -1728,8 +1881,9 @@ export default function SalesReport() {
                 ? "ملغي"
                 : "مسودة",
             Number(inv.total),
-            Number(inv.paid_amount),
-            Number(inv.total) - Number(inv.paid_amount),
+            getCoverage(inv.id).cashCollected,
+            getCoverage(inv.id).returnSettled,
+            Number(inv.total) - getCoverage(inv.id).totalCovered,
             cogs,
             isPosted ? profit : "—",
             isPosted ? margin.toFixed(1) + "%" : "—",
@@ -1782,9 +1936,11 @@ export default function SalesReport() {
           "الإجمالي",
           "المرتجعات",
           "الصافي",
-          "المدفوع",
+          "الفواتير شامل الضريبة",
+          "التحصيل النقدي/البنكي",
+          "تسوية بمرتجع",
           "المتبقي",
-          "التحصيل%",
+          "التحصيل النقدي%",
         ],
         rows: customerData.map((c) => [
           c.name,
@@ -1792,12 +1948,13 @@ export default function SalesReport() {
           c.total,
           c.returns,
           c.total - c.returns,
-          c.paid,
-          c.total - c.paid,
-          c.total - c.returns > 0
-            ? Math.min((c.paid / (c.total - c.returns)) * 100, 100).toFixed(1) +
-              "%"
-            : "0%",
+          c.invoiceGrossTotal,
+          c.cashCollected,
+          c.returnSettled,
+          c.invoiceGrossTotal - c.cashCollected - c.returnSettled,
+          c.invoiceGrossTotal > 0
+            ? `${((c.cashCollected / c.invoiceGrossTotal) * 100).toFixed(1)}%`
+            : "—",
         ]),
         summaryCards,
         settings,
@@ -1935,12 +2092,17 @@ export default function SalesReport() {
     overdueInfo,
     discountTaxInfo,
     targetInfo,
+    cogsByInvoice,
+    getCoverage,
+    isOverdue,
   ]);
 
   const reportQueries = [
     invoicesQuery,
     returnsQuery,
     movementsQuery,
+    paymentAllocationsQuery,
+    returnSettlementsQuery,
     prevInvoicesQuery,
     prevReturnsQuery,
   ];
@@ -2172,11 +2334,12 @@ export default function SalesReport() {
               ? "المرتجعات مستندات مستقلة ومُرحّلة"
               : "الجدول حسب فلتر الحالة المحدد"}
           </span>
+          <span>• التحصيل والتسويات يغطيان الفواتير المُرحّلة المختارة، شامل الضريبة</span>
         </div>
       )}
 
       {/* ── 5 Primary KPI Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* صافي المبيعات (الرقم الأهم) */}
         <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow lg:col-span-1">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
@@ -2299,7 +2462,7 @@ export default function SalesReport() {
           </CardContent>
         </Card>
 
-        {/* نسبة التحصيل */}
+        {/* التحصيل النقدي/البنكي المخصص للفواتير */}
         <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-transparent pointer-events-none" />
           <CardContent className="pt-5 pb-4">
@@ -2309,17 +2472,48 @@ export default function SalesReport() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
-                  نسبة التحصيل
+                  التحصيل النقدي للفواتير
                 </p>
                 {isLoading ? (
                   <Skeleton className="h-7 w-16" />
                 ) : (
                   <p className="text-2xl font-extrabold tracking-tight tabular-nums">
-                    {kpi.collectionRate.toFixed(1)}%
+                    {kpi.cashCollectionRate === null
+                      ? "—"
+                      : `${kpi.cashCollectionRate.toFixed(1)}%`}
                   </p>
                 )}
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {fmt(kpi.paid)} مُحصّل
+                  {fmt(kpi.cashCollected)} من {fmt(kpi.invoiceGrossTotal)} شامل الضريبة
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* تسويات أرصدة المرتجعات المطبقة على الفواتير */}
+        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-violet-500/10 flex items-center justify-center shrink-0 shadow-inner">
+                <ArrowDownLeft className="w-5 h-5 text-violet-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  تسويات أرصدة المرتجعات
+                </p>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-16" />
+                ) : (
+                  <p className="text-2xl font-extrabold tracking-tight tabular-nums">
+                    {fmt(kpi.returnSettled)}
+                  </p>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  إجمالي تغطية الفواتير {kpi.totalCoverageRate === null
+                    ? "—"
+                    : `${kpi.totalCoverageRate.toFixed(1)}%`}
                 </p>
               </div>
             </div>
