@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeSalesReportMetrics,
+  getDocumentAmountExcludingTax,
   getSalesLineNetAmount,
 } from "./sales-report-metrics";
 
@@ -108,6 +109,14 @@ describe("getSalesLineNetAmount", () => {
   it("يستخدم total فقط عندما تكون net_total غير موجودة", () => {
     expect(getSalesLineNetAmount({ net_total: null, total: "75.25" })).toBe(
       75.25,
+    );
+  });
+});
+
+describe("getDocumentAmountExcludingTax", () => {
+  it("يطرح الضريبة ويقرب الناتج المالي", () => {
+    expect(getDocumentAmountExcludingTax({ total: "115.555", tax: "15.55" })).toBe(
+      100.01,
     );
   });
 });

@@ -43,6 +43,15 @@ function sum(values: number[]): number {
   return values.reduce((total, value) => total + value, 0);
 }
 
+export function getDocumentAmountExcludingTax(document: {
+  total: NumericValue;
+  tax?: NumericValue;
+}): number {
+  return round2(
+    toFiniteNumber(document.total) - toFiniteNumber(document.tax),
+  );
+}
+
 /**
  * Calculates the financial KPIs for a sales-report period.
  *
@@ -66,16 +75,12 @@ export function computeSalesReportMetrics({
   );
   const salesRevenueExcludingTax = round2(
     sum(
-      postedInvoices.map(
-        ({ total, tax }) => toFiniteNumber(total) - toFiniteNumber(tax),
-      ),
+      postedInvoices.map(getDocumentAmountExcludingTax),
     ),
   );
   const returnRevenueExcludingTax = round2(
     sum(
-      postedReturns.map(
-        ({ total, tax }) => toFiniteNumber(total) - toFiniteNumber(tax),
-      ),
+      postedReturns.map(getDocumentAmountExcludingTax),
     ),
   );
   const salesCogs = round2(

@@ -69,7 +69,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { formatProductDisplay } from "@/lib/product-utils";
 import { fetchAllPaged } from "@/lib/paged-fetch";
-import { computeSalesReportMetrics } from "@/lib/sales-report-metrics";
+import {
+  computeSalesReportMetrics,
+  getDocumentAmountExcludingTax,
+  getSalesLineNetAmount,
+} from "@/lib/sales-report-metrics";
+import { groupSalesAndReturns } from "@/lib/sales-report-grouping";
 
 // ── helpers ──
 const fmt = (n: number) =>
@@ -107,7 +112,7 @@ export default function SalesReport() {
     "all" | "posted" | "draft" | "cancelled"
   >(savedPrefs.statusFilter ?? "posted");
   const [groupBy, setGroupBy] = useState<
-    "invoice" | "customer" | "product" | "time" | "category"
+    "invoice" | "return" | "customer" | "product" | "time" | "category"
   >(savedPrefs.groupBy ?? "invoice");
   const [timeMode, setTimeMode] = useState<"daily" | "monthly">(
     savedPrefs.timeMode ?? "daily",
@@ -192,7 +197,7 @@ export default function SalesReport() {
           supabase
             .from("sales_invoices")
             .select(
-              "id, invoice_number, posted_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, customer_id, customer:customers(name), items:sales_invoice_items(quantity, total, net_total, product_id, product:products(name, model_number, category_id, category:product_categories(name), brand:product_brands(name)))",
+              "id, invoice_number, posted_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, customer_id, customer:customers(name), items:sales_invoice_items(description, quantity, total, net_total, product_id, product:products(name, model_number, category_id, category:product_categories(name), brand:product_brands(name)))",
               { count: "exact" },
             )
             .gte("invoice_date", dateFrom)
@@ -213,7 +218,7 @@ export default function SalesReport() {
           supabase
             .from("sales_returns")
             .select(
-              "id, return_date, total, tax, status, customer_id, customer:customers(name), items:sales_return_items(quantity, total, product_id, product:products(category_id, category:product_categories(name)))",
+              "id, return_number, posted_number, reference, return_date, total, tax, status, customer_id, customer:customers(name), items:sales_return_items(description, quantity, total, net_total, product_id, product:products(name, model_number, category_id, category:product_categories(name), brand:product_brands(name)))",
               { count: "exact" },
             )
             .eq("status", "posted")
@@ -371,41 +376,6 @@ export default function SalesReport() {
     const pct = scaledTarget > 0 ? (kpi.netSales / scaledTarget) * 100 : 0;
     return { scaledTarget, pct, monthsInRange };
   }, [settings, dateFrom, dateTo, kpi.netSales]);
-
-  // ── Returns map by customer ──
-  const returnsByCustomer = useMemo(() => {
-    const map: Record<string, number> = {};
-    returns.forEach((r) => {
-      const cid = r.customer_id || "__none__";
-      map[cid] = (map[cid] || 0) + Number(r.total);
-    });
-    return map;
-  }, [returns]);
-
-  // ── Returns map by product ──
-  const returnsByProduct = useMemo(() => {
-    const map: Record<string, { qty: number; total: number }> = {};
-    returns.forEach((r) => {
-      (r.items || []).forEach((item: any) => {
-        const pid = item.product_id || "__none__";
-        if (!map[pid]) map[pid] = { qty: 0, total: 0 };
-        map[pid].qty += Number(item.quantity);
-        map[pid].total += Number(item.total);
-      });
-    });
-    return map;
-  }, [returns]);
-
-  // ── Returns map by date ──
-  const returnsByDate = useMemo(() => {
-    const map: Record<string, number> = {};
-    returns.forEach((r) => {
-      const key =
-        timeMode === "daily" ? r.return_date : r.return_date?.substring(0, 7);
-      map[key] = (map[key] || 0) + Number(r.total);
-    });
-    return map;
-  }, [returns, timeMode]);
 
   // ── Overdue check ──
   const today = format(new Date(), "yyyy-MM-dd");
@@ -565,7 +535,7 @@ export default function SalesReport() {
       },
       {
         id: "profit",
-        header: "الربح",
+        header: "الربح قبل المرتجعات المستقلة",
         accessorFn: (r: any) => {
           if (r.status !== "posted") return 0;
           return Number(r.total) - Number(r.tax || 0) - (cogsByInvoice[r.id] || 0);
@@ -640,39 +610,145 @@ export default function SalesReport() {
     [navigate, today, cogsByInvoice],
   );
 
+  // ═══ STANDALONE SALES RETURNS ═══
+  const returnColumns = useMemo<ColumnDef<any, any>[]>(
+    () => [
+      {
+        accessorKey: "return_number",
+        header: "رقم المرتجع",
+        cell: ({ row }) => {
+          const ret = row.original;
+          const display = formatDisplayNumber(
+            settings?.sales_return_prefix || "SRN-",
+            ret.posted_number,
+            ret.return_number,
+            ret.status,
+          );
+          return (
+            <button
+              className="text-primary hover:underline font-mono font-medium"
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate(`/sales-returns/${ret.id}`);
+              }}
+            >
+              {display}
+            </button>
+          );
+        },
+        footer: () => <span className="font-bold">الإجمالي</span>,
+      },
+      { accessorKey: "return_date", header: "التاريخ" },
+      {
+        id: "customer",
+        header: "العميل",
+        accessorFn: (row: any) => row.customer?.name || "عميل نقدي",
+      },
+      {
+        id: "itemsCount",
+        header: "عدد البنود",
+        accessorFn: (row: any) => (row.items || []).length,
+        footer: ({ table }) =>
+          table
+            .getFilteredRowModel()
+            .rows.reduce((sum, row) => sum + (row.original.items || []).length, 0),
+      },
+      {
+        id: "amountExcludingTax",
+        header: "المرتجع قبل الضريبة",
+        accessorFn: (row: any) => getDocumentAmountExcludingTax(row),
+        cell: ({ getValue }) => (
+          <span className="font-mono text-destructive">
+            {fmt(getValue() as number)}
+          </span>
+        ),
+        footer: ({ table }) => (
+          <span className="font-bold font-mono text-destructive">
+            {fmt(
+              table
+                .getFilteredRowModel()
+                .rows.reduce(
+                  (sum, row) =>
+                    sum + getDocumentAmountExcludingTax(row.original),
+                  0,
+                ),
+            )}
+          </span>
+        ),
+      },
+      {
+        id: "documentType",
+        header: "النوع",
+        cell: () => (
+          <Badge variant="outline" className="text-destructive border-destructive/30">
+            مستند مستقل
+          </Badge>
+        ),
+      },
+    ],
+    [navigate, settings?.sales_return_prefix],
+  );
+
   // ═══ GROUPING: By Customer ═══
   const customerData = useMemo(() => {
-    const map: Record<
-      string,
+    type CustomerGroup = {
+      name: string;
+      count: number;
+      total: number;
+      paid: number;
+      returns: number;
+      returnOnly: boolean;
+    };
+    const createGroup = (row: any): CustomerGroup => ({
+      name: row.customer?.name || "عميل نقدي",
+      count: 0,
+      total: 0,
+      paid: 0,
+      returns: 0,
+      returnOnly: false,
+    });
+    const groups = groupSalesAndReturns<any, any, CustomerGroup>(
+      filtered,
+      returns,
       {
-        name: string;
-        count: number;
-        total: number;
-        paid: number;
-        returns: number;
-      }
-    > = {};
-    filtered.forEach((inv) => {
-      const cid = inv.customer_id || "__none__";
-      const name = inv.customer?.name || "عميل نقدي";
-      if (!map[cid])
-        map[cid] = { name, count: 0, total: 0, paid: 0, returns: 0 };
-      map[cid].count++;
-      map[cid].total += Number(inv.total);
-      map[cid].paid += Number(inv.paid_amount);
-    });
-    // Add returns
-    Object.keys(map).forEach((cid) => {
-      map[cid].returns = returnsByCustomer[cid] || 0;
-    });
-    return Object.values(map).sort((a, b) => b.total - a.total);
-  }, [filtered, returnsByCustomer]);
+        getSaleKey: (invoice) => invoice.customer_id || "__none__",
+        getReturnKey: (salesReturn) => salesReturn.customer_id || "__none__",
+        createFromSale: (_key, invoice) => createGroup(invoice),
+        createFromReturn: (_key, salesReturn) => createGroup(salesReturn),
+        addSale: (group, invoice) => {
+          group.count += 1;
+          group.total += getDocumentAmountExcludingTax(invoice);
+          group.paid += Number(invoice.paid_amount || 0);
+        },
+        addReturn: (group, salesReturn) => {
+          group.returns += getDocumentAmountExcludingTax(salesReturn);
+        },
+      },
+    );
+
+    return Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        returnOnly: group.count === 0 && group.returns > 0,
+      }))
+      .sort((a, b) => b.total - b.returns - (a.total - a.returns));
+  }, [filtered, returns]);
 
   const customerColumns = useMemo<ColumnDef<any, any>[]>(
     () => [
       {
         accessorKey: "name",
         header: "العميل",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <span>{row.original.name}</span>
+            {row.original.returnOnly && (
+              <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30">
+                مرتجع فقط
+              </Badge>
+            )}
+          </div>
+        ),
         footer: () => <span className="font-bold">الإجمالي</span>,
       },
       {
@@ -685,7 +761,7 @@ export default function SalesReport() {
       },
       {
         accessorKey: "total",
-        header: "الإجمالي",
+        header: "المبيعات قبل الضريبة",
         cell: ({ getValue }) => fmt(getValue() as number),
         footer: ({ table }) => (
           <span className="font-bold font-mono">
@@ -791,53 +867,66 @@ export default function SalesReport() {
       else if (m.movement_type === "sale_return")
         cogsByProduct[pid] -= Number(m.total_cost);
     });
-    const map: Record<
-      string,
+    type ProductGroup = {
+      id: string;
+      name: string;
+      qtySold: number;
+      qtyReturned: number;
+      grossRevenue: number;
+      returnsRevenue: number;
+      revenue: number;
+      cogs: number;
+      returnOnly: boolean;
+    };
+    const salesItems = filtered.flatMap((invoice) => invoice.items || []);
+    const returnItems = returns.flatMap((salesReturn) => salesReturn.items || []);
+    const itemKey = (item: any) =>
+      item.product_id || `__desc__${item.description || "unknown"}`;
+    const createGroup = (key: string, item: any): ProductGroup => ({
+      id: key,
+      name: item.product
+        ? formatProductDisplay(
+            item.product.name,
+            item.product.brand?.name,
+            item.product.model_number,
+          )
+        : item.description || "منتج محذوف",
+      qtySold: 0,
+      qtyReturned: 0,
+      grossRevenue: 0,
+      returnsRevenue: 0,
+      revenue: 0,
+      cogs: 0,
+      returnOnly: false,
+    });
+    const groups = groupSalesAndReturns<any, any, ProductGroup>(
+      salesItems,
+      returnItems,
       {
-        name: string;
-        qtySold: number;
-        qtyReturned: number;
-        grossRevenue: number;
-        returnsRevenue: number;
-        revenue: number; // net (gross - returns) to align with netted cogs
-        cogs: number;
-      }
-    > = {};
-    filtered.forEach((inv) => {
-      (inv.items || []).forEach((item: any) => {
-        const pid = item.product_id || "__desc__" + (item.description || "");
-        const name = item.product
-          ? formatProductDisplay(
-              item.product.name,
-              item.product.brand?.name,
-              item.product.model_number,
-            )
-          : item.description || "منتج محذوف";
-        if (!map[pid])
-          map[pid] = {
-            name,
-            qtySold: 0,
-            qtyReturned: 0,
-            grossRevenue: 0,
-            returnsRevenue: 0,
-            revenue: 0,
-            cogs: 0,
-          };
-        map[pid].qtySold += Number(item.quantity);
-        map[pid].grossRevenue += Number(item.net_total || item.total);
-      });
-    });
-    Object.keys(map).forEach((pid) => {
-      const ret = returnsByProduct[pid];
-      if (ret) {
-        map[pid].qtyReturned = ret.qty;
-        map[pid].returnsRevenue = ret.total;
-      }
-      map[pid].revenue = map[pid].grossRevenue - map[pid].returnsRevenue;
-      map[pid].cogs = cogsByProduct[pid] || 0;
-    });
-    return Object.values(map).sort((a, b) => b.revenue - a.revenue);
-  }, [filtered, returnsByProduct, movements]);
+        getSaleKey: itemKey,
+        getReturnKey: itemKey,
+        createFromSale: createGroup,
+        createFromReturn: createGroup,
+        addSale: (group, item) => {
+          group.qtySold += Number(item.quantity || 0);
+          group.grossRevenue += getSalesLineNetAmount(item);
+        },
+        addReturn: (group, item) => {
+          group.qtyReturned += Number(item.quantity || 0);
+          group.returnsRevenue += getSalesLineNetAmount(item);
+        },
+      },
+    );
+
+    return Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        revenue: group.grossRevenue - group.returnsRevenue,
+        cogs: cogsByProduct[group.id] || 0,
+        returnOnly: group.grossRevenue === 0 && group.returnsRevenue > 0,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [filtered, returns, movements]);
 
 
 
@@ -846,6 +935,16 @@ export default function SalesReport() {
       {
         accessorKey: "name",
         header: "المنتج",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <span>{row.original.name}</span>
+            {row.original.returnOnly && (
+              <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30">
+                مرتجع فقط
+              </Badge>
+            )}
+          </div>
+        ),
         footer: () => <span className="font-bold">الإجمالي</span>,
       },
       {
@@ -967,11 +1066,12 @@ export default function SalesReport() {
     [],
   );
 
-  // ── Product → Category map (from filtered items) ──
+  // ── Product → Category map (union of sales and standalone returns) ──
   const productCategoryMap = useMemo(() => {
     const m: Record<string, { id: string; name: string }> = {};
-    filtered.forEach((inv) => {
-      (inv.items || []).forEach((item: any) => {
+    const documents = [...filtered, ...returns];
+    documents.forEach((document) => {
+      (document.items || []).forEach((item: any) => {
         if (item.product_id && item.product) {
           m[item.product_id] = {
             id: item.product.category_id || "__none__",
@@ -981,7 +1081,7 @@ export default function SalesReport() {
       });
     });
     return m;
-  }, [filtered]);
+  }, [filtered, returns]);
 
   // ── COGS aggregations from movements ──
   const cogsAggregates = useMemo(() => {
@@ -1003,22 +1103,16 @@ export default function SalesReport() {
 
   // ═══ GROUPING: By Time ═══
   const timeData = useMemo(() => {
-    const map: Record<
-      string,
-      {
-        key: string;
-        label: string;
-        count: number;
-        total: number;
-        returns: number;
-      }
-    > = {};
-    filtered.forEach((inv) => {
-      const key =
-        timeMode === "daily"
-          ? inv.invoice_date
-          : inv.invoice_date?.substring(0, 7);
-      if (!key) return;
+    type TimeGroup = {
+      key: string;
+      label: string;
+      count: number;
+      total: number;
+      returns: number;
+    };
+    const periodKey = (date: string | null | undefined) =>
+      timeMode === "daily" ? date || "" : date?.substring(0, 7) || "";
+    const createGroup = (key: string): TimeGroup => {
       const label =
         timeMode === "daily"
           ? key
@@ -1030,14 +1124,28 @@ export default function SalesReport() {
               ];
               return `${months[parseInt(m) - 1]} ${y}`;
             })();
-      if (!map[key]) map[key] = { key, label, count: 0, total: 0, returns: 0 };
-      map[key].count++;
-      map[key].total += Number(inv.total);
-    });
-    Object.keys(returnsByDate).forEach((key) => {
-      if (map[key]) map[key].returns = returnsByDate[key];
-    });
-    const sorted = Object.values(map).sort((a, b) =>
+      return { key, label, count: 0, total: 0, returns: 0 };
+    };
+    const salesRows = filtered.filter((invoice) => periodKey(invoice.invoice_date));
+    const returnRows = returns.filter((salesReturn) => periodKey(salesReturn.return_date));
+    const groups = groupSalesAndReturns<any, any, TimeGroup>(
+      salesRows,
+      returnRows,
+      {
+        getSaleKey: (invoice) => periodKey(invoice.invoice_date),
+        getReturnKey: (salesReturn) => periodKey(salesReturn.return_date),
+        createFromSale: (key) => createGroup(key),
+        createFromReturn: (key) => createGroup(key),
+        addSale: (group, invoice) => {
+          group.count += 1;
+          group.total += getDocumentAmountExcludingTax(invoice);
+        },
+        addReturn: (group, salesReturn) => {
+          group.returns += getDocumentAmountExcludingTax(salesReturn);
+        },
+      },
+    );
+    const sorted = Array.from(groups.values()).sort((a, b) =>
       a.key.localeCompare(b.key),
     );
     // Enrich with derived metrics + period-over-period growth
@@ -1046,7 +1154,7 @@ export default function SalesReport() {
       const cogs = isPostedOnly ? cogsAggregates.byPeriod[d.key] || 0 : 0;
       const profit = isPostedOnly ? net - cogs : 0;
       const margin = isPostedOnly && net > 0 ? (profit / net) * 100 : null;
-      const returnRate = d.total > 0 ? (d.returns / d.total) * 100 : 0;
+      const returnRate = d.total > 0 ? (d.returns / d.total) * 100 : null;
       const aov = d.count > 0 ? net / d.count : 0;
       const prevNet = i > 0 ? sorted[i - 1].total - sorted[i - 1].returns : 0;
       const growth =
@@ -1060,15 +1168,26 @@ export default function SalesReport() {
         returnRate,
         aov,
         growth,
+        returnOnly: d.count === 0 && d.returns > 0,
       };
     });
-  }, [filtered, returnsByDate, timeMode, cogsAggregates, isPostedOnly]);
+  }, [filtered, returns, timeMode, cogsAggregates, isPostedOnly]);
 
   const timeColumns = useMemo<ColumnDef<any, any>[]>(() => {
     const cols: ColumnDef<any, any>[] = [
       {
         accessorKey: "label",
         header: timeMode === "daily" ? "التاريخ" : "الشهر",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <span>{row.original.label}</span>
+            {row.original.returnOnly && (
+              <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30">
+                مرتجع فقط
+              </Badge>
+            )}
+          </div>
+        ),
         footer: () => <span className="font-bold">الإجمالي</span>,
       },
       {
@@ -1078,6 +1197,38 @@ export default function SalesReport() {
           table
             .getFilteredRowModel()
             .rows.reduce((s, r) => s + r.original.count, 0),
+      },
+      {
+        accessorKey: "total",
+        header: "المبيعات قبل الضريبة",
+        cell: ({ getValue }) => fmt(getValue() as number),
+        footer: ({ table }) => (
+          <span className="font-mono">
+            {fmt(
+              table
+                .getFilteredRowModel()
+                .rows.reduce((sum, row) => sum + row.original.total, 0),
+            )}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "returns",
+        header: "المرتجعات قبل الضريبة",
+        cell: ({ getValue }) => (
+          <span className="text-destructive font-mono">
+            {fmt(getValue() as number)}
+          </span>
+        ),
+        footer: ({ table }) => (
+          <span className="text-destructive font-mono">
+            {fmt(
+              table
+                .getFilteredRowModel()
+                .rows.reduce((sum, row) => sum + row.original.returns, 0),
+            )}
+          </span>
+        ),
       },
       {
         accessorKey: "net",
@@ -1110,10 +1261,16 @@ export default function SalesReport() {
         accessorKey: "returnRate",
         header: "% المرتجعات",
         cell: ({ getValue, row }) => {
-          const v = getValue() as number;
+          const v = getValue() as number | null;
           const ret = row.original.returns;
           if (ret <= 0)
             return <span className="text-muted-foreground">—</span>;
+          if (v === null)
+            return (
+              <span className="text-destructive" title="مرتجعات بلا مبيعات في الفترة">
+                مرتجع فقط
+              </span>
+            );
           const tone =
             v >= 10
               ? "text-destructive"
@@ -1132,7 +1289,7 @@ export default function SalesReport() {
           accessorKey: "profit",
           header: "الربح",
           cell: ({ getValue, row }) => {
-            if (row.original.cogs <= 0)
+            if (row.original.cogs === 0)
               return <span className="text-muted-foreground">—</span>;
             const v = getValue() as number;
             return (
@@ -1148,7 +1305,7 @@ export default function SalesReport() {
               .getFilteredRowModel()
               .rows.reduce(
                 (s, r) =>
-                  s + (r.original.cogs > 0 ? r.original.profit : 0),
+                  s + (r.original.cogs !== 0 ? r.original.profit : 0),
                 0,
               );
             return (
@@ -1197,56 +1354,64 @@ export default function SalesReport() {
 
   // ═══ GROUPING: By Category ═══
   const categoryData = useMemo(() => {
-    const map: Record<
-      string,
+    type CategoryGroup = {
+      id: string;
+      name: string;
+      products: Set<string>;
+      qtySold: number;
+      qtyReturned: number;
+      revenue: number;
+      returns: number;
+    };
+    const salesItems = filtered.flatMap((invoice) => invoice.items || []);
+    const returnItems = returns.flatMap((salesReturn) => salesReturn.items || []);
+    const categoryKey = (item: any) => item.product?.category_id || "__none__";
+    const createGroup = (key: string, item: any): CategoryGroup => ({
+      id: key,
+      name: item.product?.category?.name || "بدون تصنيف",
+      products: new Set(),
+      qtySold: 0,
+      qtyReturned: 0,
+      revenue: 0,
+      returns: 0,
+    });
+    const groups = groupSalesAndReturns<any, any, CategoryGroup>(
+      salesItems,
+      returnItems,
       {
-        id: string;
-        name: string;
-        products: Set<string>;
-        qty: number;
-        revenue: number; // gross
-        returns: number;
-      }
-    > = {};
-    filtered.forEach((inv) => {
-      (inv.items || []).forEach((item: any) => {
-        const catId = item.product?.category_id || "__none__";
-        const catName = item.product?.category?.name || "بدون تصنيف";
-        if (!map[catId])
-          map[catId] = {
-            id: catId,
-            name: catName,
-            products: new Set(),
-            qty: 0,
-            revenue: 0,
-            returns: 0,
-          };
-        if (item.product_id) map[catId].products.add(item.product_id);
-        map[catId].qty += Number(item.quantity);
-        map[catId].revenue += Number(item.net_total || item.total);
-      });
-    });
-    returns.forEach((r) => {
-      (r.items || []).forEach((item: any) => {
-        const catId = item.product?.category_id || "__none__";
-        if (map[catId]) map[catId].returns += Number(item.total);
-      });
-    });
-    const totalNet = Object.values(map).reduce(
+        getSaleKey: categoryKey,
+        getReturnKey: categoryKey,
+        createFromSale: createGroup,
+        createFromReturn: createGroup,
+        addSale: (group, item) => {
+          if (item.product_id) group.products.add(item.product_id);
+          group.qtySold += Number(item.quantity || 0);
+          group.revenue += getSalesLineNetAmount(item);
+        },
+        addReturn: (group, item) => {
+          if (item.product_id) group.products.add(item.product_id);
+          group.qtyReturned += Number(item.quantity || 0);
+          group.returns += getSalesLineNetAmount(item);
+        },
+      },
+    );
+    const groupedValues = Array.from(groups.values());
+    const totalNet = groupedValues.reduce(
       (s, c) => s + (c.revenue - c.returns),
       0,
     );
-    return Object.values(map)
+    return groupedValues
       .map((c) => {
         const net = c.revenue - c.returns;
         const cogs = isPostedOnly ? cogsAggregates.byCategory[c.id] || 0 : 0;
         const profit = isPostedOnly ? net - cogs : 0;
         const margin = isPostedOnly && net > 0 ? (profit / net) * 100 : null;
-        const returnRate = c.revenue > 0 ? (c.returns / c.revenue) * 100 : 0;
+        const returnRate = c.revenue > 0 ? (c.returns / c.revenue) * 100 : null;
         return {
           name: c.name,
           productCount: c.products.size,
-          qty: c.qty,
+          qtySold: c.qtySold,
+          qtyReturned: c.qtyReturned,
           revenue: c.revenue,
           returns: c.returns,
           net,
@@ -1255,6 +1420,7 @@ export default function SalesReport() {
           margin,
           returnRate,
           pctOfTotal: totalNet > 0 ? (net / totalNet) * 100 : 0,
+          returnOnly: c.revenue === 0 && c.returns > 0,
         };
       })
       .sort((a, b) => b.net - a.net);
@@ -1265,6 +1431,16 @@ export default function SalesReport() {
       {
         accessorKey: "name",
         header: "التصنيف",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <span>{row.original.name}</span>
+            {row.original.returnOnly && (
+              <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30">
+                مرتجع فقط
+              </Badge>
+            )}
+          </div>
+        ),
         footer: () => <span className="font-bold">الإجمالي</span>,
       },
       {
@@ -1276,12 +1452,55 @@ export default function SalesReport() {
             .rows.reduce((s, r) => s + r.original.productCount, 0),
       },
       {
-        accessorKey: "qty",
-        header: "الكمية",
+        accessorKey: "qtySold",
+        header: "الكمية المباعة",
         footer: ({ table }) =>
           table
             .getFilteredRowModel()
-            .rows.reduce((s, r) => s + r.original.qty, 0),
+            .rows.reduce((s, r) => s + r.original.qtySold, 0),
+      },
+      {
+        accessorKey: "qtyReturned",
+        header: "الكمية المرتجعة",
+        cell: ({ getValue }) => (
+          <span className="text-destructive">{getValue() as number}</span>
+        ),
+        footer: ({ table }) =>
+          table
+            .getFilteredRowModel()
+            .rows.reduce((s, r) => s + r.original.qtyReturned, 0),
+      },
+      {
+        accessorKey: "revenue",
+        header: "المبيعات",
+        cell: ({ getValue }) => fmt(getValue() as number),
+        footer: ({ table }) => (
+          <span className="font-mono">
+            {fmt(
+              table
+                .getFilteredRowModel()
+                .rows.reduce((sum, row) => sum + row.original.revenue, 0),
+            )}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "returns",
+        header: "المرتجعات",
+        cell: ({ getValue }) => (
+          <span className="text-destructive font-mono">
+            {fmt(getValue() as number)}
+          </span>
+        ),
+        footer: ({ table }) => (
+          <span className="text-destructive font-mono">
+            {fmt(
+              table
+                .getFilteredRowModel()
+                .rows.reduce((sum, row) => sum + row.original.returns, 0),
+            )}
+          </span>
+        ),
       },
       {
         accessorKey: "net",
@@ -1305,9 +1524,15 @@ export default function SalesReport() {
         accessorKey: "returnRate",
         header: "% المرتجعات",
         cell: ({ getValue, row }) => {
-          const v = getValue() as number;
+          const v = getValue() as number | null;
           if (row.original.returns <= 0)
             return <span className="text-muted-foreground">—</span>;
+          if (v === null)
+            return (
+              <span className="text-destructive" title="مرتجعات بلا مبيعات في التصنيف">
+                مرتجع فقط
+              </span>
+            );
           const tone =
             v >= 10
               ? "text-destructive"
@@ -1326,7 +1551,7 @@ export default function SalesReport() {
           accessorKey: "profit",
           header: "الربح",
           cell: ({ getValue, row }) => {
-            if (row.original.cogs <= 0)
+            if (row.original.cogs === 0)
               return <span className="text-muted-foreground">—</span>;
             const v = getValue() as number;
             return (
@@ -1342,7 +1567,7 @@ export default function SalesReport() {
               .getFilteredRowModel()
               .rows.reduce(
                 (s, r) =>
-                  s + (r.original.cogs > 0 ? r.original.profit : 0),
+                  s + (r.original.cogs !== 0 ? r.original.profit : 0),
                 0,
               );
             return (
@@ -1380,7 +1605,7 @@ export default function SalesReport() {
             <div className="flex-1 h-1.5 bg-muted rounded overflow-hidden min-w-[40px]">
               <div
                 className="h-full bg-primary"
-                style={{ width: `${Math.min(v, 100)}%` }}
+                style={{ width: `${Math.max(0, Math.min(v, 100))}%` }}
               />
             </div>
             <span className="font-mono text-xs w-12 text-left">
@@ -1478,7 +1703,7 @@ export default function SalesReport() {
           "المدفوع",
           "المتبقي",
           "تكلفة البضاعة",
-          "الربح",
+          "الربح قبل المرتجعات المستقلة",
           "الهامش%",
           "متأخر",
         ],
@@ -1514,6 +1739,36 @@ export default function SalesReport() {
         summaryCards,
         settings,
         pdfOrientation: "landscape" as const,
+      };
+    }
+    if (groupBy === "return") {
+      return {
+        filenamePrefix: `تقرير-مرتجعات-المبيعات-${dateFrom}-${dateTo}`,
+        sheetName: "المرتجعات المستقلة",
+        pdfTitle: `مستندات مرتجعات المبيعات المستقلة (${dateFrom} - ${dateTo})`,
+        headers: [
+          "رقم المرتجع",
+          "التاريخ",
+          "العميل",
+          "عدد البنود",
+          "المرتجع قبل الضريبة",
+          "النوع",
+        ],
+        rows: returns.map((salesReturn) => [
+          formatDisplayNumber(
+            settings?.sales_return_prefix || "SRN-",
+            salesReturn.posted_number,
+            salesReturn.return_number,
+            salesReturn.status,
+          ),
+          salesReturn.return_date,
+          salesReturn.customer?.name || "عميل نقدي",
+          (salesReturn.items || []).length,
+          getDocumentAmountExcludingTax(salesReturn),
+          "مستند مستقل",
+        ]),
+        summaryCards,
+        settings,
       };
     }
     if (groupBy === "customer") {
@@ -1588,7 +1843,10 @@ export default function SalesReport() {
         headers: [
           "التصنيف",
           "منتجات",
-          "الكمية",
+          "الكمية المباعة",
+          "الكمية المرتجعة",
+          "المبيعات",
+          "المرتجعات",
           "صافي الإيرادات",
           "% المرتجعات",
           ...(isPostedOnly ? ["الربح", "الهامش %"] : []),
@@ -1597,12 +1855,19 @@ export default function SalesReport() {
         rows: categoryData.map((c) => [
           c.name,
           c.productCount,
-          c.qty,
+          c.qtySold,
+          c.qtyReturned,
+          c.revenue,
+          c.returns,
           c.net,
-          c.returns > 0 ? c.returnRate.toFixed(1) + "%" : "—",
+          c.returns > 0 && c.returnRate !== null
+            ? c.returnRate.toFixed(1) + "%"
+            : c.returns > 0
+              ? "مرتجع فقط"
+              : "—",
           ...(isPostedOnly
             ? [
-                c.cogs > 0 ? c.profit : "—",
+                c.cogs !== 0 ? c.profit : "—",
                 c.margin !== null ? c.margin.toFixed(1) + "%" : "—",
               ]
             : []),
@@ -1620,6 +1885,8 @@ export default function SalesReport() {
       headers: [
         timeMode === "daily" ? "التاريخ" : "الشهر",
         "عدد الفواتير",
+        "المبيعات قبل الضريبة",
+        "المرتجعات قبل الضريبة",
         "صافي المبيعات",
         "متوسط الفاتورة",
         "% المرتجعات",
@@ -1629,12 +1896,18 @@ export default function SalesReport() {
       rows: timeData.map((d) => [
         d.label,
         d.count,
+        d.total,
+        d.returns,
         d.net,
         d.aov,
-        d.returns > 0 ? d.returnRate.toFixed(1) + "%" : "—",
+        d.returns > 0 && d.returnRate !== null
+          ? d.returnRate.toFixed(1) + "%"
+          : d.returns > 0
+            ? "مرتجع فقط"
+            : "—",
         ...(isPostedOnly
           ? [
-              d.cogs > 0 ? d.profit : "—",
+              d.cogs !== 0 ? d.profit : "—",
               d.margin !== null ? d.margin.toFixed(1) + "%" : "—",
             ]
           : []),
@@ -1648,6 +1921,7 @@ export default function SalesReport() {
   }, [
     groupBy,
     filtered,
+    returns,
     customerData,
     productData,
     categoryData,
@@ -1753,6 +2027,9 @@ export default function SalesReport() {
               >
                 <ToggleGroupItem value="invoice" className="text-xs px-3 h-8">
                   الفاتورة
+                </ToggleGroupItem>
+                <ToggleGroupItem value="return" className="text-xs px-3 h-8">
+                  المرتجعات
                 </ToggleGroupItem>
                 <ToggleGroupItem value="customer" className="text-xs px-3 h-8">
                   العميل
@@ -1890,7 +2167,11 @@ export default function SalesReport() {
           <Badge variant="outline" className="font-medium">
             المستندات المُرحّلة فقط
           </Badge>
-          <span>• الجدول حسب فلتر الحالة المحدد</span>
+          <span>
+            • {groupBy === "return"
+              ? "المرتجعات مستندات مستقلة ومُرحّلة"
+              : "الجدول حسب فلتر الحالة المحدد"}
+          </span>
         </div>
       )}
 
@@ -2090,7 +2371,7 @@ export default function SalesReport() {
       </div>
 
       {/* ── Document table filter indicator ── */}
-      {statusFilter !== "all" && (
+      {statusFilter !== "all" && groupBy !== "return" && (
         <p className="text-[11px] text-muted-foreground -mt-2 px-1">
           <Info className="inline w-3 h-3 ml-1" />
           تفاصيل الجدول مبنية على الفواتير{" "}
@@ -2435,6 +2716,23 @@ export default function SalesReport() {
                 />
               }
             />
+          ) : groupBy === "return" ? (
+            <>
+              <DataTable
+                columns={returnColumns}
+                data={returns}
+                isLoading={isLoading}
+                pageSize={20}
+                showPagination
+                showSearch
+                searchPlaceholder="بحث في مستندات المرتجعات..."
+                emptyMessage="لا توجد مرتجعات مُرحّلة في هذه الفترة"
+              />
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                كل مرتجع مستند مستقل ويؤثر في الفترة حسب تاريخ المرتجع، دون
+                اشتراط ربطه بفاتورة مبيعات أصلية.
+              </p>
+            </>
           ) : groupBy === "customer" ? (
             <DataTable
               columns={customerColumns}
