@@ -2191,7 +2191,7 @@ export default function SalesReport() {
   return (
     <div className="space-y-5 p-1">
       {/* ── Unified report controls ── */}
-      <Card className="overflow-hidden border shadow-sm">
+      <Card className="border shadow-sm">
         <CardContent className="p-0">
           <div className="flex flex-wrap items-center gap-2.5 p-3">
             <div className="me-1 min-w-[185px]">
@@ -2246,7 +2246,7 @@ export default function SalesReport() {
             </div>
           </div>
 
-          <div className="border-t bg-muted/10 px-3 py-2">
+          <div className="rounded-b-lg border-t bg-muted/10 px-3 py-2">
             <div className="overflow-x-auto">
               <div className="flex w-max min-w-full items-center gap-4">
                 <div className="flex items-center gap-2 rounded-lg bg-background/70 p-1">
