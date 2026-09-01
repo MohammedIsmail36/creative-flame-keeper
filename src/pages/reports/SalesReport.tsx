@@ -56,13 +56,10 @@ import { useSettings } from "@/contexts/SettingsContext";
 import {
   TrendingUp,
   TrendingDown,
-  ArrowDownLeft,
   Percent,
-  DollarSign,
   AlertTriangle,
   Target,
   ChevronDown,
-  Info,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
@@ -123,6 +120,8 @@ export default function SalesReport() {
   );
   // Secondary indicators start collapsed on every report visit to preserve focus.
   const [showExtras, setShowExtras] = useState(false);
+  const [showCoverage, setShowCoverage] = useState(false);
+  const [showChart, setShowChart] = useState(false);
   const [invoiceSort, setInvoiceSort] = useState<SortingState>([]);
   const [productSort, setProductSort] = useState<SortingState>([]);
 
@@ -2162,6 +2161,7 @@ export default function SalesReport() {
               <div className="h-7 w-px bg-border/60 hidden md:block" />
 
               {/* Status */}
+              <span className="text-xs text-muted-foreground">حالة التفاصيل</span>
               <Select
                 value={statusFilter}
                 onValueChange={(v: any) => setStatusFilter(v)}
@@ -2177,54 +2177,6 @@ export default function SalesReport() {
                 </SelectContent>
               </Select>
 
-              {/* Group By - Tabs style */}
-              <ToggleGroup
-                type="single"
-                value={groupBy}
-                onValueChange={(v) => v && setGroupBy(v as any)}
-                className="border rounded-lg p-0.5 bg-muted/30"
-              >
-                <ToggleGroupItem value="invoice" className="text-xs px-3 h-8">
-                  الفاتورة
-                </ToggleGroupItem>
-                <ToggleGroupItem value="return" className="text-xs px-3 h-8">
-                  المرتجعات
-                </ToggleGroupItem>
-                <ToggleGroupItem value="customer" className="text-xs px-3 h-8">
-                  العميل
-                </ToggleGroupItem>
-                <ToggleGroupItem value="product" className="text-xs px-3 h-8">
-                  المنتج
-                </ToggleGroupItem>
-                <ToggleGroupItem value="category" className="text-xs px-3 h-8">
-                  التصنيف
-                </ToggleGroupItem>
-                <ToggleGroupItem value="time" className="text-xs px-3 h-8">
-                  زمني
-                </ToggleGroupItem>
-              </ToggleGroup>
-
-              {groupBy === "time" && (
-                <>
-                  <div className="h-7 w-px bg-border/60 hidden md:block" />
-                  <ToggleGroup
-                    type="single"
-                    value={timeMode}
-                    onValueChange={(v) => v && setTimeMode(v as any)}
-                    className="border rounded-lg p-0.5"
-                  >
-                    <ToggleGroupItem value="daily" className="text-xs px-3 h-8">
-                      يومي
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="monthly"
-                      className="text-xs px-3 h-8"
-                    >
-                      شهري
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                </>
-              )}
             </div>
 
             <div className="shrink-0">
@@ -2253,42 +2205,72 @@ export default function SalesReport() {
         </CardContent>
       </Card>
 
-      {/* ── Compact scope and insight ── */}
-      {!isLoading && (
-        <div className="rounded-lg border bg-muted/20 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <div className="flex flex-wrap items-center gap-2">
-            <Info className="w-3.5 h-3.5" />
-            <span>المؤشرات المالية</span>
-            <Badge variant="outline" className="h-5 font-medium bg-background">
-              المُرحّلة فقط
-            </Badge>
-            <span className="text-border">|</span>
-            <span>
-              تفاصيل الجدول: {groupBy === "return"
-                ? "المرتجعات المُرحّلة"
-                : statusFilter === "posted"
-                  ? "الفواتير المُرحّلة"
-                  : statusFilter === "draft"
-                    ? "الفواتير المسودة"
-                    : statusFilter === "cancelled"
-                      ? "الفواتير الملغاة"
-                      : "كل حالات الفواتير"}
-            </span>
-          </div>
-          <span>تغطية الفواتير تُحسب شامل الضريبة</span>
+      {/* ── Report view selector — separate from data filters ── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">عرض التقرير</span>
+        <div className="max-w-full overflow-x-auto rounded-lg border bg-background p-0.5">
+          <ToggleGroup
+            type="single"
+            value={groupBy}
+            onValueChange={(v) => v && setGroupBy(v as any)}
+            className="w-max"
+          >
+            <ToggleGroupItem value="invoice" className="text-xs px-3 h-8">
+              الفواتير
+            </ToggleGroupItem>
+            <ToggleGroupItem value="return" className="text-xs px-3 h-8">
+              المرتجعات
+            </ToggleGroupItem>
+            <ToggleGroupItem value="customer" className="text-xs px-3 h-8">
+              العملاء
+            </ToggleGroupItem>
+            <ToggleGroupItem value="product" className="text-xs px-3 h-8">
+              المنتجات
+            </ToggleGroupItem>
+            <ToggleGroupItem value="category" className="text-xs px-3 h-8">
+              التصنيفات
+            </ToggleGroupItem>
+            <ToggleGroupItem value="time" className="text-xs px-3 h-8">
+              زمني
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
-      )}
+        {groupBy === "time" && (
+          <ToggleGroup
+            type="single"
+            value={timeMode}
+            onValueChange={(v) => v && setTimeMode(v as any)}
+            className="rounded-lg border p-0.5"
+          >
+            <ToggleGroupItem value="daily" className="text-xs px-3 h-8">
+              يومي
+            </ToggleGroupItem>
+            <ToggleGroupItem value="monthly" className="text-xs px-3 h-8">
+              شهري
+            </ToggleGroupItem>
+          </ToggleGroup>
+        )}
+      </div>
 
-      {/* ── 4 Primary KPI Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+      {/* ── Unified period summary ── */}
+      <Card className="overflow-hidden border shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/15 px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">ملخص الفترة</span>
+            <Badge variant="outline" className="h-5 bg-background text-[10px]">
+              المستندات المُرحّلة فقط
+            </Badge>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {dateFrom} — {dateTo}
+          </span>
+        </div>
+        <CardContent className="p-0">
+          <div className="grid grid-cols-2 gap-px bg-border md:grid-cols-4">
         {/* صافي المبيعات (الرقم الأهم) */}
-        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow lg:col-span-1">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
+        <Card className="relative overflow-hidden rounded-none border-0 bg-card shadow-none">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 shadow-inner">
-                <DollarSign className="w-5 h-5 text-primary" />
-              </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
                   صافي المبيعات قبل الضريبة
@@ -2315,39 +2297,9 @@ export default function SalesReport() {
         </Card>
 
         {/* إجمالي الربح */}
-        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                kpi.grossProfit >= 0
-                  ? "linear-gradient(135deg, hsl(152 60% 42% / 0.06) 0%, transparent 60%)"
-                  : "linear-gradient(135deg, hsl(0 72% 51% / 0.06) 0%, transparent 60%)",
-            }}
-          />
+        <Card className="relative overflow-hidden rounded-none border-0 bg-card shadow-none">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-start gap-3">
-              <div
-                className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-inner"
-                style={{
-                  background:
-                    kpi.grossProfit >= 0
-                      ? "hsl(152 60% 42% / 0.12)"
-                      : "hsl(0 72% 51% / 0.12)",
-                }}
-              >
-                {kpi.grossProfit >= 0 ? (
-                  <TrendingUp
-                    className="w-5 h-5"
-                    style={{ color: "hsl(152, 60%, 42%)" }}
-                  />
-                ) : (
-                  <TrendingDown
-                    className="w-5 h-5"
-                    style={{ color: "hsl(0, 72%, 51%)" }}
-                  />
-                )}
-              </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1 mb-1">
                   <p className="text-xs font-medium text-muted-foreground">
@@ -2374,13 +2326,9 @@ export default function SalesReport() {
         </Card>
 
         {/* المرتجعات */}
-        <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
-          <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 via-transparent to-transparent pointer-events-none" />
+        <Card className="relative overflow-hidden rounded-none border-0 bg-card shadow-none">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-destructive/10 flex items-center justify-center shrink-0 shadow-inner">
-                <ArrowDownLeft className="w-5 h-5 text-destructive" />
-              </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
                   المرتجعات قبل الضريبة
@@ -2403,51 +2351,72 @@ export default function SalesReport() {
           </CardContent>
         </Card>
 
-        {/* المتأخرات (إجراء) */}
-        <Card
-          className={`relative overflow-hidden border shadow-sm hover:shadow-md transition-shadow ${overdueInfo.count > 0 ? "border-destructive/30" : ""}`}
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-transparent pointer-events-none" />
+        {/* التحصيل النقدي */}
+        <Card className="relative overflow-hidden rounded-none border-0 bg-card shadow-none">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-orange-500/10 flex items-center justify-center shrink-0 shadow-inner">
-                <AlertTriangle className="w-5 h-5 text-orange-600" />
-              </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    المتأخرات
-                  </p>
-                  {overdueInfo.count > 0 && (
-                    <Badge
-                      variant="destructive"
-                      className="text-[10px] px-1.5 py-0 h-4"
-                    >
-                      {overdueInfo.count}
-                    </Badge>
-                  )}
-                </div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  التحصيل النقدي/البنكي
+                </p>
                 {isLoading ? (
                   <Skeleton className="h-7 w-16" />
                 ) : (
-                  <p
-                    className={`text-2xl font-extrabold tracking-tight tabular-nums ${overdueInfo.total > 0 ? "text-destructive" : "text-muted-foreground"}`}
-                  >
-                    {fmt(overdueInfo.total)}
+                  <p className="text-2xl font-extrabold tracking-tight tabular-nums">
+                    {kpi.cashCollectionRate === null
+                      ? "—"
+                      : `${kpi.cashCollectionRate.toFixed(1)}%`}
                   </p>
                 )}
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {overdueInfo.count === 0
-                    ? "لا متأخرات"
-                    : `${overdueInfo.count} فاتورة متأخرة`}
+                  {fmt(kpi.cashCollected)} محصّل
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* ── Invoice coverage — separate concepts in one compact region ── */}
+      {/* ── Actionable overdue alert only when needed ── */}
+      {!isLoading && overdueInfo.count > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm">
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="font-medium">{overdueInfo.count} فاتورة متأخرة</span>
+          </div>
+          <span className="font-mono font-semibold text-destructive">
+            {fmt(overdueInfo.total)}
+          </span>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-start gap-2">
+      {/* ── Invoice coverage — on demand ── */}
+      <Collapsible
+        open={showCoverage}
+        onOpenChange={setShowCoverage}
+        className="contents"
+      >
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-2 text-xs"
+          >
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform ${showCoverage ? "rotate-180" : ""}`}
+            />
+            تفاصيل تغطية الفواتير
+            <Badge variant="secondary" className="font-mono">
+              {invoiceCoverage.totalCoverageRate === null
+                ? "—"
+                : `${invoiceCoverage.totalCoverageRate.toFixed(1)}%`}
+            </Badge>
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="order-last basis-full pt-2">
       <Card className="border shadow-sm">
         <CardContent className="p-0">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5">
@@ -2498,9 +2467,15 @@ export default function SalesReport() {
           </div>
         </CardContent>
       </Card>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* ── Collapsible: Extra KPIs ── */}
-      <Collapsible open={showExtras} onOpenChange={setShowExtras}>
+      <Collapsible
+        open={showExtras}
+        onOpenChange={setShowExtras}
+        className="contents"
+      >
         <CollapsibleTrigger asChild>
           <Button
             variant="ghost"
@@ -2513,8 +2488,8 @@ export default function SalesReport() {
             مؤشرات إضافية
           </Button>
         </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+        <CollapsibleContent className="order-last basis-full pt-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {/* إجمالي المبيعات (قبل المرتجعات) */}
             <Card className="border shadow-sm">
               <CardContent className="pt-4 pb-3">
@@ -2640,8 +2615,23 @@ export default function SalesReport() {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* ── Chart (for time/customer/product modes) ── */}
       {groupBy !== "invoice" && chartData.length > 0 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-2 text-xs text-muted-foreground"
+          onClick={() => setShowChart((current) => !current)}
+        >
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform ${showChart ? "rotate-180" : ""}`}
+          />
+          {showChart ? "إخفاء الرسم" : "عرض الرسم البياني"}
+        </Button>
+      )}
+      </div>
+
+      {/* ── Chart (for time/customer/product modes) ── */}
+      {showChart && groupBy !== "invoice" && chartData.length > 0 && (
         <div
           className={
             groupBy === "customer"
