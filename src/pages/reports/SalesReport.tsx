@@ -94,7 +94,7 @@ const CHART_COLORS = [
 const FLAT_ACTION_CLASS =
   "h-9 gap-2 rounded-lg border-0 bg-muted/50 px-3 text-xs font-medium text-foreground shadow-none hover:bg-muted hover:text-foreground";
 const FLAT_SEGMENT_CLASS =
-  "h-8 rounded-md px-3 text-xs text-muted-foreground shadow-none hover:bg-background/70 hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm";
+  "h-8 rounded-md px-3 text-xs text-muted-foreground shadow-none hover:bg-primary/10 hover:text-primary data-[state=on]:!bg-primary/15 data-[state=on]:!text-primary";
 
 export default function SalesReport() {
   const navigate = useNavigate();
@@ -2194,9 +2194,9 @@ export default function SalesReport() {
                 key={p.label}
                 variant="ghost"
                 size="sm"
-                className={`h-7 rounded-md px-2.5 text-xs text-muted-foreground shadow-none hover:bg-background/70 hover:text-foreground ${
+                className={`h-7 rounded-md px-2.5 text-xs text-muted-foreground shadow-none hover:bg-primary/10 hover:text-primary ${
                   dateFrom === p.from && dateTo === p.to
-                    ? "bg-background text-foreground shadow-sm"
+                    ? "!bg-primary/15 !text-primary"
                     : ""
                 }`}
                 onClick={() => {
@@ -2409,7 +2409,7 @@ export default function SalesReport() {
           <Button
             variant="ghost"
             size="sm"
-            className={`${FLAT_ACTION_CLASS} ${showCoverage ? "bg-muted" : ""}`}
+            className={`${FLAT_ACTION_CLASS} ${showCoverage ? "!bg-primary/15 !text-primary" : ""}`}
           >
             <ChevronDown
               className={`h-3.5 w-3.5 transition-transform ${showCoverage ? "rotate-180" : ""}`}
@@ -2486,7 +2486,7 @@ export default function SalesReport() {
           <Button
             variant="ghost"
             size="sm"
-            className={`${FLAT_ACTION_CLASS} ${showExtras ? "bg-muted" : ""}`}
+            className={`${FLAT_ACTION_CLASS} ${showExtras ? "!bg-primary/15 !text-primary" : ""}`}
           >
             <ChevronDown
               className={`w-3.5 h-3.5 transition-transform ${showExtras ? "rotate-180" : ""}`}
@@ -2625,7 +2625,7 @@ export default function SalesReport() {
         <Button
           variant="ghost"
           size="sm"
-          className={`${FLAT_ACTION_CLASS} ${showChart ? "bg-muted" : ""}`}
+          className={`${FLAT_ACTION_CLASS} ${showChart ? "!bg-primary/15 !text-primary" : ""}`}
           onClick={() => setShowChart((current) => !current)}
         >
           <ChevronDown
