@@ -2317,7 +2317,7 @@ export default function SalesReport() {
           </div>
         </div>
         <CardContent className="p-0">
-          <div className="grid grid-cols-2 gap-px bg-border md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-px bg-border md:grid-cols-5">
         {/* صافي المبيعات (الرقم الأهم) */}
         <Card className="relative overflow-hidden rounded-none border-0 bg-card shadow-none">
           <CardContent className="pt-5 pb-4">
@@ -2366,11 +2366,36 @@ export default function SalesReport() {
                     {fmt(kpi.grossProfit)}
                   </p>
                 )}
-                {kpi.grossMarginPercent !== null && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    هامش {kpi.grossMarginPercent.toFixed(1)}%
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  بعد خصم صافي تكلفة البضاعة
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* هامش الربح */}
+        <Card className="relative overflow-hidden rounded-none border-0 bg-card shadow-none">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  هامش الربح
+                </p>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-16" />
+                ) : (
+                  <p
+                    className={`text-2xl font-extrabold tracking-tight tabular-nums ${kpi.grossMarginPercent !== null && kpi.grossMarginPercent >= 0 ? "text-emerald-600 dark:text-emerald-400" : kpi.grossMarginPercent !== null ? "text-destructive" : "text-muted-foreground"}`}
+                  >
+                    {kpi.grossMarginPercent === null
+                      ? "—"
+                      : `${kpi.grossMarginPercent.toFixed(1)}%`}
                   </p>
                 )}
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  إجمالي الربح ÷ صافي المبيعات
+                </p>
               </div>
             </div>
           </CardContent>
