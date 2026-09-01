@@ -2207,9 +2207,9 @@ export default function SalesReport() {
 
           <div className="border-t bg-muted/10 px-3 py-2">
             <div className="overflow-x-auto">
-              <div className="flex w-max min-w-full items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="shrink-0 text-[11px] font-medium text-muted-foreground">فترة سريعة</span>
+              <div className="flex w-max min-w-full items-center gap-4">
+                <div className="flex items-center gap-2 rounded-lg bg-background/70 p-1">
+                  <span className="shrink-0 px-2 text-xs font-semibold text-foreground">فترة سريعة</span>
                   <div className="flex w-max items-center gap-1 rounded-lg bg-muted/50 p-1">
                     {quickRanges.map((p) => (
                       <Button
@@ -2232,10 +2232,10 @@ export default function SalesReport() {
                   </div>
                 </div>
 
-                <div className="h-7 w-px shrink-0 bg-border" />
+                <div className="mx-1 h-8 w-px shrink-0 bg-border" />
 
-                <div className="flex items-center gap-2">
-                  <span className="shrink-0 text-[11px] font-medium text-muted-foreground">عرض التقرير</span>
+                <div className="flex items-center gap-2 rounded-lg bg-background/70 p-1">
+                  <span className="shrink-0 px-2 text-xs font-semibold text-foreground">عرض التقرير</span>
                   <ToggleGroup
                     type="single"
                     value={groupBy}
