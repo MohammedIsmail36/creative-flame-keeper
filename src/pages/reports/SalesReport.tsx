@@ -91,6 +91,10 @@ const CHART_COLORS = [
   "#a855f7",
   "#eab308",
 ];
+const FLAT_ACTION_CLASS =
+  "h-9 gap-2 rounded-lg border-0 bg-muted/50 px-3 text-xs font-medium text-foreground shadow-none hover:bg-muted hover:text-foreground";
+const FLAT_SEGMENT_CLASS =
+  "h-8 rounded-md px-3 text-xs text-muted-foreground shadow-none hover:bg-background/70 hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm";
 
 export default function SalesReport() {
   const navigate = useNavigate();
@@ -2166,7 +2170,7 @@ export default function SalesReport() {
                 value={statusFilter}
                 onValueChange={(v: any) => setStatusFilter(v)}
               >
-                <SelectTrigger className="w-[130px] font-medium h-9">
+                <SelectTrigger className="h-9 w-[130px] border-0 bg-muted/50 font-medium shadow-none">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -2184,15 +2188,17 @@ export default function SalesReport() {
             </div>
           </div>
           {/* Quick Date Presets */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex w-fit flex-wrap items-center gap-1 rounded-lg bg-muted/40 p-1">
             {quickRanges.map((p) => (
               <Button
                 key={p.label}
-                variant={
-                  dateFrom === p.from && dateTo === p.to ? "default" : "outline"
-                }
+                variant="ghost"
                 size="sm"
-                className="h-7 text-xs px-2.5 rounded-full"
+                className={`h-7 rounded-md px-2.5 text-xs text-muted-foreground shadow-none hover:bg-background/70 hover:text-foreground ${
+                  dateFrom === p.from && dateTo === p.to
+                    ? "bg-background text-foreground shadow-sm"
+                    : ""
+                }`}
                 onClick={() => {
                   setDateFrom(p.from);
                   setDateTo(p.to);
@@ -2208,29 +2214,29 @@ export default function SalesReport() {
       {/* ── Report view selector — separate from data filters ── */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-muted-foreground">عرض التقرير</span>
-        <div className="max-w-full overflow-x-auto rounded-lg border bg-background p-0.5">
+        <div className="max-w-full overflow-x-auto rounded-lg bg-muted/40 p-1">
           <ToggleGroup
             type="single"
             value={groupBy}
             onValueChange={(v) => v && setGroupBy(v as any)}
             className="w-max"
           >
-            <ToggleGroupItem value="invoice" className="text-xs px-3 h-8">
+            <ToggleGroupItem value="invoice" className={FLAT_SEGMENT_CLASS}>
               الفواتير
             </ToggleGroupItem>
-            <ToggleGroupItem value="return" className="text-xs px-3 h-8">
+            <ToggleGroupItem value="return" className={FLAT_SEGMENT_CLASS}>
               المرتجعات
             </ToggleGroupItem>
-            <ToggleGroupItem value="customer" className="text-xs px-3 h-8">
+            <ToggleGroupItem value="customer" className={FLAT_SEGMENT_CLASS}>
               العملاء
             </ToggleGroupItem>
-            <ToggleGroupItem value="product" className="text-xs px-3 h-8">
+            <ToggleGroupItem value="product" className={FLAT_SEGMENT_CLASS}>
               المنتجات
             </ToggleGroupItem>
-            <ToggleGroupItem value="category" className="text-xs px-3 h-8">
+            <ToggleGroupItem value="category" className={FLAT_SEGMENT_CLASS}>
               التصنيفات
             </ToggleGroupItem>
-            <ToggleGroupItem value="time" className="text-xs px-3 h-8">
+            <ToggleGroupItem value="time" className={FLAT_SEGMENT_CLASS}>
               زمني
             </ToggleGroupItem>
           </ToggleGroup>
@@ -2240,12 +2246,12 @@ export default function SalesReport() {
             type="single"
             value={timeMode}
             onValueChange={(v) => v && setTimeMode(v as any)}
-            className="rounded-lg border p-0.5"
+            className="rounded-lg bg-muted/40 p-1"
           >
-            <ToggleGroupItem value="daily" className="text-xs px-3 h-8">
+            <ToggleGroupItem value="daily" className={FLAT_SEGMENT_CLASS}>
               يومي
             </ToggleGroupItem>
-            <ToggleGroupItem value="monthly" className="text-xs px-3 h-8">
+            <ToggleGroupItem value="monthly" className={FLAT_SEGMENT_CLASS}>
               شهري
             </ToggleGroupItem>
           </ToggleGroup>
@@ -2401,19 +2407,19 @@ export default function SalesReport() {
       >
         <CollapsibleTrigger asChild>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="h-9 gap-2 text-xs"
+            className={`${FLAT_ACTION_CLASS} ${showCoverage ? "bg-muted" : ""}`}
           >
             <ChevronDown
               className={`h-3.5 w-3.5 transition-transform ${showCoverage ? "rotate-180" : ""}`}
             />
             تفاصيل تغطية الفواتير
-            <Badge variant="secondary" className="font-mono">
+            <span className="font-mono font-bold">
               {invoiceCoverage.totalCoverageRate === null
                 ? "—"
                 : `${invoiceCoverage.totalCoverageRate.toFixed(1)}%`}
-            </Badge>
+            </span>
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="order-last basis-full pt-2">
@@ -2480,7 +2486,7 @@ export default function SalesReport() {
           <Button
             variant="ghost"
             size="sm"
-            className="gap-2 h-8 text-xs text-muted-foreground hover:text-foreground"
+            className={`${FLAT_ACTION_CLASS} ${showExtras ? "bg-muted" : ""}`}
           >
             <ChevronDown
               className={`w-3.5 h-3.5 transition-transform ${showExtras ? "rotate-180" : ""}`}
@@ -2619,7 +2625,7 @@ export default function SalesReport() {
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 gap-2 text-xs text-muted-foreground"
+          className={`${FLAT_ACTION_CLASS} ${showChart ? "bg-muted" : ""}`}
           onClick={() => setShowChart((current) => !current)}
         >
           <ChevronDown
