@@ -20,7 +20,12 @@ export async function fetchAllPaged<T>(
   const first = await queryBuilder().range(0, batchSize - 1);
   if (first.error) throw first.error;
 
-  const total = Math.min(first.count ?? first.data?.length ?? 0, maxRows);
+  const total = first.count ?? first.data?.length ?? 0;
+  if (total > maxRows) {
+    throw new Error(
+      `عدد السجلات (${total}) يتجاوز الحد الآمن للتحميل (${maxRows}). يرجى تضييق نطاق البحث.`,
+    );
+  }
   let collected: T[] = (first.data ?? []) as T[];
   opts.onProgress?.(collected.length, total);
 

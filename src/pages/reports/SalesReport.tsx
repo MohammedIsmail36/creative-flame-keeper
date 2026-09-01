@@ -68,6 +68,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { formatProductDisplay } from "@/lib/product-utils";
+import { fetchAllPaged } from "@/lib/paged-fetch";
 
 // ── helpers ──
 const fmt = (n: number) =>
@@ -182,83 +183,104 @@ export default function SalesReport() {
   };
 
   // ── Query 1: Invoices ──
-  const { data: invoices = [], isLoading: loadingInv } = useQuery({
+  const invoicesQuery = useQuery({
     queryKey: ["sr-invoices", dateFrom, dateTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_invoices")
-        .select(
-          "id, invoice_number, posted_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, customer_id, customer:customers(name), items:sales_invoice_items(quantity, total, net_total, product_id, product:products(name, model_number, category_id, category:product_categories(name), brand:product_brands(name)))",
-        )
-        .gte("invoice_date", dateFrom)
-        .lte("invoice_date", dateTo)
-        .order("invoice_date", { ascending: false });
-      if (error) throw error;
-      return data as any[];
-    },
+    queryFn: () =>
+      fetchAllPaged<any>(
+        () =>
+          supabase
+            .from("sales_invoices")
+            .select(
+              "id, invoice_number, posted_number, invoice_date, due_date, status, subtotal, discount, tax, total, paid_amount, customer_id, customer:customers(name), items:sales_invoice_items(quantity, total, net_total, product_id, product:products(name, model_number, category_id, category:product_categories(name), brand:product_brands(name)))",
+              { count: "exact" },
+            )
+            .gte("invoice_date", dateFrom)
+            .lte("invoice_date", dateTo)
+            .order("invoice_date", { ascending: false })
+            .order("id", { ascending: true }),
+        { batchSize: 500, maxRows: 250000 },
+      ),
   });
+  const invoices = invoicesQuery.data ?? [];
 
   // ── Query 2: Returns ──
-  const { data: returns = [] } = useQuery({
+  const returnsQuery = useQuery({
     queryKey: ["sr-returns", dateFrom, dateTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_returns")
-        .select(
-          "id, return_date, total, status, customer_id, customer:customers(name), items:sales_return_items(quantity, total, product_id, product:products(category_id, category:product_categories(name)))",
-        )
-        .eq("status", "posted")
-        .gte("return_date", dateFrom)
-        .lte("return_date", dateTo);
-      if (error) throw error;
-      return data as any[];
-    },
+    queryFn: () =>
+      fetchAllPaged<any>(
+        () =>
+          supabase
+            .from("sales_returns")
+            .select(
+              "id, return_date, total, status, customer_id, customer:customers(name), items:sales_return_items(quantity, total, product_id, product:products(category_id, category:product_categories(name)))",
+              { count: "exact" },
+            )
+            .eq("status", "posted")
+            .gte("return_date", dateFrom)
+            .lte("return_date", dateTo)
+            .order("return_date", { ascending: false })
+            .order("id", { ascending: true }),
+        { batchSize: 500, maxRows: 250000 },
+      ),
   });
+  const returns = returnsQuery.data ?? [];
 
   // ── Query 3: COGS from inventory_movements ──
-  const { data: movements = [] } = useQuery({
+  const movementsQuery = useQuery({
     queryKey: ["sr-cogs", dateFrom, dateTo],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("inventory_movements")
-        .select(
-          "product_id, movement_type, quantity, total_cost, movement_date, reference_id, reference_type",
-        )
-        .in("movement_type", ["sale", "sale_return"])
-        .gte("movement_date", dateFrom)
-        .lte("movement_date", dateTo);
-      if (error) throw error;
-      return data as any[];
-    },
+    queryFn: () =>
+      fetchAllPaged<any>(
+        () =>
+          supabase
+            .from("inventory_movements")
+            .select(
+              "id, product_id, movement_type, quantity, total_cost, movement_date, reference_id, reference_type",
+              { count: "exact" },
+            )
+            .in("movement_type", ["sale", "sale_return"])
+            .gte("movement_date", dateFrom)
+            .lte("movement_date", dateTo)
+            .order("movement_date", { ascending: false })
+            .order("id", { ascending: true }),
+        { batchSize: 500, maxRows: 250000 },
+      ),
   });
+  const movements = movementsQuery.data ?? [];
 
   // ── Query 4: Previous period (for comparison) ──
-  const { data: prevInvoices = [] } = useQuery({
+  const prevInvoicesQuery = useQuery({
     queryKey: ["sr-prev-invoices", prevPeriod.from, prevPeriod.to],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_invoices")
-        .select("total")
-        .eq("status", "posted")
-        .gte("invoice_date", prevPeriod.from)
-        .lte("invoice_date", prevPeriod.to);
-      if (error) throw error;
-      return data as any[];
-    },
+    queryFn: () =>
+      fetchAllPaged<any>(
+        () =>
+          supabase
+            .from("sales_invoices")
+            .select("id, total", { count: "exact" })
+            .eq("status", "posted")
+            .gte("invoice_date", prevPeriod.from)
+            .lte("invoice_date", prevPeriod.to)
+            .order("id", { ascending: true }),
+        { batchSize: 500, maxRows: 250000 },
+      ),
   });
-  const { data: prevReturns = [] } = useQuery({
+  const prevInvoices = prevInvoicesQuery.data ?? [];
+
+  const prevReturnsQuery = useQuery({
     queryKey: ["sr-prev-returns", prevPeriod.from, prevPeriod.to],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_returns")
-        .select("total")
-        .eq("status", "posted")
-        .gte("return_date", prevPeriod.from)
-        .lte("return_date", prevPeriod.to);
-      if (error) throw error;
-      return data as any[];
-    },
+    queryFn: () =>
+      fetchAllPaged<any>(
+        () =>
+          supabase
+            .from("sales_returns")
+            .select("id, total", { count: "exact" })
+            .eq("status", "posted")
+            .gte("return_date", prevPeriod.from)
+            .lte("return_date", prevPeriod.to)
+            .order("id", { ascending: true }),
+        { batchSize: 500, maxRows: 250000 },
+      ),
   });
+  const prevReturns = prevReturnsQuery.data ?? [];
 
   // ── Filtered invoices ──
   const filtered = useMemo(() => {
@@ -1639,7 +1661,44 @@ export default function SalesReport() {
     targetInfo,
   ]);
 
-  const isLoading = loadingInv;
+  const reportQueries = [
+    invoicesQuery,
+    returnsQuery,
+    movementsQuery,
+    prevInvoicesQuery,
+    prevReturnsQuery,
+  ];
+  const isLoading = reportQueries.some((query) => query.isLoading);
+  const queryError = reportQueries.find((query) => query.error)?.error;
+  const isRetrying = reportQueries.some((query) => query.isFetching);
+
+  if (queryError) {
+    return (
+      <Card className="border-destructive/40">
+        <CardContent className="py-10 flex flex-col items-center gap-3 text-center">
+          <AlertTriangle className="h-10 w-10 text-destructive" />
+          <div>
+            <p className="font-medium text-destructive">
+              تعذر تحميل تقرير المبيعات كاملاً
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              لم نعرض نتائج جزئية حتى لا تكون المؤشرات المالية مضللة.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isRetrying}
+            onClick={() => {
+              void Promise.all(reportQueries.map((query) => query.refetch()));
+            }}
+          >
+            {isRetrying ? "جارٍ إعادة المحاولة..." : "إعادة المحاولة"}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-5 p-1">
