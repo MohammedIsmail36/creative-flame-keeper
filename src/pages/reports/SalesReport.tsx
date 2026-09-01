@@ -2152,92 +2152,90 @@ export default function SalesReport() {
       {/* ── Unified report controls ── */}
       <Card className="overflow-hidden border shadow-sm">
         <CardContent className="p-0">
-          <div className="flex flex-col gap-3 p-3 sm:p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold">نطاق التقرير</p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {formatPeriodDate(dateFrom)} — {formatPeriodDate(dateTo)}
-                </p>
-              </div>
+          <div className="flex flex-wrap items-center gap-2.5 p-3">
+            <div className="me-1 min-w-[185px]">
+              <p className="text-sm font-semibold">نطاق التقرير</p>
+              <p className="mt-0.5 whitespace-nowrap text-[11px] text-muted-foreground">
+                {formatPeriodDate(dateFrom)} — {formatPeriodDate(dateTo)}
+              </p>
+            </div>
+
+            <div className="grid min-w-0 flex-1 basis-[310px] grid-cols-[minmax(130px,1fr)_auto_minmax(130px,1fr)] items-center gap-2 sm:max-w-[370px]">
+              <DatePickerInput
+                value={dateFrom}
+                onChange={setDateFrom}
+                placeholder="من تاريخ"
+                className="h-9 min-w-0 border-0 bg-muted/50 px-2.5 shadow-none hover:bg-muted sm:px-3"
+              />
+              <span className="text-muted-foreground/40">—</span>
+              <DatePickerInput
+                value={dateTo}
+                onChange={setDateTo}
+                placeholder="إلى تاريخ"
+                className="h-9 min-w-0 border-0 bg-muted/50 px-2.5 shadow-none hover:bg-muted sm:px-3"
+              />
+            </div>
+
+            <div className="hidden h-7 w-px bg-border lg:block" />
+
+            <div className="flex items-center gap-2">
+              <span className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">حالة التفاصيل</span>
+              <Select
+                value={statusFilter}
+                onValueChange={(v: any) => setStatusFilter(v)}
+              >
+                <SelectTrigger className="h-9 w-[120px] border-0 bg-muted/50 font-medium shadow-none hover:bg-muted">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">الكل</SelectItem>
+                  <SelectItem value="posted">مُرحّل</SelectItem>
+                  <SelectItem value="draft">مسودة</SelectItem>
+                  <SelectItem value="cancelled">ملغي</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="ms-auto shrink-0">
               <ExportMenu
                 config={exportConfig}
                 disabled={isLoading}
                 buttonClassName="h-9 border-0 bg-primary/10 text-primary shadow-none hover:bg-primary/15 hover:text-primary"
               />
             </div>
-
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_160px] lg:items-end">
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-medium text-muted-foreground">الفترة</span>
-                <div className="grid max-w-[370px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-                  <DatePickerInput
-                    value={dateFrom}
-                    onChange={setDateFrom}
-                    placeholder="من تاريخ"
-                    className="h-9 min-w-0 border-0 bg-muted/50 px-2.5 shadow-none hover:bg-muted sm:px-3"
-                  />
-                  <span className="text-muted-foreground/40">—</span>
-                  <DatePickerInput
-                    value={dateTo}
-                    onChange={setDateTo}
-                    placeholder="إلى تاريخ"
-                    className="h-9 min-w-0 border-0 bg-muted/50 px-2.5 shadow-none hover:bg-muted sm:px-3"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-medium text-muted-foreground">حالة تفاصيل الجدول</span>
-                <Select
-                  value={statusFilter}
-                  onValueChange={(v: any) => setStatusFilter(v)}
-                >
-                  <SelectTrigger className="h-9 w-full border-0 bg-muted/50 font-medium shadow-none hover:bg-muted">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">الكل</SelectItem>
-                    <SelectItem value="posted">مُرحّل</SelectItem>
-                    <SelectItem value="draft">مسودة</SelectItem>
-                    <SelectItem value="cancelled">ملغي</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
           </div>
 
-          <div className="space-y-2.5 border-t bg-muted/10 p-3 sm:px-4">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="w-20 shrink-0 text-[11px] font-medium text-muted-foreground">فترة سريعة</span>
-              <div className="min-w-0 flex-1 overflow-x-auto">
-                <div className="flex w-max items-center gap-1 rounded-lg bg-muted/50 p-1">
-                  {quickRanges.map((p) => (
-                    <Button
-                      key={p.label}
-                      variant="ghost"
-                      size="sm"
-                      className={`h-7 rounded-md px-2.5 text-xs text-muted-foreground shadow-none hover:bg-primary/10 hover:text-primary ${
-                        dateFrom === p.from && dateTo === p.to
-                          ? "!bg-primary/15 !text-primary"
-                          : ""
-                      }`}
-                      onClick={() => {
-                        setDateFrom(p.from);
-                        setDateTo(p.to);
-                      }}
-                    >
-                      {p.label}
-                    </Button>
-                  ))}
+          <div className="border-t bg-muted/10 px-3 py-2">
+            <div className="overflow-x-auto">
+              <div className="flex w-max min-w-full items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="shrink-0 text-[11px] font-medium text-muted-foreground">فترة سريعة</span>
+                  <div className="flex w-max items-center gap-1 rounded-lg bg-muted/50 p-1">
+                    {quickRanges.map((p) => (
+                      <Button
+                        key={p.label}
+                        variant="ghost"
+                        size="sm"
+                        className={`h-7 rounded-md px-2.5 text-xs text-muted-foreground shadow-none hover:bg-primary/10 hover:text-primary ${
+                          dateFrom === p.from && dateTo === p.to
+                            ? "!bg-primary/15 !text-primary"
+                            : ""
+                        }`}
+                        onClick={() => {
+                          setDateFrom(p.from);
+                          setDateTo(p.to);
+                        }}
+                      >
+                        {p.label}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="w-20 shrink-0 text-[11px] font-medium text-muted-foreground">عرض التقرير</span>
-              <div className="min-w-0 flex-1 overflow-x-auto">
-                <div className="flex w-max items-center gap-2">
+                <div className="h-7 w-px shrink-0 bg-border" />
+
+                <div className="flex items-center gap-2">
+                  <span className="shrink-0 text-[11px] font-medium text-muted-foreground">عرض التقرير</span>
                   <ToggleGroup
                     type="single"
                     value={groupBy}
