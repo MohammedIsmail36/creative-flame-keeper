@@ -13,6 +13,7 @@
 #    ./scripts/deploy-all.sh --only farida   # شركة واحدة فقط
 #    ./scripts/deploy-all.sh --baseline-db   # أول مرة على قاعدة قائمة
 #    ./scripts/deploy-all.sh --no-pull       # بدون git pull
+#    ./scripts/deploy-all.sh --dry-run       # تحقق من الإعدادات دون تعديل الإنتاج
 # ============================================================
 set -euo pipefail
 
@@ -30,6 +31,7 @@ DO_FUNCTIONS=true
 DO_BUILD=true
 BASELINE_DB=false
 ONLY=""
+DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -38,7 +40,12 @@ while [[ $# -gt 0 ]]; do
     --skip-functions) DO_FUNCTIONS=false ;;
     --skip-build) DO_BUILD=false ;;
     --baseline-db) BASELINE_DB=true ;;
-    --only) ONLY="${2:-}"; shift ;;
+    --dry-run) DRY_RUN=true ;;
+    --only)
+      [[ $# -ge 2 ]] || { echo "❌ الخيار --only يحتاج اسم شركة" >&2; exit 1; }
+      ONLY="$2"
+      shift
+      ;;
     -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
     *) echo "❌ خيار غير معروف: $1" >&2; exit 1 ;;
   esac
@@ -49,6 +56,17 @@ log()  { echo -e "\n\033[1;36m▶ $*\033[0m"; }
 ok()   { echo -e "\033[1;32m✅ $*\033[0m"; }
 warn() { echo -e "\033[1;33m⚠️  $*\033[0m"; }
 die()  { echo -e "\033[1;31m❌ $*\033[0m" >&2; exit 1; }
+
+if [[ -n "$ONLY" && "$ONLY" != "farida" && "$ONLY" != "alibea" ]]; then
+  die "قيمة --only غير صحيحة: $ONLY (المتاح: farida أو alibea)"
+fi
+
+if [[ "$DRY_RUN" == true ]]; then
+  [[ "$DO_BUILD" == true ]] || die "لا يمكن استخدام --dry-run مع --skip-build"
+  DO_PULL=false
+  DO_DB=false
+  DO_FUNCTIONS=false
+fi
 
 cd "$APP_DIR" || die "المجلد غير موجود: $APP_DIR"
 
@@ -201,6 +219,7 @@ deploy_functions() {
 # ------------------------------------------------------------
 build_and_deploy() {
   local name="$1" www_dir="$2" api_url="$3" anon_key="$4"
+  local main_asset site_url served_asset
 
   log "[$name] بناء الواجهة"
   VITE_SUPABASE_URL="$api_url" \
@@ -209,23 +228,59 @@ build_and_deploy() {
 
   [[ -f dist/index.html ]] || die "[$name] مجلد dist غير صالح"
 
-  sudo mkdir -p "$www_dir"
-  sudo rm -rf "${www_dir:?}"/*
-  sudo cp -r dist/. "$www_dir"/
-  sudo chown -R www-data:www-data "$www_dir"
-  ok "[$name] تم النشر إلى $www_dir"
+  main_asset="$(sed -n 's/.*src="\/\([^\"]*index-[^\"]*\.js\)".*/\1/p' dist/index.html | head -1)"
+  [[ -n "$main_asset" && -f "dist/$main_asset" ]] \
+    || die "[$name] تعذر تحديد ملف JavaScript الرئيسي داخل البناء"
+  grep -Fq "$api_url" "dist/$main_asset" \
+    || die "[$name] البناء لا يحتوي API الصحيح: $api_url — تم إيقاف النشر"
+
+  ok "[$name] تم التحقق من API داخل البناء: $api_url"
+
+  if [[ "$DRY_RUN" == true ]]; then
+    warn "[$name] وضع dry-run — لم يتم تعديل $www_dir"
+    return 0
+  fi
+
+  # rsync --delay-updates keeps the currently served files in place until all
+  # replacement files have been transferred. It also removes stale hashed assets.
+  if [[ -d "$www_dir" && -w "$www_dir" ]]; then
+    rsync -a --delete --delay-updates dist/ "$www_dir"/
+  else
+    sudo mkdir -p "$www_dir"
+    sudo rsync -a --delete --delay-updates dist/ "$www_dir"/
+    sudo chown -R www-data:www-data "$www_dir"
+  fi
+
+  cmp -s dist/index.html "$www_dir/index.html" \
+    || die "[$name] ملف index.html المنشور لا يطابق البناء"
+  [[ -f "$www_dir/$main_asset" ]] \
+    || die "[$name] ملف JavaScript الرئيسي غير موجود بعد النشر"
+  grep -Fq "$api_url" "$www_dir/$main_asset" \
+    || die "[$name] الملف المنشور لا يحتوي API الصحيح"
+
+  site_url="${api_url%/api}"
+  served_asset=""
+  for _ in {1..10}; do
+    served_asset="$(curl -fsS --retry 2 --connect-timeout 10 "$site_url/" \
+      | sed -n 's/.*src="\/\([^\"]*index-[^\"]*\.js\)".*/\1/p' \
+      | head -1)"
+    [[ "$served_asset" == "$main_asset" ]] && break
+    sleep 1
+  done
+  [[ "$served_asset" == "$main_asset" ]] \
+    || die "[$name] النطاق يقدم بناء مختلفاً (المتوقع: $main_asset، الفعلي: ${served_asset:-غير معروف})"
+
+  ok "[$name] تم النشر والتحقق من النطاق: $site_url"
 }
 
 # تثبيت الحزم مرة واحدة
 if [[ "$DO_BUILD" == true ]]; then
   log "تثبيت الحزم"
-  if [[ -f package-lock.json ]] && npm ci; then
-    ok "الحزم جاهزة (npm ci)"
-  else
-    warn "npm ci غير ممكن أو الـ lock غير متزامن — التحويل إلى npm install"
-    npm install || die "فشل npm install"
-    ok "الحزم جاهزة (npm install)"
-  fi
+  [[ -f package-lock.json ]] || die "package-lock.json غير موجود — أُوقف النشر لضمان ثبات الحزم"
+  npm ci || die "فشل npm ci — لم يتم تغيير ملفات الإنتاج"
+  [[ -x node_modules/.bin/vite ]] \
+    || die "npm ci انتهى دون تثبيت أداة vite — أُوقف النشر لأن الحزم غير مكتملة"
+  ok "الحزم جاهزة (npm ci)"
 fi
 
 
@@ -238,10 +293,22 @@ for entry in "${COMPANIES[@]}"; do
   fi
 
   echo -e "\n\033[1;35m🏢 $name\033[0m"
-  [[ "$DO_FUNCTIONS" == true ]] && deploy_functions "$name" "$docker_dir" || true
-  [[ "$DO_BUILD" == true ]] && build_and_deploy "$name" "$www_dir" "$api_url" "$anon_key" || true
+  if [[ "$DO_FUNCTIONS" == true ]]; then
+    deploy_functions "$name" "$docker_dir"
+  fi
+  if [[ "$DO_BUILD" == true ]]; then
+    build_and_deploy "$name" "$www_dir" "$api_url" "$anon_key"
+  fi
 done
 
 echo ""
-ok "انتهى النشر بنجاح 🎉"
-echo "افتح الموقعين واعمل Ctrl+F5 لتجاوز الكاش."
+if [[ "$DRY_RUN" == true ]]; then
+  ok "انتهى فحص dry-run بنجاح — لم تتغير ملفات الإنتاج"
+else
+  ok "انتهى النشر بنجاح 🎉"
+  if [[ -n "$ONLY" ]]; then
+    echo "افتح موقع $ONLY واعمل Ctrl+F5 لتجاوز الكاش."
+  else
+    echo "افتح الموقعين واعمل Ctrl+F5 لتجاوز الكاش."
+  fi
+fi
