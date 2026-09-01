@@ -130,7 +130,6 @@ export default function SalesReport() {
       cashCollected: false,
       returnSettled: false,
       cogs: false,
-      margin: false,
     });
   const [returnColumnVisibility, setReturnColumnVisibility] =
     useState<VisibilityState>({ itemsCount: false, documentType: false });
@@ -160,7 +159,6 @@ export default function SalesReport() {
     useState<VisibilityState>({
       aov: false,
       returnRate: false,
-      margin: false,
     });
 
   // Quick sort toolbar (next to search) — sorts by profit or margin
