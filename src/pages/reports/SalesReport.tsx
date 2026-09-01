@@ -95,6 +95,15 @@ const FLAT_ACTION_CLASS =
   "h-9 gap-2 rounded-lg border-0 bg-muted/50 px-3 text-xs font-medium text-foreground shadow-none hover:bg-muted hover:text-foreground";
 const FLAT_SEGMENT_CLASS =
   "h-8 rounded-md px-3 text-xs text-muted-foreground shadow-none hover:bg-primary/10 hover:text-primary data-[state=on]:!bg-primary/15 data-[state=on]:!text-primary";
+const formatPeriodDate = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(year, month - 1, day));
+};
 
 export default function SalesReport() {
   const navigate = useNavigate();
@@ -2140,123 +2149,125 @@ export default function SalesReport() {
 
   return (
     <div className="space-y-5 p-1">
-      {/* ── Filters Card (ProductAnalytics style) ── */}
-      <Card className="border shadow-sm">
-        <CardContent className="py-3 px-4 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-y-3">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-              {/* Date Range */}
-              <div className="flex items-center gap-2">
-                <DatePickerInput
-                  value={dateFrom}
-                  onChange={setDateFrom}
-                  placeholder="من تاريخ"
-                  className="w-[140px]"
-                />
-                <span className="text-muted-foreground/30">—</span>
-                <DatePickerInput
-                  value={dateTo}
-                  onChange={setDateTo}
-                  placeholder="إلى تاريخ"
-                  className="w-[140px]"
-                />
+      {/* ── Unified report controls ── */}
+      <Card className="overflow-hidden border shadow-sm">
+        <CardContent className="p-0">
+          <div className="flex flex-col gap-3 p-3 sm:p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">نطاق التقرير</p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {formatPeriodDate(dateFrom)} — {formatPeriodDate(dateTo)}
+                </p>
+              </div>
+              <ExportMenu
+                config={exportConfig}
+                disabled={isLoading}
+                buttonClassName="h-9 border-0 bg-primary/10 text-primary shadow-none hover:bg-primary/15 hover:text-primary"
+              />
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_160px] lg:items-end">
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-medium text-muted-foreground">الفترة</span>
+                <div className="grid max-w-[370px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                  <DatePickerInput
+                    value={dateFrom}
+                    onChange={setDateFrom}
+                    placeholder="من تاريخ"
+                    className="h-9 min-w-0 border-0 bg-muted/50 px-2.5 shadow-none hover:bg-muted sm:px-3"
+                  />
+                  <span className="text-muted-foreground/40">—</span>
+                  <DatePickerInput
+                    value={dateTo}
+                    onChange={setDateTo}
+                    placeholder="إلى تاريخ"
+                    className="h-9 min-w-0 border-0 bg-muted/50 px-2.5 shadow-none hover:bg-muted sm:px-3"
+                  />
+                </div>
               </div>
 
-              <div className="h-7 w-px bg-border/60 hidden md:block" />
-
-              {/* Status */}
-              <span className="text-xs text-muted-foreground">حالة التفاصيل</span>
-              <Select
-                value={statusFilter}
-                onValueChange={(v: any) => setStatusFilter(v)}
-              >
-                <SelectTrigger className="h-9 w-[130px] border-0 bg-muted/50 font-medium shadow-none">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">الكل</SelectItem>
-                  <SelectItem value="posted">مُرحّل</SelectItem>
-                  <SelectItem value="draft">مسودة</SelectItem>
-                  <SelectItem value="cancelled">ملغي</SelectItem>
-                </SelectContent>
-              </Select>
-
-            </div>
-
-            <div className="shrink-0">
-              <ExportMenu config={exportConfig} disabled={isLoading} />
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-medium text-muted-foreground">حالة تفاصيل الجدول</span>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(v: any) => setStatusFilter(v)}
+                >
+                  <SelectTrigger className="h-9 w-full border-0 bg-muted/50 font-medium shadow-none hover:bg-muted">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">الكل</SelectItem>
+                    <SelectItem value="posted">مُرحّل</SelectItem>
+                    <SelectItem value="draft">مسودة</SelectItem>
+                    <SelectItem value="cancelled">ملغي</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
-          {/* Quick Date Presets */}
-          <div className="flex w-fit flex-wrap items-center gap-1 rounded-lg bg-muted/40 p-1">
-            {quickRanges.map((p) => (
-              <Button
-                key={p.label}
-                variant="ghost"
-                size="sm"
-                className={`h-7 rounded-md px-2.5 text-xs text-muted-foreground shadow-none hover:bg-primary/10 hover:text-primary ${
-                  dateFrom === p.from && dateTo === p.to
-                    ? "!bg-primary/15 !text-primary"
-                    : ""
-                }`}
-                onClick={() => {
-                  setDateFrom(p.from);
-                  setDateTo(p.to);
-                }}
-              >
-                {p.label}
-              </Button>
-            ))}
+
+          <div className="space-y-2.5 border-t bg-muted/10 p-3 sm:px-4">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="w-20 shrink-0 text-[11px] font-medium text-muted-foreground">فترة سريعة</span>
+              <div className="min-w-0 flex-1 overflow-x-auto">
+                <div className="flex w-max items-center gap-1 rounded-lg bg-muted/50 p-1">
+                  {quickRanges.map((p) => (
+                    <Button
+                      key={p.label}
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 rounded-md px-2.5 text-xs text-muted-foreground shadow-none hover:bg-primary/10 hover:text-primary ${
+                        dateFrom === p.from && dateTo === p.to
+                          ? "!bg-primary/15 !text-primary"
+                          : ""
+                      }`}
+                      onClick={() => {
+                        setDateFrom(p.from);
+                        setDateTo(p.to);
+                      }}
+                    >
+                      {p.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="w-20 shrink-0 text-[11px] font-medium text-muted-foreground">عرض التقرير</span>
+              <div className="min-w-0 flex-1 overflow-x-auto">
+                <div className="flex w-max items-center gap-2">
+                  <ToggleGroup
+                    type="single"
+                    value={groupBy}
+                    onValueChange={(v) => v && setGroupBy(v as any)}
+                    className="rounded-lg bg-muted/50 p-1"
+                  >
+                    <ToggleGroupItem value="invoice" className={FLAT_SEGMENT_CLASS}>الفواتير</ToggleGroupItem>
+                    <ToggleGroupItem value="return" className={FLAT_SEGMENT_CLASS}>المرتجعات</ToggleGroupItem>
+                    <ToggleGroupItem value="customer" className={FLAT_SEGMENT_CLASS}>العملاء</ToggleGroupItem>
+                    <ToggleGroupItem value="product" className={FLAT_SEGMENT_CLASS}>المنتجات</ToggleGroupItem>
+                    <ToggleGroupItem value="category" className={FLAT_SEGMENT_CLASS}>التصنيفات</ToggleGroupItem>
+                    <ToggleGroupItem value="time" className={FLAT_SEGMENT_CLASS}>زمني</ToggleGroupItem>
+                  </ToggleGroup>
+                  {groupBy === "time" && (
+                    <ToggleGroup
+                      type="single"
+                      value={timeMode}
+                      onValueChange={(v) => v && setTimeMode(v as any)}
+                      className="rounded-lg bg-muted/50 p-1"
+                    >
+                      <ToggleGroupItem value="daily" className={FLAT_SEGMENT_CLASS}>يومي</ToggleGroupItem>
+                      <ToggleGroupItem value="monthly" className={FLAT_SEGMENT_CLASS}>شهري</ToggleGroupItem>
+                    </ToggleGroup>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
-
-      {/* ── Report view selector — separate from data filters ── */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted-foreground">عرض التقرير</span>
-        <div className="max-w-full overflow-x-auto rounded-lg bg-muted/40 p-1">
-          <ToggleGroup
-            type="single"
-            value={groupBy}
-            onValueChange={(v) => v && setGroupBy(v as any)}
-            className="w-max"
-          >
-            <ToggleGroupItem value="invoice" className={FLAT_SEGMENT_CLASS}>
-              الفواتير
-            </ToggleGroupItem>
-            <ToggleGroupItem value="return" className={FLAT_SEGMENT_CLASS}>
-              المرتجعات
-            </ToggleGroupItem>
-            <ToggleGroupItem value="customer" className={FLAT_SEGMENT_CLASS}>
-              العملاء
-            </ToggleGroupItem>
-            <ToggleGroupItem value="product" className={FLAT_SEGMENT_CLASS}>
-              المنتجات
-            </ToggleGroupItem>
-            <ToggleGroupItem value="category" className={FLAT_SEGMENT_CLASS}>
-              التصنيفات
-            </ToggleGroupItem>
-            <ToggleGroupItem value="time" className={FLAT_SEGMENT_CLASS}>
-              زمني
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-        {groupBy === "time" && (
-          <ToggleGroup
-            type="single"
-            value={timeMode}
-            onValueChange={(v) => v && setTimeMode(v as any)}
-            className="rounded-lg bg-muted/40 p-1"
-          >
-            <ToggleGroupItem value="daily" className={FLAT_SEGMENT_CLASS}>
-              يومي
-            </ToggleGroupItem>
-            <ToggleGroupItem value="monthly" className={FLAT_SEGMENT_CLASS}>
-              شهري
-            </ToggleGroupItem>
-          </ToggleGroup>
-        )}
-      </div>
 
       {/* ── Unified period summary ── */}
       <Card className="overflow-hidden border shadow-sm">
@@ -2267,9 +2278,6 @@ export default function SalesReport() {
               المستندات المُرحّلة فقط
             </Badge>
           </div>
-          <span className="text-xs text-muted-foreground">
-            {dateFrom} — {dateTo}
-          </span>
         </div>
         <CardContent className="p-0">
           <div className="grid grid-cols-2 gap-px bg-border md:grid-cols-4">

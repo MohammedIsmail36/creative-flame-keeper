@@ -4,6 +4,7 @@ import { Download, FileText, FileSpreadsheet, FileDown, Loader2 } from "lucide-r
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { CompanySettings } from "@/contexts/SettingsContext";
 import { notify } from "@/lib/notify";
+import { cn } from "@/lib/utils";
 
 export interface ExportConfig {
   filenamePrefix: string;
@@ -21,6 +22,8 @@ export type ExportProgress = (loaded: number, total: number) => void;
 interface ExportMenuProps {
   config: ExportConfig;
   disabled?: boolean;
+  /** Optional classes for adapting the trigger to the surrounding toolbar. */
+  buttonClassName?: string;
   /** Called when an export format is chosen (lazy-load full data for export).
    *  Receives an `onProgress(loaded, total)` callback to report fetch progress.
    *  May return the prepared rows (and optional overrides) directly to avoid
@@ -35,7 +38,7 @@ interface ExportMenuProps {
     | Promise<Partial<ExportConfig> | void>;
 }
 
-export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
+export function ExportMenu({ config, disabled, buttonClassName, onOpen }: ExportMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const [preparing, setPreparing] = useState(false);
@@ -124,7 +127,7 @@ export function ExportMenu({ config, disabled, onOpen }: ExportMenuProps) {
       <div className="relative" ref={ref}>
         <Button
           variant="outline"
-          className="gap-1.5 shadow-sm"
+          className={cn("gap-1.5 shadow-sm", buttonClassName)}
           onClick={handleToggle}
           disabled={disabled || preparing}
           aria-busy={preparing}
