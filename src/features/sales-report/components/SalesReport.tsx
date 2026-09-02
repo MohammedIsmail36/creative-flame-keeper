@@ -2139,9 +2139,11 @@ export default function SalesReport() {
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="order-last basis-full pt-2">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className="overflow-hidden border shadow-sm">
+            <CardContent className="p-0">
+              <div className="grid grid-cols-2 gap-px bg-border md:grid-flow-col md:grid-cols-none md:auto-cols-fr">
             {/* إجمالي المبيعات (قبل المرتجعات) */}
-            <Card className="border shadow-sm">
+            <Card className="rounded-none border-0 bg-card shadow-none">
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
                   إجمالي المبيعات قبل الضريبة
@@ -2161,7 +2163,7 @@ export default function SalesReport() {
             </Card>
 
             {/* عدد الفواتير */}
-            <Card className="border shadow-sm">
+            <Card className="rounded-none border-0 bg-card shadow-none">
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
                   عدد الفواتير
@@ -2176,7 +2178,7 @@ export default function SalesReport() {
             </Card>
 
             {/* متوسط الفاتورة */}
-            <Card className="border shadow-sm">
+            <Card className="rounded-none border-0 bg-card shadow-none">
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
                   متوسط الفاتورة قبل الضريبة
@@ -2199,7 +2201,7 @@ export default function SalesReport() {
 
             {/* الخصم (يظهر فقط إذا > 0) */}
             {discountTaxInfo.discount > 0 && (
-              <Card className="border shadow-sm">
+              <Card className="rounded-none border-0 bg-card shadow-none">
                 <CardContent className="pt-4 pb-3">
                   <p className="text-xs font-medium text-muted-foreground mb-1">
                     إجمالي الخصم
@@ -2217,7 +2219,7 @@ export default function SalesReport() {
 
             {/* الضريبة (تظهر فقط إذا > 0) */}
             {discountTaxInfo.tax > 0 && (
-              <Card className="border shadow-sm">
+              <Card className="rounded-none border-0 bg-card shadow-none">
                 <CardContent className="pt-4 pb-3">
                   <p className="text-xs font-medium text-muted-foreground mb-1">
                     إجمالي الضريبة
@@ -2234,7 +2236,7 @@ export default function SalesReport() {
             )}
 
             {targetInfo && (
-              <Card className="border shadow-sm md:col-span-2">
+              <Card className="rounded-none border-0 bg-card shadow-none">
                 <CardContent className="pt-4 pb-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -2261,7 +2263,9 @@ export default function SalesReport() {
                 </CardContent>
               </Card>
             )}
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </CollapsibleContent>
       </Collapsible>
 
