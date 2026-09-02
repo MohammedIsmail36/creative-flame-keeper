@@ -9,6 +9,8 @@ TRACKING_TABLE="public.lovable_schema_migrations"
 # Usage:
 #   ./scripts/migrate-all-companies.sh
 #   ./scripts/migrate-all-companies.sh --baseline-current
+#   ./scripts/migrate-all-companies.sh --only farida
+#   ./scripts/migrate-all-companies.sh --only alibea
 #
 # First use on an existing production database:
 #   1) Pull the latest code.
@@ -22,8 +24,27 @@ COMPANIES=(
 )
 
 BASELINE_CURRENT=false
-if [[ "${1:-}" == "--baseline-current" ]]; then
-  BASELINE_CURRENT=true
+ONLY=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --baseline-current) BASELINE_CURRENT=true ;;
+    --only)
+      [[ $# -ge 2 ]] || { echo "❌ الخيار --only يحتاج اسم شركة" >&2; exit 1; }
+      ONLY="$2"
+      shift
+      ;;
+    -h|--help)
+      sed -n '5,15p' "$0"
+      exit 0
+      ;;
+    *) echo "❌ خيار غير معروف: $1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+if [[ -n "$ONLY" && "$ONLY" != "farida" && "$ONLY" != "alibea" ]]; then
+  echo "❌ قيمة --only غير صحيحة: $ONLY (المتاح: farida أو alibea)" >&2
+  exit 1
 fi
 
 if [[ ! -d "$MIGRATIONS_DIR" ]]; then
@@ -124,6 +145,9 @@ fi
 for company in "${COMPANIES[@]}"; do
   name="${company%%:*}"
   container="${company#*:}"
+  if [[ -n "$ONLY" && "${name,,}" != "$ONLY" ]]; then
+    continue
+  fi
   echo ""
   echo "🏢 $name ($container)"
 

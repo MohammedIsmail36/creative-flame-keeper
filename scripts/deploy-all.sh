@@ -114,11 +114,14 @@ changed_files() {
 if [[ "$DO_DB" == true ]]; then
   log "تطبيق ميجريشن قواعد البيانات"
   chmod +x scripts/migrate-all-companies.sh
+  migration_args=()
   if [[ "$BASELINE_DB" == true ]]; then
-    ./scripts/migrate-all-companies.sh --baseline-current
-  else
-    ./scripts/migrate-all-companies.sh
+    migration_args+=(--baseline-current)
   fi
+  if [[ -n "$ONLY" ]]; then
+    migration_args+=(--only "$ONLY")
+  fi
+  ./scripts/migrate-all-companies.sh "${migration_args[@]}"
   ok "الميجريشن انتهى"
 else
   warn "تم تخطي الميجريشن"
