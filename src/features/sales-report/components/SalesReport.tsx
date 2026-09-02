@@ -2289,9 +2289,10 @@ export default function SalesReport() {
               {chartMeta.description}
             </p>
           </div>
-          <CardContent className="px-3 pb-3 pt-4 sm:px-4" dir="rtl">
-            <ResponsiveContainer width="100%" height={260}>
-              {groupBy === "time" ? (
+          <CardContent className="px-3 pb-3 pt-4 sm:px-4">
+            <div className="h-[260px] w-full" dir="ltr">
+              <ResponsiveContainer width="100%" height="100%">
+                {groupBy === "time" ? (
                 <ComposedChart
                   data={chartData}
                   margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
@@ -2385,8 +2386,9 @@ export default function SalesReport() {
                       radius={[4, 0, 0, 4]}
                     />
                   </BarChart>
-              )}
-            </ResponsiveContainer>
+                )}
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
       )}
