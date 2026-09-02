@@ -1,6 +1,5 @@
 import { useCallback, useState, useMemo } from "react";
 import type { SortingState, VisibilityState } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,6 +72,8 @@ import {
   type InvoiceReturnSettlement,
 } from "@/features/sales-report/domain/collections";
 import { parseSalesReportServerSummary } from "@/features/sales-report/domain/server-summary";
+import { useSalesReportPreferences } from "@/features/sales-report/hooks/use-sales-report-preferences";
+import { QuickSortToolbar } from "./QuickSortToolbar";
 
 // ── helpers ──
 const fmt = (n: number) =>
@@ -97,29 +98,20 @@ const formatPeriodDate = (value: string) => {
 export default function SalesReport() {
   const navigate = useNavigate();
   const { settings } = useSettings();
-  const LS_KEY = "sales-report-prefs-v1";
-  const savedPrefs = (() => {
-    try {
-      return JSON.parse(localStorage.getItem(LS_KEY) || "{}");
-    } catch {
-      return {};
-    }
-  })();
   const [dateFrom, setDateFrom] = useState(
     format(startOfMonth(new Date()), "yyyy-MM-dd"),
   );
   const [dateTo, setDateTo] = useState(
     format(endOfMonth(new Date()), "yyyy-MM-dd"),
   );
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "posted" | "draft" | "cancelled"
-  >(savedPrefs.statusFilter ?? "posted");
-  const [groupBy, setGroupBy] = useState<
-    "invoice" | "return" | "customer" | "product" | "time" | "category"
-  >(savedPrefs.groupBy ?? "invoice");
-  const [timeMode, setTimeMode] = useState<"daily" | "monthly">(
-    savedPrefs.timeMode ?? "daily",
-  );
+  const {
+    statusFilter,
+    setStatusFilter,
+    groupBy,
+    setGroupBy,
+    timeMode,
+    setTimeMode,
+  } = useSalesReportPreferences();
   // Secondary indicators start collapsed on every report visit to preserve focus.
   const [showExtras, setShowExtras] = useState(false);
   const [showCoverage, setShowCoverage] = useState(false);
@@ -161,57 +153,6 @@ export default function SalesReport() {
       aov: false,
       returnRate: false,
     });
-
-  // Quick sort toolbar (next to search) — sorts by profit or margin
-  const QuickSortToolbar = ({
-    sorting,
-    setSorting,
-  }: {
-    sorting: SortingState;
-    setSorting: (s: SortingState) => void;
-  }) => {
-    const active = sorting[0];
-    const toggle = (id: "profit" | "margin") => {
-      if (active?.id !== id) setSorting([{ id, desc: true }]);
-      else if (active.desc) setSorting([{ id, desc: false }]);
-      else setSorting([]);
-    };
-    const renderBtn = (id: "profit" | "margin", label: string) => {
-      const isActive = active?.id === id;
-      const Icon = isActive && !active.desc ? ArrowUp : ArrowDown;
-      return (
-        <Button
-          key={id}
-          variant={isActive ? "default" : "outline"}
-          size="sm"
-          className="h-8 gap-1 text-xs"
-          onClick={() => toggle(id)}
-        >
-          <Icon className="h-3 w-3" />
-          {label}
-        </Button>
-      );
-    };
-    return (
-      <div className="flex items-center gap-1.5">
-        {renderBtn("profit", "الربح")}
-        {renderBtn("margin", "الهامش%")}
-      </div>
-    );
-  };
-
-
-
-  // Persist prefs
-  useMemo(() => {
-    try {
-      localStorage.setItem(
-        LS_KEY,
-        JSON.stringify({ statusFilter, groupBy, timeMode }),
-      );
-    } catch {}
-    return null;
-  }, [statusFilter, groupBy, timeMode]);
 
   // ── Quick date presets (طبقة مشتركة) ──
   const quickRanges = useMemo(() => getQuickDateRanges(), []);
