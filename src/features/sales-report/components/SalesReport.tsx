@@ -56,13 +56,13 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
-import { formatProductDisplay } from "@/lib/product-utils";
 import {
   getDocumentAmountExcludingTax,
   getSalesLineNetAmount,
 } from "@/features/sales-report/domain/metrics";
 import {
   buildCustomerSalesGroups,
+  buildProductSalesGroups,
   groupSalesAndReturns,
 } from "@/features/sales-report/domain/grouping";
 import { useSalesReportPreferences } from "@/features/sales-report/hooks/use-sales-report-preferences";
@@ -734,79 +734,10 @@ export default function SalesReport() {
   );
 
   // ═══ GROUPING: By Product ═══
-  const productData = useMemo(() => {
-    const cogsByProduct: Record<string, number> = {};
-    movements.forEach((m) => {
-      const pid = m.product_id;
-      if (!pid) return;
-      if (!cogsByProduct[pid]) cogsByProduct[pid] = 0;
-      if (m.movement_type === "sale")
-        cogsByProduct[pid] += Number(m.total_cost);
-      else if (m.movement_type === "sale_return")
-        cogsByProduct[pid] -= Number(m.total_cost);
-    });
-    type ProductGroup = {
-      id: string;
-      name: string;
-      qtySold: number;
-      qtyReturned: number;
-      grossRevenue: number;
-      returnsRevenue: number;
-      revenue: number;
-      cogs: number;
-      returnOnly: boolean;
-    };
-    const salesItems = filtered.flatMap((invoice) => invoice.items || []);
-    const returnItems = returns.flatMap((salesReturn) => salesReturn.items || []);
-    const itemKey = (item: any) =>
-      item.product_id || `__desc__${item.description || "unknown"}`;
-    const createGroup = (key: string, item: any): ProductGroup => ({
-      id: key,
-      name: item.product
-        ? formatProductDisplay(
-            item.product.name,
-            item.product.brand?.name,
-            item.product.model_number,
-          )
-        : item.description || "منتج محذوف",
-      qtySold: 0,
-      qtyReturned: 0,
-      grossRevenue: 0,
-      returnsRevenue: 0,
-      revenue: 0,
-      cogs: 0,
-      returnOnly: false,
-    });
-    const groups = groupSalesAndReturns<any, any, ProductGroup>(
-      salesItems,
-      returnItems,
-      {
-        getSaleKey: itemKey,
-        getReturnKey: itemKey,
-        createFromSale: createGroup,
-        createFromReturn: createGroup,
-        addSale: (group, item) => {
-          group.qtySold += Number(item.quantity || 0);
-          group.grossRevenue += getSalesLineNetAmount(item);
-        },
-        addReturn: (group, item) => {
-          group.qtyReturned += Number(item.quantity || 0);
-          group.returnsRevenue += getSalesLineNetAmount(item);
-        },
-      },
-    );
-
-    return Array.from(groups.values())
-      .map((group) => ({
-        ...group,
-        revenue: group.grossRevenue - group.returnsRevenue,
-        cogs: cogsByProduct[group.id] || 0,
-        returnOnly: group.grossRevenue === 0 && group.returnsRevenue > 0,
-      }))
-      .sort((a, b) => b.revenue - a.revenue);
-  }, [filtered, returns, movements]);
-
-
+  const productData = useMemo(
+    () => buildProductSalesGroups(filtered, returns, movements),
+    [filtered, returns, movements],
+  );
 
   const productColumns = useMemo<ColumnDef<any, any>[]>(
     () => [

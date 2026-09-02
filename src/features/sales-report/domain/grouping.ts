@@ -1,4 +1,8 @@
-import { getDocumentAmountExcludingTax } from "./metrics";
+import { formatProductDisplay } from "@/lib/product-utils";
+import {
+  getDocumentAmountExcludingTax,
+  getSalesLineNetAmount,
+} from "./metrics";
 
 // Dimension grouping used exclusively by the sales report feature.
 export interface UnionGroupingConfig<TSale, TReturn, TGroup> {
@@ -81,6 +85,115 @@ export function buildCustomerSalesGroups(
       returnOnly: group.count === 0 && group.returns > 0,
     }))
     .sort((a, b) => b.total - b.returns - (a.total - a.returns));
+}
+
+interface ProductLine {
+  product_id?: string | null;
+  description?: string | null;
+  quantity?: number | string | null;
+  total?: number | string | null;
+  net_total?: number | string | null;
+  product?: {
+    name?: string | null;
+    model_number?: string | null;
+    brand?: { name?: string | null } | null;
+  } | null;
+}
+
+interface ProductDocument {
+  items?: ProductLine[] | null;
+}
+
+interface ProductCostMovement {
+  product_id?: string | null;
+  movement_type?: string | null;
+  total_cost?: number | string | null;
+}
+
+export interface ProductSalesGroup {
+  id: string;
+  name: string;
+  qtySold: number;
+  qtyReturned: number;
+  grossRevenue: number;
+  returnsRevenue: number;
+  revenue: number;
+  cogs: number;
+  returnOnly: boolean;
+}
+
+export function buildProductSalesGroups(
+  invoices: ProductDocument[],
+  returns: ProductDocument[],
+  movements: ProductCostMovement[],
+): ProductSalesGroup[] {
+  const cogsByProduct = movements.reduce<Record<string, number>>(
+    (totals, movement) => {
+      if (!movement.product_id) return totals;
+      const sign = movement.movement_type === "sale" ? 1 : -1;
+      if (!["sale", "sale_return"].includes(movement.movement_type ?? "")) {
+        return totals;
+      }
+      totals[movement.product_id] =
+        (totals[movement.product_id] ?? 0) +
+        sign * Number(movement.total_cost ?? 0);
+      return totals;
+    },
+    {},
+  );
+
+  const salesItems = invoices.flatMap((invoice) => invoice.items ?? []);
+  const returnItems = returns.flatMap((salesReturn) => salesReturn.items ?? []);
+  const itemKey = (item: ProductLine) =>
+    item.product_id || `__desc__${item.description || "unknown"}`;
+  const createGroup = (
+    key: string,
+    item: ProductLine,
+  ): ProductSalesGroup => ({
+    id: key,
+    name: item.product
+      ? formatProductDisplay(
+          item.product.name ?? "",
+          item.product.brand?.name,
+          item.product.model_number,
+        )
+      : item.description || "منتج محذوف",
+    qtySold: 0,
+    qtyReturned: 0,
+    grossRevenue: 0,
+    returnsRevenue: 0,
+    revenue: 0,
+    cogs: 0,
+    returnOnly: false,
+  });
+
+  const groups = groupSalesAndReturns<
+    ProductLine,
+    ProductLine,
+    ProductSalesGroup
+  >(salesItems, returnItems, {
+    getSaleKey: itemKey,
+    getReturnKey: itemKey,
+    createFromSale: createGroup,
+    createFromReturn: createGroup,
+    addSale: (group, item) => {
+      group.qtySold += Number(item.quantity ?? 0);
+      group.grossRevenue += getSalesLineNetAmount(item);
+    },
+    addReturn: (group, item) => {
+      group.qtyReturned += Number(item.quantity ?? 0);
+      group.returnsRevenue += getSalesLineNetAmount(item);
+    },
+  });
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      revenue: group.grossRevenue - group.returnsRevenue,
+      cogs: cogsByProduct[group.id] ?? 0,
+      returnOnly: group.grossRevenue === 0 && group.returnsRevenue > 0,
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
 }
 
 /**

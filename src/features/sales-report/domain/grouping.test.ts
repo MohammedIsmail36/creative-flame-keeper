@@ -1,5 +1,82 @@
 import { describe, expect, it } from "vitest";
-import { buildCustomerSalesGroups, groupSalesAndReturns } from "./grouping";
+import {
+  buildCustomerSalesGroups,
+  buildProductSalesGroups,
+  groupSalesAndReturns,
+} from "./grouping";
+
+describe("buildProductSalesGroups", () => {
+  it("nets product quantities, revenue, and returned cost", () => {
+    const rows = buildProductSalesGroups(
+      [
+        {
+          items: [
+            {
+              product_id: "product-1",
+              product: { name: "منتج" },
+              quantity: 3,
+              net_total: 300,
+              total: 345,
+            },
+          ],
+        },
+      ],
+      [
+        {
+          items: [
+            {
+              product_id: "product-1",
+              product: { name: "منتج" },
+              quantity: 1,
+              net_total: 100,
+              total: 115,
+            },
+          ],
+        },
+      ],
+      [
+        { product_id: "product-1", movement_type: "sale", total_cost: 180 },
+        {
+          product_id: "product-1",
+          movement_type: "sale_return",
+          total_cost: 60,
+        },
+      ],
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        id: "product-1",
+        qtySold: 3,
+        qtyReturned: 1,
+        grossRevenue: 300,
+        returnsRevenue: 100,
+        revenue: 200,
+        cogs: 120,
+        returnOnly: false,
+      }),
+    ]);
+  });
+
+  it("keeps a standalone return for a deleted product", () => {
+    const rows = buildProductSalesGroups(
+      [],
+      [{ items: [{ description: "بند قديم", quantity: 2, total: 50 }] }],
+      [],
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        id: "__desc__بند قديم",
+        name: "بند قديم",
+        qtySold: 0,
+        qtyReturned: 2,
+        revenue: -50,
+        returnOnly: true,
+      }),
+    ]);
+  });
+});
 
 describe("buildCustomerSalesGroups", () => {
   it("combines posted sales, returns, and invoice coverage by customer", () => {
