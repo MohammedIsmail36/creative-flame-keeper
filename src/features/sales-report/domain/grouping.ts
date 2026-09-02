@@ -112,6 +112,147 @@ interface ProductCostMovement {
   total_cost?: number | string | null;
 }
 
+interface TimeDocument {
+  invoice_date?: string | null;
+  return_date?: string | null;
+  total: number | string | null;
+  tax?: number | string | null;
+}
+
+interface TimeCostMovement extends ProductCostMovement {
+  movement_date?: string | null;
+}
+
+export type SalesTimeMode = "daily" | "monthly";
+
+export interface TimeSalesGroup {
+  key: string;
+  label: string;
+  count: number;
+  total: number;
+  returns: number;
+  net: number;
+  cogs: number;
+  profit: number;
+  margin: number | null;
+  returnRate: number | null;
+  aov: number;
+  growth: number | null;
+  returnOnly: boolean;
+}
+
+const ARABIC_MONTHS = [
+  "يناير",
+  "فبراير",
+  "مارس",
+  "أبريل",
+  "مايو",
+  "يونيو",
+  "يوليو",
+  "أغسطس",
+  "سبتمبر",
+  "أكتوبر",
+  "نوفمبر",
+  "ديسمبر",
+];
+
+export function buildTimeSalesGroups(
+  invoices: TimeDocument[],
+  returns: TimeDocument[],
+  movements: TimeCostMovement[],
+  timeMode: SalesTimeMode,
+  includeCost: boolean,
+): TimeSalesGroup[] {
+  type MutableTimeGroup = {
+    key: string;
+    label: string;
+    count: number;
+    total: number;
+    returns: number;
+  };
+
+  const periodKey = (date: string | null | undefined) =>
+    timeMode === "daily" ? date || "" : date?.substring(0, 7) || "";
+  const createGroup = (key: string): MutableTimeGroup => {
+    const [year, month] = key.split("-");
+    return {
+      key,
+      label:
+        timeMode === "daily"
+          ? key
+          : `${ARABIC_MONTHS[Number(month) - 1] ?? month} ${year}`,
+      count: 0,
+      total: 0,
+      returns: 0,
+    };
+  };
+
+  const cogsByPeriod = movements.reduce<Record<string, number>>(
+    (totals, movement) => {
+      if (!["sale", "sale_return"].includes(movement.movement_type ?? "")) {
+        return totals;
+      }
+      const key = periodKey(movement.movement_date);
+      if (!key) return totals;
+      const sign = movement.movement_type === "sale" ? 1 : -1;
+      totals[key] =
+        (totals[key] ?? 0) + sign * Number(movement.total_cost ?? 0);
+      return totals;
+    },
+    {},
+  );
+
+  const salesRows = invoices.filter((invoice) =>
+    periodKey(invoice.invoice_date),
+  );
+  const returnRows = returns.filter((salesReturn) =>
+    periodKey(salesReturn.return_date),
+  );
+  const groups = groupSalesAndReturns<
+    TimeDocument,
+    TimeDocument,
+    MutableTimeGroup
+  >(salesRows, returnRows, {
+    getSaleKey: (invoice) => periodKey(invoice.invoice_date),
+    getReturnKey: (salesReturn) => periodKey(salesReturn.return_date),
+    createFromSale: (key) => createGroup(key),
+    createFromReturn: (key) => createGroup(key),
+    addSale: (group, invoice) => {
+      group.count += 1;
+      group.total += getDocumentAmountExcludingTax(invoice);
+    },
+    addReturn: (group, salesReturn) => {
+      group.returns += getDocumentAmountExcludingTax(salesReturn);
+    },
+  });
+
+  const sorted = Array.from(groups.values()).sort((a, b) =>
+    a.key.localeCompare(b.key),
+  );
+  return sorted.map((period, index) => {
+    const net = period.total - period.returns;
+    const cogs = includeCost ? (cogsByPeriod[period.key] ?? 0) : 0;
+    const profit = includeCost ? net - cogs : 0;
+    const previousNet =
+      index > 0 ? sorted[index - 1].total - sorted[index - 1].returns : 0;
+    return {
+      ...period,
+      net,
+      cogs,
+      profit,
+      margin: includeCost && net > 0 ? (profit / net) * 100 : null,
+      returnRate:
+        period.total > 0 ? (period.returns / period.total) * 100 : null,
+      aov: period.count > 0 ? net / period.count : 0,
+      growth:
+        index > 0 && previousNet > 0
+          ? ((net - previousNet) / previousNet) * 100
+          : null,
+      returnOnly: period.count === 0 && period.returns > 0,
+    };
+  });
+}
+
 export interface ProductSalesGroup {
   id: string;
   name: string;

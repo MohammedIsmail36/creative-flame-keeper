@@ -63,7 +63,7 @@ import {
   buildCategorySalesGroups,
   buildCustomerSalesGroups,
   buildProductSalesGroups,
-  groupSalesAndReturns,
+  buildTimeSalesGroups,
 } from "@/features/sales-report/domain/grouping";
 import { useSalesReportPreferences } from "@/features/sales-report/hooks/use-sales-report-preferences";
 import { useSalesReportData } from "@/features/sales-report/hooks/use-sales-report-data";
@@ -896,92 +896,18 @@ export default function SalesReport() {
     [],
   );
 
-  // ── COGS aggregation by reporting period ──
-  const cogsByPeriod = useMemo(() => {
-    const byPeriod: Record<string, number> = {};
-    movements.forEach((m) => {
-      const sign = m.movement_type === "sale" ? 1 : -1;
-      const amt = sign * Number(m.total_cost || 0);
-      const key =
-        timeMode === "daily"
-          ? m.movement_date
-          : (m.movement_date || "").substring(0, 7);
-      if (key) byPeriod[key] = (byPeriod[key] || 0) + amt;
-    });
-    return byPeriod;
-  }, [movements, timeMode]);
-
   // ═══ GROUPING: By Time ═══
-  const timeData = useMemo(() => {
-    type TimeGroup = {
-      key: string;
-      label: string;
-      count: number;
-      total: number;
-      returns: number;
-    };
-    const periodKey = (date: string | null | undefined) =>
-      timeMode === "daily" ? date || "" : date?.substring(0, 7) || "";
-    const createGroup = (key: string): TimeGroup => {
-      const label =
-        timeMode === "daily"
-          ? key
-          : (() => {
-              const [y, m] = key.split("-");
-              const months = [
-                "يناير","فبراير","مارس","أبريل","مايو","يونيو",
-                "يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر",
-              ];
-              return `${months[parseInt(m) - 1]} ${y}`;
-            })();
-      return { key, label, count: 0, total: 0, returns: 0 };
-    };
-    const salesRows = filtered.filter((invoice) => periodKey(invoice.invoice_date));
-    const returnRows = returns.filter((salesReturn) => periodKey(salesReturn.return_date));
-    const groups = groupSalesAndReturns<any, any, TimeGroup>(
-      salesRows,
-      returnRows,
-      {
-        getSaleKey: (invoice) => periodKey(invoice.invoice_date),
-        getReturnKey: (salesReturn) => periodKey(salesReturn.return_date),
-        createFromSale: (key) => createGroup(key),
-        createFromReturn: (key) => createGroup(key),
-        addSale: (group, invoice) => {
-          group.count += 1;
-          group.total += getDocumentAmountExcludingTax(invoice);
-        },
-        addReturn: (group, salesReturn) => {
-          group.returns += getDocumentAmountExcludingTax(salesReturn);
-        },
-      },
-    );
-    const sorted = Array.from(groups.values()).sort((a, b) =>
-      a.key.localeCompare(b.key),
-    );
-    // Enrich with derived metrics + period-over-period growth
-    return sorted.map((d, i) => {
-      const net = d.total - d.returns;
-      const cogs = isPostedOnly ? cogsByPeriod[d.key] || 0 : 0;
-      const profit = isPostedOnly ? net - cogs : 0;
-      const margin = isPostedOnly && net > 0 ? (profit / net) * 100 : null;
-      const returnRate = d.total > 0 ? (d.returns / d.total) * 100 : null;
-      const aov = d.count > 0 ? net / d.count : 0;
-      const prevNet = i > 0 ? sorted[i - 1].total - sorted[i - 1].returns : 0;
-      const growth =
-        i > 0 && prevNet > 0 ? ((net - prevNet) / prevNet) * 100 : null;
-      return {
-        ...d,
-        net,
-        cogs,
-        profit,
-        margin,
-        returnRate,
-        aov,
-        growth,
-        returnOnly: d.count === 0 && d.returns > 0,
-      };
-    });
-  }, [filtered, returns, timeMode, cogsByPeriod, isPostedOnly]);
+  const timeData = useMemo(
+    () =>
+      buildTimeSalesGroups(
+        filtered,
+        returns,
+        movements,
+        timeMode,
+        isPostedOnly,
+      ),
+    [filtered, returns, movements, timeMode, isPostedOnly],
+  );
 
   const timeColumns = useMemo<ColumnDef<any, any>[]>(() => {
     const cols: ColumnDef<any, any>[] = [

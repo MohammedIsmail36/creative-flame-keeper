@@ -3,8 +3,98 @@ import {
   buildCategorySalesGroups,
   buildCustomerSalesGroups,
   buildProductSalesGroups,
+  buildTimeSalesGroups,
   groupSalesAndReturns,
 } from "./grouping";
+
+describe("buildTimeSalesGroups", () => {
+  it("groups monthly sales, standalone returns, cost, and growth", () => {
+    const rows = buildTimeSalesGroups(
+      [
+        { invoice_date: "2026-01-15", total: 115, tax: 15 },
+        { invoice_date: "2026-01-20", total: 230, tax: 30 },
+        { invoice_date: "2026-02-01", total: 100, tax: 0 },
+      ],
+      [
+        { return_date: "2026-01-23", total: 23, tax: 3 },
+        { return_date: "2026-03-01", total: 50, tax: 0 },
+      ],
+      [
+        { movement_date: "2026-01-15", movement_type: "sale", total_cost: 60 },
+        {
+          movement_date: "2026-01-23",
+          movement_type: "sale_return",
+          total_cost: 10,
+        },
+        { movement_date: "2026-02-01", movement_type: "sale", total_cost: 40 },
+        {
+          movement_date: "2026-03-01",
+          movement_type: "sale_return",
+          total_cost: 25,
+        },
+      ],
+      "monthly",
+      true,
+    );
+
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toEqual(
+      expect.objectContaining({
+        key: "2026-01",
+        label: "يناير 2026",
+        count: 2,
+        total: 300,
+        returns: 20,
+        net: 280,
+        cogs: 50,
+        profit: 230,
+        aov: 140,
+        growth: null,
+        returnOnly: false,
+      }),
+    );
+    expect(rows[1].growth).toBeCloseTo(-64.2857, 4);
+    expect(rows[2]).toEqual(
+      expect.objectContaining({
+        key: "2026-03",
+        label: "مارس 2026",
+        count: 0,
+        net: -50,
+        cogs: -25,
+        profit: -25,
+        growth: -150,
+        returnOnly: true,
+      }),
+    );
+  });
+
+  it("ignores missing dates and hides cost outside the posted view", () => {
+    const rows = buildTimeSalesGroups(
+      [
+        { invoice_date: "2026-01-01", total: 100 },
+        { invoice_date: null, total: 999 },
+      ],
+      [{ return_date: null, total: 999 }],
+      [
+        { movement_date: "2026-01-01", movement_type: "sale", total_cost: 60 },
+        { movement_date: null, movement_type: "sale", total_cost: 999 },
+      ],
+      "daily",
+      false,
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        key: "2026-01-01",
+        label: "2026-01-01",
+        total: 100,
+        cogs: 0,
+        profit: 0,
+        margin: null,
+      }),
+    ]);
+  });
+});
 
 describe("buildCategorySalesGroups", () => {
   it("groups sales, standalone returns, and net cost by category", () => {
