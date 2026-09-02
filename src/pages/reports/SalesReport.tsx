@@ -229,7 +229,7 @@ export default function SalesReport() {
   // ── Query 1: Invoices ──
   const invoicesQuery = useQuery({
     queryKey: ["sr-invoices", dateFrom, dateTo],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       fetchAllPaged<any>(
         () =>
           supabase
@@ -242,7 +242,7 @@ export default function SalesReport() {
             .lte("invoice_date", dateTo)
             .order("invoice_date", { ascending: false })
             .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000 },
+        { batchSize: 500, maxRows: 250000, signal },
       ),
   });
   const invoices = invoicesQuery.data ?? [];
@@ -250,7 +250,7 @@ export default function SalesReport() {
   // ── Query 2: Returns ──
   const returnsQuery = useQuery({
     queryKey: ["sr-returns", dateFrom, dateTo],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       fetchAllPaged<any>(
         () =>
           supabase
@@ -264,7 +264,7 @@ export default function SalesReport() {
             .lte("return_date", dateTo)
             .order("return_date", { ascending: false })
             .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000 },
+        { batchSize: 500, maxRows: 250000, signal },
       ),
   });
   const returns = returnsQuery.data ?? [];
@@ -272,7 +272,7 @@ export default function SalesReport() {
   // ── Query 3: COGS from inventory_movements ──
   const movementsQuery = useQuery({
     queryKey: ["sr-cogs", dateFrom, dateTo],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       fetchAllPaged<any>(
         () =>
           supabase
@@ -286,7 +286,7 @@ export default function SalesReport() {
             .lte("movement_date", dateTo)
             .order("movement_date", { ascending: false })
             .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000 },
+        { batchSize: 500, maxRows: 250000, signal },
       ),
   });
   const movements = movementsQuery.data ?? [];
@@ -294,7 +294,7 @@ export default function SalesReport() {
   // ── Query 4: Cash allocations to invoices in the selected invoice period ──
   const paymentAllocationsQuery = useQuery({
     queryKey: ["sr-payment-allocations", dateFrom, dateTo],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       fetchAllPaged<InvoicePaymentAllocation>(
         () =>
           supabase
@@ -308,7 +308,7 @@ export default function SalesReport() {
             .gte("invoice.invoice_date", dateFrom)
             .lte("invoice.invoice_date", dateTo)
             .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000 },
+        { batchSize: 500, maxRows: 250000, signal },
       ),
   });
   const paymentAllocations = paymentAllocationsQuery.data ?? [];
@@ -316,7 +316,7 @@ export default function SalesReport() {
   // ── Query 5: Return credits applied to the selected invoices ──
   const returnSettlementsQuery = useQuery({
     queryKey: ["sr-return-settlements", dateFrom, dateTo],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       fetchAllPaged<InvoiceReturnSettlement>(
         () =>
           supabase
@@ -330,7 +330,7 @@ export default function SalesReport() {
             .gte("invoice.invoice_date", dateFrom)
             .lte("invoice.invoice_date", dateTo)
             .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000 },
+        { batchSize: 500, maxRows: 250000, signal },
       ),
   });
   const returnSettlements = returnSettlementsQuery.data ?? [];
@@ -338,7 +338,7 @@ export default function SalesReport() {
   // ── Query 6: Previous period (for comparison) ──
   const prevInvoicesQuery = useQuery({
     queryKey: ["sr-prev-invoices", prevPeriod.from, prevPeriod.to],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       fetchAllPaged<any>(
         () =>
           supabase
@@ -348,14 +348,14 @@ export default function SalesReport() {
             .gte("invoice_date", prevPeriod.from)
             .lte("invoice_date", prevPeriod.to)
             .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000 },
+        { batchSize: 500, maxRows: 250000, signal },
       ),
   });
   const prevInvoices = prevInvoicesQuery.data ?? [];
 
   const prevReturnsQuery = useQuery({
     queryKey: ["sr-prev-returns", prevPeriod.from, prevPeriod.to],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       fetchAllPaged<any>(
         () =>
           supabase
@@ -365,7 +365,7 @@ export default function SalesReport() {
             .gte("return_date", prevPeriod.from)
             .lte("return_date", prevPeriod.to)
             .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000 },
+        { batchSize: 500, maxRows: 250000, signal },
       ),
   });
   const prevReturns = prevReturnsQuery.data ?? [];

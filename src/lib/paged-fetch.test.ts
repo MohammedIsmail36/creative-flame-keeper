@@ -52,4 +52,35 @@ describe("fetchAllPaged", () => {
 
     await expect(fetchAllPaged(queryBuilder)).rejects.toBe(databaseError);
   });
+
+  it("يلغي التحميل المجزأ عند إلغاء الاستعلام ولا يبدأ دفعة جديدة", async () => {
+    const controller = new AbortController();
+    const ranges: Array<[number, number]> = [];
+    const receivedSignals: AbortSignal[] = [];
+    const queryBuilder = () => ({
+      abortSignal(signal: AbortSignal) {
+        receivedSignals.push(signal);
+        return this;
+      },
+      range: async (from: number, to: number) => {
+        ranges.push([from, to]);
+        controller.abort();
+        return {
+          data: Array.from({ length: 500 }, (_, id) => ({ id })),
+          count: 1000,
+          error: null,
+        };
+      },
+    });
+
+    await expect(
+      fetchAllPaged(queryBuilder, {
+        batchSize: 500,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+
+    expect(ranges).toEqual([[0, 499]]);
+    expect(receivedSignals).toEqual([controller.signal]);
+  });
 });
