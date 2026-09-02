@@ -1,9 +1,7 @@
 import { useCallback, useState, useMemo } from "react";
 import type { SortingState, VisibilityState } from "@tanstack/react-table";
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { getQuickDateRanges, getPreviousPeriod } from "@/lib/report-period";
+import { getQuickDateRanges } from "@/lib/report-period";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,20 +57,15 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { formatProductDisplay } from "@/lib/product-utils";
-import { fetchAllPaged } from "@/lib/paged-fetch";
 import {
   computeSalesReportMetrics,
   getDocumentAmountExcludingTax,
   getSalesLineNetAmount,
 } from "@/features/sales-report/domain/metrics";
 import { groupSalesAndReturns } from "@/features/sales-report/domain/grouping";
-import {
-  computeInvoiceCoverage,
-  type InvoicePaymentAllocation,
-  type InvoiceReturnSettlement,
-} from "@/features/sales-report/domain/collections";
-import { parseSalesReportServerSummary } from "@/features/sales-report/domain/server-summary";
+import { computeInvoiceCoverage } from "@/features/sales-report/domain/collections";
 import { useSalesReportPreferences } from "@/features/sales-report/hooks/use-sales-report-preferences";
+import { useSalesReportData } from "@/features/sales-report/hooks/use-sales-report-data";
 import { QuickSortToolbar } from "./QuickSortToolbar";
 
 // ── helpers ──
@@ -157,149 +150,24 @@ export default function SalesReport() {
   // ── Quick date presets (طبقة مشتركة) ──
   const quickRanges = useMemo(() => getQuickDateRanges(), []);
 
-  // ── Previous period calculation (طبقة مشتركة) ──
-  const prevPeriod = useMemo(
-    () => getPreviousPeriod(dateFrom, dateTo),
-    [dateFrom, dateTo],
-  );
-
   const calcGrowth = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? 100 : 0;
     return ((current - previous) / Math.abs(previous)) * 100;
   };
 
-  // ── Query 1: Invoices ──
-  const invoicesQuery = useQuery({
-    queryKey: ["sr-invoices", dateFrom, dateTo],
-    queryFn: ({ signal }) =>
-      fetchAllPaged<any>(
-        () =>
-          supabase
-            .from("sales_invoices")
-            .select(
-              "id, invoice_number, posted_number, invoice_date, due_date, status, subtotal, discount, tax, total, customer_id, customer:customers(name), items:sales_invoice_items(description, quantity, total, net_total, product_id, product:products(name, model_number, category_id, category:product_categories(name), brand:product_brands(name)))",
-              { count: "exact" },
-            )
-            .gte("invoice_date", dateFrom)
-            .lte("invoice_date", dateTo)
-            .order("invoice_date", { ascending: false })
-            .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000, signal },
-      ),
-  });
-  const invoices = invoicesQuery.data ?? [];
-
-  // ── Query 2: Returns ──
-  const returnsQuery = useQuery({
-    queryKey: ["sr-returns", dateFrom, dateTo],
-    queryFn: ({ signal }) =>
-      fetchAllPaged<any>(
-        () =>
-          supabase
-            .from("sales_returns")
-            .select(
-              "id, return_number, posted_number, reference, return_date, total, tax, status, customer_id, customer:customers(name), items:sales_return_items(description, quantity, total, net_total, product_id, product:products(name, model_number, category_id, category:product_categories(name), brand:product_brands(name)))",
-              { count: "exact" },
-            )
-            .eq("status", "posted")
-            .gte("return_date", dateFrom)
-            .lte("return_date", dateTo)
-            .order("return_date", { ascending: false })
-            .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000, signal },
-      ),
-  });
-  const returns = returnsQuery.data ?? [];
-
-  // ── Query 3: COGS from inventory_movements ──
-  const movementsQuery = useQuery({
-    queryKey: ["sr-cogs", dateFrom, dateTo],
-    queryFn: ({ signal }) =>
-      fetchAllPaged<any>(
-        () =>
-          supabase
-            .from("inventory_movements")
-            .select(
-              "id, product_id, movement_type, quantity, total_cost, movement_date, reference_id, reference_type",
-              { count: "exact" },
-            )
-            .in("movement_type", ["sale", "sale_return"])
-            .gte("movement_date", dateFrom)
-            .lte("movement_date", dateTo)
-            .order("movement_date", { ascending: false })
-            .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000, signal },
-      ),
-  });
-  const movements = movementsQuery.data ?? [];
-
-  // ── Query 4: Cash allocations to invoices in the selected invoice period ──
-  const paymentAllocationsQuery = useQuery({
-    queryKey: ["sr-payment-allocations", dateFrom, dateTo],
-    queryFn: ({ signal }) =>
-      fetchAllPaged<InvoicePaymentAllocation>(
-        () =>
-          supabase
-            .from("customer_payment_allocations")
-            .select(
-              "id, invoice_id, allocated_amount, payment:customer_payments!inner(status), invoice:sales_invoices!inner(status, invoice_date)",
-              { count: "exact" },
-            )
-            .eq("payment.status", "posted")
-            .eq("invoice.status", "posted")
-            .gte("invoice.invoice_date", dateFrom)
-            .lte("invoice.invoice_date", dateTo)
-            .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000, signal },
-      ),
-  });
-  const paymentAllocations = paymentAllocationsQuery.data ?? [];
-
-  // ── Query 5: Return credits applied to the selected invoices ──
-  const returnSettlementsQuery = useQuery({
-    queryKey: ["sr-return-settlements", dateFrom, dateTo],
-    queryFn: ({ signal }) =>
-      fetchAllPaged<InvoiceReturnSettlement>(
-        () =>
-          supabase
-            .from("sales_invoice_return_settlements")
-            .select(
-              "id, invoice_id, return_id, settled_amount, invoice:sales_invoices!inner(status, invoice_date), sales_return:sales_returns!inner(status)",
-              { count: "exact" },
-            )
-            .eq("invoice.status", "posted")
-            .eq("sales_return.status", "posted")
-            .gte("invoice.invoice_date", dateFrom)
-            .lte("invoice.invoice_date", dateTo)
-            .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000, signal },
-      ),
-  });
-  const returnSettlements = returnSettlementsQuery.data ?? [];
-
-  // ── Query 6: Server-side summary for current + previous period ──
-  const summaryQuery = useQuery({
-    queryKey: [
-      "sr-server-summary",
-      dateFrom,
-      dateTo,
-      prevPeriod.from,
-      prevPeriod.to,
-    ],
-    queryFn: async ({ signal }) => {
-      const { data, error } = await supabase
-        .rpc("get_sales_report_summary", {
-          p_date_from: dateFrom,
-          p_date_to: dateTo,
-          p_previous_from: prevPeriod.from,
-          p_previous_to: prevPeriod.to,
-        })
-        .abortSignal(signal);
-      if (error) throw error;
-      return parseSalesReportServerSummary(data);
-    },
-    staleTime: 30_000,
-  });
+  const {
+    invoicesQuery,
+    returnsQuery,
+    movementsQuery,
+    paymentAllocationsQuery,
+    returnSettlementsQuery,
+    summaryQuery,
+    invoices,
+    returns,
+    movements,
+    paymentAllocations,
+    returnSettlements,
+  } = useSalesReportData(dateFrom, dateTo);
 
   // ── Filtered invoices ──
   const filtered = useMemo(() => {
