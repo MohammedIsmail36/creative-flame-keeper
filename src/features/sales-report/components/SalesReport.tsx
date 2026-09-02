@@ -2289,10 +2289,13 @@ export default function SalesReport() {
               {chartMeta.description}
             </p>
           </div>
-          <CardContent className="px-3 pb-3 pt-4 sm:px-4">
+          <CardContent className="px-3 pb-3 pt-4 sm:px-4" dir="rtl">
             <ResponsiveContainer width="100%" height={260}>
               {groupBy === "time" ? (
-                <ComposedChart data={chartData}>
+                <ComposedChart
+                  data={chartData}
+                  margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                >
                     <CartesianGrid
                       strokeDasharray="3 3"
                       stroke="hsl(var(--border))"
@@ -2304,13 +2307,23 @@ export default function SalesReport() {
                       tickLine={false}
                       interval="preserveStartEnd"
                       minTickGap={24}
+                      reversed
                     />
-                    <YAxis fontSize={11} axisLine={false} tickLine={false} />
+                    <YAxis
+                      orientation="right"
+                      width={72}
+                      tickMargin={8}
+                      fontSize={11}
+                      axisLine={false}
+                      tickLine={false}
+                    />
                     <Tooltip
                       contentStyle={{
                         borderRadius: "8px",
                         border: "1px solid hsl(var(--border))",
                         fontSize: "12px",
+                        direction: "rtl",
+                        textAlign: "right",
                       }}
                       formatter={(value: number) => [fmt(Number(value)), "صافي المبيعات"]}
                     />
@@ -2323,7 +2336,12 @@ export default function SalesReport() {
                     />
                   </ComposedChart>
                 ) : (
-                  <BarChart data={chartData} layout="vertical" barSize={20}>
+                  <BarChart
+                    data={chartData}
+                    layout="vertical"
+                    barSize={20}
+                    margin={{ top: 8, right: 8, bottom: 8, left: 16 }}
+                  >
                     <CartesianGrid
                       strokeDasharray="3 3"
                       stroke="hsl(var(--border))"
@@ -2334,27 +2352,37 @@ export default function SalesReport() {
                       fontSize={11}
                       axisLine={false}
                       tickLine={false}
+                      reversed
                     />
                     <YAxis
                       dataKey="name"
                       type="category"
+                      orientation="right"
                       fontSize={11}
                       axisLine={false}
                       tickLine={false}
-                      width={130}
+                      tickMargin={8}
+                      width={160}
+                      tickFormatter={(value: string) =>
+                        value.length > 22
+                          ? `${value.slice(0, 22)}…`
+                          : value
+                      }
                     />
                     <Tooltip
                       contentStyle={{
                         borderRadius: "8px",
                         border: "1px solid hsl(var(--border))",
                         fontSize: "12px",
+                        direction: "rtl",
+                        textAlign: "right",
                       }}
                       formatter={(value: number) => [fmt(Number(value)), "صافي المبيعات"]}
                     />
                     <Bar
                       dataKey="صافي المبيعات"
                       fill="hsl(var(--primary))"
-                      radius={[0, 4, 4, 0]}
+                      radius={[4, 0, 0, 4]}
                     />
                   </BarChart>
               )}
