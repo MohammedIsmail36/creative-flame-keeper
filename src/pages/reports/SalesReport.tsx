@@ -72,6 +72,7 @@ import {
   type InvoicePaymentAllocation,
   type InvoiceReturnSettlement,
 } from "@/lib/sales-report-collections";
+import { parseSalesReportServerSummary } from "@/lib/sales-report-summary";
 
 // ── helpers ──
 const fmt = (n: number) =>
@@ -335,40 +336,29 @@ export default function SalesReport() {
   });
   const returnSettlements = returnSettlementsQuery.data ?? [];
 
-  // ── Query 6: Previous period (for comparison) ──
-  const prevInvoicesQuery = useQuery({
-    queryKey: ["sr-prev-invoices", prevPeriod.from, prevPeriod.to],
-    queryFn: ({ signal }) =>
-      fetchAllPaged<any>(
-        () =>
-          supabase
-            .from("sales_invoices")
-            .select("id, status, total, tax", { count: "exact" })
-            .eq("status", "posted")
-            .gte("invoice_date", prevPeriod.from)
-            .lte("invoice_date", prevPeriod.to)
-            .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000, signal },
-      ),
+  // ── Query 6: Server-side summary for current + previous period ──
+  const summaryQuery = useQuery({
+    queryKey: [
+      "sr-server-summary",
+      dateFrom,
+      dateTo,
+      prevPeriod.from,
+      prevPeriod.to,
+    ],
+    queryFn: async ({ signal }) => {
+      const { data, error } = await supabase
+        .rpc("get_sales_report_summary", {
+          p_date_from: dateFrom,
+          p_date_to: dateTo,
+          p_previous_from: prevPeriod.from,
+          p_previous_to: prevPeriod.to,
+        })
+        .abortSignal(signal);
+      if (error) throw error;
+      return parseSalesReportServerSummary(data);
+    },
+    staleTime: 30_000,
   });
-  const prevInvoices = prevInvoicesQuery.data ?? [];
-
-  const prevReturnsQuery = useQuery({
-    queryKey: ["sr-prev-returns", prevPeriod.from, prevPeriod.to],
-    queryFn: ({ signal }) =>
-      fetchAllPaged<any>(
-        () =>
-          supabase
-            .from("sales_returns")
-            .select("id, status, total, tax", { count: "exact" })
-            .eq("status", "posted")
-            .gte("return_date", prevPeriod.from)
-            .lte("return_date", prevPeriod.to)
-            .order("id", { ascending: true }),
-        { batchSize: 500, maxRows: 250000, signal },
-      ),
-  });
-  const prevReturns = prevReturnsQuery.data ?? [];
 
   // ── Filtered invoices ──
   const filtered = useMemo(() => {
@@ -405,19 +395,14 @@ export default function SalesReport() {
   }, [invoices, returns, movements, invoiceCoverage]);
 
   // ── Previous period KPIs ──
-  const prevKpi = useMemo(() => {
-    const metrics = computeSalesReportMetrics({
-      invoices: prevInvoices,
-      returns: prevReturns,
-      movements: [],
-    });
-
-    return {
-      count: metrics.invoiceCount,
-      grossSales: metrics.salesRevenueExcludingTax,
-      netSales: metrics.netSalesRevenue,
-    };
-  }, [prevInvoices, prevReturns]);
+  const prevKpi = useMemo(
+    () => ({
+      count: summaryQuery.data?.previous.invoiceCount ?? 0,
+      grossSales: summaryQuery.data?.previous.grossSales ?? 0,
+      netSales: summaryQuery.data?.previous.netSales ?? 0,
+    }),
+    [summaryQuery.data],
+  );
 
   const GrowthBadge = ({
     current,
@@ -2151,8 +2136,7 @@ export default function SalesReport() {
     movementsQuery,
     paymentAllocationsQuery,
     returnSettlementsQuery,
-    prevInvoicesQuery,
-    prevReturnsQuery,
+    summaryQuery,
   ];
   const isLoading = reportQueries.some((query) => query.isLoading);
   const queryError = reportQueries.find((query) => query.error)?.error;
