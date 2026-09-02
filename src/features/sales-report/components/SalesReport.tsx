@@ -73,6 +73,7 @@ import {
   buildTimeSalesGroups,
 } from "@/features/sales-report/domain/grouping";
 import { buildSalesReportChart } from "@/features/sales-report/domain/chart";
+import { buildSalesExportSummary } from "@/features/sales-report/domain/export-summary";
 import { useSalesReportPreferences } from "@/features/sales-report/hooks/use-sales-report-preferences";
 import { useSalesReportData } from "@/features/sales-report/hooks/use-sales-report-data";
 import { useSalesReportMetrics } from "@/features/sales-report/hooks/use-sales-report-metrics";
@@ -1284,45 +1285,12 @@ export default function SalesReport() {
 
   // ── Export config ──
   const exportConfig = useMemo(() => {
-    const fmtN = (n: number) =>
-      n.toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
-    const summaryCards = [
-      { label: "عدد الفواتير", value: String(kpi.count) },
-      { label: "إجمالي المبيعات قبل الضريبة", value: fmtN(kpi.grossSales) },
-      { label: "المرتجعات قبل الضريبة", value: fmtN(kpi.returnsTotal) },
-      { label: "صافي المبيعات قبل الضريبة", value: fmtN(kpi.netSales) },
-      { label: "صافي تكلفة البضاعة", value: fmtN(kpi.cogs) },
-      { label: "إجمالي الربح", value: fmtN(kpi.grossProfit) },
-      {
-        label: "التحصيل النقدي/البنكي المخصص للفواتير",
-        value: fmtN(kpi.cashCollected),
-      },
-      {
-        label: "نسبة التحصيل النقدي من الفواتير شامل الضريبة",
-        value:
-          kpi.cashCollectionRate === null
-            ? "—"
-            : `${kpi.cashCollectionRate.toFixed(1)}%`,
-      },
-      { label: "تسويات أرصدة المرتجعات", value: fmtN(kpi.returnSettled) },
-      { label: "إجمالي تغطية الفواتير", value: fmtN(kpi.totalCovered) },
-      {
-        label: "متوسط الفاتورة قبل الضريبة",
-        value: fmtN(kpi.count > 0 ? kpi.grossSales / kpi.count : 0),
-      },
-      {
-        label: "المتأخرات",
-        value: `${fmtN(overdueInfo.total)} (${overdueInfo.count} فاتورة)`,
-      },
-      { label: "إجمالي الخصم", value: fmtN(discountTaxInfo.discount) },
-      { label: "إجمالي الضريبة", value: fmtN(discountTaxInfo.tax) },
-      ...(targetInfo
-        ? [{ label: "تحقيق الهدف", value: `${targetInfo.pct.toFixed(1)}%` }]
-        : []),
-    ];
+    const summaryCards = buildSalesExportSummary({
+      kpi,
+      overdueInfo,
+      discountTaxInfo,
+      targetInfo,
+    });
 
     if (groupBy === "invoice") {
       return {
