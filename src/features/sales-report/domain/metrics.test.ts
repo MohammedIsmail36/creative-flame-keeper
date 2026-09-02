@@ -1,9 +1,56 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildSalesCogsByInvoice,
   computeSalesReportMetrics,
   getDocumentAmountExcludingTax,
   getSalesLineNetAmount,
 } from "./metrics";
+
+describe("buildSalesCogsByInvoice", () => {
+  it("aggregates sale cost movements by their invoice reference", () => {
+    expect(
+      buildSalesCogsByInvoice([
+        {
+          reference_type: "sales_invoice",
+          reference_id: "inv-1",
+          movement_type: "sale",
+          total_cost: 40,
+        },
+        {
+          reference_type: "sales_invoice",
+          reference_id: "inv-1",
+          movement_type: "sale",
+          total_cost: "2.50",
+        },
+        {
+          reference_type: "sales_invoice",
+          reference_id: "inv-2",
+          movement_type: "sale",
+          total_cost: 10,
+        },
+      ]),
+    ).toEqual({ "inv-1": 42.5, "inv-2": 10 });
+  });
+
+  it("ignores returns and movements that do not reference a sales invoice", () => {
+    expect(
+      buildSalesCogsByInvoice([
+        {
+          reference_type: "sales_return",
+          reference_id: "inv-1",
+          movement_type: "sale_return",
+          total_cost: 20,
+        },
+        {
+          reference_type: "sales_invoice",
+          reference_id: null,
+          movement_type: "sale",
+          total_cost: 30,
+        },
+      ]),
+    ).toEqual({});
+  });
+});
 
 describe("computeSalesReportMetrics", () => {
   it("يعيد قيماً صفرية وهامشاً غير قابل للحساب عند عدم وجود بيانات", () => {

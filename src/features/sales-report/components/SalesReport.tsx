@@ -58,14 +58,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { formatProductDisplay } from "@/lib/product-utils";
 import {
-  computeSalesReportMetrics,
   getDocumentAmountExcludingTax,
   getSalesLineNetAmount,
 } from "@/features/sales-report/domain/metrics";
 import { groupSalesAndReturns } from "@/features/sales-report/domain/grouping";
-import { computeInvoiceCoverage } from "@/features/sales-report/domain/collections";
 import { useSalesReportPreferences } from "@/features/sales-report/hooks/use-sales-report-preferences";
 import { useSalesReportData } from "@/features/sales-report/hooks/use-sales-report-data";
+import { useSalesReportMetrics } from "@/features/sales-report/hooks/use-sales-report-metrics";
 import { QuickSortToolbar } from "./QuickSortToolbar";
 
 // ── helpers ──
@@ -169,49 +168,22 @@ export default function SalesReport() {
     returnSettlements,
   } = useSalesReportData(dateFrom, dateTo);
 
-  // ── Filtered invoices ──
-  const filtered = useMemo(() => {
-    if (statusFilter === "all") return invoices;
-    return invoices.filter((inv) => inv.status === statusFilter);
-  }, [invoices, statusFilter]);
-
-  const isPostedOnly = statusFilter === "posted";
-
-  const invoiceCoverage = useMemo(
-    () =>
-      computeInvoiceCoverage(invoices, paymentAllocations, returnSettlements),
-    [invoices, paymentAllocations, returnSettlements],
-  );
-
-  // ── Financial KPI summary (posted documents only) ──
-  const kpi = useMemo(() => {
-    const metrics = computeSalesReportMetrics({ invoices, returns, movements });
-
-    return {
-      count: metrics.invoiceCount,
-      grossSales: metrics.salesRevenueExcludingTax,
-      returnsTotal: metrics.returnRevenueExcludingTax,
-      netSales: metrics.netSalesRevenue,
-      grossProfit: metrics.grossProfit,
-      grossMarginPercent: metrics.grossMarginPercent,
-      invoiceGrossTotal: invoiceCoverage.invoiceGrossTotal,
-      cashCollected: invoiceCoverage.cashCollected,
-      returnSettled: invoiceCoverage.returnSettled,
-      totalCovered: invoiceCoverage.totalCovered,
-      cashCollectionRate: invoiceCoverage.cashCollectionRate,
-      cogs: metrics.netCogs,
-    };
-  }, [invoices, returns, movements, invoiceCoverage]);
-
-  // ── Previous period KPIs ──
-  const prevKpi = useMemo(
-    () => ({
-      count: summaryQuery.data?.previous.invoiceCount ?? 0,
-      grossSales: summaryQuery.data?.previous.grossSales ?? 0,
-      netSales: summaryQuery.data?.previous.netSales ?? 0,
-    }),
-    [summaryQuery.data],
-  );
+  const {
+    filtered,
+    isPostedOnly,
+    invoiceCoverage,
+    kpi,
+    prevKpi,
+    cogsByInvoice,
+  } = useSalesReportMetrics({
+    invoices,
+    returns,
+    movements,
+    paymentAllocations,
+    returnSettlements,
+    statusFilter,
+    serverSummary: summaryQuery.data,
+  });
 
   const GrowthBadge = ({
     current,
@@ -299,18 +271,6 @@ export default function SalesReport() {
       tax: posted.reduce((s, i) => s + Number(i.tax || 0), 0),
     };
   }, [invoices]);
-
-  // ── COGS per invoice (for invoice grouping profit columns) ──
-  const cogsByInvoice = useMemo(() => {
-    const map: Record<string, number> = {};
-    movements.forEach((m) => {
-      if (m.reference_type !== "sales_invoice" || !m.reference_id) return;
-      if (m.movement_type !== "sale") return;
-      map[m.reference_id] = (map[m.reference_id] || 0) + Number(m.total_cost);
-    });
-    return map;
-  }, [movements]);
-
 
   // ═══ GROUPING: By Invoice ═══
   const invoiceColumns = useMemo<ColumnDef<any, any>[]>(

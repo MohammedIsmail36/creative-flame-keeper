@@ -36,6 +36,31 @@ export interface SalesReportMetrics {
   grossMarginPercent: number | null;
 }
 
+interface SalesCostMovement {
+  reference_type?: string | null;
+  reference_id?: string | null;
+  movement_type?: string | null;
+  total_cost?: NumericValue;
+}
+
+export function buildSalesCogsByInvoice(
+  movements: SalesCostMovement[],
+): Record<string, number> {
+  return movements.reduce<Record<string, number>>((totals, movement) => {
+    if (
+      movement.reference_type !== "sales_invoice" ||
+      !movement.reference_id ||
+      movement.movement_type !== "sale"
+    ) {
+      return totals;
+    }
+
+    totals[movement.reference_id] =
+      (totals[movement.reference_id] ?? 0) + Number(movement.total_cost ?? 0);
+    return totals;
+  }, {});
+}
+
 function toFiniteNumber(value: NumericValue): number {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
