@@ -58,9 +58,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import {
   getDocumentAmountExcludingTax,
-  getSalesLineNetAmount,
 } from "@/features/sales-report/domain/metrics";
 import {
+  buildCategorySalesGroups,
   buildCustomerSalesGroups,
   buildProductSalesGroups,
   groupSalesAndReturns,
@@ -896,40 +896,20 @@ export default function SalesReport() {
     [],
   );
 
-  // ── Product → Category map (union of sales and standalone returns) ──
-  const productCategoryMap = useMemo(() => {
-    const m: Record<string, { id: string; name: string }> = {};
-    const documents = [...filtered, ...returns];
-    documents.forEach((document) => {
-      (document.items || []).forEach((item: any) => {
-        if (item.product_id && item.product) {
-          m[item.product_id] = {
-            id: item.product.category_id || "__none__",
-            name: item.product.category?.name || "بدون تصنيف",
-          };
-        }
-      });
-    });
-    return m;
-  }, [filtered, returns]);
-
-  // ── COGS aggregations from movements ──
-  const cogsAggregates = useMemo(() => {
-    const byCategory: Record<string, number> = {};
+  // ── COGS aggregation by reporting period ──
+  const cogsByPeriod = useMemo(() => {
     const byPeriod: Record<string, number> = {};
     movements.forEach((m) => {
       const sign = m.movement_type === "sale" ? 1 : -1;
       const amt = sign * Number(m.total_cost || 0);
-      const cat = productCategoryMap[m.product_id]?.id || "__none__";
-      byCategory[cat] = (byCategory[cat] || 0) + amt;
       const key =
         timeMode === "daily"
           ? m.movement_date
           : (m.movement_date || "").substring(0, 7);
       if (key) byPeriod[key] = (byPeriod[key] || 0) + amt;
     });
-    return { byCategory, byPeriod };
-  }, [movements, productCategoryMap, timeMode]);
+    return byPeriod;
+  }, [movements, timeMode]);
 
   // ═══ GROUPING: By Time ═══
   const timeData = useMemo(() => {
@@ -981,7 +961,7 @@ export default function SalesReport() {
     // Enrich with derived metrics + period-over-period growth
     return sorted.map((d, i) => {
       const net = d.total - d.returns;
-      const cogs = isPostedOnly ? cogsAggregates.byPeriod[d.key] || 0 : 0;
+      const cogs = isPostedOnly ? cogsByPeriod[d.key] || 0 : 0;
       const profit = isPostedOnly ? net - cogs : 0;
       const margin = isPostedOnly && net > 0 ? (profit / net) * 100 : null;
       const returnRate = d.total > 0 ? (d.returns / d.total) * 100 : null;
@@ -1001,7 +981,7 @@ export default function SalesReport() {
         returnOnly: d.count === 0 && d.returns > 0,
       };
     });
-  }, [filtered, returns, timeMode, cogsAggregates, isPostedOnly]);
+  }, [filtered, returns, timeMode, cogsByPeriod, isPostedOnly]);
 
   const timeColumns = useMemo<ColumnDef<any, any>[]>(() => {
     const cols: ColumnDef<any, any>[] = [
@@ -1183,78 +1163,11 @@ export default function SalesReport() {
   }, [timeMode, isPostedOnly]);
 
   // ═══ GROUPING: By Category ═══
-  const categoryData = useMemo(() => {
-    type CategoryGroup = {
-      id: string;
-      name: string;
-      products: Set<string>;
-      qtySold: number;
-      qtyReturned: number;
-      revenue: number;
-      returns: number;
-    };
-    const salesItems = filtered.flatMap((invoice) => invoice.items || []);
-    const returnItems = returns.flatMap((salesReturn) => salesReturn.items || []);
-    const categoryKey = (item: any) => item.product?.category_id || "__none__";
-    const createGroup = (key: string, item: any): CategoryGroup => ({
-      id: key,
-      name: item.product?.category?.name || "بدون تصنيف",
-      products: new Set(),
-      qtySold: 0,
-      qtyReturned: 0,
-      revenue: 0,
-      returns: 0,
-    });
-    const groups = groupSalesAndReturns<any, any, CategoryGroup>(
-      salesItems,
-      returnItems,
-      {
-        getSaleKey: categoryKey,
-        getReturnKey: categoryKey,
-        createFromSale: createGroup,
-        createFromReturn: createGroup,
-        addSale: (group, item) => {
-          if (item.product_id) group.products.add(item.product_id);
-          group.qtySold += Number(item.quantity || 0);
-          group.revenue += getSalesLineNetAmount(item);
-        },
-        addReturn: (group, item) => {
-          if (item.product_id) group.products.add(item.product_id);
-          group.qtyReturned += Number(item.quantity || 0);
-          group.returns += getSalesLineNetAmount(item);
-        },
-      },
-    );
-    const groupedValues = Array.from(groups.values());
-    const totalNet = groupedValues.reduce(
-      (s, c) => s + (c.revenue - c.returns),
-      0,
-    );
-    return groupedValues
-      .map((c) => {
-        const net = c.revenue - c.returns;
-        const cogs = isPostedOnly ? cogsAggregates.byCategory[c.id] || 0 : 0;
-        const profit = isPostedOnly ? net - cogs : 0;
-        const margin = isPostedOnly && net > 0 ? (profit / net) * 100 : null;
-        const returnRate = c.revenue > 0 ? (c.returns / c.revenue) * 100 : null;
-        return {
-          name: c.name,
-          productCount: c.products.size,
-          qtySold: c.qtySold,
-          qtyReturned: c.qtyReturned,
-          revenue: c.revenue,
-          returns: c.returns,
-          net,
-          cogs,
-          profit,
-          margin,
-          returnRate,
-          pctOfTotal: totalNet > 0 ? (net / totalNet) * 100 : 0,
-          returnOnly: c.revenue === 0 && c.returns > 0,
-        };
-      })
-      .sort((a, b) => b.net - a.net);
-  }, [filtered, returns, cogsAggregates, isPostedOnly]);
+  const categoryData = useMemo(
+    () =>
+      buildCategorySalesGroups(filtered, returns, movements, isPostedOnly),
+    [filtered, returns, movements, isPostedOnly],
+  );
 
   const categoryColumns = useMemo<ColumnDef<any, any>[]>(() => {
     const cols: ColumnDef<any, any>[] = [

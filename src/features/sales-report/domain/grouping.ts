@@ -96,6 +96,8 @@ interface ProductLine {
   product?: {
     name?: string | null;
     model_number?: string | null;
+    category_id?: string | null;
+    category?: { name?: string | null } | null;
     brand?: { name?: string | null } | null;
   } | null;
 }
@@ -216,6 +218,135 @@ export function buildProductSalesGroups(
       };
     })
     .sort((a, b) => b.revenue - a.revenue);
+}
+
+export interface CategorySalesGroup {
+  id: string;
+  name: string;
+  productCount: number;
+  qtySold: number;
+  qtyReturned: number;
+  revenue: number;
+  returns: number;
+  net: number;
+  cogs: number;
+  profit: number;
+  margin: number | null;
+  returnRate: number | null;
+  pctOfTotal: number;
+  returnOnly: boolean;
+}
+
+export function buildCategorySalesGroups(
+  invoices: ProductDocument[],
+  returns: ProductDocument[],
+  movements: ProductCostMovement[],
+  includeCost: boolean,
+): CategorySalesGroup[] {
+  type MutableCategoryGroup = {
+    id: string;
+    name: string;
+    products: Set<string>;
+    qtySold: number;
+    qtyReturned: number;
+    revenue: number;
+    returns: number;
+  };
+
+  const productCategories: Record<string, string> = {};
+  const salesItems = invoices.flatMap((invoice) => invoice.items ?? []);
+  const returnItems = returns.flatMap((salesReturn) => salesReturn.items ?? []);
+  const allItems = [...salesItems, ...returnItems];
+  for (const item of allItems) {
+    if (item.product_id) {
+      productCategories[item.product_id] =
+        item.product?.category_id || "__none__";
+    }
+  }
+
+  const cogsByCategory = movements.reduce<Record<string, number>>(
+    (totals, movement) => {
+      if (!["sale", "sale_return"].includes(movement.movement_type ?? "")) {
+        return totals;
+      }
+      const categoryId = movement.product_id
+        ? productCategories[movement.product_id] || "__none__"
+        : "__none__";
+      const sign = movement.movement_type === "sale" ? 1 : -1;
+      totals[categoryId] =
+        (totals[categoryId] ?? 0) + sign * Number(movement.total_cost ?? 0);
+      return totals;
+    },
+    {},
+  );
+
+  const categoryKey = (item: ProductLine) =>
+    item.product?.category_id || "__none__";
+  const createGroup = (
+    key: string,
+    item: ProductLine,
+  ): MutableCategoryGroup => ({
+    id: key,
+    name: item.product?.category?.name || "بدون تصنيف",
+    products: new Set(),
+    qtySold: 0,
+    qtyReturned: 0,
+    revenue: 0,
+    returns: 0,
+  });
+  const groups = groupSalesAndReturns<
+    ProductLine,
+    ProductLine,
+    MutableCategoryGroup
+  >(salesItems, returnItems, {
+    getSaleKey: categoryKey,
+    getReturnKey: categoryKey,
+    createFromSale: createGroup,
+    createFromReturn: createGroup,
+    addSale: (group, item) => {
+      if (item.product_id) group.products.add(item.product_id);
+      group.qtySold += Number(item.quantity ?? 0);
+      group.revenue += getSalesLineNetAmount(item);
+    },
+    addReturn: (group, item) => {
+      if (item.product_id) group.products.add(item.product_id);
+      group.qtyReturned += Number(item.quantity ?? 0);
+      group.returns += getSalesLineNetAmount(item);
+    },
+  });
+
+  const groupedValues = Array.from(groups.values());
+  const totalNet = groupedValues.reduce(
+    (total, category) => total + category.revenue - category.returns,
+    0,
+  );
+
+  return groupedValues
+    .map((category) => {
+      const net = category.revenue - category.returns;
+      const cogs = includeCost ? (cogsByCategory[category.id] ?? 0) : 0;
+      const profit = includeCost ? net - cogs : 0;
+      return {
+        id: category.id,
+        name: category.name,
+        productCount: category.products.size,
+        qtySold: category.qtySold,
+        qtyReturned: category.qtyReturned,
+        revenue: category.revenue,
+        returns: category.returns,
+        net,
+        cogs,
+        profit,
+        margin: includeCost && net > 0 ? (profit / net) * 100 : null,
+        returnRate:
+          category.revenue > 0
+            ? (category.returns / category.revenue) * 100
+            : null,
+        pctOfTotal: totalNet > 0 ? (net / totalNet) * 100 : 0,
+        returnOnly: category.revenue === 0 && category.returns > 0,
+      };
+    })
+    .sort((a, b) => b.net - a.net);
 }
 
 /**

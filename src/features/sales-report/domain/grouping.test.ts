@@ -1,9 +1,125 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCategorySalesGroups,
   buildCustomerSalesGroups,
   buildProductSalesGroups,
   groupSalesAndReturns,
 } from "./grouping";
+
+describe("buildCategorySalesGroups", () => {
+  it("groups sales, standalone returns, and net cost by category", () => {
+    const rows = buildCategorySalesGroups(
+      [
+        {
+          items: [
+            {
+              product_id: "product-1",
+              product: {
+                name: "منتج 1",
+                category_id: "category-1",
+                category: { name: "ملابس" },
+              },
+              quantity: 3,
+              net_total: 300,
+            },
+            {
+              product_id: "product-2",
+              product: {
+                name: "منتج 2",
+                category_id: "category-1",
+                category: { name: "ملابس" },
+              },
+              quantity: 1,
+              net_total: 100,
+            },
+          ],
+        },
+      ],
+      [
+        {
+          items: [
+            {
+              product_id: "product-1",
+              product: {
+                name: "منتج 1",
+                category_id: "category-1",
+                category: { name: "ملابس" },
+              },
+              quantity: 1,
+              net_total: 100,
+            },
+            {
+              description: "منتج محذوف",
+              quantity: 1,
+              net_total: 50,
+            },
+          ],
+        },
+      ],
+      [
+        { product_id: "product-1", movement_type: "sale", total_cost: 180 },
+        {
+          product_id: "product-1",
+          movement_type: "sale_return",
+          total_cost: 60,
+        },
+        { product_id: "product-2", movement_type: "sale", total_cost: 50 },
+      ],
+      true,
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toEqual(
+      expect.objectContaining({
+        id: "category-1",
+        name: "ملابس",
+        productCount: 2,
+        qtySold: 4,
+        qtyReturned: 1,
+        revenue: 400,
+        returns: 100,
+        net: 300,
+        cogs: 170,
+        profit: 130,
+        returnOnly: false,
+      }),
+    );
+    expect(rows[1]).toEqual(
+      expect.objectContaining({
+        id: "__none__",
+        name: "بدون تصنيف",
+        qtySold: 0,
+        qtyReturned: 1,
+        net: -50,
+        returnOnly: true,
+      }),
+    );
+  });
+
+  it("does not expose cost metrics outside the posted view", () => {
+    const [row] = buildCategorySalesGroups(
+      [
+        {
+          items: [
+            {
+              product_id: "product-1",
+              product: { category_id: "category-1" },
+              quantity: 1,
+              net_total: 100,
+            },
+          ],
+        },
+      ],
+      [],
+      [{ product_id: "product-1", movement_type: "sale", total_cost: 60 }],
+      false,
+    );
+
+    expect(row).toEqual(
+      expect.objectContaining({ cogs: 0, profit: 0, margin: null }),
+    );
+  });
+});
 
 describe("buildProductSalesGroups", () => {
   it("nets product quantities, revenue, and returned cost", () => {
