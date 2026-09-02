@@ -120,6 +120,11 @@ export interface ProductSalesGroup {
   revenue: number;
   cogs: number;
   returnOnly: boolean;
+  reconciliationStatus:
+    | "return_only"
+    | "fully_returned"
+    | "return_price_difference"
+    | null;
 }
 
 export function buildProductSalesGroups(
@@ -165,6 +170,7 @@ export function buildProductSalesGroups(
     revenue: 0,
     cogs: 0,
     returnOnly: false,
+    reconciliationStatus: null,
   });
 
   const groups = groupSalesAndReturns<
@@ -187,12 +193,28 @@ export function buildProductSalesGroups(
   });
 
   return Array.from(groups.values())
-    .map((group) => ({
-      ...group,
-      revenue: group.grossRevenue - group.returnsRevenue,
-      cogs: cogsByProduct[group.id] ?? 0,
-      returnOnly: group.grossRevenue === 0 && group.returnsRevenue > 0,
-    }))
+    .map((group) => {
+      const revenue = group.grossRevenue - group.returnsRevenue;
+      const returnOnly = group.grossRevenue === 0 && group.returnsRevenue > 0;
+      const hasFullyReturnedQuantity =
+        group.qtySold > 0 &&
+        Math.abs(group.qtySold - group.qtyReturned) < 0.000001;
+      const reconciliationStatus = returnOnly
+        ? "return_only"
+        : hasFullyReturnedQuantity && Math.abs(revenue) < 0.005
+          ? "fully_returned"
+          : hasFullyReturnedQuantity
+            ? "return_price_difference"
+            : null;
+
+      return {
+        ...group,
+        revenue,
+        cogs: cogsByProduct[group.id] ?? 0,
+        returnOnly,
+        reconciliationStatus,
+      };
+    })
     .sort((a, b) => b.revenue - a.revenue);
 }
 

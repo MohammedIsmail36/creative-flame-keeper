@@ -54,6 +54,7 @@ describe("buildProductSalesGroups", () => {
         revenue: 200,
         cogs: 120,
         returnOnly: false,
+        reconciliationStatus: null,
       }),
     ]);
   });
@@ -73,8 +74,38 @@ describe("buildProductSalesGroups", () => {
         qtyReturned: 2,
         revenue: -50,
         returnOnly: true,
+        reconciliationStatus: "return_only",
       }),
     ]);
+  });
+
+  it("labels a fully returned product and a return price difference", () => {
+    const rows = buildProductSalesGroups(
+      [
+        {
+          items: [
+            { product_id: "balanced", quantity: 1, net_total: 100 },
+            { product_id: "different", quantity: 2, net_total: 253.22 },
+          ],
+        },
+      ],
+      [
+        {
+          items: [
+            { product_id: "balanced", quantity: 1, net_total: 100 },
+            { product_id: "different", quantity: 2, net_total: 260 },
+          ],
+        },
+      ],
+      [],
+    );
+
+    expect(
+      rows.find((row) => row.id === "balanced")?.reconciliationStatus,
+    ).toBe("fully_returned");
+    expect(
+      rows.find((row) => row.id === "different")?.reconciliationStatus,
+    ).toBe("return_price_difference");
   });
 });
 

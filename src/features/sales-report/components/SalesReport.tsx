@@ -131,8 +131,6 @@ export default function SalesReport() {
     });
   const [productColumnVisibility, setProductColumnVisibility] =
     useState<VisibilityState>({
-      qtySold: false,
-      qtyReturned: false,
       cogs: false,
     });
   const [categoryColumnVisibility, setCategoryColumnVisibility] =
@@ -752,6 +750,20 @@ export default function SalesReport() {
                 مرتجع فقط
               </Badge>
             )}
+            {row.original.reconciliationStatus === "fully_returned" && (
+              <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                بيع ومرتجع بالكامل
+              </Badge>
+            )}
+            {row.original.reconciliationStatus ===
+              "return_price_difference" && (
+              <Badge
+                variant="outline"
+                className="text-[10px] border-amber-500/40 bg-amber-500/10 text-amber-700"
+              >
+                فرق سعر مرتجع
+              </Badge>
+            )}
           </div>
         ),
         footer: () => <span className="font-bold">الإجمالي</span>,
@@ -857,15 +869,24 @@ export default function SalesReport() {
         id: "margin",
         header: "الهامش%",
         accessorFn: (r: any) =>
-          r.revenue > 0 && r.cogs > 0 ? ((r.revenue - r.cogs) / r.revenue) * 100 : 0,
+          r.revenue > 0 && r.cogs > 0
+            ? ((r.revenue - r.cogs) / r.revenue) * 100
+            : null,
         cell: ({ row }) => {
           const r = row.original;
-          if (!(r.revenue > 0) || !(r.cogs > 0))
+          if (!(r.revenue > 0) || !(r.cogs > 0)) {
+            const reason =
+              r.revenue === 0
+                ? "لا يُحسب الهامش عندما يكون صافي الإيراد صفراً"
+                : r.revenue < 0
+                  ? "لا يُحسب الهامش عندما يكون صافي الإيراد سالباً"
+                  : "لا توجد تكلفة صافية موجبة لهذا المنتج";
             return (
-              <span className="text-muted-foreground" title="لا توجد تكلفة مسجّلة لهذا المنتج">
+              <span className="text-muted-foreground" title={reason}>
                 —
               </span>
             );
+          }
           const v = ((r.revenue - r.cogs) / r.revenue) * 100;
           return <span className="font-mono">{v.toFixed(1)}%</span>;
         },
@@ -2527,8 +2548,8 @@ export default function SalesReport() {
               />
 
               <p className="text-xs text-muted-foreground mt-2 text-center">
-                للتفاصيل الكاملة (التكلفة، الربح، الهوامش) راجع تقرير تحليل
-                المنتجات
+                «صافي الكمية» يساوي المباع ناقص المرتجع. الصف المتعادل يبقى
+                ظاهراً لإثبات حركة البيع والمرتجع داخل الفترة.
               </p>
             </>
           ) : groupBy === "category" ? (
