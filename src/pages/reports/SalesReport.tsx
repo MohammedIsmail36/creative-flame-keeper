@@ -2187,19 +2187,19 @@ export default function SalesReport() {
   }
 
   return (
-    <div className="space-y-5 p-1">
+    <div className="min-w-0 space-y-4 p-0.5 sm:space-y-5 sm:p-1">
       {/* ── Unified report controls ── */}
       <Card className="border shadow-sm">
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center gap-2.5 p-3">
-            <div className="me-1 min-w-[185px]">
+          <div className="flex flex-col gap-3 p-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2.5">
+            <div className="w-full sm:me-1 sm:w-auto sm:min-w-[185px]">
               <p className="text-sm font-semibold">نطاق التقرير</p>
               <p className="mt-0.5 whitespace-nowrap text-[11px] text-muted-foreground">
                 {formatPeriodDate(dateFrom)} — {formatPeriodDate(dateTo)}
               </p>
             </div>
 
-            <div className="grid min-w-0 flex-1 basis-[310px] grid-cols-[minmax(130px,1fr)_auto_minmax(130px,1fr)] items-center gap-2 sm:max-w-[370px]">
+            <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:max-w-[370px] sm:flex-1 sm:basis-[310px] sm:gap-2">
               <DatePickerInput
                 value={dateFrom}
                 onChange={setDateFrom}
@@ -2217,13 +2217,13 @@ export default function SalesReport() {
 
             <div className="hidden h-7 w-px bg-border lg:block" />
 
-            <div className="flex items-center gap-2">
+            <div className="flex w-full items-center gap-2 sm:w-auto">
               <span className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">حالة التفاصيل</span>
               <Select
                 value={statusFilter}
                 onValueChange={(v: any) => setStatusFilter(v)}
               >
-                <SelectTrigger className="h-9 w-[120px] border-0 bg-muted/50 font-medium shadow-none hover:bg-muted">
+                <SelectTrigger className="h-9 min-w-0 flex-1 border-0 bg-muted/50 font-medium shadow-none hover:bg-muted sm:w-[120px] sm:flex-none">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -2235,11 +2235,11 @@ export default function SalesReport() {
               </Select>
             </div>
 
-            <div className="ms-auto shrink-0">
+            <div className="w-full shrink-0 sm:ms-auto sm:w-auto">
               <ExportMenu
                 config={exportConfig}
                 disabled={isLoading}
-                buttonClassName="h-9 border-0 bg-primary/10 text-primary shadow-none hover:bg-primary/15 hover:text-primary"
+                buttonClassName="h-9 w-full border-0 bg-primary/10 text-primary shadow-none hover:bg-primary/15 hover:text-primary sm:w-auto"
               />
             </div>
           </div>
@@ -2317,10 +2317,10 @@ export default function SalesReport() {
           </div>
         </div>
         <CardContent className="p-0">
-          <div className="grid grid-cols-2 gap-px bg-border md:grid-cols-5">
+          <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3 lg:grid-cols-5">
         {/* صافي المبيعات (الرقم الأهم) */}
         <Card className="relative overflow-hidden rounded-none border-0 bg-card shadow-none">
-          <CardContent className="pt-5 pb-4">
+          <CardContent className="h-full px-3 pb-4 pt-4 sm:px-4 sm:pt-5">
             <div className="flex items-start gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
@@ -2329,7 +2329,7 @@ export default function SalesReport() {
                 {isLoading ? (
                   <Skeleton className="h-7 w-20" />
                 ) : (
-                  <p className="text-2xl font-extrabold tracking-tight tabular-nums truncate">
+                  <p className="truncate text-xl font-extrabold tracking-tight tabular-nums sm:text-2xl">
                     {fmt(kpi.netSales)}
                   </p>
                 )}
@@ -2349,7 +2349,7 @@ export default function SalesReport() {
 
         {/* إجمالي الربح */}
         <Card className="relative overflow-hidden rounded-none border-0 bg-card shadow-none">
-          <CardContent className="pt-5 pb-4">
+          <CardContent className="h-full px-3 pb-4 pt-4 sm:px-4 sm:pt-5">
             <div className="flex items-start gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-1 mb-1">
@@ -2361,7 +2361,7 @@ export default function SalesReport() {
                   <Skeleton className="h-7 w-20" />
                 ) : (
                   <p
-                    className={`text-2xl font-extrabold tracking-tight tabular-nums truncate ${kpi.grossProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}
+                    className={`truncate text-xl font-extrabold tracking-tight tabular-nums sm:text-2xl ${kpi.grossProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}
                   >
                     {fmt(kpi.grossProfit)}
                   </p>
@@ -2376,7 +2376,7 @@ export default function SalesReport() {
 
         {/* هامش الربح */}
         <Card className="relative overflow-hidden rounded-none border-0 bg-card shadow-none">
-          <CardContent className="pt-5 pb-4">
+          <CardContent className="h-full px-3 pb-4 pt-4 sm:px-4 sm:pt-5">
             <div className="flex items-start gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
@@ -2386,7 +2386,7 @@ export default function SalesReport() {
                   <Skeleton className="h-7 w-16" />
                 ) : (
                   <p
-                    className={`text-2xl font-extrabold tracking-tight tabular-nums ${kpi.grossMarginPercent !== null && kpi.grossMarginPercent >= 0 ? "text-emerald-600 dark:text-emerald-400" : kpi.grossMarginPercent !== null ? "text-destructive" : "text-muted-foreground"}`}
+                    className={`truncate text-xl font-extrabold tracking-tight tabular-nums sm:text-2xl ${kpi.grossMarginPercent !== null && kpi.grossMarginPercent >= 0 ? "text-emerald-600 dark:text-emerald-400" : kpi.grossMarginPercent !== null ? "text-destructive" : "text-muted-foreground"}`}
                   >
                     {kpi.grossMarginPercent === null
                       ? "—"
@@ -2403,7 +2403,7 @@ export default function SalesReport() {
 
         {/* المرتجعات */}
         <Card className="relative overflow-hidden rounded-none border-0 bg-card shadow-none">
-          <CardContent className="pt-5 pb-4">
+          <CardContent className="h-full px-3 pb-4 pt-4 sm:px-4 sm:pt-5">
             <div className="flex items-start gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
@@ -2412,7 +2412,7 @@ export default function SalesReport() {
                 {isLoading ? (
                   <Skeleton className="h-7 w-16" />
                 ) : (
-                  <p className="text-2xl font-extrabold tracking-tight tabular-nums text-destructive">
+                  <p className="truncate text-xl font-extrabold tracking-tight tabular-nums text-destructive sm:text-2xl">
                     {fmt(kpi.returnsTotal)}
                   </p>
                 )}
@@ -2429,7 +2429,7 @@ export default function SalesReport() {
 
         {/* التحصيل النقدي */}
         <Card className="relative overflow-hidden rounded-none border-0 bg-card shadow-none">
-          <CardContent className="pt-5 pb-4">
+          <CardContent className="h-full px-3 pb-4 pt-4 sm:px-4 sm:pt-5">
             <div className="flex items-start gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground mb-1">
@@ -2438,7 +2438,7 @@ export default function SalesReport() {
                 {isLoading ? (
                   <Skeleton className="h-7 w-16" />
                 ) : (
-                  <p className="text-2xl font-extrabold tracking-tight tabular-nums">
+                  <p className="truncate text-xl font-extrabold tracking-tight tabular-nums sm:text-2xl">
                     {kpi.cashCollectionRate === null
                       ? "—"
                       : `${kpi.cashCollectionRate.toFixed(1)}%`}
@@ -2468,7 +2468,7 @@ export default function SalesReport() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-start gap-2">
+      <div className="grid grid-cols-1 items-start gap-2 sm:flex sm:flex-wrap">
       {/* ── Invoice coverage — on demand ── */}
       <Collapsible
         open={showCoverage}
@@ -2479,7 +2479,7 @@ export default function SalesReport() {
           <Button
             variant="ghost"
             size="sm"
-            className={`${FLAT_ACTION_CLASS} ${showCoverage ? "!bg-primary/15 !text-primary" : ""}`}
+            className={`${FLAT_ACTION_CLASS} w-full sm:w-auto ${showCoverage ? "!bg-primary/15 !text-primary" : ""}`}
           >
             <ChevronDown
               className={`h-3.5 w-3.5 transition-transform ${showCoverage ? "rotate-180" : ""}`}
@@ -2556,7 +2556,7 @@ export default function SalesReport() {
           <Button
             variant="ghost"
             size="sm"
-            className={`${FLAT_ACTION_CLASS} ${showExtras ? "!bg-primary/15 !text-primary" : ""}`}
+            className={`${FLAT_ACTION_CLASS} w-full sm:w-auto ${showExtras ? "!bg-primary/15 !text-primary" : ""}`}
           >
             <ChevronDown
               className={`w-3.5 h-3.5 transition-transform ${showExtras ? "rotate-180" : ""}`}
@@ -2695,7 +2695,7 @@ export default function SalesReport() {
         <Button
           variant="ghost"
           size="sm"
-          className={`${FLAT_ACTION_CLASS} ${showChart ? "!bg-primary/15 !text-primary" : ""}`}
+          className={`${FLAT_ACTION_CLASS} w-full sm:w-auto ${showChart ? "!bg-primary/15 !text-primary" : ""}`}
           onClick={() => setShowChart((current) => !current)}
         >
           <ChevronDown
@@ -2715,8 +2715,9 @@ export default function SalesReport() {
               {chartMeta.description}
             </p>
           </div>
-          <CardContent className="px-3 pb-3 pt-4 sm:px-4">
-            <ResponsiveContainer width="100%" height={260}>
+          <CardContent className="px-1 pb-3 pt-4 sm:px-4">
+            <div className="h-[300px] w-full sm:h-[320px]">
+            <ResponsiveContainer width="100%" height="100%">
               {groupBy === "time" ? (
                 <ComposedChart data={chartData}>
                     <CartesianGrid
@@ -2767,7 +2768,7 @@ export default function SalesReport() {
                       fontSize={11}
                       axisLine={false}
                       tickLine={false}
-                      width={130}
+                      width={105}
                     />
                     <Tooltip
                       contentStyle={{
@@ -2785,6 +2786,7 @@ export default function SalesReport() {
                   </BarChart>
               )}
             </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
       )}
