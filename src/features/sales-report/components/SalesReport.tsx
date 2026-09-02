@@ -80,27 +80,6 @@ const FLAT_ACTION_CLASS =
   "h-9 gap-2 rounded-lg border-0 bg-muted/50 px-3 text-xs font-medium text-foreground shadow-none hover:bg-muted hover:text-foreground";
 const FLAT_SEGMENT_CLASS =
   "h-8 rounded-md px-3 text-xs text-muted-foreground shadow-none hover:bg-primary/10 hover:text-primary data-[state=on]:!bg-primary/15 data-[state=on]:!text-primary";
-const RTL_CATEGORY_AXIS_WIDTH = 176;
-const RtlCategoryAxisTick = ({ x = 0, y = 0, payload }: any) => {
-  const fullLabel = String(payload?.value ?? "");
-  const label =
-    fullLabel.length > 22 ? `${fullLabel.slice(0, 22)}…` : fullLabel;
-
-  return (
-    <text
-      x={x + RTL_CATEGORY_AXIS_WIDTH - 16}
-      y={y}
-      dy="0.35em"
-      direction="rtl"
-      textAnchor="end"
-      fontSize={11}
-      fill="hsl(var(--muted-foreground))"
-    >
-      <title>{fullLabel}</title>
-      {label}
-    </text>
-  );
-};
 const formatPeriodDate = (value: string) => {
   const [year, month, day] = value.split("-").map(Number);
   if (!year || !month || !day) return value;
@@ -2373,10 +2352,6 @@ export default function SalesReport() {
                       fontSize={11}
                       axisLine={false}
                       tickLine={false}
-                      tickMargin={10}
-                      tickFormatter={(value: number) =>
-                        Number(value) === 0 ? "" : fmt(Number(value))
-                      }
                       reversed
                     />
                     <YAxis
@@ -2386,9 +2361,13 @@ export default function SalesReport() {
                       fontSize={11}
                       axisLine={false}
                       tickLine={false}
-                      tickMargin={0}
-                      width={RTL_CATEGORY_AXIS_WIDTH}
-                      tick={<RtlCategoryAxisTick />}
+                      tickMargin={8}
+                      width={160}
+                      tickFormatter={(value: string) =>
+                        value.length > 22
+                          ? `${value.slice(0, 22)}…`
+                          : value
+                      }
                     />
                     <Tooltip
                       contentStyle={{
