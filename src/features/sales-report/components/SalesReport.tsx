@@ -72,6 +72,7 @@ import {
   buildProductSalesGroups,
   buildTimeSalesGroups,
 } from "@/features/sales-report/domain/grouping";
+import { buildSalesReportChart } from "@/features/sales-report/domain/chart";
 import { useSalesReportPreferences } from "@/features/sales-report/hooks/use-sales-report-preferences";
 import { useSalesReportData } from "@/features/sales-report/hooks/use-sales-report-data";
 import { useSalesReportMetrics } from "@/features/sales-report/hooks/use-sales-report-metrics";
@@ -1268,65 +1269,18 @@ export default function SalesReport() {
   }, [isPostedOnly]);
 
   // ── One decision-oriented chart for the active aggregate view ──
-  const chartMeta = useMemo(() => {
-    if (groupBy === "time") {
-      return {
-        title: `اتجاه صافي المبيعات ${timeMode === "daily" ? "اليومي" : "الشهري"}`,
-        description:
-          "صافي المبيعات قبل الضريبة بعد طرح المرتجعات المستقلة في كل فترة.",
-      };
-    }
-    if (groupBy === "customer") {
-      return {
-        title: "أعلى 10 عملاء بصافي المبيعات",
-        description:
-          "ترتيب العملاء حسب المبيعات قبل الضريبة بعد طرح مرتجعات كل عميل.",
-      };
-    }
-    if (groupBy === "product") {
-      return {
-        title: "أعلى 10 منتجات بصافي المبيعات",
-        description:
-          "ترتيب المنتجات حسب إيراد البيع الصافي بعد طرح مرتجعات المنتج.",
-      };
-    }
-    if (groupBy === "category") {
-      return {
-        title: "أعلى 10 تصنيفات بصافي المبيعات",
-        description:
-          "ترتيب التصنيفات حسب إيراد البيع الصافي بعد طرح المرتجعات.",
-      };
-    }
-    return null;
-  }, [groupBy, timeMode]);
-
-  const chartData = useMemo(() => {
-    if (groupBy === "time") {
-      return timeData.map((d) => ({
-        name: d.label,
-        "صافي المبيعات": d.net,
-      }));
-    }
-    if (groupBy === "customer") {
-      return customerData.slice(0, 10).map((c) => ({
-        name: c.name.length > 18 ? c.name.substring(0, 18) + "…" : c.name,
-        "صافي المبيعات": c.total - c.returns,
-      }));
-    }
-    if (groupBy === "product") {
-      return productData.slice(0, 10).map((p) => ({
-        name: p.name.length > 18 ? p.name.substring(0, 18) + "…" : p.name,
-        "صافي المبيعات": p.revenue,
-      }));
-    }
-    if (groupBy === "category") {
-      return categoryData.slice(0, 10).map((c) => ({
-        name: c.name.length > 18 ? c.name.substring(0, 18) + "…" : c.name,
-        "صافي المبيعات": c.net,
-      }));
-    }
-    return [];
-  }, [groupBy, timeData, customerData, productData, categoryData]);
+  const { meta: chartMeta, data: chartData } = useMemo(
+    () =>
+      buildSalesReportChart({
+        groupBy,
+        timeMode,
+        timeData,
+        customerData,
+        productData,
+        categoryData,
+      }),
+    [groupBy, timeMode, timeData, customerData, productData, categoryData],
+  );
 
   // ── Export config ──
   const exportConfig = useMemo(() => {
@@ -1500,7 +1454,7 @@ export default function SalesReport() {
           "الكمية المباعة",
           "المرتجع",
           "صافي الكمية",
-          "الإيرادات",
+          "الإيرادات الصافية",
           "التكلفة",
           "الربح",
           "الهامش%",
