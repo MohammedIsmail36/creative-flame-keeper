@@ -1,3 +1,5 @@
+import { getDocumentAmountExcludingTax } from "./metrics";
+
 // Dimension grouping used exclusively by the sales report feature.
 export interface UnionGroupingConfig<TSale, TReturn, TGroup> {
   getSaleKey: (row: TSale) => string;
@@ -6,6 +8,79 @@ export interface UnionGroupingConfig<TSale, TReturn, TGroup> {
   createFromReturn: (key: string, row: TReturn) => TGroup;
   addSale: (group: TGroup, row: TSale) => void;
   addReturn: (group: TGroup, row: TReturn) => void;
+}
+
+interface CustomerDocument {
+  id?: string;
+  customer_id?: string | null;
+  customer?: { name?: string | null } | null;
+  status: string | null;
+  total: number | string | null;
+  tax?: number | string | null;
+}
+
+interface CustomerCoverage {
+  cashCollected: number;
+  returnSettled: number;
+}
+
+export interface CustomerSalesGroup {
+  name: string;
+  count: number;
+  total: number;
+  invoiceGrossTotal: number;
+  cashCollected: number;
+  returnSettled: number;
+  returns: number;
+  returnOnly: boolean;
+}
+
+export function buildCustomerSalesGroups(
+  invoices: CustomerDocument[],
+  returns: CustomerDocument[],
+  getCoverage: (invoiceId: string) => CustomerCoverage,
+): CustomerSalesGroup[] {
+  const createGroup = (row: CustomerDocument): CustomerSalesGroup => ({
+    name: row.customer?.name || "عميل نقدي",
+    count: 0,
+    total: 0,
+    invoiceGrossTotal: 0,
+    cashCollected: 0,
+    returnSettled: 0,
+    returns: 0,
+    returnOnly: false,
+  });
+
+  const groups = groupSalesAndReturns<
+    CustomerDocument,
+    CustomerDocument,
+    CustomerSalesGroup
+  >(invoices, returns, {
+    getSaleKey: (invoice) => invoice.customer_id || "__none__",
+    getReturnKey: (salesReturn) => salesReturn.customer_id || "__none__",
+    createFromSale: (_key, invoice) => createGroup(invoice),
+    createFromReturn: (_key, salesReturn) => createGroup(salesReturn),
+    addSale: (group, invoice) => {
+      group.count += 1;
+      group.total += getDocumentAmountExcludingTax(invoice);
+      if (invoice.status === "posted" && invoice.id) {
+        const coverage = getCoverage(invoice.id);
+        group.invoiceGrossTotal += Number(invoice.total ?? 0);
+        group.cashCollected += coverage.cashCollected;
+        group.returnSettled += coverage.returnSettled;
+      }
+    },
+    addReturn: (group, salesReturn) => {
+      group.returns += getDocumentAmountExcludingTax(salesReturn);
+    },
+  });
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      returnOnly: group.count === 0 && group.returns > 0,
+    }))
+    .sort((a, b) => b.total - b.returns - (a.total - a.returns));
 }
 
 /**

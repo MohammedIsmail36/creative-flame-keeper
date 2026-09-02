@@ -61,7 +61,10 @@ import {
   getDocumentAmountExcludingTax,
   getSalesLineNetAmount,
 } from "@/features/sales-report/domain/metrics";
-import { groupSalesAndReturns } from "@/features/sales-report/domain/grouping";
+import {
+  buildCustomerSalesGroups,
+  groupSalesAndReturns,
+} from "@/features/sales-report/domain/grouping";
 import { useSalesReportPreferences } from "@/features/sales-report/hooks/use-sales-report-preferences";
 import { useSalesReportData } from "@/features/sales-report/hooks/use-sales-report-data";
 import { useSalesReportMetrics } from "@/features/sales-report/hooks/use-sales-report-metrics";
@@ -564,57 +567,10 @@ export default function SalesReport() {
   );
 
   // ═══ GROUPING: By Customer ═══
-  const customerData = useMemo(() => {
-    type CustomerGroup = {
-      name: string;
-      count: number;
-      total: number;
-      invoiceGrossTotal: number;
-      cashCollected: number;
-      returnSettled: number;
-      returns: number;
-      returnOnly: boolean;
-    };
-    const createGroup = (row: any): CustomerGroup => ({
-      name: row.customer?.name || "عميل نقدي",
-      count: 0,
-      total: 0,
-      invoiceGrossTotal: 0,
-      cashCollected: 0,
-      returnSettled: 0,
-      returns: 0,
-      returnOnly: false,
-    });
-    const groups = groupSalesAndReturns<any, any, CustomerGroup>(
-      filtered,
-      returns,
-      {
-        getSaleKey: (invoice) => invoice.customer_id || "__none__",
-        getReturnKey: (salesReturn) => salesReturn.customer_id || "__none__",
-        createFromSale: (_key, invoice) => createGroup(invoice),
-        createFromReturn: (_key, salesReturn) => createGroup(salesReturn),
-        addSale: (group, invoice) => {
-          group.count += 1;
-          group.total += getDocumentAmountExcludingTax(invoice);
-          if (invoice.status === "posted") {
-            group.invoiceGrossTotal += Number(invoice.total || 0);
-            group.cashCollected += getCoverage(invoice.id).cashCollected;
-            group.returnSettled += getCoverage(invoice.id).returnSettled;
-          }
-        },
-        addReturn: (group, salesReturn) => {
-          group.returns += getDocumentAmountExcludingTax(salesReturn);
-        },
-      },
-    );
-
-    return Array.from(groups.values())
-      .map((group) => ({
-        ...group,
-        returnOnly: group.count === 0 && group.returns > 0,
-      }))
-      .sort((a, b) => b.total - b.returns - (a.total - a.returns));
-  }, [filtered, returns, getCoverage]);
+  const customerData = useMemo(
+    () => buildCustomerSalesGroups(filtered, returns, getCoverage),
+    [filtered, returns, getCoverage],
+  );
 
   const customerColumns = useMemo<ColumnDef<any, any>[]>(
     () => [

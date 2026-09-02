@@ -1,5 +1,70 @@
 import { describe, expect, it } from "vitest";
-import { groupSalesAndReturns } from "./grouping";
+import { buildCustomerSalesGroups, groupSalesAndReturns } from "./grouping";
+
+describe("buildCustomerSalesGroups", () => {
+  it("combines posted sales, returns, and invoice coverage by customer", () => {
+    const rows = buildCustomerSalesGroups(
+      [
+        {
+          id: "inv-1",
+          customer_id: "customer-1",
+          customer: { name: "أحمد" },
+          status: "posted",
+          total: 115,
+          tax: 15,
+        },
+      ],
+      [
+        {
+          customer_id: "customer-1",
+          customer: { name: "أحمد" },
+          status: "posted",
+          total: 23,
+          tax: 3,
+        },
+      ],
+      () => ({ cashCollected: 80, returnSettled: 10 }),
+    );
+
+    expect(rows).toEqual([
+      {
+        name: "أحمد",
+        count: 1,
+        total: 100,
+        invoiceGrossTotal: 115,
+        cashCollected: 80,
+        returnSettled: 10,
+        returns: 20,
+        returnOnly: false,
+      },
+    ]);
+  });
+
+  it("keeps a standalone cash-customer return as a return-only row", () => {
+    const rows = buildCustomerSalesGroups(
+      [],
+      [
+        {
+          customer_id: null,
+          customer: null,
+          status: "posted",
+          total: 50,
+          tax: 0,
+        },
+      ],
+      () => ({ cashCollected: 0, returnSettled: 0 }),
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        name: "عميل نقدي",
+        count: 0,
+        returns: 50,
+        returnOnly: true,
+      }),
+    ]);
+  });
+});
 
 interface Group {
   name: string;
