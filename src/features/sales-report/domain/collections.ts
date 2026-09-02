@@ -1,5 +1,7 @@
 import { round2 } from "@/lib/utils";
 
+// Collection coverage rules used exclusively by the sales report feature.
+
 type NumericValue = number | string | null | undefined;
 
 export interface CoverageInvoice {

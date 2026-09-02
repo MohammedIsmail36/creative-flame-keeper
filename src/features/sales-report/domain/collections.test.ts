@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeInvoiceCoverage } from "./sales-report-collections";
+import { computeInvoiceCoverage } from "./collections";
 
 describe("computeInvoiceCoverage", () => {
   it("يفصل التحصيل النقدي عن تسوية المرتجعات ويستخدم الإجمالي شامل الضريبة", () => {

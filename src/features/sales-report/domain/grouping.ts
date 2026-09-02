@@ -1,3 +1,4 @@
+// Dimension grouping used exclusively by the sales report feature.
 export interface UnionGroupingConfig<TSale, TReturn, TGroup> {
   getSaleKey: (row: TSale) => string;
   getReturnKey: (row: TReturn) => string;

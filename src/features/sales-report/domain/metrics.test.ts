@@ -3,7 +3,7 @@ import {
   computeSalesReportMetrics,
   getDocumentAmountExcludingTax,
   getSalesLineNetAmount,
-} from "./sales-report-metrics";
+} from "./metrics";
 
 describe("computeSalesReportMetrics", () => {
   it("يعيد قيماً صفرية وهامشاً غير قابل للحساب عند عدم وجود بيانات", () => {

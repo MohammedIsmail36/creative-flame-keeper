@@ -13,7 +13,7 @@
 |---|---|---|---|---|
 | `src/pages/reports/ProductAnalytics.tsx` | 3062 | شبكة مؤشرات×1 • KpiCard محلي×1 • فلتر تاريخ×25 • حالة فراغ×10 | EmptyState, StatCard, StatGrid, useDateRangeFilter | عالية |
 | `src/lib/pdf-arabic.ts` | 2663 | formatNum محلي×1 | lib/format | عالية |
-| `src/pages/reports/SalesReport.tsx` | 2509 | شبكة مؤشرات×3 • فلتر تاريخ×48 • حالة فراغ×7 | EmptyState, StatGrid, useDateRangeFilter | عالية |
+| `src/features/sales-report/components/SalesReport.tsx` | 2912 | شبكة مؤشرات×3 • فلتر تاريخ×48 • حالة فراغ×7 | EmptyState, StatGrid, useDateRangeFilter | عالية |
 | `src/pages/reports/PurchasesReport.tsx` | 2205 | شبكة مؤشرات×4 • فلتر تاريخ×44 • حالة فراغ×5 | EmptyState, StatGrid, useDateRangeFilter | عالية |
 | `src/pages/Dashboard.tsx` | 2070 | حالة فراغ×9 | EmptyState | عالية |
 | `src/pages/reports/InventoryReport.tsx` | 1800 | شبكة مؤشرات×5 • فلتر تاريخ×20 • حالة فراغ×4 | EmptyState, StatGrid, useDateRangeFilter | عالية |

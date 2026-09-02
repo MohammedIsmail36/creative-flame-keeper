@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupSalesAndReturns } from "./sales-report-grouping";
+import { groupSalesAndReturns } from "./grouping";
 
 interface Group {
   name: string;

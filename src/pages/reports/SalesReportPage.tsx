@@ -1,6 +1,6 @@
 import { BarChart3 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
-import SalesReport from "./SalesReport";
+import SalesReport from "@/features/sales-report/components/SalesReport";
 
 export default function SalesReportPage() {
   return (

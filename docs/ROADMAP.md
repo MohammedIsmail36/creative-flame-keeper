@@ -1,5 +1,7 @@
 # خارطة تنفيذ خطة إنهاء النظام
 
+> وثيقة تخطيط؛ لا تدخل ضمن ملفات تشغيل التطبيق.
+
 مرجع الخطة: `.lovable/plan/خطة-إنهاء-النظام-كود-نظيف-أرقام-صحيحة-شاشات-مفهومة-2026-08-31.md`
 
 ## المحور الأول — نظافة الكود والأداء
@@ -7,7 +9,7 @@
 - [x] تحويل كل مواضع كتابة القيود (فواتير، مرتجعات، سندات، مصروفات، تسويات، أرصدة افتتاحية، إقفال، قيود يدوية)
 - [x] اختبارات وحدة للبوابة (`journal-writer.test.ts`)
 - [x] تفكيك `TurnoverDataContext` (1402 → 343 سطر) إلى `src/lib/turnover/*` + `useTurnoverQueries` مع 21 اختبارًا
-- [ ] تفكيك الملفات الضخمة المتبقية: `InventoryReport` → `ProductAnalytics` → `SalesReport` → `PurchasesReport` → `GrowthAnalytics`
+- [ ] تفكيك الملفات الضخمة المتبقية: `InventoryReport` → `ProductAnalytics` → `src/features/sales-report` → `PurchasesReport` → `GrowthAnalytics`
 - [ ] تحميل مؤجل للتقارير الثقيلة و`pdf-arabic.ts`
 - [ ] تدقيق الحسابات المكررة محليًا وحذفها
 

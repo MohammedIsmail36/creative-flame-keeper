@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSalesReportServerSummary } from "./sales-report-summary";
+import { parseSalesReportServerSummary } from "./server-summary";
 
 describe("parseSalesReportServerSummary", () => {
   it("يحوّل قيم JSON الرقمية النصية ويحافظ على النسب الفارغة", () => {

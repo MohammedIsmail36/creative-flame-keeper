@@ -65,14 +65,14 @@ import {
   computeSalesReportMetrics,
   getDocumentAmountExcludingTax,
   getSalesLineNetAmount,
-} from "@/lib/sales-report-metrics";
-import { groupSalesAndReturns } from "@/lib/sales-report-grouping";
+} from "@/features/sales-report/domain/metrics";
+import { groupSalesAndReturns } from "@/features/sales-report/domain/grouping";
 import {
   computeInvoiceCoverage,
   type InvoicePaymentAllocation,
   type InvoiceReturnSettlement,
-} from "@/lib/sales-report-collections";
-import { parseSalesReportServerSummary } from "@/lib/sales-report-summary";
+} from "@/features/sales-report/domain/collections";
+import { parseSalesReportServerSummary } from "@/features/sales-report/domain/server-summary";
 
 // ── helpers ──
 const fmt = (n: number) =>

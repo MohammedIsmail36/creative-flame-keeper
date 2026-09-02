@@ -1,3 +1,4 @@
+// Runtime validation for the sales report summary returned by PostgreSQL.
 type JsonRecord = Record<string, unknown>;
 
 export interface SalesReportServerSummary {
