@@ -60,6 +60,13 @@ import {
   getDocumentAmountExcludingTax,
 } from "@/features/sales-report/domain/metrics";
 import {
+  buildOverdueSalesInfo,
+  buildSalesDiscountTaxInfo,
+  buildSalesTargetInfo,
+  getInvoiceCoverage,
+  isSalesInvoiceOverdue,
+} from "@/features/sales-report/domain/insights";
+import {
   buildCategorySalesGroups,
   buildCustomerSalesGroups,
   buildProductSalesGroups,
@@ -212,66 +219,39 @@ export default function SalesReport() {
   };
 
   // ── Sales target ──
-  const targetInfo = useMemo(() => {
-    const target = Number(settings?.monthly_sales_target) || 0;
-    if (target <= 0) return null;
-    const fromDate = new Date(dateFrom);
-    const toDate = new Date(dateTo);
-    const monthsInRange = Math.max(
-      1,
-      (toDate.getFullYear() - fromDate.getFullYear()) * 12 +
-        toDate.getMonth() -
-        fromDate.getMonth() +
-        1,
-    );
-    const scaledTarget = target * monthsInRange;
-    const pct = scaledTarget > 0 ? (kpi.netSales / scaledTarget) * 100 : 0;
-    return { scaledTarget, pct, monthsInRange };
-  }, [settings, dateFrom, dateTo, kpi.netSales]);
+  const targetInfo = useMemo(
+    () =>
+      buildSalesTargetInfo(
+        settings?.monthly_sales_target,
+        dateFrom,
+        dateTo,
+        kpi.netSales,
+      ),
+    [settings?.monthly_sales_target, dateFrom, dateTo, kpi.netSales],
+  );
 
   // ── Overdue check ──
   const today = format(new Date(), "yyyy-MM-dd");
   const getCoverage = useCallback(
     (invoiceId: string) =>
-      invoiceCoverage.byInvoice[invoiceId] ?? {
-        cashCollected: 0,
-        returnSettled: 0,
-        totalCovered: 0,
-      },
+      getInvoiceCoverage(invoiceId, invoiceCoverage.byInvoice),
     [invoiceCoverage],
   );
   const isOverdue = useCallback(
-    (inv: any) => {
-      const remaining = Number(inv.total) - getCoverage(inv.id).totalCovered;
-      return (
-        inv.status === "posted" &&
-        inv.due_date &&
-        inv.due_date < today &&
-        remaining > 0
-      );
-    },
-    [getCoverage, today],
+    (inv: any) =>
+      isSalesInvoiceOverdue(inv, invoiceCoverage.byInvoice, today),
+    [invoiceCoverage.byInvoice, today],
   );
 
-  const overdueInfo = useMemo(() => {
-    const posted = invoices.filter((i) => i.status === "posted");
-    const ov = posted.filter(isOverdue);
-    return {
-      count: ov.length,
-      total: ov.reduce(
-        (s, i) => s + Number(i.total) - getCoverage(i.id).totalCovered,
-        0,
-      ),
-    };
-  }, [invoices, getCoverage, isOverdue]);
+  const overdueInfo = useMemo(
+    () => buildOverdueSalesInfo(invoices, invoiceCoverage.byInvoice, today),
+    [invoices, invoiceCoverage.byInvoice, today],
+  );
 
-  const discountTaxInfo = useMemo(() => {
-    const posted = invoices.filter((i) => i.status === "posted");
-    return {
-      discount: posted.reduce((s, i) => s + Number(i.discount || 0), 0),
-      tax: posted.reduce((s, i) => s + Number(i.tax || 0), 0),
-    };
-  }, [invoices]);
+  const discountTaxInfo = useMemo(
+    () => buildSalesDiscountTaxInfo(invoices),
+    [invoices],
+  );
 
   // ═══ GROUPING: By Invoice ═══
   const invoiceColumns = useMemo<ColumnDef<any, any>[]>(
