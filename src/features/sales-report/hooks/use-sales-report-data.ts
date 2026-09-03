@@ -82,7 +82,6 @@ export function useSalesReportData(dateFrom: string, dateTo: string) {
               "id, return_number, posted_number, reference, return_date, total, tax, status, customer_id, customer:customers(name), items:sales_return_items(description, quantity, total, net_total, product_id, product:products(name, model_number, category_id, category:product_categories(name), brand:product_brands(name)))",
               { count: "exact" },
             )
-            .eq("status", "posted")
             .gte("return_date", dateFrom)
             .lte("return_date", dateTo)
             .order("return_date", { ascending: false })

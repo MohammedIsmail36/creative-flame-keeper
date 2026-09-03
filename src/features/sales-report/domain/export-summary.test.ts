@@ -24,6 +24,10 @@ describe("buildSalesExportSummary", () => {
   it("exports the same financial and coverage KPIs with stable formatting", () => {
     const cards = buildSalesExportSummary(baseInput);
 
+    expect(cards[0]).toEqual({
+      label: "نطاق الملخص المالي",
+      value: "المستندات المُرحّلة فقط",
+    });
     expect(cards).toContainEqual({ label: "إجمالي الربح", value: "1,300.00" });
     expect(cards).toContainEqual({ label: "هامش الربح", value: "32.5%" });
     expect(cards).toContainEqual({

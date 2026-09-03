@@ -48,6 +48,7 @@ export function buildInvoiceSalesExport({
   cogsByInvoice,
   coverageByInvoice,
   today,
+  detailStatusLabel,
 }: {
   invoices: SalesExportInvoice[];
   dateFrom: string;
@@ -56,11 +57,12 @@ export function buildInvoiceSalesExport({
   cogsByInvoice: Record<string, number>;
   coverageByInvoice: Record<string, InvoiceCoverage>;
   today: string;
+  detailStatusLabel: string;
 }): DocumentSalesExportConfig {
   return {
     filenamePrefix: `تقرير-المبيعات-${dateFrom}-${dateTo}`,
     sheetName: "المبيعات",
-    pdfTitle: `تقرير المبيعات (${dateFrom} - ${dateTo})`,
+    pdfTitle: `تفاصيل فواتير المبيعات — ${detailStatusLabel} (${dateFrom} - ${dateTo})`,
     headers: [
       "رقم",
       "التاريخ",
@@ -112,19 +114,22 @@ export function buildReturnSalesExport({
   dateFrom,
   dateTo,
   returnPrefix,
+  detailStatusLabel,
 }: {
   returns: SalesExportReturn[];
   dateFrom: string;
   dateTo: string;
   returnPrefix: string;
+  detailStatusLabel: string;
 }): DocumentSalesExportConfig {
   return {
     filenamePrefix: `تقرير-مرتجعات-المبيعات-${dateFrom}-${dateTo}`,
     sheetName: "المرتجعات المستقلة",
-    pdfTitle: `مستندات مرتجعات المبيعات المستقلة (${dateFrom} - ${dateTo})`,
+    pdfTitle: `تفاصيل مرتجعات المبيعات المستقلة — ${detailStatusLabel} (${dateFrom} - ${dateTo})`,
     headers: [
       "رقم المرتجع",
       "التاريخ",
+      "الحالة",
       "العميل",
       "عدد البنود",
       "المرتجع قبل الضريبة",
@@ -138,6 +143,7 @@ export function buildReturnSalesExport({
         salesReturn.status,
       ),
       salesReturn.return_date,
+      getArabicDocumentStatus(salesReturn.status),
       salesReturn.customer?.name || "عميل نقدي",
       (salesReturn.items ?? []).length,
       getDocumentAmountExcludingTax(salesReturn),

@@ -186,6 +186,8 @@ export default function SalesReport() {
   const {
     detailInvoices,
     financialInvoices,
+    detailReturns,
+    financialReturns,
     financialMovements,
     invoiceCoverage,
     kpi,
@@ -498,6 +500,31 @@ export default function SalesReport() {
       },
       { accessorKey: "return_date", header: "التاريخ" },
       {
+        accessorKey: "status",
+        header: "الحالة",
+        cell: ({ getValue }) => {
+          const status = getValue() as string;
+          return (
+            <Badge
+              variant="outline"
+              className={
+                status === "posted"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+                  : status === "cancelled"
+                    ? "border-destructive/30 bg-destructive/10 text-destructive"
+                    : "border-amber-500/30 bg-amber-500/10 text-amber-700"
+              }
+            >
+              {status === "posted"
+                ? "مُرحّل"
+                : status === "cancelled"
+                  ? "ملغي"
+                  : "مسودة"}
+            </Badge>
+          );
+        },
+      },
+      {
         id: "customer",
         header: "العميل",
         accessorFn: (row: any) => row.customer?.name || "عميل نقدي",
@@ -549,8 +576,13 @@ export default function SalesReport() {
 
   // ═══ GROUPING: By Customer ═══
   const customerData = useMemo(
-    () => buildCustomerSalesGroups(financialInvoices, returns, getCoverage),
-    [financialInvoices, returns, getCoverage],
+    () =>
+      buildCustomerSalesGroups(
+        financialInvoices,
+        financialReturns,
+        getCoverage,
+      ),
+    [financialInvoices, financialReturns, getCoverage],
   );
 
   const customerColumns = useMemo<ColumnDef<any, any>[]>(
@@ -717,8 +749,12 @@ export default function SalesReport() {
   // ═══ GROUPING: By Product ═══
   const productData = useMemo(
     () =>
-      buildProductSalesGroups(financialInvoices, returns, financialMovements),
-    [financialInvoices, returns, financialMovements],
+      buildProductSalesGroups(
+        financialInvoices,
+        financialReturns,
+        financialMovements,
+      ),
+    [financialInvoices, financialReturns, financialMovements],
   );
 
   const productColumns = useMemo<ColumnDef<any, any>[]>(
@@ -885,12 +921,12 @@ export default function SalesReport() {
     () =>
       buildTimeSalesGroups(
         financialInvoices,
-        returns,
+        financialReturns,
         financialMovements,
         timeMode,
         true,
       ),
-    [financialInvoices, returns, financialMovements, timeMode],
+    [financialInvoices, financialReturns, financialMovements, timeMode],
   );
 
   const timeColumns = useMemo<ColumnDef<any, any>[]>(() => {
@@ -1075,11 +1111,11 @@ export default function SalesReport() {
     () =>
       buildCategorySalesGroups(
         financialInvoices,
-        returns,
+        financialReturns,
         financialMovements,
         true,
       ),
-    [financialInvoices, returns, financialMovements],
+    [financialInvoices, financialReturns, financialMovements],
   );
 
   const categoryColumns = useMemo<ColumnDef<any, any>[]>(() => {
@@ -1288,6 +1324,14 @@ export default function SalesReport() {
 
   // ── Export config ──
   const exportConfig = useMemo(() => {
+    const detailStatusLabel =
+      statusFilter === "all"
+        ? "كل الحالات"
+        : statusFilter === "posted"
+          ? "المُرحّلة فقط"
+          : statusFilter === "cancelled"
+            ? "الملغاة فقط"
+            : "المسودات فقط";
     const summaryCards = buildSalesExportSummary({
       kpi,
       overdueInfo,
@@ -1305,6 +1349,7 @@ export default function SalesReport() {
           cogsByInvoice,
           coverageByInvoice: invoiceCoverage.byInvoice,
           today,
+          detailStatusLabel,
         }),
         summaryCards,
         settings,
@@ -1313,10 +1358,11 @@ export default function SalesReport() {
     if (groupBy === "return") {
       return {
         ...buildReturnSalesExport({
-          returns,
+          returns: detailReturns,
           dateFrom,
           dateTo,
           returnPrefix: settings?.sales_return_prefix || "SRN-",
+          detailStatusLabel,
         }),
         summaryCards,
         settings,
@@ -1340,7 +1386,7 @@ export default function SalesReport() {
   }, [
     groupBy,
     detailInvoices,
-    returns,
+    detailReturns,
     customerData,
     productData,
     categoryData,
@@ -1356,6 +1402,7 @@ export default function SalesReport() {
     cogsByInvoice,
     invoiceCoverage.byInvoice,
     today,
+    statusFilter,
   ]);
 
   const reportQueries = [
@@ -1429,9 +1476,9 @@ export default function SalesReport() {
 
             <div className="hidden h-7 w-px bg-border lg:block" />
 
-            {groupBy === "invoice" ? (
+            {groupBy === "invoice" || groupBy === "return" ? (
               <div className="flex items-center gap-2">
-                <span className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">حالة الفواتير</span>
+                <span className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">حالة المستندات</span>
                 <Select
                   value={statusFilter}
                   onValueChange={(v: any) => setStatusFilter(v)}
@@ -2075,13 +2122,13 @@ export default function SalesReport() {
             <>
               <DataTable
                 columns={returnColumns}
-                data={returns}
+                data={detailReturns}
                 isLoading={isLoading}
                 pageSize={20}
                 showPagination
                 showSearch
                 searchPlaceholder="بحث في مستندات المرتجعات..."
-                emptyMessage="لا توجد مرتجعات مُرحّلة في هذه الفترة"
+                emptyMessage="لا توجد مرتجعات بهذه الحالة في الفترة"
                 columnVisibility={returnColumnVisibility}
                 onColumnVisibilityChange={setReturnColumnVisibility}
                 columnToggleLabel="أعمدة إضافية"

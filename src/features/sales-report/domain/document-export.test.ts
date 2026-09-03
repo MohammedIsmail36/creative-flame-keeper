@@ -33,6 +33,7 @@ describe("sales document exports", () => {
           totalCovered: 600,
         },
       },
+      detailStatusLabel: "المُرحّلة فقط",
     });
 
     expect(config.rows[0]).toEqual([
@@ -80,6 +81,7 @@ describe("sales document exports", () => {
       ],
       cogsByInvoice: {},
       coverageByInvoice: {},
+      detailStatusLabel: "كل الحالات",
     });
 
     expect(config.rows[0].slice(9, 12)).toEqual(["—", "—", ""]);
@@ -90,6 +92,7 @@ describe("sales document exports", () => {
     const config = buildReturnSalesExport({
       ...period,
       returnPrefix: "SRN-",
+      detailStatusLabel: "المُرحّلة فقط",
       returns: [
         {
           return_number: 20,
@@ -107,6 +110,7 @@ describe("sales document exports", () => {
     expect(config.rows[0]).toEqual([
       "SRN-0003",
       "2026-08-10",
+      "مُرحّل",
       "عميل نقدي",
       2,
       200,

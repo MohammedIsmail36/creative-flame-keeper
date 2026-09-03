@@ -41,6 +41,10 @@ export function buildSalesExportSummary({
   targetInfo,
 }: SalesExportSummaryInput): SalesExportSummaryCard[] {
   return [
+    {
+      label: "نطاق الملخص المالي",
+      value: "المستندات المُرحّلة فقط",
+    },
     { label: "عدد الفواتير", value: String(kpi.count) },
     {
       label: "إجمالي المبيعات قبل الضريبة",
