@@ -64,7 +64,6 @@ import {
   buildSalesDiscountTaxInfo,
   buildSalesTargetInfo,
   getInvoiceCoverage,
-  isSalesInvoiceOverdue,
 } from "@/features/sales-report/domain/insights";
 import {
   buildCategorySalesGroups,
@@ -79,6 +78,7 @@ import {
   buildInvoiceSalesExport,
   buildReturnSalesExport,
 } from "@/features/sales-report/domain/document-export";
+import { buildSalesInvoiceRowMetrics } from "@/features/sales-report/domain/invoice-row";
 import { useSalesReportPreferences } from "@/features/sales-report/hooks/use-sales-report-preferences";
 import { useSalesReportData } from "@/features/sales-report/hooks/use-sales-report-data";
 import { useSalesReportMetrics } from "@/features/sales-report/hooks/use-sales-report-metrics";
@@ -244,10 +244,15 @@ export default function SalesReport() {
       getInvoiceCoverage(invoiceId, invoiceCoverage.byInvoice),
     [invoiceCoverage],
   );
-  const isOverdue = useCallback(
-    (inv: any) =>
-      isSalesInvoiceOverdue(inv, invoiceCoverage.byInvoice, today),
-    [invoiceCoverage.byInvoice, today],
+  const getInvoiceRowMetrics = useCallback(
+    (invoice: any) =>
+      buildSalesInvoiceRowMetrics(
+        invoice,
+        cogsByInvoice,
+        invoiceCoverage.byInvoice,
+        today,
+      ),
+    [cogsByInvoice, invoiceCoverage.byInvoice, today],
   );
 
   const overdueInfo = useMemo(
@@ -317,25 +322,29 @@ export default function SalesReport() {
       {
         id: "total",
         header: "الإجمالي",
-        accessorFn: (r: any) => Number(r.total),
+        accessorFn: (r: any) => getInvoiceRowMetrics(r).total,
         cell: ({ getValue }) => fmt(getValue() as number),
         footer: ({ table }) => {
           const total = table
             .getFilteredRowModel()
-            .rows.reduce((s, r) => s + Number(r.original.total), 0);
+            .rows.reduce(
+              (sum, row) => sum + getInvoiceRowMetrics(row.original).total,
+              0,
+            );
           return <span className="font-bold font-mono">{fmt(total)}</span>;
         },
       },
       {
         id: "cashCollected",
         header: "تحصيل نقدي/بنكي",
-        accessorFn: (r: any) => getCoverage(r.id).cashCollected,
+        accessorFn: (r: any) => getInvoiceRowMetrics(r).coverage.cashCollected,
         cell: ({ getValue }) => fmt(getValue() as number),
         footer: ({ table }) => {
           const total = table
             .getFilteredRowModel()
             .rows.reduce(
-              (sum, row) => sum + getCoverage(row.original.id).cashCollected,
+              (sum, row) =>
+                sum + getInvoiceRowMetrics(row.original).coverage.cashCollected,
               0,
             );
           return <span className="font-mono">{fmt(total)}</span>;
@@ -344,7 +353,7 @@ export default function SalesReport() {
       {
         id: "returnSettled",
         header: "تسوية بمرتجع",
-        accessorFn: (r: any) => getCoverage(r.id).returnSettled,
+        accessorFn: (r: any) => getInvoiceRowMetrics(r).coverage.returnSettled,
         cell: ({ getValue }) => fmt(getValue() as number),
         footer: ({ table }) => (
           <span className="font-mono">
@@ -352,7 +361,8 @@ export default function SalesReport() {
               table
                 .getFilteredRowModel()
                 .rows.reduce(
-                  (sum, row) => sum + getCoverage(row.original.id).returnSettled,
+                  (sum, row) =>
+                    sum + getInvoiceRowMetrics(row.original).coverage.returnSettled,
                   0,
                 ),
             )}
@@ -362,7 +372,7 @@ export default function SalesReport() {
       {
         id: "remaining",
         header: "المتبقي",
-        accessorFn: (r: any) => Number(r.total) - getCoverage(r.id).totalCovered,
+        accessorFn: (r: any) => getInvoiceRowMetrics(r).remaining,
         cell: ({ getValue, row }) => {
           const v = getValue() as number;
           return (
@@ -370,7 +380,7 @@ export default function SalesReport() {
               <span className={v > 0 ? "text-destructive font-medium" : ""}>
                 {fmt(v)}
               </span>
-              {isOverdue(row.original) && (
+              {getInvoiceRowMetrics(row.original).overdue && (
                 <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">
                   <AlertTriangle className="me-0.5 h-3 w-3" />
                   متأخر
@@ -383,8 +393,8 @@ export default function SalesReport() {
           const total = table
             .getFilteredRowModel()
             .rows.reduce(
-              (s, r) =>
-                s + Number(r.original.total) - getCoverage(r.original.id).totalCovered,
+              (sum, row) =>
+                sum + getInvoiceRowMetrics(row.original).remaining,
               0,
             );
           return (
@@ -395,49 +405,44 @@ export default function SalesReport() {
       {
         id: "cogs",
         header: "تكلفة البضاعة",
-        accessorFn: (r: any) => cogsByInvoice[r.id] || 0,
+        accessorFn: (r: any) => getInvoiceRowMetrics(r).cogs,
         cell: ({ getValue }) => (
           <span className="font-mono">{fmt(getValue() as number)}</span>
         ),
         footer: ({ table }) => {
           const total = table
             .getFilteredRowModel()
-            .rows.reduce((s, r) => s + (cogsByInvoice[r.original.id] || 0), 0);
+            .rows.reduce(
+              (sum, row) => sum + getInvoiceRowMetrics(row.original).cogs,
+              0,
+            );
           return <span className="font-mono">{fmt(total)}</span>;
         },
       },
       {
         id: "profit",
         header: "الربح قبل المرتجعات المستقلة",
-        accessorFn: (r: any) => {
-          if (r.status !== "posted") return 0;
-          return Number(r.total) - Number(r.tax || 0) - (cogsByInvoice[r.id] || 0);
-        },
+        accessorFn: (r: any) => getInvoiceRowMetrics(r).profit ?? 0,
         cell: ({ row }) => {
-          const r = row.original;
-          if (r.status !== "posted")
+          const profit = getInvoiceRowMetrics(row.original).profit;
+          if (profit === null)
             return <span className="text-muted-foreground">—</span>;
-          const v = Number(r.total) - Number(r.tax || 0) - (cogsByInvoice[r.id] || 0);
           return (
             <span
-              className={`font-mono ${v < 0 ? "text-destructive" : "text-emerald-600"}`}
+              className={`font-mono ${profit < 0 ? "text-destructive" : "text-emerald-600"}`}
             >
-              {fmt(v)}
+              {fmt(profit)}
             </span>
           );
         },
         footer: ({ table }) => {
           const total = table
             .getFilteredRowModel()
-            .rows.reduce((s, r) => {
-              if (r.original.status !== "posted") return s;
-              return (
-                s +
-                Number(r.original.total) -
-                Number(r.original.tax || 0) -
-                (cogsByInvoice[r.original.id] || 0)
-              );
-            }, 0);
+            .rows.reduce(
+              (sum, row) =>
+                sum + (getInvoiceRowMetrics(row.original).profit ?? 0),
+              0,
+            );
           return (
             <span className="font-bold font-mono">{fmt(total)}</span>
           );
@@ -446,30 +451,20 @@ export default function SalesReport() {
       {
         id: "margin",
         header: "الهامش%",
-        accessorFn: (r: any) => {
-          if (r.status !== "posted") return 0;
-          const rev = Number(r.total) - Number(r.tax || 0);
-          if (rev <= 0) return 0;
-          return ((rev - (cogsByInvoice[r.id] || 0)) / rev) * 100;
-        },
+        accessorFn: (r: any) => getInvoiceRowMetrics(r).margin ?? 0,
         cell: ({ row }) => {
-          const r = row.original;
-          if (r.status !== "posted")
-            return <span className="text-muted-foreground">—</span>;
-          const cogs = cogsByInvoice[r.id] || 0;
-          const rev = Number(r.total) - Number(r.tax || 0);
-          if (rev <= 0 || cogs <= 0)
+          const margin = getInvoiceRowMetrics(row.original).margin;
+          if (margin === null)
             return (
               <span className="text-muted-foreground" title="لا توجد تكلفة مسجّلة لهذه الفاتورة">
                 —
               </span>
             );
-          const v = ((rev - cogs) / rev) * 100;
-          return <span className="font-mono">{v.toFixed(1)}%</span>;
+          return <span className="font-mono">{margin.toFixed(1)}%</span>;
         },
       },
     ],
-    [navigate, cogsByInvoice, getCoverage, isOverdue, settings?.sales_invoice_prefix],
+    [navigate, getInvoiceRowMetrics, settings?.sales_invoice_prefix],
   );
 
   // ═══ STANDALONE SALES RETURNS ═══

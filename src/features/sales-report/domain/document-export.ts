@@ -1,16 +1,15 @@
 import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import type { InvoiceCoverage } from "./collections";
 import {
-  getInvoiceCoverage,
-  isSalesInvoiceOverdue,
-  type SalesInsightInvoice,
-} from "./insights";
+  buildSalesInvoiceRowMetrics,
+  type SalesInvoiceRowDocument,
+} from "./invoice-row";
 import { getDocumentAmountExcludingTax } from "./metrics";
 
 type NumericValue = number | string | null | undefined;
 type ExportCell = string | number;
 
-interface SalesExportInvoice extends SalesInsightInvoice {
+interface SalesExportInvoice extends SalesInvoiceRowDocument {
   invoice_number: number;
   posted_number: number | null;
   invoice_date: string;
@@ -37,11 +36,6 @@ export interface DocumentSalesExportConfig {
   rows: ExportCell[][];
   pdfOrientation?: "landscape";
 }
-
-const toFiniteNumber = (value: NumericValue): number => {
-  const number = Number(value ?? 0);
-  return Number.isFinite(number) ? number : 0;
-};
 
 const getArabicDocumentStatus = (status: string | null) =>
   status === "posted" ? "مُرحّل" : status === "cancelled" ? "ملغي" : "مسودة";
@@ -82,16 +76,12 @@ export function buildInvoiceSalesExport({
       "متأخر",
     ],
     rows: invoices.map((invoice) => {
-      const coverage = getInvoiceCoverage(invoice.id, coverageByInvoice);
-      const total = toFiniteNumber(invoice.total);
-      const revenue = total - toFiniteNumber(invoice.tax);
-      const cogs = cogsByInvoice[invoice.id] ?? 0;
-      const isPosted = invoice.status === "posted";
-      const profit = revenue - cogs;
-      const margin =
-        isPosted && revenue > 0 && cogs > 0
-          ? `${((profit / revenue) * 100).toFixed(1)}%`
-          : "—";
+      const metrics = buildSalesInvoiceRowMetrics(
+        invoice,
+        cogsByInvoice,
+        coverageByInvoice,
+        today,
+      );
 
       return [
         formatDisplayNumber(
@@ -103,14 +93,14 @@ export function buildInvoiceSalesExport({
         invoice.invoice_date,
         invoice.customer?.name || "-",
         getArabicDocumentStatus(invoice.status),
-        total,
-        coverage.cashCollected,
-        coverage.returnSettled,
-        total - coverage.totalCovered,
-        cogs,
-        isPosted ? profit : "—",
-        margin,
-        isSalesInvoiceOverdue(invoice, coverageByInvoice, today) ? "نعم" : "",
+        metrics.total,
+        metrics.coverage.cashCollected,
+        metrics.coverage.returnSettled,
+        metrics.remaining,
+        metrics.cogs,
+        metrics.profit ?? "—",
+        metrics.margin === null ? "—" : `${metrics.margin.toFixed(1)}%`,
+        metrics.overdue ? "نعم" : "",
       ];
     }),
     pdfOrientation: "landscape",
