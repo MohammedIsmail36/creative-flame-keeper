@@ -75,6 +75,10 @@ import {
 import { buildSalesReportChart } from "@/features/sales-report/domain/chart";
 import { buildSalesExportSummary } from "@/features/sales-report/domain/export-summary";
 import { buildAggregateSalesExport } from "@/features/sales-report/domain/aggregate-export";
+import {
+  buildInvoiceSalesExport,
+  buildReturnSalesExport,
+} from "@/features/sales-report/domain/document-export";
 import { useSalesReportPreferences } from "@/features/sales-report/hooks/use-sales-report-preferences";
 import { useSalesReportData } from "@/features/sales-report/hooks/use-sales-report-data";
 import { useSalesReportMetrics } from "@/features/sales-report/hooks/use-sales-report-metrics";
@@ -1295,84 +1299,27 @@ export default function SalesReport() {
 
     if (groupBy === "invoice") {
       return {
-        filenamePrefix: `تقرير-المبيعات-${dateFrom}-${dateTo}`,
-        sheetName: "المبيعات",
-        pdfTitle: `تقرير المبيعات (${dateFrom} - ${dateTo})`,
-        headers: [
-          "رقم",
-          "التاريخ",
-          "العميل",
-          "الحالة",
-          "الإجمالي",
-          "التحصيل النقدي/البنكي",
-          "تسوية بمرتجع",
-          "المتبقي",
-          "تكلفة البضاعة",
-          "الربح قبل المرتجعات المستقلة",
-          "الهامش%",
-          "متأخر",
-        ],
-        rows: filtered.map((inv) => {
-          const cogs = cogsByInvoice[inv.id] || 0;
-          const rev = Number(inv.total) - Number(inv.tax || 0);
-          const isPosted = inv.status === "posted";
-          const profit = isPosted ? rev - cogs : 0;
-          const margin = isPosted && rev > 0 ? ((rev - cogs) / rev) * 100 : 0;
-          return [
-            formatDisplayNumber(
-              settings?.sales_invoice_prefix || "INV-",
-              inv.posted_number,
-              inv.invoice_number,
-              inv.status,
-            ),
-            inv.invoice_date,
-            inv.customer?.name || "-",
-            inv.status === "posted"
-              ? "مُرحّل"
-              : inv.status === "cancelled"
-                ? "ملغي"
-                : "مسودة",
-            Number(inv.total),
-            getCoverage(inv.id).cashCollected,
-            getCoverage(inv.id).returnSettled,
-            Number(inv.total) - getCoverage(inv.id).totalCovered,
-            cogs,
-            isPosted ? profit : "—",
-            isPosted ? margin.toFixed(1) + "%" : "—",
-            isOverdue(inv) ? "نعم" : "",
-          ];
+        ...buildInvoiceSalesExport({
+          invoices: filtered,
+          dateFrom,
+          dateTo,
+          invoicePrefix: settings?.sales_invoice_prefix || "INV-",
+          cogsByInvoice,
+          coverageByInvoice: invoiceCoverage.byInvoice,
+          today,
         }),
         summaryCards,
         settings,
-        pdfOrientation: "landscape" as const,
       };
     }
     if (groupBy === "return") {
       return {
-        filenamePrefix: `تقرير-مرتجعات-المبيعات-${dateFrom}-${dateTo}`,
-        sheetName: "المرتجعات المستقلة",
-        pdfTitle: `مستندات مرتجعات المبيعات المستقلة (${dateFrom} - ${dateTo})`,
-        headers: [
-          "رقم المرتجع",
-          "التاريخ",
-          "العميل",
-          "عدد البنود",
-          "المرتجع قبل الضريبة",
-          "النوع",
-        ],
-        rows: returns.map((salesReturn) => [
-          formatDisplayNumber(
-            settings?.sales_return_prefix || "SRN-",
-            salesReturn.posted_number,
-            salesReturn.return_number,
-            salesReturn.status,
-          ),
-          salesReturn.return_date,
-          salesReturn.customer?.name || "عميل نقدي",
-          (salesReturn.items || []).length,
-          getDocumentAmountExcludingTax(salesReturn),
-          "مستند مستقل",
-        ]),
+        ...buildReturnSalesExport({
+          returns,
+          dateFrom,
+          dateTo,
+          returnPrefix: settings?.sales_return_prefix || "SRN-",
+        }),
         summaryCards,
         settings,
       };
@@ -1410,8 +1357,8 @@ export default function SalesReport() {
     discountTaxInfo,
     targetInfo,
     cogsByInvoice,
-    getCoverage,
-    isOverdue,
+    invoiceCoverage.byInvoice,
+    today,
   ]);
 
   const reportQueries = [
