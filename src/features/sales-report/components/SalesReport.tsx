@@ -184,8 +184,8 @@ export default function SalesReport() {
   } = useSalesReportData(dateFrom, dateTo);
 
   const {
-    filtered,
-    isPostedOnly,
+    detailInvoices,
+    financialInvoices,
     invoiceCoverage,
     kpi,
     prevKpi,
@@ -548,8 +548,8 @@ export default function SalesReport() {
 
   // ═══ GROUPING: By Customer ═══
   const customerData = useMemo(
-    () => buildCustomerSalesGroups(filtered, returns, getCoverage),
-    [filtered, returns, getCoverage],
+    () => buildCustomerSalesGroups(financialInvoices, returns, getCoverage),
+    [financialInvoices, returns, getCoverage],
   );
 
   const customerColumns = useMemo<ColumnDef<any, any>[]>(
@@ -715,8 +715,8 @@ export default function SalesReport() {
 
   // ═══ GROUPING: By Product ═══
   const productData = useMemo(
-    () => buildProductSalesGroups(filtered, returns, movements),
-    [filtered, returns, movements],
+    () => buildProductSalesGroups(financialInvoices, returns, movements),
+    [financialInvoices, returns, movements],
   );
 
   const productColumns = useMemo<ColumnDef<any, any>[]>(
@@ -882,13 +882,13 @@ export default function SalesReport() {
   const timeData = useMemo(
     () =>
       buildTimeSalesGroups(
-        filtered,
+        financialInvoices,
         returns,
         movements,
         timeMode,
-        isPostedOnly,
+        true,
       ),
-    [filtered, returns, movements, timeMode, isPostedOnly],
+    [financialInvoices, returns, movements, timeMode],
   );
 
   const timeColumns = useMemo<ColumnDef<any, any>[]>(() => {
@@ -1001,8 +1001,7 @@ export default function SalesReport() {
         },
       },
     ];
-    if (isPostedOnly) {
-      cols.push(
+    cols.push(
         {
           accessorKey: "profit",
           header: "الربح",
@@ -1050,7 +1049,6 @@ export default function SalesReport() {
           },
         },
       );
-    }
     cols.push({
       accessorKey: "growth",
       header: "النمو vs السابق",
@@ -1068,13 +1066,13 @@ export default function SalesReport() {
       },
     });
     return cols;
-  }, [timeMode, isPostedOnly]);
+  }, [timeMode]);
 
   // ═══ GROUPING: By Category ═══
   const categoryData = useMemo(
     () =>
-      buildCategorySalesGroups(filtered, returns, movements, isPostedOnly),
-    [filtered, returns, movements, isPostedOnly],
+      buildCategorySalesGroups(financialInvoices, returns, movements, true),
+    [financialInvoices, returns, movements],
   );
 
   const categoryColumns = useMemo<ColumnDef<any, any>[]>(() => {
@@ -1196,8 +1194,7 @@ export default function SalesReport() {
         },
       },
     ];
-    if (isPostedOnly) {
-      cols.push(
+    cols.push(
         {
           accessorKey: "profit",
           header: "الربح",
@@ -1245,7 +1242,6 @@ export default function SalesReport() {
           },
         },
       );
-    }
     cols.push({
       accessorKey: "pctOfTotal",
       header: "% المساهمة",
@@ -1267,7 +1263,7 @@ export default function SalesReport() {
       },
     });
     return cols;
-  }, [isPostedOnly]);
+  }, []);
 
   // ── One decision-oriented chart for the active aggregate view ──
   const { meta: chartMeta, data: chartData } = useMemo(
@@ -1295,7 +1291,7 @@ export default function SalesReport() {
     if (groupBy === "invoice") {
       return {
         ...buildInvoiceSalesExport({
-          invoices: filtered,
+          invoices: detailInvoices,
           dateFrom,
           dateTo,
           invoicePrefix: settings?.sales_invoice_prefix || "INV-",
@@ -1325,7 +1321,7 @@ export default function SalesReport() {
         dateFrom,
         dateTo,
         timeMode,
-        isPostedOnly,
+        isPostedOnly: true,
         customerData,
         productData,
         categoryData,
@@ -1336,7 +1332,7 @@ export default function SalesReport() {
     };
   }, [
     groupBy,
-    filtered,
+    detailInvoices,
     returns,
     customerData,
     productData,
@@ -1347,7 +1343,6 @@ export default function SalesReport() {
     dateTo,
     settings,
     timeMode,
-    isPostedOnly,
     overdueInfo,
     discountTaxInfo,
     targetInfo,
@@ -1427,23 +1422,29 @@ export default function SalesReport() {
 
             <div className="hidden h-7 w-px bg-border lg:block" />
 
-            <div className="flex items-center gap-2">
-              <span className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">حالة التفاصيل</span>
-              <Select
-                value={statusFilter}
-                onValueChange={(v: any) => setStatusFilter(v)}
-              >
-                <SelectTrigger className="h-9 w-[120px] border-0 bg-muted/50 font-medium shadow-none hover:bg-muted">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">الكل</SelectItem>
-                  <SelectItem value="posted">مُرحّل</SelectItem>
-                  <SelectItem value="draft">مسودة</SelectItem>
-                  <SelectItem value="cancelled">ملغي</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {groupBy === "invoice" ? (
+              <div className="flex items-center gap-2">
+                <span className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">حالة الفواتير</span>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(v: any) => setStatusFilter(v)}
+                >
+                  <SelectTrigger className="h-9 w-[120px] border-0 bg-muted/50 font-medium shadow-none hover:bg-muted">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">الكل</SelectItem>
+                    <SelectItem value="posted">مُرحّل</SelectItem>
+                    <SelectItem value="draft">مسودة</SelectItem>
+                    <SelectItem value="cancelled">ملغي</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <Badge variant="outline" className="h-8 bg-muted/30 px-3 text-[11px] font-medium text-muted-foreground">
+                التحليل المالي: المُرحّلة فقط
+              </Badge>
+            )}
 
             <div className="ms-auto shrink-0">
               <ExportMenu
@@ -2039,7 +2040,7 @@ export default function SalesReport() {
           {groupBy === "invoice" ? (
             <DataTable
               columns={invoiceColumns}
-              data={filtered}
+              data={detailInvoices}
               isLoading={isLoading}
               pageSize={20}
               showPagination

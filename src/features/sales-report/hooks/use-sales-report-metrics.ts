@@ -6,6 +6,7 @@ import {
 import { computeInvoiceCoverage } from "@/features/sales-report/domain/collections";
 import type { SalesReportServerSummary } from "@/features/sales-report/domain/server-summary";
 import type { SalesReportStatusFilter } from "./use-sales-report-preferences";
+import { buildSalesInvoiceScopes } from "@/features/sales-report/domain/document-scope";
 
 interface UseSalesReportMetricsInput {
   invoices: any[];
@@ -26,10 +27,10 @@ export function useSalesReportMetrics({
   statusFilter,
   serverSummary,
 }: UseSalesReportMetricsInput) {
-  const filtered = useMemo(() => {
-    if (statusFilter === "all") return invoices;
-    return invoices.filter((invoice) => invoice.status === statusFilter);
-  }, [invoices, statusFilter]);
+  const { detailInvoices, financialInvoices } = useMemo(
+    () => buildSalesInvoiceScopes(invoices, statusFilter),
+    [invoices, statusFilter],
+  );
 
   const invoiceCoverage = useMemo(
     () =>
@@ -71,8 +72,8 @@ export function useSalesReportMetrics({
   );
 
   return {
-    filtered,
-    isPostedOnly: statusFilter === "posted",
+    detailInvoices,
+    financialInvoices,
     invoiceCoverage,
     kpi,
     prevKpi,
