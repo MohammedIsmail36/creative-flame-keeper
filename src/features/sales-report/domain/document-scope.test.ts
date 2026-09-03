@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildSalesInvoiceScopes } from "./document-scope";
+import {
+  buildSalesInvoiceScopes,
+  filterFinancialSalesMovements,
+} from "./document-scope";
 
 const invoices = [
   { id: "posted-1", status: "posted" },
@@ -30,5 +33,64 @@ describe("buildSalesInvoiceScopes", () => {
     expect(
       buildSalesInvoiceScopes(invoices, "all").detailInvoices,
     ).toEqual(invoices);
+  });
+});
+
+describe("filterFinancialSalesMovements", () => {
+  const movements = [
+    {
+      id: "posted-sale",
+      movement_type: "sale",
+      reference_type: "sales_invoice",
+      reference_id: "invoice-posted",
+    },
+    {
+      id: "draft-sale",
+      movement_type: "sale",
+      reference_type: "sales_invoice",
+      reference_id: "invoice-draft",
+    },
+    {
+      id: "posted-return",
+      movement_type: "sale_return",
+      reference_type: "sales_return",
+      reference_id: "return-posted",
+    },
+    {
+      id: "outside-return",
+      movement_type: "sale_return",
+      reference_type: "sales_return",
+      reference_id: "return-outside",
+    },
+    {
+      id: "wrong-reference-type",
+      movement_type: "sale",
+      reference_type: "sales_return",
+      reference_id: "invoice-posted",
+    },
+    { id: "orphan", movement_type: "sale", reference_id: null },
+  ];
+
+  it("keeps only movements linked to posted documents in the report", () => {
+    const result = filterFinancialSalesMovements(
+      [
+        { id: "invoice-posted", status: "posted" },
+        { id: "invoice-draft", status: "draft" },
+      ],
+      [
+        { id: "return-posted", status: "posted" },
+        { id: "return-outside", status: "cancelled" },
+      ],
+      movements,
+    );
+
+    expect(result.map(({ id }) => id)).toEqual([
+      "posted-sale",
+      "posted-return",
+    ]);
+  });
+
+  it("does not admit a movement merely because its date was queried", () => {
+    expect(filterFinancialSalesMovements([], [], movements)).toEqual([]);
   });
 });

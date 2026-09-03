@@ -6,7 +6,10 @@ import {
 import { computeInvoiceCoverage } from "@/features/sales-report/domain/collections";
 import type { SalesReportServerSummary } from "@/features/sales-report/domain/server-summary";
 import type { SalesReportStatusFilter } from "./use-sales-report-preferences";
-import { buildSalesInvoiceScopes } from "@/features/sales-report/domain/document-scope";
+import {
+  buildSalesInvoiceScopes,
+  filterFinancialSalesMovements,
+} from "@/features/sales-report/domain/document-scope";
 
 interface UseSalesReportMetricsInput {
   invoices: any[];
@@ -32,6 +35,11 @@ export function useSalesReportMetrics({
     [invoices, statusFilter],
   );
 
+  const financialMovements = useMemo(
+    () => filterFinancialSalesMovements(financialInvoices, returns, movements),
+    [financialInvoices, returns, movements],
+  );
+
   const invoiceCoverage = useMemo(
     () =>
       computeInvoiceCoverage(invoices, paymentAllocations, returnSettlements),
@@ -39,7 +47,11 @@ export function useSalesReportMetrics({
   );
 
   const kpi = useMemo(() => {
-    const metrics = computeSalesReportMetrics({ invoices, returns, movements });
+    const metrics = computeSalesReportMetrics({
+      invoices,
+      returns,
+      movements: financialMovements,
+    });
 
     return {
       count: metrics.invoiceCount,
@@ -55,7 +67,7 @@ export function useSalesReportMetrics({
       cashCollectionRate: invoiceCoverage.cashCollectionRate,
       cogs: metrics.netCogs,
     };
-  }, [invoices, returns, movements, invoiceCoverage]);
+  }, [invoices, returns, financialMovements, invoiceCoverage]);
 
   const prevKpi = useMemo(
     () => ({
@@ -67,13 +79,14 @@ export function useSalesReportMetrics({
   );
 
   const cogsByInvoice = useMemo(
-    () => buildSalesCogsByInvoice(movements),
-    [movements],
+    () => buildSalesCogsByInvoice(financialMovements),
+    [financialMovements],
   );
 
   return {
     detailInvoices,
     financialInvoices,
+    financialMovements,
     invoiceCoverage,
     kpi,
     prevKpi,

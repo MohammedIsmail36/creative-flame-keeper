@@ -186,6 +186,7 @@ export default function SalesReport() {
   const {
     detailInvoices,
     financialInvoices,
+    financialMovements,
     invoiceCoverage,
     kpi,
     prevKpi,
@@ -715,8 +716,9 @@ export default function SalesReport() {
 
   // ═══ GROUPING: By Product ═══
   const productData = useMemo(
-    () => buildProductSalesGroups(financialInvoices, returns, movements),
-    [financialInvoices, returns, movements],
+    () =>
+      buildProductSalesGroups(financialInvoices, returns, financialMovements),
+    [financialInvoices, returns, financialMovements],
   );
 
   const productColumns = useMemo<ColumnDef<any, any>[]>(
@@ -884,11 +886,11 @@ export default function SalesReport() {
       buildTimeSalesGroups(
         financialInvoices,
         returns,
-        movements,
+        financialMovements,
         timeMode,
         true,
       ),
-    [financialInvoices, returns, movements, timeMode],
+    [financialInvoices, returns, financialMovements, timeMode],
   );
 
   const timeColumns = useMemo<ColumnDef<any, any>[]>(() => {
@@ -1071,8 +1073,13 @@ export default function SalesReport() {
   // ═══ GROUPING: By Category ═══
   const categoryData = useMemo(
     () =>
-      buildCategorySalesGroups(financialInvoices, returns, movements, true),
-    [financialInvoices, returns, movements],
+      buildCategorySalesGroups(
+        financialInvoices,
+        returns,
+        financialMovements,
+        true,
+      ),
+    [financialInvoices, returns, financialMovements],
   );
 
   const categoryColumns = useMemo<ColumnDef<any, any>[]>(() => {
