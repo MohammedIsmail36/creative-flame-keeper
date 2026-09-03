@@ -74,6 +74,7 @@ import {
 } from "@/features/sales-report/domain/grouping";
 import { buildSalesReportChart } from "@/features/sales-report/domain/chart";
 import { buildSalesExportSummary } from "@/features/sales-report/domain/export-summary";
+import { buildAggregateSalesExport } from "@/features/sales-report/domain/aggregate-export";
 import { useSalesReportPreferences } from "@/features/sales-report/hooks/use-sales-report-preferences";
 import { useSalesReportData } from "@/features/sales-report/hooks/use-sales-report-data";
 import { useSalesReportMetrics } from "@/features/sales-report/hooks/use-sales-report-metrics";
@@ -1376,153 +1377,18 @@ export default function SalesReport() {
         settings,
       };
     }
-    if (groupBy === "customer") {
-      return {
-        filenamePrefix: `تقرير-مبيعات-بالعميل-${dateFrom}-${dateTo}`,
-        sheetName: "بالعميل",
-        pdfTitle: `تقرير المبيعات بالعميل (${dateFrom} - ${dateTo})`,
-        headers: [
-          "العميل",
-          "عدد الفواتير",
-          "الإجمالي",
-          "المرتجعات",
-          "الصافي",
-          "الفواتير شامل الضريبة",
-          "التحصيل النقدي/البنكي",
-          "تسوية بمرتجع",
-          "المتبقي",
-          "التحصيل النقدي%",
-        ],
-        rows: customerData.map((c) => [
-          c.name,
-          c.count,
-          c.total,
-          c.returns,
-          c.total - c.returns,
-          c.invoiceGrossTotal,
-          c.cashCollected,
-          c.returnSettled,
-          c.invoiceGrossTotal - c.cashCollected - c.returnSettled,
-          c.invoiceGrossTotal > 0
-            ? `${((c.cashCollected / c.invoiceGrossTotal) * 100).toFixed(1)}%`
-            : "—",
-        ]),
-        summaryCards,
-        settings,
-        pdfOrientation: "landscape" as const,
-      };
-    }
-    if (groupBy === "product") {
-      return {
-        filenamePrefix: `تقرير-مبيعات-بالمنتج-${dateFrom}-${dateTo}`,
-        sheetName: "بالمنتج",
-        pdfTitle: `تقرير المبيعات بالمنتج (${dateFrom} - ${dateTo})`,
-        headers: [
-          "المنتج",
-          "الكمية المباعة",
-          "المرتجع",
-          "صافي الكمية",
-          "الإيرادات الصافية",
-          "التكلفة",
-          "الربح",
-          "الهامش%",
-        ],
-        rows: productData.map((p) => [
-          p.name,
-          p.qtySold,
-          p.qtyReturned,
-          p.qtySold - p.qtyReturned,
-          p.revenue,
-          p.cogs,
-          p.revenue - p.cogs,
-          p.revenue > 0
-            ? (((p.revenue - p.cogs) / p.revenue) * 100).toFixed(1) + "%"
-            : "0%",
-        ]),
-        summaryCards,
-        settings,
-      };
-    }
-    if (groupBy === "category") {
-      return {
-        filenamePrefix: `تقرير-مبيعات-بالتصنيف-${dateFrom}-${dateTo}`,
-        sheetName: "بالتصنيف",
-        pdfTitle: `تقرير المبيعات بالتصنيف (${dateFrom} - ${dateTo})`,
-        headers: [
-          "التصنيف",
-          "منتجات",
-          "الكمية المباعة",
-          "الكمية المرتجعة",
-          "المبيعات",
-          "المرتجعات",
-          "صافي الإيرادات",
-          "% المرتجعات",
-          ...(isPostedOnly ? ["الربح", "الهامش %"] : []),
-          "% المساهمة",
-        ],
-        rows: categoryData.map((c) => [
-          c.name,
-          c.productCount,
-          c.qtySold,
-          c.qtyReturned,
-          c.revenue,
-          c.returns,
-          c.net,
-          c.returns > 0 && c.returnRate !== null
-            ? c.returnRate.toFixed(1) + "%"
-            : c.returns > 0
-              ? "مرتجع فقط"
-              : "—",
-          ...(isPostedOnly
-            ? [
-                c.cogs !== 0 ? c.profit : "—",
-                c.margin !== null ? c.margin.toFixed(1) + "%" : "—",
-              ]
-            : []),
-          c.pctOfTotal.toFixed(1) + "%",
-        ]),
-        summaryCards,
-        settings,
-      };
-    }
-    // time
     return {
-      filenamePrefix: `تقرير-مبيعات-${timeMode === "daily" ? "يومي" : "شهري"}-${dateFrom}-${dateTo}`,
-      sheetName: timeMode === "daily" ? "يومي" : "شهري",
-      pdfTitle: `تقرير المبيعات ${timeMode === "daily" ? "اليومي" : "الشهري"} (${dateFrom} - ${dateTo})`,
-      headers: [
-        timeMode === "daily" ? "التاريخ" : "الشهر",
-        "عدد الفواتير",
-        "المبيعات قبل الضريبة",
-        "المرتجعات قبل الضريبة",
-        "صافي المبيعات",
-        "متوسط الفاتورة",
-        "% المرتجعات",
-        ...(isPostedOnly ? ["الربح", "الهامش %"] : []),
-        "النمو vs السابق",
-      ],
-      rows: timeData.map((d) => [
-        d.label,
-        d.count,
-        d.total,
-        d.returns,
-        d.net,
-        d.aov,
-        d.returns > 0 && d.returnRate !== null
-          ? d.returnRate.toFixed(1) + "%"
-          : d.returns > 0
-            ? "مرتجع فقط"
-            : "—",
-        ...(isPostedOnly
-          ? [
-              d.cogs !== 0 ? d.profit : "—",
-              d.margin !== null ? d.margin.toFixed(1) + "%" : "—",
-            ]
-          : []),
-        d.growth !== null
-          ? (d.growth >= 0 ? "+" : "") + d.growth.toFixed(1) + "%"
-          : "—",
-      ]),
+      ...buildAggregateSalesExport({
+        groupBy,
+        dateFrom,
+        dateTo,
+        timeMode,
+        isPostedOnly,
+        customerData,
+        productData,
+        categoryData,
+        timeData,
+      }),
       summaryCards,
       settings,
     };
