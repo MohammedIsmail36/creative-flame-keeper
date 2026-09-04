@@ -143,7 +143,7 @@ export function buildAggregateSalesExport({
           : "—",
         ...(isPostedOnly
           ? [
-              category.cogs !== 0 ? category.profit : "—",
+              category.profit,
               formatOptionalPercent(category.margin),
             ]
           : []),
@@ -181,7 +181,7 @@ export function buildAggregateSalesExport({
         : "—",
       ...(isPostedOnly
         ? [
-            period.cogs !== 0 ? period.profit : "—",
+            period.profit,
             formatOptionalPercent(period.margin),
           ]
         : []),

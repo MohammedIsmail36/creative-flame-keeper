@@ -1043,9 +1043,7 @@ export default function SalesReport() {
         {
           accessorKey: "profit",
           header: "الربح",
-          cell: ({ getValue, row }) => {
-            if (row.original.cogs === 0)
-              return <span className="text-muted-foreground">—</span>;
+          cell: ({ getValue }) => {
             const v = getValue() as number;
             return (
               <span
@@ -1058,11 +1056,7 @@ export default function SalesReport() {
           footer: ({ table }) => {
             const v = table
               .getFilteredRowModel()
-              .rows.reduce(
-                (s, r) =>
-                  s + (r.original.cogs !== 0 ? r.original.profit : 0),
-                0,
-              );
+              .rows.reduce((s, r) => s + r.original.profit, 0);
             return (
               <span className="font-bold font-mono">{fmt(v)}</span>
             );
@@ -1241,9 +1235,7 @@ export default function SalesReport() {
         {
           accessorKey: "profit",
           header: "الربح",
-          cell: ({ getValue, row }) => {
-            if (row.original.cogs === 0)
-              return <span className="text-muted-foreground">—</span>;
+          cell: ({ getValue }) => {
             const v = getValue() as number;
             return (
               <span
@@ -1256,11 +1248,7 @@ export default function SalesReport() {
           footer: ({ table }) => {
             const v = table
               .getFilteredRowModel()
-              .rows.reduce(
-                (s, r) =>
-                  s + (r.original.cogs !== 0 ? r.original.profit : 0),
-                0,
-              );
+              .rows.reduce((s, r) => s + r.original.profit, 0);
             return (
               <span className="font-bold font-mono">{fmt(v)}</span>
             );

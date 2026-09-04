@@ -130,7 +130,7 @@ export function computeSalesReportMetrics({
   const netCogs = round2(salesCogs - returnCogs);
   const grossProfit = round2(netSalesRevenue - netCogs);
   const grossMarginPercent =
-    netSalesRevenue > 0
+    netSalesRevenue > 0 && netCogs > 0
       ? round2((grossProfit / netSalesRevenue) * 100)
       : null;
 

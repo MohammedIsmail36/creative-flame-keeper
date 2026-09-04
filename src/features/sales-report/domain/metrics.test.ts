@@ -145,6 +145,8 @@ describe("computeSalesReportMetrics", () => {
     });
 
     expect(result.salesRevenueExcludingTax).toBe(900);
+    expect(result.grossProfit).toBe(900);
+    expect(result.grossMarginPercent).toBeNull();
   });
 });
 

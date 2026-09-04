@@ -285,7 +285,8 @@ export function buildTimeSalesGroups(
       net,
       cogs,
       profit,
-      margin: includeCost && net > 0 ? (profit / net) * 100 : null,
+      margin:
+        includeCost && net > 0 && cogs > 0 ? (profit / net) * 100 : null,
       returnRate:
         period.total > 0 ? (period.returns / period.total) * 100 : null,
       aov: period.count > 0 ? net / period.count : 0,
@@ -523,7 +524,8 @@ export function buildCategorySalesGroups(
         net,
         cogs,
         profit,
-        margin: includeCost && net > 0 ? (profit / net) * 100 : null,
+        margin:
+          includeCost && net > 0 && cogs > 0 ? (profit / net) * 100 : null,
         returnRate:
           category.revenue > 0
             ? (category.returns / category.revenue) * 100
