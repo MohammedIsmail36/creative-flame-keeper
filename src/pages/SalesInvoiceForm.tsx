@@ -2,12 +2,11 @@ import React, { useState, useEffect } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { PageHeader } from "@/components/PageHeader";
-import { getNextPostedNumber, formatDisplayNumber } from "@/lib/posted-number-utils";
+import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { useLineItems } from "@/hooks/use-line-items";
 import { round2, cn } from "@/lib/utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { createReverseJournalEntry } from "@/lib/journal-writer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useDocumentFormState } from "@/hooks/use-document-form";
@@ -60,14 +59,12 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import OutstandingCreditsSection from "@/components/OutstandingCreditsSection";
-import { recalculateEntityBalance } from "@/lib/entity-balance";
 import { QuickAddCustomerDialog } from "@/components/QuickAddCustomerDialog";
 import {
   ProductWithBrand,
   productsToLookupItems,
-  PRODUCT_SELECT_FIELDS,
+  SALES_PRODUCT_SELECT_FIELDS,
 } from "@/lib/product-utils";
-import { ACCOUNT_CODES } from "@/lib/constants";
 import { notify } from "@/lib/notify";
 import { invokeDocumentRpc, deleteDraftDocument } from "@/lib/document-actions";
 
@@ -81,7 +78,6 @@ interface Customer {
 }
 type Product = ProductWithBrand & {
   selling_price: number;
-  purchase_price: number;
   quantity_on_hand: number;
 };
 interface InvoiceItem {
@@ -90,7 +86,6 @@ interface InvoiceItem {
   product_name: string;
   quantity: number;
   unit_price: number;
-  cost_price: number;
   discount: number;
   total: number;
 }
@@ -133,7 +128,7 @@ export default function SalesInvoiceForm() {
   const [reference, setReference] = useState("");
   const [status, setStatus] = useState("draft");
   const { items, setItems, addItem, removeItem, updateItem, handleLastFieldKeyDown } = useLineItems<InvoiceItem>(
-    { priceField: "selling_price", hasCostPrice: true },
+    { priceField: "selling_price" },
     products,
   );
   const [editMode, setEditMode] = useState(true);
@@ -156,7 +151,7 @@ export default function SalesInvoiceForm() {
         .select("id, code, name, phone, balance, loyalty_points, loyalty_enabled")
         .eq("is_active", true)
         .order("name"),
-      supabase.from("products").select(PRODUCT_SELECT_FIELDS).eq("is_active", true).order("name"),
+      supabase.from("products").select(SALES_PRODUCT_SELECT_FIELDS).eq("is_active", true).order("name"),
     ]);
     setCustomers(custRes.data || []);
     setProducts(prodRes.data || []);
@@ -180,10 +175,10 @@ export default function SalesInvoiceForm() {
         setLoyaltyPointsRedeemed(Number(inv.loyalty_points_redeemed) || 0);
 
         const { data: itemsData } = await (supabase.from("sales_invoice_items") as any)
-          .select("*, products:product_id(name, code, purchase_price, model_number, product_brands(name))")
+          .select("*, products:product_id(name, code, model_number, product_brands(name))")
           .eq("invoice_id", id)
           .order("sort_order", { ascending: true });
-        setItems(mapLoadedLineItems<InvoiceItem>(itemsData, { withCostPrice: true }));
+        setItems(mapLoadedLineItems<InvoiceItem>(itemsData));
       }
       setLoading(false);
     } else {
@@ -371,8 +366,6 @@ export default function SalesInvoiceForm() {
         return;
       }
 
-      await recalculateEntityBalance("customer", customerId);
-
       notify.success("تم الترحيل", "تم ترحيل فاتورة البيع وتوليد القيد المحاسبي وتحديث المخزون");
       markClean();
       loadData();
@@ -406,7 +399,6 @@ export default function SalesInvoiceForm() {
         notify.error(res.isException ? "خطأ" : "غير مسموح", res.error || "تعذر إعادة التعيين");
         return;
       }
-      await recalculateEntityBalance("customer", customerId);
       notify.success("تم إعادة التعيين كمسودة", "أصبحت الفاتورة قابلة للتعديل، والقيد المحاسبي أصبح مسودة ولن يظهر في التقارير");
       markClean();
       window.location.reload();
@@ -416,98 +408,11 @@ export default function SalesInvoiceForm() {
   async function handleCancelPosted() {
     if (saving) return;
     await runAction(async () => {
-      const { data: inv } = await (supabase.from("sales_invoices") as any)
-        .select(
-          "journal_entry_id, customer_id, total, tax, loyalty_discount, loyalty_points_redeemed, invoice_date, posted_number, invoice_number",
-        )
-        .eq("id", id)
-        .single();
-
-      let totalCost = 0;
-      for (const item of items) {
-        if (!item.product_id) continue;
-        // Fetch actual unit_cost from inventory_movements before deleting
-        const { data: movement } = await (supabase.from("inventory_movements") as any)
-          .select("unit_cost")
-          .eq("reference_id", id)
-          .eq("product_id", item.product_id)
-          .maybeSingle();
-        const { data: prod } = await supabase
-          .from("products")
-          .select("quantity_on_hand")
-          .eq("id", item.product_id)
-          .single();
-        if (prod) {
-          await supabase
-            .from("products")
-            .update({
-              quantity_on_hand: prod.quantity_on_hand + item.quantity,
-            } as any)
-            .eq("id", item.product_id);
-          totalCost += (movement?.unit_cost || 0) * item.quantity;
-        }
-        await (supabase.from("inventory_movements") as any)
-          .delete()
-          .eq("reference_id", id)
-          .eq("product_id", item.product_id);
+      const res = await invokeDocumentRpc("cancel_sales_invoice", { p_invoice_id: id });
+      if (!res.success) {
+        notify.error(res.isException ? "خطأ" : "غير مسموح", res.error || "تعذر إلغاء الفاتورة");
+        return;
       }
-
-      // Mark cancelled BEFORE recalculating balance so this invoice is excluded
-      await (supabase.from("sales_invoices") as any).update({ status: "cancelled" }).eq("id", id);
-      await recalculateEntityBalance("customer", customerId);
-
-      if (inv?.journal_entry_id) {
-        await createReverseJournalEntry({
-          sourceEntryId: inv.journal_entry_id,
-          entryDate: new Date().toISOString().split("T")[0],
-          description: `عكس فاتورة بيع رقم ${formatDisplayNumber(settings?.sales_invoice_prefix || "INV-", inv?.posted_number, inv?.invoice_number || 0, "posted")}`,
-        });
-      }
-
-      // Reverse loyalty points (earned & redeemed) if customer + loyalty enabled
-      if (inv?.customer_id && settings?.loyalty_enabled && (settings?.loyalty_egp_per_point ?? 0) > 0) {
-        const earningBase = Math.max(
-          Number(inv.total || 0) - Number(inv.tax || 0) + Number(inv.loyalty_discount || 0),
-          0,
-        );
-        const earned = Math.floor(earningBase / Number(settings.loyalty_egp_per_point));
-        const redeemed = Number(inv.loyalty_points_redeemed || 0);
-        const delta = redeemed - earned; // reverse: subtract earned, add back redeemed
-        const label = inv.posted_number ?? inv.invoice_number;
-
-        if (earned > 0) {
-          await (supabase.from("loyalty_transactions") as any).insert({
-            customer_id: inv.customer_id,
-            transaction_date: new Date().toISOString().split("T")[0],
-            points: -earned,
-            type: "cancel_earn",
-            reference_type: "sales_invoice",
-            reference_id: id,
-            notes: `إلغاء اكتساب من فاتورة #${label}`,
-          });
-        }
-        if (redeemed > 0) {
-          await (supabase.from("loyalty_transactions") as any).insert({
-            customer_id: inv.customer_id,
-            transaction_date: new Date().toISOString().split("T")[0],
-            points: redeemed,
-            type: "cancel_redeem",
-            reference_type: "sales_invoice",
-            reference_id: id,
-            notes: `إلغاء استبدال من فاتورة #${label}`,
-          });
-        }
-        if (delta !== 0) {
-          const { data: cust } = await (supabase.from("customers") as any)
-            .select("loyalty_points")
-            .eq("id", inv.customer_id)
-            .single();
-          const newBalance = Math.max(Number(cust?.loyalty_points || 0) + delta, 0);
-          await (supabase.from("customers") as any).update({ loyalty_points: newBalance }).eq("id", inv.customer_id);
-        }
-      }
-
-      // status already set to cancelled above
 
       notify.success("تم الإلغاء", "تم إلغاء الفاتورة وعكس القيد المحاسبي وإرجاع الكميات للمخزون");
       markClean();

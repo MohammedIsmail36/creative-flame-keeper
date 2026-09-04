@@ -1,5 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { formatProductName, productsToLookupItems, ProductWithBrand } from "./product-utils";
+import {
+  formatProductName,
+  productsToLookupItems,
+  ProductWithBrand,
+  SALES_PRODUCT_SELECT_FIELDS,
+} from "./product-utils";
+
+describe("SALES_PRODUCT_SELECT_FIELDS", () => {
+  it("keeps cost columns out of sales-document product queries", () => {
+    expect(SALES_PRODUCT_SELECT_FIELDS).toContain("selling_price");
+    expect(SALES_PRODUCT_SELECT_FIELDS).toContain("quantity_on_hand");
+    expect(SALES_PRODUCT_SELECT_FIELDS).not.toContain("purchase_price");
+  });
+});
 
 describe("formatProductName", () => {
   it("should return only product name when no brand or model", () => {

@@ -1,15 +1,11 @@
 import { notify } from "@/lib/notify";
-import { deleteDraftDocument } from "@/lib/document-actions";
+import { deleteDraftDocument, invokeDocumentRpc } from "@/lib/document-actions";
 import { StatusBadge } from "@/components/StatusBadge";
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import {
-  getNextPostedNumber,
-  formatDisplayNumber,
-} from "@/lib/posted-number-utils";
+import { formatDisplayNumber } from "@/lib/posted-number-utils";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { createJournalEntry, createReverseJournalEntry } from "@/lib/journal-writer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useDocumentFormState } from "@/hooks/use-document-form";
@@ -59,16 +55,12 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 import InvoicePaymentSection from "@/components/InvoicePaymentSection";
 import ReturnSettlementsView from "@/components/ReturnSettlementsView";
-import { recalculateEntityBalance } from "@/lib/entity-balance";
 
 import {
   ProductWithBrand,
   productsToLookupItems,
-  PRODUCT_SELECT_FIELDS,
+  SALES_PRODUCT_SELECT_FIELDS,
 } from "@/lib/product-utils";
-import {
-  ACCOUNT_CODES,
-} from "@/lib/constants";
 
 interface Customer {
   id: string;
@@ -78,7 +70,6 @@ interface Customer {
 }
 type Product = ProductWithBrand & {
   selling_price: number;
-  purchase_price: number;
   quantity_on_hand: number;
 };
 interface ReturnItem {
@@ -87,7 +78,6 @@ interface ReturnItem {
   product_name: string;
   quantity: number;
   unit_price: number;
-  cost_price: number;
   discount: number;
   total: number;
 }
@@ -103,7 +93,6 @@ export default function SalesReturnForm() {
   const showTax = settings?.enable_tax ?? false;
   const showDiscount = settings?.show_discount_on_invoice ?? true;
   const taxRate = settings?.tax_rate ?? 0;
-  const returnDaysLimit = settings?.return_days_limit ?? 30;
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -139,7 +128,7 @@ export default function SalesReturnForm() {
     updateItem,
     handleLastFieldKeyDown,
   } = useLineItems<ReturnItem>(
-    { priceField: "selling_price", hasCostPrice: true },
+    { priceField: "selling_price" },
     products,
   );
   const [editMode, setEditMode] = useState(true);
@@ -158,7 +147,7 @@ export default function SalesReturnForm() {
         .order("name"),
       supabase
         .from("products")
-        .select(PRODUCT_SELECT_FIELDS)
+        .select(SALES_PRODUCT_SELECT_FIELDS)
         .eq("is_active", true)
         .order("name"),
     ]);
@@ -185,11 +174,11 @@ export default function SalesReturnForm() {
           supabase.from("sales_return_items") as any
         )
           .select(
-            "*, products:product_id(name, code, purchase_price, model_number, product_brands(name))",
+            "*, products:product_id(name, code, model_number, product_brands(name))",
           )
           .eq("return_id", id)
           .order("sort_order", { ascending: true });
-        setItems(mapLoadedLineItems<ReturnItem>(itemsData, { withCostPrice: true }));
+        setItems(mapLoadedLineItems<ReturnItem>(itemsData));
       }
       setLoading(false);
     } else {
@@ -312,226 +301,13 @@ export default function SalesReturnForm() {
     }
     setSaving(true);
     try {
-      // Validate: check sold quantity in the last N days for each item (if enabled)
-      if (settings?.enable_return_days_limit !== false) {
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - returnDaysLimit);
-        const cutoffStr = cutoffDate.toISOString().split("T")[0];
-
-        for (const item of items) {
-          if (!item.product_id) continue;
-          // Get total sold quantity for this product in the return period
-          const { data: salesData } = await (
-            supabase.from("sales_invoice_items") as any
-          )
-            .select("quantity, invoice_id")
-            .eq("product_id", item.product_id);
-
-          // Filter by posted invoices within the date range
-          let totalSold = 0;
-          if (salesData && salesData.length > 0) {
-            const invoiceIds = [
-              ...new Set(salesData.map((s: any) => s.invoice_id)),
-            ];
-            const { data: invoices } = await (
-              supabase.from("sales_invoices") as any
-            )
-              .select("id, invoice_date, status")
-              .in("id", invoiceIds)
-              .eq("status", "posted")
-              .gte("invoice_date", cutoffStr);
-            const validIds = new Set(
-              (invoices || []).map((inv: any) => inv.id),
-            );
-            totalSold = salesData
-              .filter((s: any) => validIds.has(s.invoice_id))
-              .reduce((sum: number, s: any) => sum + Number(s.quantity), 0);
-          }
-
-          // Get already returned quantity for this product (exclude current return)
-          const { data: returnedData } = await (
-            supabase.from("sales_return_items") as any
-          )
-            .select("quantity, return_id")
-            .eq("product_id", item.product_id);
-
-          let totalReturned = 0;
-          if (returnedData && returnedData.length > 0) {
-            const returnIds = [
-              ...new Set(returnedData.map((r: any) => r.return_id)),
-            ].filter((rid) => rid !== id);
-            if (returnIds.length > 0) {
-              const { data: returns } = await (
-                supabase.from("sales_returns") as any
-              )
-                .select("id, status")
-                .in("id", returnIds)
-                .eq("status", "posted");
-              const validReturnIds = new Set(
-                (returns || []).map((r: any) => r.id),
-              );
-              totalReturned = returnedData
-                .filter((r: any) => validReturnIds.has(r.return_id))
-                .reduce((sum: number, r: any) => sum + Number(r.quantity), 0);
-            }
-          }
-
-          const availableToReturn = totalSold - totalReturned;
-          if (item.quantity > availableToReturn) {
-            const prodName = item.product_name;
-            notify.error("تنبيه", `الكمية المرتجعة للصنف (${prodName}) أكبر من الكمية المباعة خلال ${returnDaysLimit} يوم السابقة. المتاح للإرجاع: ${availableToReturn}`);
-            return;
-          }
-        }
-      } // end enable_return_days_limit check
-
-      const { data: accounts } = await supabase
-        .from("accounts")
-        .select("id, code")
-        .in("code", [
-          ACCOUNT_CODES.CUSTOMERS,
-          ACCOUNT_CODES.REVENUE,
-          ACCOUNT_CODES.COGS,
-          ACCOUNT_CODES.INVENTORY,
-        ]);
-      const customersAcc = accounts?.find(
-        (a) => a.code === ACCOUNT_CODES.CUSTOMERS,
-      );
-      const revenueAcc = accounts?.find(
-        (a) => a.code === ACCOUNT_CODES.REVENUE,
-      );
-      const cogsAcc = accounts?.find((a) => a.code === ACCOUNT_CODES.COGS);
-      const inventoryAcc = accounts?.find(
-        (a) => a.code === ACCOUNT_CODES.INVENTORY,
-      );
-
-      // حساب ضريبة المبيعات: من إعدادات الشركة (مصدر وحيد للحقيقة)
-      let salesTaxAcc: { id: string } | null = null;
-      if (taxAmount > 0) {
-        if (!settings?.enable_tax || !settings?.sales_tax_account_id) {
-          notify.error("خطأ", 'الضريبة مطبقة على المرتجع ولكنها غير مفعّلة في الإعدادات أو لم يتم تحديد حساب ضريبة المبيعات. يرجى ضبط ذلك من تبويب "الضريبة" في إعدادات الشركة');
-          return;
-        }
-        const { data: taxAccData } = await supabase
-          .from("accounts")
-          .select("id")
-          .eq("id", settings.sales_tax_account_id)
-          .maybeSingle();
-        if (!taxAccData) {
-          notify.error("خطأ", "حساب ضريبة المبيعات المحدد في الإعدادات غير موجود في شجرة الحسابات");
-          return;
-        }
-        salesTaxAcc = taxAccData;
-      }
-
-      if (!customersAcc || !revenueAcc) {
-        notify.error("خطأ", "تأكد من وجود الحسابات المطلوبة");
+      const res = await invokeDocumentRpc("post_sales_return", { p_return_id: id });
+      if (!res.success) {
+        notify.error(res.isException ? "خطأ" : "غير مسموح", res.error || "تعذر ترحيل المرتجع");
         return;
       }
 
-      let totalCost = 0;
-      const itemAvgCosts: Record<string, number> = {};
-      for (const item of items) {
-        if (!item.product_id) continue;
-        const { data: avgPrice } = await supabase.rpc(
-          "get_avg_purchase_price",
-          { _product_id: item.product_id },
-        );
-        const avgCost = Number(avgPrice) || 0;
-        const finalCost = avgCost > 0 ? avgCost : item.cost_price;
-        itemAvgCosts[item.product_id] = finalCost;
-        totalCost += finalCost * item.quantity;
-      }
-
-      const nextPostedNum = await getNextPostedNumber("sales_returns");
-      const retPrefix = settings?.sales_return_prefix || "SRN-";
-      const displayRetNum = `${retPrefix}${String(nextPostedNum).padStart(4, "0")}`;
-
-      const netRevenue = grandTotal - taxAmount;
-      const lines: any[] = [
-        {
-          account_id: revenueAcc.id,
-          debit: netRevenue,
-          credit: 0,
-          description: `مرتجع مبيعات - ${displayRetNum}`,
-        },
-        {
-          account_id: customersAcc.id,
-          debit: 0,
-          credit: grandTotal,
-          description: `خصم ذمم عملاء - ${displayRetNum}`,
-        },
-      ];
-      if (taxAmount > 0 && salesTaxAcc) {
-        lines.push({
-          account_id: salesTaxAcc.id,
-          debit: taxAmount,
-          credit: 0,
-          description: `عكس ضريبة مبيعات - ${displayRetNum}`,
-        });
-      }
-      if (totalCost > 0 && inventoryAcc && cogsAcc) {
-        lines.push(
-          {
-            account_id: inventoryAcc.id,
-            debit: totalCost,
-            credit: 0,
-            description: `إرجاع مخزون - ${displayRetNum}`,
-          },
-          {
-            account_id: cogsAcc.id,
-            debit: 0,
-            credit: totalCost,
-            description: `عكس تكلفة بضاعة - ${displayRetNum}`,
-          },
-        );
-      }
-      const jeId = await createJournalEntry({
-        entryDate: returnDate,
-        description: `مرتجع بيع رقم ${displayRetNum}`,
-        lines,
-        status: "posted",
-      });
-
-      await (supabase.from("sales_returns") as any)
-        .update({
-          status: "posted",
-          journal_entry_id: jeId,
-          posted_number: nextPostedNum,
-        })
-        .eq("id", id);
-
-      for (const item of items) {
-        if (!item.product_id) continue;
-        const avgCost = itemAvgCosts[item.product_id] || 0;
-        const { data: prod } = await supabase
-          .from("products")
-          .select("quantity_on_hand")
-          .eq("id", item.product_id)
-          .single();
-        if (prod) {
-          await supabase
-            .from("products")
-            .update({
-              quantity_on_hand: prod.quantity_on_hand + item.quantity,
-            } as any)
-            .eq("id", item.product_id);
-        }
-        await (supabase.from("inventory_movements") as any).insert({
-          product_id: item.product_id,
-          movement_type: "sale_return",
-          quantity: item.quantity,
-          unit_cost: avgCost,
-          total_cost: avgCost * item.quantity,
-          reference_id: id,
-          reference_type: "sales_return",
-          movement_date: returnDate,
-        });
-      }
-
-      await recalculateEntityBalance("customer", customerId);
-
-      notify.success("تم الترحيل", "تم ترحيل مرتجع البيع");
+      notify.success("تم الترحيل", "تم ترحيل مرتجع البيع وتحديث القيد والمخزون ورصيد العميل");
       markClean();
       loadData();
     } catch (error: any) {
@@ -544,47 +320,13 @@ export default function SalesReturnForm() {
   async function handleCancelPosted() {
     if (saving) return;
     await runAction(async () => {
-      const { data: ret } = await (supabase.from("sales_returns") as any)
-        .select("journal_entry_id, posted_number, return_number")
-        .eq("id", id)
-        .single();
-
-      // Reverse inventory
-      for (const item of items) {
-        if (!item.product_id) continue;
-        const { data: prod } = await supabase
-          .from("products")
-          .select("quantity_on_hand")
-          .eq("id", item.product_id)
-          .single();
-        if (prod) {
-          await supabase
-            .from("products")
-            .update({
-              quantity_on_hand: prod.quantity_on_hand - item.quantity,
-            } as any)
-            .eq("id", item.product_id);
-        }
-        await (supabase.from("inventory_movements") as any)
-          .delete()
-          .eq("reference_id", id)
-          .eq("product_id", item.product_id);
+      const res = await invokeDocumentRpc("cancel_sales_return", { p_return_id: id });
+      if (!res.success) {
+        notify.error(res.isException ? "خطأ" : "غير مسموح", res.error || "تعذر إلغاء المرتجع");
+        return;
       }
 
-      await (supabase.from("sales_returns") as any).update({ status: "cancelled" }).eq("id", id);
-      await recalculateEntityBalance("customer", customerId);
-
-      // Create reverse journal entry
-      if (ret?.journal_entry_id) {
-        await createReverseJournalEntry({
-          sourceEntryId: ret.journal_entry_id,
-          entryDate: new Date().toISOString().split("T")[0],
-          description: `عكس مرتجع بيع رقم ${formatDisplayNumber(settings?.sales_return_prefix || "SRN-", ret?.posted_number, ret?.return_number || 0, "posted")}`,
-        });
-      }
-
-      // status already set to cancelled above
-      notify.success("تم الإلغاء", "تم إلغاء المرتجع وعكس القيد المحاسبي وإرجاع المخزون");
+      notify.success("تم الإلغاء", "تم إلغاء المرتجع وعكس القيد المحاسبي وسحب كمياته من المخزون");
       markClean();
       loadData();
     });

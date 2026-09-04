@@ -83,5 +83,8 @@ export function productsToLookupItems(
 /** Common select fields for product queries that include brand info */
 export const PRODUCT_SELECT_FIELDS =
   "id, code, name, barcode, model_number, selling_price, purchase_price, quantity_on_hand, product_brands(name)";
+/** Product fields needed by sales documents; deliberately excludes cost data. */
+export const SALES_PRODUCT_SELECT_FIELDS =
+  "id, code, name, barcode, model_number, selling_price, quantity_on_hand, product_brands(name)";
 export const PRODUCT_SELECT_FIELDS_BASIC =
   "id, code, name, barcode, model_number, purchase_price, product_brands(name)";
