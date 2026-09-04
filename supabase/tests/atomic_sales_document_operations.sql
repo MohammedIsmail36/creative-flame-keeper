@@ -12,6 +12,7 @@ SELECT set_config('request.jwt.claims', '{"role":"service_role"}', false);
 
 DO $test$
 DECLARE
+  v_admin_id uuid := gen_random_uuid();
   v_customer_id uuid;
   v_product_id uuid;
   v_invoice_id uuid;
@@ -19,8 +20,31 @@ DECLARE
   v_result jsonb;
   v_original_journal_id uuid;
   v_reversal_journal_id uuid;
+  v_posted_number integer;
   v_value numeric;
 BEGIN
+  INSERT INTO auth.users (
+    id,
+    aud,
+    role,
+    email,
+    raw_user_meta_data,
+    created_at,
+    updated_at
+  ) VALUES (
+    v_admin_id,
+    'authenticated',
+    'authenticated',
+    'atomic-admin@example.test',
+    '{"full_name":"Atomic admin"}'::jsonb,
+    now(),
+    now()
+  );
+
+  IF NOT public.has_role(v_admin_id, 'admin'::public.app_role) THEN
+    RAISE EXCEPTION 'isolated admin fixture was not created';
+  END IF;
+
   INSERT INTO public.company_settings (
     company_name,
     enable_return_days_limit,
@@ -82,6 +106,7 @@ BEGIN
     RAISE EXCEPTION 'invoice posting failed: %', v_result;
   END IF;
   v_original_journal_id := (v_result->>'journal_entry_id')::uuid;
+  v_posted_number := (v_result->>'posted_number')::integer;
 
   SELECT quantity_on_hand INTO v_value FROM public.products WHERE id = v_product_id;
   IF v_value <> 8 THEN
@@ -107,6 +132,94 @@ BEGIN
     RAISE EXCEPTION 'customer loyalty after invoice expected 60, got %', v_value;
   END IF;
 
+  -- Posted invoice edit flow: reset to draft, change the draft, then post it
+  -- again. The same posted number and journal header must be reused.
+  PERFORM set_config(
+    'request.jwt.claims',
+    jsonb_build_object('role', 'authenticated', 'sub', v_admin_id)::text,
+    false
+  );
+  v_result := public.unpost_sales_invoice(v_invoice_id);
+  IF NOT COALESCE((v_result->>'success')::boolean, false) THEN
+    RAISE EXCEPTION 'invoice reset to draft failed: %', v_result;
+  END IF;
+  IF (v_result->>'journal_entry_id')::uuid <> v_original_journal_id
+     OR (v_result->>'posted_number')::integer <> v_posted_number THEN
+    RAISE EXCEPTION 'invoice reset did not preserve its journal and posted number';
+  END IF;
+
+  SELECT quantity_on_hand INTO v_value FROM public.products WHERE id = v_product_id;
+  IF v_value <> 10 THEN
+    RAISE EXCEPTION 'invoice reset stock expected 10, got %', v_value;
+  END IF;
+  SELECT balance INTO v_value FROM public.customers WHERE id = v_customer_id;
+  IF v_value <> 0 THEN
+    RAISE EXCEPTION 'customer balance after invoice reset expected 0, got %', v_value;
+  END IF;
+  SELECT loyalty_points INTO v_value FROM public.customers WHERE id = v_customer_id;
+  IF v_value <> 50 THEN
+    RAISE EXCEPTION 'customer loyalty after invoice reset expected 50, got %', v_value;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.inventory_movements
+    WHERE reference_id = v_invoice_id AND reference_type = 'sales_invoice'
+  ) OR EXISTS (
+    SELECT 1 FROM public.loyalty_transactions
+    WHERE reference_id = v_invoice_id AND reference_type = 'sales_invoice'
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.journal_entries
+    WHERE id = v_original_journal_id AND status = 'draft'
+  ) THEN
+    RAISE EXCEPTION 'invoice reset did not restore draft state completely';
+  END IF;
+
+  UPDATE public.sales_invoices
+  SET subtotal = 300,
+      total = 280,
+      loyalty_points_redeemed = 20,
+      loyalty_discount = 20
+  WHERE id = v_invoice_id;
+
+  UPDATE public.sales_invoice_items
+  SET quantity = 3,
+      total = 300,
+      net_total = 280
+  WHERE invoice_id = v_invoice_id AND product_id = v_product_id;
+
+  v_result := public.post_sales_invoice(v_invoice_id);
+  IF NOT COALESCE((v_result->>'success')::boolean, false) THEN
+    RAISE EXCEPTION 'modified invoice reposting failed: %', v_result;
+  END IF;
+  IF (v_result->>'journal_entry_id')::uuid <> v_original_journal_id
+     OR (v_result->>'posted_number')::integer <> v_posted_number THEN
+    RAISE EXCEPTION 'modified invoice repost did not reuse its journal and posted number';
+  END IF;
+
+  SELECT quantity_on_hand INTO v_value FROM public.products WHERE id = v_product_id;
+  IF v_value <> 7 THEN
+    RAISE EXCEPTION 'modified invoice stock expected 7, got %', v_value;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.inventory_movements
+    WHERE reference_id = v_invoice_id
+      AND reference_type = 'sales_invoice'
+      AND movement_type = 'sale'
+      AND quantity = 3
+      AND unit_cost = 50
+      AND total_cost = 150
+  ) THEN
+    RAISE EXCEPTION 'modified invoice cost movement is missing or incorrect';
+  END IF;
+  SELECT balance INTO v_value FROM public.customers WHERE id = v_customer_id;
+  IF v_value <> 280 THEN
+    RAISE EXCEPTION 'customer balance after modified invoice expected 280, got %', v_value;
+  END IF;
+  SELECT loyalty_points INTO v_value FROM public.customers WHERE id = v_customer_id;
+  IF v_value <> 60 THEN
+    RAISE EXCEPTION 'customer loyalty after modified invoice expected 60, got %', v_value;
+  END IF;
+
   v_result := public.cancel_sales_invoice(v_invoice_id);
   IF NOT COALESCE((v_result->>'success')::boolean, false) THEN
     RAISE EXCEPTION 'invoice cancellation failed: %', v_result;
@@ -127,10 +240,10 @@ BEGIN
   END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.loyalty_transactions
-    WHERE reference_id = v_invoice_id AND type = 'cancel_earn' AND points = -20
+    WHERE reference_id = v_invoice_id AND type = 'cancel_earn' AND points = -30
   ) OR NOT EXISTS (
     SELECT 1 FROM public.loyalty_transactions
-    WHERE reference_id = v_invoice_id AND type = 'cancel_redeem' AND points = 10
+    WHERE reference_id = v_invoice_id AND type = 'cancel_redeem' AND points = 20
   ) THEN
     RAISE EXCEPTION 'invoice loyalty cancellation ledger is incomplete';
   END IF;
