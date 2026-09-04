@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
+import { FULL_SALES_REPORT_ROLES } from "@/features/sales-report/domain/access";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useLocation } from "react-router-dom";
@@ -289,7 +290,7 @@ const sections: MenuSection[] = [
             title: "تقرير المبيعات",
             url: "/reports/sales",
             icon: BarChart3,
-            roles: ["admin", "accountant", "sales"],
+            roles: FULL_SALES_REPORT_ROLES,
           },
           {
             title: "تقرير المشتريات",

@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { FULL_SALES_REPORT_ROLES } from "@/features/sales-report/domain/access";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -151,7 +152,7 @@ const App = () => (
             <Route path="/income-statement" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<IncomeStatement />)}</AppLayout></ProtectedRoute>} />
             <Route path="/balance-sheet" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<BalanceSheet />)}</AppLayout></ProtectedRoute>} />
             <Route path="/cash-flow" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<CashFlowStatement />)}</AppLayout></ProtectedRoute>} />
-            <Route path="/reports/sales" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<SalesReportPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/sales" element={<ProtectedRoute allowedRoles={FULL_SALES_REPORT_ROLES}><AppLayout>{withSuspense(<SalesReportPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/purchases" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<PurchasesReportPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/inventory" element={<Navigate to="/reports/inventory-valuation" replace />} />
             <Route path="/reports/aging" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<DebtAgingReportPage />)}</AppLayout></ProtectedRoute>} />
