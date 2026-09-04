@@ -228,6 +228,8 @@ export default function SalesReport() {
     );
   };
 
+  const today = format(new Date(), "yyyy-MM-dd");
+
   // ── Sales target ──
   const targetInfo = useMemo(
     () =>
@@ -236,12 +238,12 @@ export default function SalesReport() {
         dateFrom,
         dateTo,
         kpi.netSales,
+        today,
       ),
-    [settings?.monthly_sales_target, dateFrom, dateTo, kpi.netSales],
+    [settings?.monthly_sales_target, dateFrom, dateTo, kpi.netSales, today],
   );
 
   // ── Overdue check ──
-  const today = format(new Date(), "yyyy-MM-dd");
   const getCoverage = useCallback(
     (invoiceId: string) =>
       getInvoiceCoverage(invoiceId, invoiceCoverage.byInvoice),
@@ -1920,9 +1922,8 @@ export default function SalesReport() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-medium text-muted-foreground mb-1">
-                        تحقيق الهدف {targetInfo.monthsInRange > 1
-                          ? `(${targetInfo.monthsInRange} أشهر)`
-                          : "الشهري"}
+                        تحقيق الهدف ({targetInfo.daysInRange} يوم
+                        {targetInfo.isCappedAtAsOf ? " حتى اليوم" : ""})
                       </p>
                       <p className="text-lg font-bold tabular-nums">
                         {targetInfo.pct.toFixed(0)}%

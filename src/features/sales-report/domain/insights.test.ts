@@ -55,22 +55,79 @@ describe("sales report auxiliary insights", () => {
     });
   });
 
-  it("scales a monthly target by calendar months without timezone conversion", () => {
+  it("prorates a cross-month target by included calendar days", () => {
     expect(
       buildSalesTargetInfo(10_000, "2025-12-15", "2026-02-01", 15_000),
     ).toEqual({
-      scaledTarget: 30_000,
-      pct: 50,
+      scaledTarget: 15_841.01,
+      pct: 94.69,
       monthsInRange: 3,
+      daysInRange: 49,
+      isCappedAtAsOf: false,
     });
   });
 
-  it("hides an absent target and safely handles invalid dates", () => {
-    expect(buildSalesTargetInfo(0, "2026-08-01", "2026-08-31", 100)).toBeNull();
-    expect(buildSalesTargetInfo(1000, "invalid", "invalid", 500)).toEqual({
-      scaledTarget: 1000,
-      pct: 50,
+  it("uses a full monthly target for a complete historical month", () => {
+    expect(
+      buildSalesTargetInfo(
+        30_000,
+        "2026-08-01",
+        "2026-08-31",
+        24_000,
+        "2026-09-04",
+      ),
+    ).toEqual({
+      scaledTarget: 30_000,
+      pct: 80,
       monthsInRange: 1,
+      daysInRange: 31,
+      isCappedAtAsOf: false,
     });
+  });
+
+  it("caps an active report period at the as-of day", () => {
+    expect(
+      buildSalesTargetInfo(
+        30_000,
+        "2026-09-01",
+        "2026-09-30",
+        3_000,
+        "2026-09-04",
+      ),
+    ).toEqual({
+      scaledTarget: 4_000,
+      pct: 75,
+      monthsInRange: 1,
+      daysInRange: 4,
+      isCappedAtAsOf: true,
+    });
+  });
+
+  it("handles leap-year days without timezone conversion", () => {
+    expect(
+      buildSalesTargetInfo(
+        29_000,
+        "2028-02-28",
+        "2028-02-29",
+        2_000,
+      )?.scaledTarget,
+    ).toBe(2_000);
+  });
+
+  it("hides absent, invalid, reversed, and future-only targets", () => {
+    expect(buildSalesTargetInfo(0, "2026-08-01", "2026-08-31", 100)).toBeNull();
+    expect(buildSalesTargetInfo(1000, "invalid", "invalid", 500)).toBeNull();
+    expect(
+      buildSalesTargetInfo(1000, "2026-09-30", "2026-09-01", 500),
+    ).toBeNull();
+    expect(
+      buildSalesTargetInfo(
+        1000,
+        "2026-10-01",
+        "2026-10-31",
+        0,
+        "2026-09-04",
+      ),
+    ).toBeNull();
   });
 });
