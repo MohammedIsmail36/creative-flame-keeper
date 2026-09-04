@@ -2,7 +2,11 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaged } from "@/lib/paged-fetch";
-import { getPreviousPeriod } from "@/lib/report-period";
+import {
+  getPreviousPeriod,
+  getSamePeriodPreviousYear,
+} from "@/lib/report-period";
+import type { SalesReportComparisonMode } from "./use-sales-report-preferences";
 import type {
   InvoicePaymentAllocation,
   InvoiceReturnSettlement,
@@ -43,14 +47,25 @@ export function buildSalesReportQueryKeys(
   };
 }
 
+export function getSalesReportComparisonPeriod(
+  dateFrom: string,
+  dateTo: string,
+  comparisonMode: SalesReportComparisonMode,
+) {
+  return comparisonMode === "previous_year"
+    ? getSamePeriodPreviousYear(dateFrom, dateTo)
+    : getPreviousPeriod(dateFrom, dateTo);
+}
+
 export function useSalesReportData(
   dateFrom: string,
   dateTo: string,
   customerFilter: string | null = null,
+  comparisonMode: SalesReportComparisonMode = "previous_period",
 ) {
   const previousPeriod = useMemo(
-    () => getPreviousPeriod(dateFrom, dateTo),
-    [dateFrom, dateTo],
+    () => getSalesReportComparisonPeriod(dateFrom, dateTo, comparisonMode),
+    [dateFrom, dateTo, comparisonMode],
   );
   const queryKeys = buildSalesReportQueryKeys(
     dateFrom,

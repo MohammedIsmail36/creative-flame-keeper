@@ -20,12 +20,14 @@ describe("parseSalesReportPreferences", () => {
           statusFilter: "draft",
           groupBy: "customer",
           timeMode: "monthly",
+          comparisonMode: "previous_year",
         }),
       ),
     ).toEqual({
       statusFilter: "draft",
       groupBy: "customer",
       timeMode: "monthly",
+      comparisonMode: "previous_year",
     });
   });
 
@@ -36,12 +38,14 @@ describe("parseSalesReportPreferences", () => {
           statusFilter: "unknown",
           groupBy: "product",
           timeMode: "weekly",
+          comparisonMode: "unknown",
         }),
       ),
     ).toEqual({
       statusFilter: "posted",
       groupBy: "product",
       timeMode: "daily",
+      comparisonMode: "previous_period",
     });
   });
 });

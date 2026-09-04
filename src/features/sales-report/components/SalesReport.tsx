@@ -131,6 +131,8 @@ export default function SalesReport() {
     setGroupBy,
     timeMode,
     setTimeMode,
+    comparisonMode,
+    setComparisonMode,
   } = useSalesReportPreferences();
   // Secondary indicators start collapsed on every report visit to preserve focus.
   const [showExtras, setShowExtras] = useState(false);
@@ -191,6 +193,7 @@ export default function SalesReport() {
     dateFrom,
     dateTo,
     customerFilter === ALL_CUSTOMERS_FILTER ? null : customerFilter,
+    comparisonMode,
   );
 
   const customerFilterOptions = useMemo(
@@ -1539,6 +1542,26 @@ export default function SalesReport() {
                 className="h-9 w-[190px] border-0 bg-muted/50 shadow-none hover:bg-muted"
                 disabled={isLoading}
               />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">
+                المقارنة
+              </span>
+              <Select
+                value={comparisonMode}
+                onValueChange={(value) =>
+                  setComparisonMode(value as "previous_period" | "previous_year")
+                }
+              >
+                <SelectTrigger className="h-9 w-[155px] border-0 bg-muted/50 font-medium shadow-none hover:bg-muted">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="previous_period">الفترة السابقة</SelectItem>
+                  <SelectItem value="previous_year">نفس الفترة من العام السابق</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {groupBy === "invoice" || groupBy === "return" ? (

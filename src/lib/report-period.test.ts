@@ -12,6 +12,7 @@ import {
   toReportDate,
   getQuickDateRanges,
   getPreviousPeriod,
+  getSamePeriodPreviousYear,
   type GLLine,
 } from "./report-period";
 import { FISCAL_CLOSING_DESCRIPTION_PREFIX } from "./constants";
@@ -220,6 +221,22 @@ describe("getPreviousPeriod", () => {
     expect(getPreviousPeriod("2026-08-10", "2026-08-10")).toEqual({
       from: "2026-08-09",
       to: "2026-08-09",
+    });
+  });
+});
+
+describe("getSamePeriodPreviousYear", () => {
+  it("يعيد نفس حدود الفترة في السنة السابقة", () => {
+    expect(getSamePeriodPreviousYear("2026-07-01", "2026-09-30")).toEqual({
+      from: "2025-07-01",
+      to: "2025-09-30",
+    });
+  });
+
+  it("يضبط 29 فبراير إلى آخر يوم صالح في السنة السابقة", () => {
+    expect(getSamePeriodPreviousYear("2024-02-29", "2024-02-29")).toEqual({
+      from: "2023-02-28",
+      to: "2023-02-28",
     });
   });
 });

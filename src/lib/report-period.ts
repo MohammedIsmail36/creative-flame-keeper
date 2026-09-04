@@ -6,6 +6,7 @@ import {
   startOfYear,
   subMonths,
   subDays,
+  subYears,
 } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { FISCAL_CLOSING_DESCRIPTION_PREFIX } from "@/lib/constants";
@@ -225,5 +226,16 @@ export function getPreviousPeriod(
   return {
     from: format(subDays(from, rangeDays), "yyyy-MM-dd"),
     to: format(subDays(from, 1), "yyyy-MM-dd"),
+  };
+}
+
+/** نفس حدود الفترة في السنة السابقة للمقارنة السنوية. */
+export function getSamePeriodPreviousYear(
+  dateFrom: string,
+  dateTo: string,
+): { from: string; to: string } {
+  return {
+    from: format(subYears(new Date(dateFrom), 1), "yyyy-MM-dd"),
+    to: format(subYears(new Date(dateTo), 1), "yyyy-MM-dd"),
   };
 }
