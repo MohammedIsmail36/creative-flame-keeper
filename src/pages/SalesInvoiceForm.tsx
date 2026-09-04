@@ -15,7 +15,7 @@ import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { FormFieldError } from "@/components/FormFieldError";
 import { SectionHeader } from "@/components/SectionHeader";
 import { calcInvoiceTotals } from "@/lib/invoice-totals";
-import { buildLineItemRows } from "@/lib/invoice-items";
+import { buildLineItemPayloads } from "@/lib/invoice-items";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -127,7 +127,14 @@ export default function SalesInvoiceForm() {
   const [notes, setNotes] = useState("");
   const [reference, setReference] = useState("");
   const [status, setStatus] = useState("draft");
-  const { items, setItems, addItem, removeItem, updateItem, handleLastFieldKeyDown } = useLineItems<InvoiceItem>(
+  const {
+    items,
+    setItems,
+    addItem: addLineItem,
+    removeItem: removeLineItem,
+    updateItem: updateLineItem,
+    handleLastFieldKeyDown,
+  } = useLineItems<InvoiceItem>(
     { priceField: "selling_price" },
     products,
   );
@@ -139,6 +146,21 @@ export default function SalesInvoiceForm() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddInitialName, setQuickAddInitialName] = useState("");
+
+  function addItem() {
+    addLineItem();
+    markDirty();
+  }
+
+  function removeItem(index: number) {
+    removeLineItem(index);
+    markDirty();
+  }
+
+  function updateItem(index: number, field: string, value: unknown) {
+    updateLineItem(index, field, value);
+    markDirty();
+  }
 
 
   useEffect(() => {
@@ -282,41 +304,33 @@ export default function SalesInvoiceForm() {
 
       const draftSavedMsg = droppedEmpty > 0 ? `تم الحفظ مع تجاهل ${droppedEmpty} سطر فارغ` : undefined;
 
-      if (isNew) {
-        const { data: inv, error } = await (supabase.from("sales_invoices") as any)
-          .insert(payload)
-          .select("id")
-          .single();
-        if (error) throw error;
-        const rows = buildLineItemRows(validItems, {
-          parentKey: "invoice_id",
-          parentId: inv.id,
-          reduction: invoiceLevelReduction,
-          base: subtotal,
-        });
+      const rows = buildLineItemPayloads(validItems, {
+        reduction: invoiceLevelReduction,
+        base: subtotal,
+      });
+      const result = await invokeDocumentRpc("save_sales_invoice_draft", {
+        p_invoice_id: id || null,
+        p_invoice: payload,
+        p_items: rows,
+      });
+      if (!result.success) {
+        notify.error(
+          result.isException ? "خطأ" : "تعذر الحفظ",
+          result.error || "تعذر حفظ مسودة فاتورة البيع",
+        );
+        setSaving(false);
+        return false;
+      }
 
-        if (rows.length > 0) {
-          await (supabase.from("sales_invoice_items") as any).insert(rows);
-        }
+      if (isNew) {
+        const savedId = typeof result.invoice_id === "string" ? result.invoice_id : "";
+        if (!savedId) throw new Error("تم حفظ الفاتورة دون إعادة معرّفها");
         if (!opts?.silent) {
           notify.success("تمت الإضافة", draftSavedMsg || "تم إنشاء فاتورة البيع كمسودة");
         }
         markClean();
-        navigate(`/sales/${inv.id}`);
+        navigate(`/sales/${savedId}`);
       } else {
-        const { error } = await (supabase.from("sales_invoices") as any).update(payload).eq("id", id);
-        if (error) throw error;
-        await (supabase.from("sales_invoice_items") as any).delete().eq("invoice_id", id);
-        const rows = buildLineItemRows(validItems, {
-          parentKey: "invoice_id",
-          parentId: id!,
-          reduction: invoiceLevelReduction,
-          base: subtotal,
-        });
-
-        if (rows.length > 0) {
-          await (supabase.from("sales_invoice_items") as any).insert(rows);
-        }
         if (!opts?.silent) {
           notify.success("تم التحديث", draftSavedMsg || "تم تحديث فاتورة البيع");
         }

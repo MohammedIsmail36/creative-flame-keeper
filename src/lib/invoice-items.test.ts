@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { distributeNetTotals } from "./invoice-totals";
-import { buildLineItemRows, PersistableLineItem } from "./invoice-items";
+import {
+  buildLineItemPayloads,
+  buildLineItemRows,
+  PersistableLineItem,
+} from "./invoice-items";
 
 const item = (over: Partial<PersistableLineItem> = {}): PersistableLineItem => ({
   product_id: "p1",
@@ -117,5 +121,21 @@ describe("buildLineItemRows", () => {
     );
     expect(rows.map((r) => r.product_id)).toEqual(["a", "b", "c", "d"]);
     expect(rows.map((r) => r.sort_order)).toEqual([0, 1, 2, 3]);
+  });
+});
+
+describe("buildLineItemPayloads", () => {
+  it("يبني بنود الحفظ الذرّي دون معرّف أب", () => {
+    const rows = buildLineItemPayloads(
+      [item({ product_id: "a", total: 300 }), item({ product_id: "b", total: 100 })],
+      { reduction: 40, base: 400 },
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({ product_id: "a", net_total: 270, sort_order: 0 }),
+      expect.objectContaining({ product_id: "b", net_total: 90, sort_order: 1 }),
+    ]);
+    expect(rows[0]).not.toHaveProperty("invoice_id");
+    expect(rows[0]).not.toHaveProperty("return_id");
   });
 });

@@ -6,6 +6,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE_CONTAINER="${SOURCE_CONTAINER:-farida-db}"
 TEST_DB="codex_sales_atomic_test"
 MIGRATION_FILE="$APP_DIR/supabase/migrations/20260904203000_atomic_sales_document_operations.sql"
+DRAFT_SAVE_MIGRATION_FILE="$APP_DIR/supabase/migrations/20260904233000_atomic_sales_invoice_draft_save.sql"
 TEST_FILE="$APP_DIR/supabase/tests/atomic_sales_document_operations.sql"
 TEST_DB_CREATED=false
 
@@ -17,7 +18,7 @@ cleanup() {
 
 trap cleanup EXIT
 
-if [[ ! -f "$MIGRATION_FILE" || ! -f "$TEST_FILE" ]]; then
+if [[ ! -f "$MIGRATION_FILE" || ! -f "$DRAFT_SAVE_MIGRATION_FILE" || ! -f "$TEST_FILE" ]]; then
   echo "Atomic sales migration or test file is missing." >&2
   exit 1
 fi
@@ -63,6 +64,17 @@ GRANT EXECUTE ON FUNCTION public.unpost_sales_invoice(uuid) TO authenticated, se
 GRANT EXECUTE ON FUNCTION public.post_sales_return(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.cancel_sales_invoice(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.cancel_sales_return(uuid) TO authenticated, service_role;
+SQL
+fi
+
+if [[ "$(docker exec "$SOURCE_CONTAINER" psql -U postgres -d "$TEST_DB" -tAc "SELECT to_regprocedure('public.save_sales_invoice_draft(uuid,jsonb,jsonb)') IS NULL")" == "t" ]]; then
+  docker exec -i "$SOURCE_CONTAINER" psql -U postgres -v ON_ERROR_STOP=1 -d "$TEST_DB" < "$DRAFT_SAVE_MIGRATION_FILE" >/dev/null
+else
+  docker exec -i "$SOURCE_CONTAINER" psql -U postgres -v ON_ERROR_STOP=1 -d "$TEST_DB" >/dev/null <<'SQL'
+REVOKE ALL ON FUNCTION public.save_sales_invoice_draft(uuid, jsonb, jsonb)
+  FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.save_sales_invoice_draft(uuid, jsonb, jsonb)
+  TO authenticated, service_role;
 SQL
 fi
 

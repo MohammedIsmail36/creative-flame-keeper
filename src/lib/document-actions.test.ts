@@ -45,6 +45,18 @@ describe("invokeDocumentRpc", () => {
     expect(rpc).toHaveBeenCalledWith("post_sales_invoice", { p_invoice_id: "1" });
   });
 
+  it("يحافظ على بيانات النجاح التي تعيدها الدالة", async () => {
+    rpc.mockResolvedValue({
+      data: { success: true, invoice_id: "inv-1", invoice_number: 25 },
+      error: null,
+    });
+    expect(await invokeDocumentRpc("save_sales_invoice_draft", {})).toEqual({
+      success: true,
+      invoice_id: "inv-1",
+      invoice_number: 25,
+    });
+  });
+
   it("يعيد رفضًا منطقيًا مع رسالة الدالة دون isException", async () => {
     rpc.mockResolvedValue({ data: { success: false, error: "الفترة مقفلة" }, error: null });
     const r = await invokeDocumentRpc("unpost_sales_invoice", {});

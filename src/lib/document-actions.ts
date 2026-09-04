@@ -22,6 +22,7 @@ export interface DocumentRpcResult {
   error?: string;
   /** true إذا كان الفشل خطأ اتصال/قاعدة بيانات وليس رفضًا منطقيًا من الدالة. */
   isException?: boolean;
+  [key: string]: unknown;
 }
 
 /**
@@ -37,7 +38,7 @@ export async function invokeDocumentRpc(
     if (error) return { success: false, error: errorMessage(error), isException: true };
     const res = data as DocumentRpcResult | null;
     if (!res?.success) return { success: false, error: res?.error };
-    return { success: true };
+    return { ...res, success: true };
   } catch (error) {
     return { success: false, error: errorMessage(error), isException: true };
   }
