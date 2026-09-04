@@ -2182,6 +2182,16 @@ export type Database = {
         }
         Returns: Json
       }
+      get_sales_report_summary_filtered: {
+        Args: {
+          p_customer_filter?: string | null
+          p_date_from: string
+          p_date_to: string
+          p_previous_from: string
+          p_previous_to: string
+        }
+        Returns: Json
+      }
       get_top_products: {
         Args: { p_limit?: number }
         Returns: {

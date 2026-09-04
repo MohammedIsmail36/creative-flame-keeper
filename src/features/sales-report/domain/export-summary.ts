@@ -17,6 +17,7 @@ interface SalesExportSummaryInput {
   overdueInfo: { count: number; total: number };
   discountTaxInfo: { discount: number; tax: number };
   targetInfo: { pct: number } | null;
+  customerScope?: string | null;
 }
 
 export interface SalesExportSummaryCard {
@@ -39,12 +40,16 @@ export function buildSalesExportSummary({
   overdueInfo,
   discountTaxInfo,
   targetInfo,
+  customerScope,
 }: SalesExportSummaryInput): SalesExportSummaryCard[] {
   return [
     {
       label: "نطاق الملخص المالي",
       value: "المستندات المُرحّلة فقط",
     },
+    ...(customerScope
+      ? [{ label: "نطاق العميل", value: customerScope }]
+      : []),
     { label: "عدد الفواتير", value: String(kpi.count) },
     {
       label: "إجمالي المبيعات قبل الضريبة",

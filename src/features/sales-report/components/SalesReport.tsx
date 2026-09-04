@@ -83,6 +83,12 @@ import { useSalesReportPreferences } from "@/features/sales-report/hooks/use-sal
 import { useSalesReportData } from "@/features/sales-report/hooks/use-sales-report-data";
 import { useSalesReportMetrics } from "@/features/sales-report/hooks/use-sales-report-metrics";
 import { QuickSortToolbar } from "./QuickSortToolbar";
+import { LookupCombobox } from "@/components/LookupCombobox";
+import {
+  ALL_CUSTOMERS_FILTER,
+  buildSalesCustomerFilterOptions,
+  filterSalesDocumentsByCustomer,
+} from "@/features/sales-report/domain/customer-filter";
 
 // ── helpers ──
 const fmt = (n: number) =>
@@ -113,6 +119,10 @@ export default function SalesReport() {
   const [dateTo, setDateTo] = useState(
     format(endOfMonth(new Date()), "yyyy-MM-dd"),
   );
+  const [customerFilter, setCustomerFilter] = useState(
+    ALL_CUSTOMERS_FILTER,
+  );
+  const [customerFilterName, setCustomerFilterName] = useState("كل العملاء");
   const {
     statusFilter,
     setStatusFilter,
@@ -176,12 +186,46 @@ export default function SalesReport() {
     paymentAllocationsQuery,
     returnSettlementsQuery,
     summaryQuery,
-    invoices,
-    returns,
+    invoices: unfilteredInvoices,
+    returns: unfilteredReturns,
     movements,
     paymentAllocations,
     returnSettlements,
-  } = useSalesReportData(dateFrom, dateTo);
+  } = useSalesReportData(
+    dateFrom,
+    dateTo,
+    customerFilter === ALL_CUSTOMERS_FILTER ? null : customerFilter,
+  );
+
+  const customerFilterOptions = useMemo(
+    () => {
+      const options = buildSalesCustomerFilterOptions(
+        unfilteredInvoices,
+        unfilteredReturns,
+      );
+      return options.some(({ id }) => id === customerFilter)
+        ? options
+        : [...options, { id: customerFilter, name: customerFilterName }];
+    },
+    [
+      unfilteredInvoices,
+      unfilteredReturns,
+      customerFilter,
+      customerFilterName,
+    ],
+  );
+  const selectedCustomerFilter = customerFilterOptions.find(
+    ({ id }) => id === customerFilter,
+  );
+  const invoices = useMemo(
+    () =>
+      filterSalesDocumentsByCustomer(unfilteredInvoices, customerFilter),
+    [unfilteredInvoices, customerFilter],
+  );
+  const returns = useMemo(
+    () => filterSalesDocumentsByCustomer(unfilteredReturns, customerFilter),
+    [unfilteredReturns, customerFilter],
+  );
 
   const {
     detailInvoices,
@@ -1327,6 +1371,10 @@ export default function SalesReport() {
       overdueInfo,
       discountTaxInfo,
       targetInfo,
+      customerScope:
+        customerFilter === ALL_CUSTOMERS_FILTER
+          ? null
+          : selectedCustomerFilter?.name || "العميل المحدد",
     });
 
     if (groupBy === "invoice") {
@@ -1393,6 +1441,8 @@ export default function SalesReport() {
     invoiceCoverage.byInvoice,
     today,
     statusFilter,
+    customerFilter,
+    selectedCustomerFilter?.name,
   ]);
 
   const reportQueries = [
@@ -1465,6 +1515,28 @@ export default function SalesReport() {
             </div>
 
             <div className="hidden h-7 w-px bg-border lg:block" />
+
+            <div className="flex items-center gap-2">
+              <span className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">
+                العميل
+              </span>
+              <LookupCombobox
+                items={customerFilterOptions}
+                value={customerFilter}
+                onValueChange={(value) => {
+                  setCustomerFilter(value);
+                  setCustomerFilterName(
+                    customerFilterOptions.find(({ id }) => id === value)
+                      ?.name || "العميل المحدد",
+                  );
+                }}
+                placeholder="كل العملاء"
+                searchPlaceholder="ابحث عن عميل..."
+                emptyMessage="لا يوجد عميل في الفترة."
+                className="h-9 w-[190px] border-0 bg-muted/50 shadow-none hover:bg-muted"
+                disabled={isLoading}
+              />
+            </div>
 
             {groupBy === "invoice" || groupBy === "return" ? (
               <div className="flex items-center gap-2">
@@ -1569,6 +1641,11 @@ export default function SalesReport() {
             <Badge variant="outline" className="h-5 bg-background text-[10px]">
               المستندات المُرحّلة فقط
             </Badge>
+            {customerFilter !== ALL_CUSTOMERS_FILTER && (
+              <Badge variant="outline" className="h-5 bg-primary/5 text-[10px] text-primary">
+                العميل: {selectedCustomerFilter?.name || "المحدد"}
+              </Badge>
+            )}
           </div>
         </div>
         <CardContent className="p-0">

@@ -69,4 +69,18 @@ describe("buildSalesExportSummary", () => {
     });
     expect(cards.some(({ label }) => label === "تحقيق الهدف")).toBe(false);
   });
+
+  it("includes the selected customer scope only when a filter is active", () => {
+    const cards = buildSalesExportSummary({
+      ...baseInput,
+      customerScope: "عميل 1",
+    });
+
+    expect(cards).toContainEqual({ label: "نطاق العميل", value: "عميل 1" });
+    expect(
+      buildSalesExportSummary(baseInput).some(
+        ({ label }) => label === "نطاق العميل",
+      ),
+    ).toBe(false);
+  });
 });

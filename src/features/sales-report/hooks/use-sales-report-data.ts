@@ -16,6 +16,7 @@ export function buildSalesReportQueryKeys(
   dateFrom: string,
   dateTo: string,
   previousPeriod: { from: string; to: string },
+  customerFilter: string | null = null,
 ) {
   return {
     invoices: ["sr-invoices", dateFrom, dateTo] as const,
@@ -37,11 +38,16 @@ export function buildSalesReportQueryKeys(
       dateTo,
       previousPeriod.from,
       previousPeriod.to,
+      customerFilter,
     ] as const,
   };
 }
 
-export function useSalesReportData(dateFrom: string, dateTo: string) {
+export function useSalesReportData(
+  dateFrom: string,
+  dateTo: string,
+  customerFilter: string | null = null,
+) {
   const previousPeriod = useMemo(
     () => getPreviousPeriod(dateFrom, dateTo),
     [dateFrom, dateTo],
@@ -50,6 +56,7 @@ export function useSalesReportData(dateFrom: string, dateTo: string) {
     dateFrom,
     dateTo,
     previousPeriod,
+    customerFilter,
   );
 
   const invoicesQuery = useQuery({
@@ -154,11 +161,12 @@ export function useSalesReportData(dateFrom: string, dateTo: string) {
     queryKey: queryKeys.summary,
     queryFn: async ({ signal }) => {
       const { data, error } = await supabase
-        .rpc("get_sales_report_summary", {
+        .rpc("get_sales_report_summary_filtered", {
           p_date_from: dateFrom,
           p_date_to: dateTo,
           p_previous_from: previousPeriod.from,
           p_previous_to: previousPeriod.to,
+          p_customer_filter: customerFilter,
         })
         .abortSignal(signal);
       if (error) throw error;

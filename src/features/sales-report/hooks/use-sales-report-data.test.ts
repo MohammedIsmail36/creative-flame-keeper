@@ -34,11 +34,16 @@ describe("buildSalesReportQueryKeys", () => {
     ]);
   });
 
-  it("includes both current and previous periods in the summary key", () => {
-    const keys = buildSalesReportQueryKeys("2026-08-01", "2026-08-31", {
-      from: "2026-07-01",
-      to: "2026-07-31",
-    });
+  it("includes both periods and the customer scope in the summary key", () => {
+    const keys = buildSalesReportQueryKeys(
+      "2026-08-01",
+      "2026-08-31",
+      {
+        from: "2026-07-01",
+        to: "2026-07-31",
+      },
+      "customer-1",
+    );
 
     expect(keys.summary).toEqual([
       "sr-server-summary",
@@ -46,6 +51,7 @@ describe("buildSalesReportQueryKeys", () => {
       "2026-08-31",
       "2026-07-01",
       "2026-07-31",
+      "customer-1",
     ]);
   });
 });
