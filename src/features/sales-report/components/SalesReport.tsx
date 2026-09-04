@@ -89,6 +89,7 @@ import {
   buildSalesCustomerFilterOptions,
   filterSalesDocumentsByCustomer,
 } from "@/features/sales-report/domain/customer-filter";
+import { calculatePeriodGrowth } from "@/features/sales-report/domain/period-comparison";
 
 // ── helpers ──
 const fmt = (n: number) =>
@@ -174,11 +175,6 @@ export default function SalesReport() {
   // ── Quick date presets (طبقة مشتركة) ──
   const quickRanges = useMemo(() => getQuickDateRanges(), []);
 
-  const calcGrowth = (current: number, previous: number) => {
-    if (previous === 0) return current > 0 ? 100 : 0;
-    return ((current - previous) / Math.abs(previous)) * 100;
-  };
-
   const {
     invoicesQuery,
     returnsQuery,
@@ -255,19 +251,26 @@ export default function SalesReport() {
     previous: number;
   }) => {
     if (isLoading) return null;
-    const g = calcGrowth(current, previous);
     if (previous === 0 && current === 0) return null;
+    const growth = calculatePeriodGrowth(current, previous);
+    if (growth === null) {
+      return (
+        <span className="text-[10px] font-medium text-muted-foreground">
+          لا توجد بيانات سابقة
+        </span>
+      );
+    }
     return (
       <span
-        className={`inline-flex items-center gap-0.5 text-[11px] font-semibold ${g >= 0 ? "text-emerald-600" : "text-destructive"}`}
+        className={`inline-flex items-center gap-0.5 text-[11px] font-semibold ${growth >= 0 ? "text-emerald-600" : "text-destructive"}`}
       >
-        {g >= 0 ? (
+        {growth >= 0 ? (
           <TrendingUp className="w-3 h-3" />
         ) : (
           <TrendingDown className="w-3 h-3" />
         )}
-        {g >= 0 ? "+" : ""}
-        {g.toFixed(1)}%
+        {growth >= 0 ? "+" : ""}
+        {growth.toFixed(1)}%
       </span>
     );
   };
