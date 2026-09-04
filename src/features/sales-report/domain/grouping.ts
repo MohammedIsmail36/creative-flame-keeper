@@ -1,4 +1,5 @@
 import { formatProductDisplay } from "@/lib/product-utils";
+import { round2 } from "@/lib/utils";
 import {
   getDocumentAmountExcludingTax,
   getSalesLineNetAmount,
@@ -103,7 +104,51 @@ interface ProductLine {
 }
 
 interface ProductDocument {
+  total?: number | string | null;
+  tax?: number | string | null;
   items?: ProductLine[] | null;
+}
+
+interface AllocatedProductLine extends ProductLine {
+  reportNetAmount: number;
+}
+
+/**
+ * Allocates the document value before tax across its lines. This preserves
+ * invoice-level and loyalty discounts in legacy rows and assigns any rounding
+ * residual to the last line, so dimensional totals equal the document total.
+ */
+export function allocateSalesDocumentItems(
+  document: ProductDocument,
+): AllocatedProductLine[] {
+  const items = document.items ?? [];
+  if (items.length === 0) return [];
+
+  const rawAmounts = items.map(getSalesLineNetAmount);
+  const rawTotal = rawAmounts.reduce((sum, amount) => sum + amount, 0);
+  const hasDocumentTotal = document.total !== undefined;
+  const targetTotal = hasDocumentTotal
+    ? getDocumentAmountExcludingTax({
+        total: document.total ?? 0,
+        tax: document.tax,
+      })
+    : rawTotal;
+  let allocatedTotal = 0;
+
+  return items.map((item, index) => {
+    const isLast = index === items.length - 1;
+    const reportNetAmount = isLast
+      ? round2(targetTotal - allocatedTotal)
+      : round2(
+          rawTotal !== 0
+            ? (targetTotal * rawAmounts[index]) / rawTotal
+            : index === 0
+              ? targetTotal
+              : 0,
+        );
+    allocatedTotal += reportNetAmount;
+    return { ...item, reportNetAmount };
+  });
 }
 
 interface ProductCostMovement {
@@ -290,8 +335,8 @@ export function buildProductSalesGroups(
     {},
   );
 
-  const salesItems = invoices.flatMap((invoice) => invoice.items ?? []);
-  const returnItems = returns.flatMap((salesReturn) => salesReturn.items ?? []);
+  const salesItems = invoices.flatMap(allocateSalesDocumentItems);
+  const returnItems = returns.flatMap(allocateSalesDocumentItems);
   const itemKey = (item: ProductLine) =>
     item.product_id || `__desc__${item.description || "unknown"}`;
   const createGroup = (
@@ -317,8 +362,8 @@ export function buildProductSalesGroups(
   });
 
   const groups = groupSalesAndReturns<
-    ProductLine,
-    ProductLine,
+    AllocatedProductLine,
+    AllocatedProductLine,
     ProductSalesGroup
   >(salesItems, returnItems, {
     getSaleKey: itemKey,
@@ -327,11 +372,11 @@ export function buildProductSalesGroups(
     createFromReturn: createGroup,
     addSale: (group, item) => {
       group.qtySold += Number(item.quantity ?? 0);
-      group.grossRevenue += getSalesLineNetAmount(item);
+      group.grossRevenue += item.reportNetAmount;
     },
     addReturn: (group, item) => {
       group.qtyReturned += Number(item.quantity ?? 0);
-      group.returnsRevenue += getSalesLineNetAmount(item);
+      group.returnsRevenue += item.reportNetAmount;
     },
   });
 
@@ -395,8 +440,8 @@ export function buildCategorySalesGroups(
   };
 
   const productCategories: Record<string, string> = {};
-  const salesItems = invoices.flatMap((invoice) => invoice.items ?? []);
-  const returnItems = returns.flatMap((salesReturn) => salesReturn.items ?? []);
+  const salesItems = invoices.flatMap(allocateSalesDocumentItems);
+  const returnItems = returns.flatMap(allocateSalesDocumentItems);
   const allItems = [...salesItems, ...returnItems];
   for (const item of allItems) {
     if (item.product_id) {
@@ -436,8 +481,8 @@ export function buildCategorySalesGroups(
     returns: 0,
   });
   const groups = groupSalesAndReturns<
-    ProductLine,
-    ProductLine,
+    AllocatedProductLine,
+    AllocatedProductLine,
     MutableCategoryGroup
   >(salesItems, returnItems, {
     getSaleKey: categoryKey,
@@ -447,12 +492,12 @@ export function buildCategorySalesGroups(
     addSale: (group, item) => {
       if (item.product_id) group.products.add(item.product_id);
       group.qtySold += Number(item.quantity ?? 0);
-      group.revenue += getSalesLineNetAmount(item);
+      group.revenue += item.reportNetAmount;
     },
     addReturn: (group, item) => {
       if (item.product_id) group.products.add(item.product_id);
       group.qtyReturned += Number(item.quantity ?? 0);
-      group.returns += getSalesLineNetAmount(item);
+      group.returns += item.reportNetAmount;
     },
   });
 

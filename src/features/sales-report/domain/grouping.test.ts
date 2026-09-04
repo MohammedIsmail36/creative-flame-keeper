@@ -1,11 +1,46 @@
 import { describe, expect, it } from "vitest";
 import {
+  allocateSalesDocumentItems,
   buildCategorySalesGroups,
   buildCustomerSalesGroups,
   buildProductSalesGroups,
   buildTimeSalesGroups,
   groupSalesAndReturns,
 } from "./grouping";
+
+describe("allocateSalesDocumentItems", () => {
+  it("allocates the document amount before tax and absorbs rounding on the last line", () => {
+    const rows = allocateSalesDocumentItems({
+      total: 2,
+      tax: 0,
+      items: [
+        { product_id: "product-1", net_total: 1 },
+        { product_id: "product-2", net_total: 1 },
+        { product_id: "product-3", net_total: 1 },
+      ],
+    });
+
+    expect(rows.map((row) => row.reportNetAmount)).toEqual([
+      0.67, 0.67, 0.66,
+    ]);
+    expect(
+      rows.reduce((total, row) => total + row.reportNetAmount, 0),
+    ).toBe(2);
+  });
+
+  it("keeps the full document value when legacy line amounts are zero", () => {
+    const rows = allocateSalesDocumentItems({
+      total: 50,
+      tax: 0,
+      items: [
+        { product_id: "product-1", net_total: 0 },
+        { product_id: "product-2", net_total: 0 },
+      ],
+    });
+
+    expect(rows.map((row) => row.reportNetAmount)).toEqual([50, 0]);
+  });
+});
 
 describe("buildTimeSalesGroups", () => {
   it("groups monthly sales, standalone returns, cost, and growth", () => {
@@ -212,6 +247,75 @@ describe("buildCategorySalesGroups", () => {
 });
 
 describe("buildProductSalesGroups", () => {
+  it("matches product and category revenue to document totals after document discounts", () => {
+    const invoices = [
+      {
+        total: 90,
+        tax: 0,
+        items: [
+          {
+            product_id: "product-1",
+            product: {
+              name: "منتج 1",
+              category_id: "category-1",
+              category: { name: "تصنيف 1" },
+            },
+            quantity: 1,
+            net_total: 60,
+          },
+          {
+            product_id: "product-2",
+            product: {
+              name: "منتج 2",
+              category_id: "category-2",
+              category: { name: "تصنيف 2" },
+            },
+            quantity: 1,
+            net_total: 40,
+          },
+        ],
+      },
+    ];
+    const returns = [
+      {
+        total: 18,
+        tax: 0,
+        items: [
+          {
+            product_id: "product-1",
+            product: {
+              name: "منتج 1",
+              category_id: "category-1",
+              category: { name: "تصنيف 1" },
+            },
+            quantity: 1,
+            net_total: 20,
+          },
+        ],
+      },
+    ];
+
+    const products = buildProductSalesGroups(invoices, returns, []);
+    const categories = buildCategorySalesGroups(invoices, returns, [], false);
+
+    expect(products.find((row) => row.id === "product-1")).toEqual(
+      expect.objectContaining({
+        grossRevenue: 54,
+        returnsRevenue: 18,
+        revenue: 36,
+      }),
+    );
+    expect(products.find((row) => row.id === "product-2")).toEqual(
+      expect.objectContaining({
+        grossRevenue: 36,
+        returnsRevenue: 0,
+        revenue: 36,
+      }),
+    );
+    expect(products.reduce((total, row) => total + row.revenue, 0)).toBe(72);
+    expect(categories.reduce((total, row) => total + row.net, 0)).toBe(72);
+  });
+
   it("nets product quantities, revenue, and returned cost", () => {
     const rows = buildProductSalesGroups(
       [
