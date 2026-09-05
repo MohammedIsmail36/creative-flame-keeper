@@ -59,8 +59,11 @@ import ReturnSettlementsView from "@/components/ReturnSettlementsView";
 import {
   ProductWithBrand,
   productsToLookupItems,
-  SALES_PRODUCT_SELECT_FIELDS,
 } from "@/lib/product-utils";
+import {
+  hydrateSalesDocumentItems,
+  normalizeSalesProductCatalog,
+} from "@/lib/sales-product-catalog";
 
 interface Customer {
   id: string;
@@ -145,14 +148,14 @@ export default function SalesReturnForm() {
         .select("id, code, name, phone, balance")
         .eq("is_active", true)
         .order("name"),
-      supabase
-        .from("products")
-        .select(SALES_PRODUCT_SELECT_FIELDS)
-        .eq("is_active", true)
-        .order("name"),
+      supabase.rpc("get_sales_product_catalog"),
     ]);
+    const salesCatalog = normalizeSalesProductCatalog(prodRes.data);
     setCustomers(custRes.data || []);
-    setProducts(prodRes.data || []);
+    setProducts(salesCatalog.filter((product) => product.is_active));
+    if (prodRes.error) {
+      notify.error("تعذّر تحميل المنتجات", prodRes.error.message);
+    }
 
     if (id) {
       const { data: ret } = await (supabase.from("sales_returns") as any)
@@ -173,12 +176,14 @@ export default function SalesReturnForm() {
         const { data: itemsData } = await (
           supabase.from("sales_return_items") as any
         )
-          .select(
-            "*, products:product_id(name, code, model_number, product_brands(name))",
-          )
+          .select("*")
           .eq("return_id", id)
           .order("sort_order", { ascending: true });
-        setItems(mapLoadedLineItems<ReturnItem>(itemsData));
+        setItems(
+          mapLoadedLineItems<ReturnItem>(
+            hydrateSalesDocumentItems(itemsData, salesCatalog),
+          ),
+        );
       }
       setLoading(false);
     } else {

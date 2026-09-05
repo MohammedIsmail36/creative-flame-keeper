@@ -63,8 +63,11 @@ import { QuickAddCustomerDialog } from "@/components/QuickAddCustomerDialog";
 import {
   ProductWithBrand,
   productsToLookupItems,
-  SALES_PRODUCT_SELECT_FIELDS,
 } from "@/lib/product-utils";
+import {
+  hydrateSalesDocumentItems,
+  normalizeSalesProductCatalog,
+} from "@/lib/sales-product-catalog";
 import { notify } from "@/lib/notify";
 import { invokeDocumentRpc, deleteDraftDocument } from "@/lib/document-actions";
 
@@ -173,10 +176,14 @@ export default function SalesInvoiceForm() {
         .select("id, code, name, phone, balance, loyalty_points, loyalty_enabled")
         .eq("is_active", true)
         .order("name"),
-      supabase.from("products").select(SALES_PRODUCT_SELECT_FIELDS).eq("is_active", true).order("name"),
+      supabase.rpc("get_sales_product_catalog"),
     ]);
+    const salesCatalog = normalizeSalesProductCatalog(prodRes.data);
     setCustomers(custRes.data || []);
-    setProducts(prodRes.data || []);
+    setProducts(salesCatalog.filter((product) => product.is_active));
+    if (prodRes.error) {
+      notify.error("تعذّر تحميل المنتجات", prodRes.error.message);
+    }
 
     if (id) {
       const { data: inv } = await (supabase.from("sales_invoices") as any)
@@ -197,10 +204,14 @@ export default function SalesInvoiceForm() {
         setLoyaltyPointsRedeemed(Number(inv.loyalty_points_redeemed) || 0);
 
         const { data: itemsData } = await (supabase.from("sales_invoice_items") as any)
-          .select("*, products:product_id(name, code, model_number, product_brands(name))")
+          .select("*")
           .eq("invoice_id", id)
           .order("sort_order", { ascending: true });
-        setItems(mapLoadedLineItems<InvoiceItem>(itemsData));
+        setItems(
+          mapLoadedLineItems<InvoiceItem>(
+            hydrateSalesDocumentItems(itemsData, salesCatalog),
+          ),
+        );
       }
       setLoading(false);
     } else {

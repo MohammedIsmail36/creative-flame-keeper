@@ -2192,6 +2192,20 @@ export type Database = {
         }
         Returns: Json
       }
+      get_sales_product_catalog: {
+        Args: never
+        Returns: {
+          barcode: string | null
+          code: string
+          id: string
+          is_active: boolean
+          model_number: string | null
+          name: string
+          product_brands: Json
+          quantity_on_hand: number
+          selling_price: number
+        }[]
+      }
       get_top_products: {
         Args: { p_limit?: number }
         Returns: {

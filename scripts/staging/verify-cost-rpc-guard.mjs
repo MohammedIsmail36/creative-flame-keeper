@@ -156,6 +156,59 @@ async function verifyActor(label, key, token, shouldAllow) {
   console.log(`${label} ${shouldAllow ? "allowed" : "denied"}: ${statuses.join(", ")}`);
 }
 
+async function verifySalesCatalog(label, key, token, shouldAllow) {
+  const result = await api("/rest/v1/rpc/get_sales_product_catalog", {
+    key,
+    token,
+    method: "POST",
+    body: {},
+  });
+  if (result.ok !== shouldAllow) {
+    throw new Error(
+      `${label} sales catalog: expected ${shouldAllow ? "allow" : "deny"}, got HTTP ${result.status}: ${result.text.slice(0, 240)}`,
+    );
+  }
+  if (!shouldAllow) {
+    console.log(`${label} sales catalog denied: ${result.status}`);
+    return;
+  }
+
+  const rows = JSON.parse(result.text);
+  const allowedFields = new Set([
+    "id",
+    "code",
+    "name",
+    "barcode",
+    "model_number",
+    "selling_price",
+    "quantity_on_hand",
+    "is_active",
+    "product_brands",
+  ]);
+  const forbiddenFields = [
+    "purchase_price",
+    "unit_cost",
+    "total_cost",
+    "cost",
+    "profit",
+    "margin",
+  ];
+
+  for (const row of rows) {
+    const unexpected = Object.keys(row).filter((field) => !allowedFields.has(field));
+    if (unexpected.length > 0) {
+      throw new Error(`Sales catalog returned unexpected fields: ${unexpected.join(", ")}`);
+    }
+    for (const field of forbiddenFields) {
+      if (Object.prototype.hasOwnProperty.call(row, field)) {
+        throw new Error(`Sales catalog exposed forbidden field: ${field}`);
+      }
+    }
+  }
+
+  console.log(`${label} sales catalog allowed and cost-free: ${rows.length} products`);
+}
+
 async function verifyAtomicSalesPosting(accessToken) {
   const reference = "SECURITY-GUARD-9D2C1";
   const existing = await requireOk(
@@ -271,10 +324,13 @@ try {
   const accessToken = await signIn(password);
 
   await verifyActor("anon", anonKey, anonKey, false);
+  await verifySalesCatalog("anon", anonKey, anonKey, false);
   await verifyActor("sales", anonKey, accessToken, false);
+  await verifySalesCatalog("sales", anonKey, accessToken, true);
 
   await setRole(user.id, "accountant");
   await verifyActor("accountant", anonKey, accessToken, true);
+  await verifySalesCatalog("accountant", anonKey, accessToken, true);
 
   await setRole(user.id, "sales");
   roleRestored = true;
@@ -282,6 +338,7 @@ try {
   await verifyAtomicSalesPosting(accessToken);
 
   await verifyActor("service_role", serviceKey, serviceKey, true);
+  await verifySalesCatalog("service_role", serviceKey, serviceKey, true);
 } finally {
   if (!roleRestored) await setRole(user.id, "sales");
 }
