@@ -3,10 +3,10 @@ import { AppSidebar } from "./AppSidebar";
 import { AppBreadcrumb } from "./AppBreadcrumb";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Search } from "lucide-react";
+import { FlaskConical, LogOut, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Input } from "@/components/ui/input";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { cn } from "@/lib/utils";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -18,6 +18,8 @@ const roleLabels: Record<string, string> = {
   sales: "موظف مبيعات",
 };
 
+const isStagingEnvironment = import.meta.env.VITE_APP_ENV === "staging";
+
 export function AppLayout({ children }: AppLayoutProps) {
   const { fullName, role, signOut } = useAuth();
   const navigate = useNavigate();
@@ -28,9 +30,30 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
-          <header className="h-16 border-b border-border/60 bg-card flex items-center px-4 gap-3 sticky top-0 z-50">
+          <header
+            className={cn(
+              "relative h-16 border-b border-border/60 bg-card flex items-center px-4 gap-3 sticky top-0 z-50",
+              isStagingEnvironment &&
+                "border-amber-300/80 bg-amber-50/80 shadow-[inset_0_-3px_0_0_rgb(245_158_11_/_0.35)] dark:border-amber-800/80 dark:bg-amber-950/30",
+            )}
+            data-environment={isStagingEnvironment ? "staging" : "production"}
+          >
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
             <AppBreadcrumb />
+            {isStagingEnvironment && (
+              <div
+                className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-amber-300 bg-amber-100/95 px-2.5 py-1 text-[11px] font-bold text-amber-950 shadow-sm sm:px-3 sm:text-xs dark:border-amber-700 dark:bg-amber-900/80 dark:text-amber-100"
+                role="status"
+                aria-label="بيئة تجريبية، البيانات غير حقيقية"
+              >
+                <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden sm:inline">بيئة تجريبية</span>
+                <span className="sm:hidden">تجريبي</span>
+                <span className="hidden text-amber-700/80 lg:inline dark:text-amber-200/70">
+                  — بيانات غير حقيقية
+                </span>
+              </div>
+            )}
             <div className="flex-1" />
             {/* User */}
             <div className="flex items-center gap-2">
