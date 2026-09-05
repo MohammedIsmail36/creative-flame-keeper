@@ -104,12 +104,17 @@ const withSuspense = (node: React.ReactNode) => (
   <Suspense fallback={<PageSkeleton />}>{node}</Suspense>
 );
 
+const routerBasename =
+  import.meta.env.BASE_URL === "/"
+    ? undefined
+    : import.meta.env.BASE_URL.replace(/\/$/, "");
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Sonner />
       <ErrorBoundary>
-        <BrowserRouter>
+        <BrowserRouter basename={routerBasename}>
           <AuthProvider>
             <SettingsProvider>
             <PageTitleUpdater />

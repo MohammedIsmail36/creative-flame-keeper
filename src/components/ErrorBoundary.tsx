@@ -63,7 +63,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <Button onClick={this.handleReset}>إعادة المحاولة</Button>
               <Button
                 variant="outline"
-                onClick={() => window.location.assign("/")}
+                onClick={() => window.location.assign(import.meta.env.BASE_URL)}
               >
                 العودة للرئيسية
               </Button>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { ColumnDef } from "@tanstack/react-table";
 import {
   Boxes,
@@ -398,7 +399,7 @@ export default function InventoryValuationPage() {
             </div>
             {!matched && (
               <Button variant="outline" size="sm" asChild>
-                <a href="/reports/inventory-reconciliation">فتح التسوية</a>
+                <Link to="/reports/inventory-reconciliation">فتح التسوية</Link>
               </Button>
             )}
           </div>
