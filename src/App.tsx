@@ -109,8 +109,21 @@ const routerBasename =
     ? undefined
     : import.meta.env.BASE_URL.replace(/\/$/, "");
 
+const isStagingEnvironment = import.meta.env.VITE_APP_ENV === "staging";
+
+const StagingBanner = () =>
+  isStagingEnvironment ? (
+    <div
+      className="sticky top-0 z-[100] flex h-8 items-center justify-center bg-amber-500 px-4 text-center text-xs font-bold text-amber-950 shadow-sm sm:text-sm"
+      role="status"
+    >
+      بيئة تجريبية — البيانات غير حقيقية
+    </div>
+  ) : null;
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <StagingBanner />
     <TooltipProvider>
       <Sonner />
       <ErrorBoundary>
