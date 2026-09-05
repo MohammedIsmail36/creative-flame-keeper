@@ -25,5 +25,6 @@ dist-ssr
 
 # Lovable temporary files
 .lovable/
+supabase/.temp/
 bun.lock
 bun.lockb
