@@ -34,7 +34,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             className={cn(
               "relative h-16 border-b border-border/60 bg-card flex items-center px-4 gap-3 sticky top-0 z-50",
               isStagingEnvironment &&
-                "border-amber-300/80 bg-amber-50/80 shadow-[inset_0_-3px_0_0_rgb(245_158_11_/_0.35)] dark:border-amber-800/80 dark:bg-amber-950/30",
+                "border-amber-400 bg-amber-100 shadow-[inset_0_-3px_0_0_rgb(217_119_6_/_0.55)] dark:border-amber-700 dark:bg-amber-950",
             )}
             data-environment={isStagingEnvironment ? "staging" : "production"}
           >
