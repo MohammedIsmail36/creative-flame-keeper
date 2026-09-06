@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { getSafeInternalPath } from "@/lib/safe-internal-path";
 import {
   Calculator,
   Eye,
@@ -22,12 +23,7 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const { user, loading: authLoading, mfaRequired } = useAuth();
 
-  // Same-origin relative path only.
-  const rawNext = searchParams.get("next");
-  const nextPath =
-    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
-      ? rawNext
-      : "/";
+  const nextPath = getSafeInternalPath(searchParams.get("next"));
 
   if (authLoading) {
     return (
@@ -56,8 +52,9 @@ export default function Auth() {
       });
       if (error) throw error;
       navigate(nextPath);
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "تعذّر تسجيل الدخول.";
+      notify.error("خطأ", message);
     } finally {
       setLoading(false);
     }
