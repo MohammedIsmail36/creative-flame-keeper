@@ -3,11 +3,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FULL_SALES_REPORT_ROLES } from "@/features/sales-report/domain/access";
+import { FINANCE_ROLES } from "@/lib/role-access";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -104,6 +105,17 @@ const withSuspense = (node: React.ReactNode) => (
   <Suspense fallback={<PageSkeleton />}>{node}</Suspense>
 );
 
+const HomeRoute = () => {
+  const { role, roleLoading } = useAuth();
+
+  if (roleLoading) return <PageSkeleton />;
+  if (!role || !FINANCE_ROLES.includes(role)) {
+    return <Navigate to="/sales" replace />;
+  }
+
+  return <AppLayout>{withSuspense(<Dashboard />)}</AppLayout>;
+};
+
 const routerBasename =
   import.meta.env.BASE_URL === "/"
     ? undefined
@@ -122,7 +134,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/mfa" element={<MfaVerify />} />
             
-            <Route path="/" element={<ProtectedRoute><AppLayout>{withSuspense(<Dashboard />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedRoute><HomeRoute /></ProtectedRoute>} />
             <Route path="/accounts" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<Accounts />)}</AppLayout></ProtectedRoute>} />
             <Route path="/journal" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<Journal />)}</AppLayout></ProtectedRoute>} />
             <Route path="/journal/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<JournalEntryForm />)}</AppLayout></ProtectedRoute>} />
@@ -146,10 +158,10 @@ const App = () => (
             <Route path="/supplier-payments" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<SupplierPayments />)}</AppLayout></ProtectedRoute>} />
             <Route path="/suppliers" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<Suppliers />)}</AppLayout></ProtectedRoute>} />
             <Route path="/supplier-statement/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<SupplierStatement />)}</AppLayout></ProtectedRoute>} />
-            <Route path="/products" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<Products />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/products" element={<ProtectedRoute allowedRoles={FINANCE_ROLES}><AppLayout>{withSuspense(<Products />)}</AppLayout></ProtectedRoute>} />
             <Route path="/products/new" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProductForm />)}</AppLayout></ProtectedRoute>} />
             <Route path="/products/import" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProductImport />)}</AppLayout></ProtectedRoute>} />
-            <Route path="/products/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<ProductView />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/products/:id" element={<ProtectedRoute allowedRoles={FINANCE_ROLES}><AppLayout>{withSuspense(<ProductView />)}</AppLayout></ProtectedRoute>} />
             <Route path="/products/:id/edit" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProductForm />)}</AppLayout></ProtectedRoute>} />
             <Route path="/inventory/categories" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<CategoryManagement />)}</AppLayout></ProtectedRoute>} />
             <Route path="/inventory/:type" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<LookupManagement />)}</AppLayout></ProtectedRoute>} />
@@ -165,7 +177,7 @@ const App = () => (
             <Route path="/reports/products" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProductAnalyticsPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/balances" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<AccountBalancesPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/profit-loss" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProfitLossPage />)}</AppLayout></ProtectedRoute>} />
-            <Route path="/reports/commission" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<CommissionCalculatorPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/commission" element={<ProtectedRoute allowedRoles={FINANCE_ROLES}><AppLayout>{withSuspense(<CommissionCalculatorPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/inventory-valuation" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryValuationPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/inventory-aging" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryAgingPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/inventory-reorder" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryReorderPage />)}</AppLayout></ProtectedRoute>} />
@@ -187,7 +199,7 @@ const App = () => (
             <Route path="/system-setup" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout>{withSuspense(<SystemSetup />)}</AppLayout></ProtectedRoute>} />
             <Route path="/fiscal-year-closing" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<FiscalYearClosing />)}</AppLayout></ProtectedRoute>} />
             <Route path="/expense-types" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ExpenseTypes />)}</AppLayout></ProtectedRoute>} />
-            <Route path="/expenses" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<Expenses />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/expenses" element={<ProtectedRoute allowedRoles={FINANCE_ROLES}><AppLayout>{withSuspense(<Expenses />)}</AppLayout></ProtectedRoute>} />
             <Route path="/loyalty" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<LoyaltyReport />)}</AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

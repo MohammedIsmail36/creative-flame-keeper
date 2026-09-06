@@ -1,5 +1,6 @@
 import { notify } from "@/lib/notify";
 import { deleteDraftDocument, invokeDocumentRpc } from "@/lib/document-actions";
+import { canCancelPostedSalesDocument } from "@/lib/role-access";
 import { StatusBadge } from "@/components/StatusBadge";
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
@@ -92,6 +93,7 @@ export default function SalesReturnForm() {
   const { settings, formatCurrency } = useSettings();
   const isNew = !id;
   const canEdit = role === "admin" || role === "accountant" || role === "sales";
+  const canCancelPosted = canCancelPostedSalesDocument(role);
 
   const showTax = settings?.enable_tax ?? false;
   const showDiscount = settings?.show_discount_on_invoice ?? true;
@@ -447,7 +449,7 @@ export default function SalesReturnForm() {
                 onConfirm={handleDeleteDraft}
               />
             )}
-            {!isNew && status === "posted" && canEdit && (
+            {!isNew && status === "posted" && canCancelPosted && (
               <ConfirmDialog
                 trigger={
                   <Button

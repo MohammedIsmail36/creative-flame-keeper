@@ -70,6 +70,7 @@ import {
 } from "@/lib/sales-product-catalog";
 import { notify } from "@/lib/notify";
 import { invokeDocumentRpc, deleteDraftDocument } from "@/lib/document-actions";
+import { canCancelPostedSalesDocument } from "@/lib/role-access";
 
 interface Customer {
   id: string;
@@ -100,6 +101,7 @@ export default function SalesInvoiceForm() {
   const { settings, formatCurrency } = useSettings();
   const isNew = !id;
   const canEdit = role === "admin" || role === "accountant" || role === "sales";
+  const canCancelPosted = canCancelPostedSalesDocument(role);
 
   const showTax = settings?.enable_tax ?? false;
   const showDiscount = settings?.show_discount_on_invoice ?? true;
@@ -528,7 +530,7 @@ export default function SalesInvoiceForm() {
               />
             )}
 
-            {!isNew && status === "posted" && canEdit && (
+            {!isNew && status === "posted" && canCancelPosted && (
               <ConfirmDialog
                 trigger={
                   <Button

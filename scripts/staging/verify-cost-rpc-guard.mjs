@@ -209,6 +209,53 @@ async function verifySalesCatalog(label, key, token, shouldAllow) {
   console.log(`${label} sales catalog allowed and cost-free: ${rows.length} products`);
 }
 
+async function verifyDirectCostTables(label, key, token, shouldSeeRows) {
+  const queries = [
+    ["products", "/rest/v1/products?select=id,purchase_price&limit=1"],
+    [
+      "inventory_movements",
+      "/rest/v1/inventory_movements?select=id,unit_cost,total_cost&limit=1",
+    ],
+  ];
+
+  for (const [table, path] of queries) {
+    const rows = await requireOk(await api(path, { key, token }), `${label} direct ${table}`);
+    if ((rows.length > 0) !== shouldSeeRows) {
+      throw new Error(
+        `${label} direct ${table}: expected ${shouldSeeRows ? "visible rows" : "no rows"}, got ${rows.length}`,
+      );
+    }
+  }
+
+  console.log(`${label} direct cost tables ${shouldSeeRows ? "visible" : "hidden"}`);
+}
+
+async function verifyPostedCancellationGuard(label, key, token, shouldAuthorize) {
+  const missingId = "00000000-0000-0000-0000-000000000000";
+  const calls = [
+    ["cancel_sales_invoice", { p_invoice_id: missingId }],
+    ["cancel_sales_return", { p_return_id: missingId }],
+  ];
+
+  for (const [name, body] of calls) {
+    const result = await requireOk(
+      await api(`/rest/v1/rpc/${name}`, { key, token, method: "POST", body }),
+      `${label} ${name}`,
+    );
+    if (result.success !== false) {
+      throw new Error(`${label} ${name}: an absent test document must not be cancelled`);
+    }
+    const isRoleDenial = String(result.error || "").includes("فقط");
+    if (isRoleDenial === shouldAuthorize) {
+      throw new Error(
+        `${label} ${name}: expected ${shouldAuthorize ? "authorized gateway" : "role denial"}, got ${result.error}`,
+      );
+    }
+  }
+
+  console.log(`${label} posted sales cancellation ${shouldAuthorize ? "authorized" : "denied"}`);
+}
+
 async function verifyAtomicSalesPosting(accessToken) {
   const reference = "SECURITY-GUARD-9D2C1";
   const existing = await requireOk(
@@ -325,12 +372,17 @@ try {
 
   await verifyActor("anon", anonKey, anonKey, false);
   await verifySalesCatalog("anon", anonKey, anonKey, false);
+  await verifyDirectCostTables("anon", anonKey, anonKey, false);
   await verifyActor("sales", anonKey, accessToken, false);
   await verifySalesCatalog("sales", anonKey, accessToken, true);
+  await verifyDirectCostTables("sales", anonKey, accessToken, false);
+  await verifyPostedCancellationGuard("sales", anonKey, accessToken, false);
 
   await setRole(user.id, "accountant");
   await verifyActor("accountant", anonKey, accessToken, true);
   await verifySalesCatalog("accountant", anonKey, accessToken, true);
+  await verifyDirectCostTables("accountant", anonKey, accessToken, true);
+  await verifyPostedCancellationGuard("accountant", anonKey, accessToken, true);
 
   await setRole(user.id, "sales");
   roleRestored = true;
@@ -339,6 +391,7 @@ try {
 
   await verifyActor("service_role", serviceKey, serviceKey, true);
   await verifySalesCatalog("service_role", serviceKey, serviceKey, true);
+  await verifyDirectCostTables("service_role", serviceKey, serviceKey, true);
 } finally {
   if (!roleRestored) await setRole(user.id, "sales");
 }

@@ -388,13 +388,14 @@ export function buildProductSalesGroups(
       const hasFullyReturnedQuantity =
         group.qtySold > 0 &&
         Math.abs(group.qtySold - group.qtyReturned) < 0.000001;
-      const reconciliationStatus = returnOnly
-        ? "return_only"
-        : hasFullyReturnedQuantity && Math.abs(revenue) < 0.005
-          ? "fully_returned"
-          : hasFullyReturnedQuantity
-            ? "return_price_difference"
-            : null;
+      const reconciliationStatus: ProductSalesGroup["reconciliationStatus"] =
+        returnOnly
+          ? "return_only"
+          : hasFullyReturnedQuantity && Math.abs(revenue) < 0.005
+            ? "fully_returned"
+            : hasFullyReturnedQuantity
+              ? "return_price_difference"
+              : null;
 
       return {
         ...group,

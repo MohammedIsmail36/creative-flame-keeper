@@ -34,6 +34,7 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { FULL_SALES_REPORT_ROLES } from "@/features/sales-report/domain/access";
+import { FINANCE_ROLES, type AppRole } from "@/lib/role-access";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useLocation } from "react-router-dom";
@@ -56,8 +57,6 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
-
-type AppRole = "admin" | "accountant" | "sales";
 
 interface MenuItem {
   title: string;
@@ -85,7 +84,7 @@ const sections: MenuSection[] = [
         title: "المنتجات",
         url: "/products",
         icon: Package,
-        roles: ["admin", "accountant", "sales"],
+        roles: FINANCE_ROLES,
       },
       {
         title: "الوحدات",
@@ -141,7 +140,7 @@ const sections: MenuSection[] = [
         title: "المصروفات",
         url: "/expenses",
         icon: Receipt,
-        roles: ["admin", "accountant", "sales"],
+        roles: FINANCE_ROLES,
       },
       {
         title: "أنواع المصروفات",
@@ -284,7 +283,7 @@ const sections: MenuSection[] = [
         title: "المبيعات والمشتريات",
         url: "/reports/sales",
         icon: TrendingUp,
-        roles: ["admin", "accountant", "sales"],
+        roles: FINANCE_ROLES,
         children: [
           {
             title: "تقرير المبيعات",
@@ -314,7 +313,7 @@ const sections: MenuSection[] = [
             title: "حاسبة العمولة",
             url: "/reports/commission",
             icon: Calculator,
-            roles: ["admin", "accountant", "sales"],
+            roles: FINANCE_ROLES,
           },
         ],
       },
@@ -563,31 +562,33 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="py-2">
-        {/* Dashboard */}
-        <SidebarGroup className="py-0">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild className="h-9">
-                  <NavLink
-                    to="/"
-                    end
-                    className="text-foreground/80 hover:bg-muted/50 font-medium"
-                    activeClassName="text-primary bg-accent font-semibold"
-                  >
-                    <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: `hsl(var(--primary) / 0.12)` }}
+        {/* The dashboard contains company-wide cost and profit metrics. */}
+        {role !== "sales" && (
+          <SidebarGroup className="py-0">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild className="h-9">
+                    <NavLink
+                      to="/"
+                      end
+                      className="text-foreground/80 hover:bg-muted/50 font-medium"
+                      activeClassName="text-primary bg-accent font-semibold"
                     >
-                      <LayoutDashboard className="w-4 h-4 text-primary" />
-                    </div>
-                    <span>لوحة التحكم</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                      <div
+                        className="w-7 h-7 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: `hsl(var(--primary) / 0.12)` }}
+                      >
+                        <LayoutDashboard className="w-4 h-4 text-primary" />
+                      </div>
+                      <span>لوحة التحكم</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Collapsible sections */}
         {sections.map((section) => (
