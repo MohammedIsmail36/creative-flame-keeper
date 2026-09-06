@@ -146,10 +146,11 @@ rsync -a \
 cd /tmp/accounting-node22-host-validation
 npm ci
 npm run type-check
+export VITE_SUPABASE_URL=https://node22-validation.invalid
+export VITE_SUPABASE_PUBLISHABLE_KEY=node22-validation
 npm test
-VITE_SUPABASE_URL=https://node22-validation.invalid \
-VITE_SUPABASE_PUBLISHABLE_KEY=node22-validation \
 npm run build
+unset VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY
 cd /opt/accounting-app
 rm -rf /tmp/accounting-node22-host-validation
 git status --short
@@ -226,4 +227,7 @@ sha256sum -c "$NODE22_BACKUP_DIR/production-assets.before.sha256"
 - نجح فحص Nginx الذي ينفذه systemd قبل التشغيل بحالة `0/SUCCESS` وعادت الخدمة `active` عند `13:38:39 UTC`. بقي Docker `active` منذ تشغيله السابق، ولم توجد وحدات systemd فاشلة، وظلت جميع حاويات الشركتين عاملة وذات حالات الصحة السابقة.
 - أعادت Farida وAlibea وStaging HTTP 200، واجتازت بصمات أصول الإنتاج الستة الفحص. بقي Swap بلا إدخال أو إخراج نشط في قياس `vmstat` بعد التثبيت.
 - حُذفت ملفات فحص NodeSource و`npm audit` المؤقتة من `/tmp` بعد حفظ النتائج اللازمة في الوثائق، وبقيت حافظة الرجوع الدائمة وحدها في المسار المعتمد.
-- لم يتحقق أي شرط يستدعي الرجوع إلى Node 18. المرحلة D: لم تبدأ.
+- المرحلة D: مكتملة ومتحقق منها في 2026-09-06 من النسخة المؤقتة `/tmp/accounting-node22-host-validation-20260906-134313`. نجح `npm ci` وفحص TypeScript، ثم نجح 47 ملف اختبار/540 اختباراً، ونجح بناء Vite بخروج `0` خلال `41.99s` بعد تحويل `3935` وحدة.
+- ملاحظة تنفيذية للمرحلة D: المحاولة الأولى شغلت قيم Supabase الوهمية مع أمر البناء فقط، لذلك اجتازت 40 مجموعة/474 اختباراً وتوقفت 7 مجموعات برسالة `supabaseUrl is required`. لم يكن ذلك عيب توافق في Node؛ أُعيد الاختبار بعد تصدير القيم الوهمية لأوامر الاختبار والبناء فنجحت جميع الاختبارات والبناء. صُححت أوامر هذا الدليل لمنع تكرار السهو.
+- لم يتغير `package.json` أو `package-lock.json`، ولم يُنشر البناء التجريبي. اجتازت أصول Farida وAlibea وStaging الستة مقارنة بصمات ما قبل الترقية، وبقي Nginx وDocker والحاويات عاملة، وأعادت النطاقات الثلاثة HTTP 200، ولم يسجل `vmstat` إدخالاً أو إخراجاً نشطاً للـSwap. حُذف مجلد الاختبار المؤقت بعد التحقق.
+- لم يتحقق أي شرط يستدعي الرجوع إلى Node 18. المرحلة التالية: E للتحقق الختامي وتثبيت قرار اعتماد Node 22.
