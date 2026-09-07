@@ -1,7 +1,7 @@
 # خطة الانفصال الكامل عن Lovable
 
 > تاريخ الإنشاء: 2026-09-06  
-> الحالة: اكتملت L0 وL1 داخل cleanroom؛ لم تبدأ L2 أو تتغير أي بيئة
+> الحالة: اكتملت L0 وL1 وL2 داخل cleanroom؛ لم تبدأ L3 أو تتغير أي بيئة
 > نقطة الأساس: الفرع `main` عند الالتزام `3f63708`
 
 ## الهدف
@@ -176,8 +176,27 @@
 | `scripts/deploy-all.sh` | `cb5600e7ecb62a6ebbf5f260d30af6a02e02891ecd9d6f6ff3143ca16bf4af85` |
 | `scripts/check-repository-safety.sh` | `8459bca37cbac51c95af6f4d6f576fd95d3923f0cc68c6db69548a470eb67877` |
 
+## تنفيذ L2 وفصل مصادقة المعاينة — 2026-09-07
+
+- أثبتت مراجعة `previewAuthStorage.ts` أنه وسيط خاص بنطاقات معاينة Lovable فقط، وأنه يعيد `localStorage` مباشرة على نطاقات Farida وAlibea وStaging. كما أثبتت مراجعة Supabase JS `2.110.8` أن التخزين الافتراضي مع `persistSession: true` يستخدم `localStorage` في المتصفح ويوفر مزامنة التبويبات عبر `BroadcastChannel`.
+- ثُبت عقد السلوك القديم أولاً بثلاثة اختبارات ناجحة لاستمرار قيمة الجلسة واستعادتها وإزالتها خارج نطاقات Lovable. بعد ذلك حُذف `previewAuthStorage.ts` واستيراده وخيار `storage` من عميل Supabase داخل cleanroom فقط.
+- أضيف اختبار يمنع إعادة وسيط تخزين خاص بمنصة إلى إعداد عميل Supabase، واختبار تكاملي يثبت أن التخزين الافتراضي لـSupabase يستخدم `localStorage` ويستمر ويستعيد ويحذف قيمة الجلسة. نجح الاختباران المستهدفان، ثم نجح TypeScript بلا أخطاء، ثم نجح كامل الاختبارات: 50/50 ملفاً و565/565 اختباراً.
+- اجتاز ماسح الأسرار بلا نتائج. اختفت إشارات Lovable من كود الواجهة؛ بقي اسم متغير Drizzle واسم جدول تتبع migrations في سكربتين فقط، وهما ضمن L3 ولا يجوز تغيير جدول التتبع مباشرة.
+- نجح بناء Vite 5 بقيم Supabase وهمية: 3935 وحدة، و183 ملفاً بحجم 7,310,399 بايت. لم تحتو الحزمة Lovable أو نطاقات Farida أو Alibea أو Staging أو أي مشروع Supabase حقيقي، واحتوت قيم الاختبار الوهمية فقط.
+- بصمة `index.html` هي `a4d263f2ce2926d390adb2918e10a2fd3fd667e34d370a6769e06232dc84fa1e`، والأصل الرئيسي `/assets/index-J1s2QPsP.js` ببصمة `0d8f74e63b12f361bd4846d6919af8d225030f75661bac15ef0fbf3fef968727`.
+- أكدت مقارنة checksum مع المصدر أن الفروق محصورة في L0 وL1 وL2. لم تُنقل `.env` أو بيانات ربط Supabase أو بيانات المحرر أو ملفات TypeScript المؤقتة، ولم يحدث نشر أو تغيير قاعدة بيانات أو تعديل كود في checkout الإنتاج.
+
+### بصمات L2 داخل cleanroom
+
+| الملف | SHA-256 |
+|---|---|
+| `src/integrations/supabase/client.ts` | `ba148436047edc5c5e624aa5513e9fb1ab76f7a4a48b5fb9efa45267a1398872` |
+| `src/integrations/supabase/client.test.ts` | `a8e9ece909ae790834273595b02c390053d0df0b134493ef7c8097ae22c4b33c` |
+| `src/integrations/supabase/defaultAuthStorage.test.ts` | `3c2f8aa9849ea30e6a42c7b8ad19fb66a270034221fe3bc99ac14c6ef1b993a0` |
+| `src/integrations/supabase/previewAuthStorage.ts` | محذوف من cleanroom |
+
 ## الحالة الحالية والخطوة التالية
 
-- مكتمل: L0 وL1؛ مساحة cleanroom محمية، وسجل الحزم منفصل، والتثبيت والاختبارات والبناء ناجحة.
-- لم يبدأ: L2 لإزالة مصادقة معاينة Lovable، أو أي تغيير remote أو قاعدة بيانات أو نشر.
-- الخطوة التالية بعد الموافقة: مراجعة عقد التخزين الحالي ثم استبدال `previewAuthStorage.ts` بتخزين مصادقة محايد داخل cleanroom فقط، وإضافة اختبارات استمرار الجلسة والخروج قبل حذفه.
+- مكتمل: L0 وL1 وL2؛ مساحة cleanroom محمية، وسجل الحزم ومصادقة الواجهة منفصلان، والتثبيت وTypeScript و565 اختباراً والبناء ناجحة.
+- لم يبدأ: L3 لتنظيف إعدادات قاعدة البيانات والترحيلات، أو أي تغيير remote أو قاعدة بيانات أو نشر.
+- الخطوة التالية بعد الموافقة: استبدال `LOVABLE_DB_MIGRATION_URL` باسم `DATABASE_URL` داخل cleanroom فقط، ثم تصميم ترحيل آمن لاسم جدول تتبع migrations دون تطبيقه على أي قاعدة.
