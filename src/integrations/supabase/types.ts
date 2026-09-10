@@ -539,9 +539,12 @@ export type Database = {
         Row: {
           actual_quantity: number
           adjustment_id: string
+          counted_at: string | null
+          counted_quantity: number | null
           created_at: string
           difference: number
           id: string
+          is_extra: boolean
           notes: string | null
           product_id: string
           system_quantity: number
@@ -551,9 +554,12 @@ export type Database = {
         Insert: {
           actual_quantity?: number
           adjustment_id: string
+          counted_at?: string | null
+          counted_quantity?: number | null
           created_at?: string
           difference?: number
           id?: string
+          is_extra?: boolean
           notes?: string | null
           product_id: string
           system_quantity?: number
@@ -563,9 +569,12 @@ export type Database = {
         Update: {
           actual_quantity?: number
           adjustment_id?: string
+          counted_at?: string | null
+          counted_quantity?: number | null
           created_at?: string
           difference?: number
           id?: string
+          is_extra?: boolean
           notes?: string | null
           product_id?: string
           system_quantity?: number
@@ -593,33 +602,48 @@ export type Database = {
         Row: {
           adjustment_date: string
           adjustment_number: number
+          count_started_at: string | null
+          counted_at: string | null
+          counted_by: string | null
+          counted_by_name: string | null
           created_at: string
           created_by: string | null
           description: string | null
           id: string
           journal_entry_id: string | null
+          reviewed_at: string | null
           status: string
           updated_at: string
         }
         Insert: {
           adjustment_date?: string
           adjustment_number?: number
+          count_started_at?: string | null
+          counted_at?: string | null
+          counted_by?: string | null
+          counted_by_name?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
           journal_entry_id?: string | null
+          reviewed_at?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           adjustment_date?: string
           adjustment_number?: number
+          count_started_at?: string | null
+          counted_at?: string | null
+          counted_by?: string | null
+          counted_by_name?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
           journal_entry_id?: string | null
+          reviewed_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -2042,6 +2066,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_inventory_count_extra_item: {
+        Args: { p_adjustment_id: string; p_product_id: string }
+        Returns: string
+      }
       adjust_product_quantity: {
         Args: { p_delta: number; p_product_id: string }
         Returns: number
@@ -2096,6 +2124,10 @@ export type Database = {
           p_reference: string
           p_supplier_id: string
         }
+        Returns: Json
+      }
+      finish_inventory_count: {
+        Args: { p_adjustment_id: string }
         Returns: Json
       }
       fn_validate_journal_lines_json: {
@@ -2230,11 +2262,19 @@ export type Database = {
         Args: { p_entry_id: string }
         Returns: boolean
       }
+      mark_uncounted_as_matching: {
+        Args: { p_adjustment_id: string }
+        Returns: number
+      }
       post_purchase_invoice: { Args: { p_invoice_id: string }; Returns: Json }
       post_sales_invoice: { Args: { p_invoice_id: string }; Returns: Json }
       product_computed_quantity: {
         Args: { p_product_id: string }
         Returns: number
+      }
+      reopen_inventory_count: {
+        Args: { p_adjustment_id: string }
+        Returns: undefined
       }
       replace_journal_entry_lines: {
         Args: {
@@ -2248,6 +2288,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      start_inventory_count: {
+        Args: { p_adjustment_id: string }
+        Returns: number
+      }
       unpost_purchase_invoice: { Args: { p_invoice_id: string }; Returns: Json }
       unpost_sales_invoice: { Args: { p_invoice_id: string }; Returns: Json }
     }

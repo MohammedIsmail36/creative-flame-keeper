@@ -21,7 +21,12 @@ export const DOCUMENT_STATUS_LABELS: Record<
   Record<string, string>
 > = {
   invoice: INVOICE_STATUS_LABELS,
-  adjustment: { ...INVOICE_STATUS_LABELS, approved: "معتمد" },
+  adjustment: {
+    ...INVOICE_STATUS_LABELS,
+    approved: "معتمد",
+    counting: "جاري الجرد",
+    review: "مراجعة",
+  },
   journal: { draft: "مسودة", posted: "معتمد", cancelled: "ملغي" },
 };
 
@@ -30,10 +35,13 @@ export const DOCUMENT_STATUS_VARIANTS: Record<
   "secondary" | "default" | "destructive"
 > = {
   draft: "secondary",
+  counting: "secondary",
+  review: "secondary",
   posted: "default",
   approved: "default",
   cancelled: "destructive",
 };
+
 
 
 
