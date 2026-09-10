@@ -50,6 +50,13 @@
       "when": 1788198579660,
       "tag": "0006_add_last_supplier_to_inventory_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789048176070,
+      "tag": "0007_inventory_count_workflow",
+      "breakpoints": true
     }
   ]
 }
