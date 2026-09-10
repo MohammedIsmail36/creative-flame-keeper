@@ -2173,39 +2173,6 @@ export type Database = {
         Args: { p_date_from?: string; p_date_to?: string }
         Returns: Json
       }
-      get_sales_report_summary: {
-        Args: {
-          p_date_from: string
-          p_date_to: string
-          p_previous_from: string
-          p_previous_to: string
-        }
-        Returns: Json
-      }
-      get_sales_report_summary_filtered: {
-        Args: {
-          p_customer_filter?: string | null
-          p_date_from: string
-          p_date_to: string
-          p_previous_from: string
-          p_previous_to: string
-        }
-        Returns: Json
-      }
-      get_sales_product_catalog: {
-        Args: never
-        Returns: {
-          barcode: string | null
-          code: string
-          id: string
-          is_active: boolean
-          model_number: string | null
-          name: string
-          product_brands: Json
-          quantity_on_hand: number
-          selling_price: number
-        }[]
-      }
       get_top_products: {
         Args: { p_limit?: number }
         Returns: {
