@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { Search, ListChecks, PackagePlus, CheckCircle2, Circle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { NumberInput } from "@/components/NumberInput";
+import { toWesternDigits } from "@/lib/utils";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { SectionHeader } from "@/components/SectionHeader";
 import { productsToLookupItems, ProductWithBrand } from "@/lib/product-utils";
