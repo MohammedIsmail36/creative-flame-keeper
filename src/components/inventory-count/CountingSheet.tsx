@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { Search, ListChecks, PackagePlus, CheckCircle2, Circle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { NumberInput } from "@/components/NumberInput";
+import { toWesternDigits } from "@/lib/utils";
 import { LookupCombobox } from "@/components/LookupCombobox";
 import { SectionHeader } from "@/components/SectionHeader";
 import { productsToLookupItems, ProductWithBrand } from "@/lib/product-utils";
@@ -234,19 +234,29 @@ export function CountingSheet({
                             : "—"}
                         </span>
                       ) : (
-                        <NumberInput
-                          min={0}
-                          value={line.counted_quantity ?? ("" as any)}
-                          onValueChange={(v) =>
-                            onCountedChange(
-                              line.id,
-                              v === null || Number.isNaN(v) ? null : v,
-                            )
+                        <Input
+                          inputMode="decimal"
+                          value={
+                            line.counted_quantity === null
+                              ? ""
+                              : String(line.counted_quantity)
                           }
+                          onChange={(e) => {
+                            const raw = toWesternDigits(e.target.value)
+                              .replace(/,/g, ".")
+                              .trim();
+                            if (raw === "") {
+                              onCountedChange(line.id, null);
+                              return;
+                            }
+                            if (!/^\d*\.?\d*$/.test(raw)) return;
+                            const num = parseFloat(raw);
+                            if (!Number.isNaN(num)) onCountedChange(line.id, num);
+                          }}
                           placeholder="—"
-                          ref={((el: HTMLInputElement | null) => {
+                          ref={(el) => {
                             inputRefs.current[line.id] = el;
-                          }) as any}
+                          }}
                           className={cn(
                             "font-mono tabular-nums text-center rounded-md h-9 w-full",
                             counted
@@ -255,6 +265,7 @@ export function CountingSheet({
                           )}
                         />
                       )}
+
                     </td>
                     <td className="py-2 px-3 text-center">
                       {counted ? (
