@@ -154,6 +154,35 @@ export default function InventoryAdjustments() {
       ),
     },
     {
+      id: "responsible",
+      header: "المسؤول عن الجرد",
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {row.original.counted_by_name || "—"}
+        </span>
+      ),
+    },
+    {
+      id: "progress",
+      header: "تقدّم العد",
+      cell: ({ row }) => {
+        const p = progressMap[row.original.id];
+        if (!p) return <span className="text-muted-foreground text-sm">—</span>;
+        return (
+          <span className="text-sm font-mono tabular-nums">
+            {p.counted} / {p.total}
+            {p.total - p.counted > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {" "}
+                (متبقي {p.total - p.counted})
+              </span>
+            )}
+          </span>
+        );
+      },
+    },
+
+    {
       accessorKey: "status",
       header: "الحالة",
       cell: ({ row }) => (
