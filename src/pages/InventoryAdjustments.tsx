@@ -23,12 +23,17 @@ interface AdjustmentRow {
   description: string | null;
   status: string;
   created_at: string;
+  counted_by_name?: string | null;
 }
 
 const statusLabels: Record<string, string> = {
   ...INVOICE_STATUS_LABELS,
   approved: "معتمد",
+  counting: "جاري الجرد",
+  review: "مراجعة",
 };
+
+const IN_PROGRESS = ["counting", "review"];
 
 export default function InventoryAdjustments() {
   const navigate = useNavigate();
@@ -53,11 +58,37 @@ export default function InventoryAdjustments() {
     },
   });
 
+  const inProgressIds = adjustments
+    .filter((a) => IN_PROGRESS.includes(a.status))
+    .map((a) => a.id);
+
+  const { data: progressMap = {} } = useQuery({
+    queryKey: ["inventory-adjustments-progress", inProgressIds.join(",")],
+    enabled: inProgressIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (
+        supabase.from("inventory_adjustment_items" as any) as any
+      )
+        .select("adjustment_id, counted_quantity")
+        .in("adjustment_id", inProgressIds);
+      if (error) throw error;
+      const map: Record<string, { total: number; counted: number }> = {};
+      (data || []).forEach((it: any) => {
+        const cur = map[it.adjustment_id] || { total: 0, counted: 0 };
+        cur.total += 1;
+        if (it.counted_quantity !== null) cur.counted += 1;
+        map[it.adjustment_id] = cur;
+      });
+      return map;
+    },
+  });
+
   useEffect(() => {
     if (isError) {
       notify.error("خطأ", "فشل في جلب بيانات التسويات");
     }
   }, [isError]);
+
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -85,6 +116,10 @@ export default function InventoryAdjustments() {
     (a) => a.status === "approved",
   ).length;
   const draftCount = adjustments.filter((a) => a.status === "draft").length;
+  const inProgressCount = adjustments.filter((a) =>
+    IN_PROGRESS.includes(a.status),
+  ).length;
+
 
   const columns: ColumnDef<AdjustmentRow, any>[] = [
     {
@@ -118,6 +153,35 @@ export default function InventoryAdjustments() {
         </span>
       ),
     },
+    {
+      id: "responsible",
+      header: "المسؤول عن الجرد",
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {row.original.counted_by_name || "—"}
+        </span>
+      ),
+    },
+    {
+      id: "progress",
+      header: "تقدّم العد",
+      cell: ({ row }) => {
+        const p = progressMap[row.original.id];
+        if (!p) return <span className="text-muted-foreground text-sm">—</span>;
+        return (
+          <span className="text-sm font-mono tabular-nums">
+            {p.counted} / {p.total}
+            {p.total - p.counted > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {" "}
+                (متبقي {p.total - p.counted})
+              </span>
+            )}
+          </span>
+        );
+      },
+    },
+
     {
       accessorKey: "status",
       header: "الحالة",
