@@ -116,6 +116,10 @@ export default function InventoryAdjustments() {
     (a) => a.status === "approved",
   ).length;
   const draftCount = adjustments.filter((a) => a.status === "draft").length;
+  const inProgressCount = adjustments.filter((a) =>
+    IN_PROGRESS.includes(a.status),
+  ).length;
+
 
   const columns: ColumnDef<AdjustmentRow, any>[] = [
     {
