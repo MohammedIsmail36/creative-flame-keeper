@@ -231,20 +231,27 @@ export default function InventoryAdjustments() {
     <div className="space-y-6" dir="rtl">
       <PageHeader
         icon={ClipboardCheck}
-        title="تسوية المخزون"
-        description="إدارة عمليات الجرد وتسوية الفروقات"
+        title="جرد وتسوية المخزون"
+        description="مستندات جرد فعلي للمخزون: عدّ الأصناف، مراجعة الفروق، ثم اعتماد التسوية"
         actions={
           <>
             <ExportMenu
               config={{
-                filenamePrefix: "inventory-adjustments",
-                sheetName: "تسويات المخزون",
-                pdfTitle: "تقرير تسويات المخزون",
-                headers: ["رقم التسوية", "التاريخ", "الوصف", "الحالة"],
+                filenamePrefix: "inventory-counts",
+                sheetName: "مستندات الجرد",
+                pdfTitle: "تقرير مستندات الجرد",
+                headers: [
+                  "رقم المستند",
+                  "التاريخ",
+                  "الوصف",
+                  "المسؤول عن الجرد",
+                  "الحالة",
+                ],
                 rows: adjustments.map((a) => [
                   `ADJ-${a.adjustment_number}`,
                   a.adjustment_date,
                   a.description || "—",
+                  a.counted_by_name || "—",
                   statusLabels[a.status] || a.status,
                 ]),
                 settings,
@@ -256,11 +263,12 @@ export default function InventoryAdjustments() {
               className="shadow-md shadow-primary/20 gap-2"
             >
               <Plus className="w-4 h-4" />
-              تسوية جديدة
+              جرد جديد
             </Button>
           </>
         }
       />
+
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
