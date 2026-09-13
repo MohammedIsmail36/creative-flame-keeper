@@ -199,7 +199,10 @@ export default function InventoryAdjustments() {
       header: "",
       cell: ({ row }) => (
         <div className="flex gap-1 justify-end">
-          {row.original.status === "draft" && role === "admin" && (
+          {(row.original.status === "draft" ||
+            row.original.status === "counting") &&
+            role === "admin" && (
+
             <ConfirmDialog
               trigger={
                 <Button
@@ -228,20 +231,27 @@ export default function InventoryAdjustments() {
     <div className="space-y-6" dir="rtl">
       <PageHeader
         icon={ClipboardCheck}
-        title="تسوية المخزون"
-        description="إدارة عمليات الجرد وتسوية الفروقات"
+        title="جرد وتسوية المخزون"
+        description="مستندات جرد فعلي للمخزون: عدّ الأصناف، مراجعة الفروق، ثم اعتماد التسوية"
         actions={
           <>
             <ExportMenu
               config={{
-                filenamePrefix: "inventory-adjustments",
-                sheetName: "تسويات المخزون",
-                pdfTitle: "تقرير تسويات المخزون",
-                headers: ["رقم التسوية", "التاريخ", "الوصف", "الحالة"],
+                filenamePrefix: "inventory-counts",
+                sheetName: "مستندات الجرد",
+                pdfTitle: "تقرير مستندات الجرد",
+                headers: [
+                  "رقم المستند",
+                  "التاريخ",
+                  "الوصف",
+                  "المسؤول عن الجرد",
+                  "الحالة",
+                ],
                 rows: adjustments.map((a) => [
                   `ADJ-${a.adjustment_number}`,
                   a.adjustment_date,
                   a.description || "—",
+                  a.counted_by_name || "—",
                   statusLabels[a.status] || a.status,
                 ]),
                 settings,
@@ -253,23 +263,37 @@ export default function InventoryAdjustments() {
               className="shadow-md shadow-primary/20 gap-2"
             >
               <Plus className="w-4 h-4" />
-              تسوية جديدة
+              جرد جديد
             </Button>
           </>
         }
       />
 
+
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card className="border shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <ClipboardList className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">إجمالي التسويات</p>
+              <p className="text-xs text-muted-foreground">إجمالي المستندات</p>
               <p className="text-xl font-black tabular-nums">
                 {adjustments.length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border shadow-sm">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center">
+              <ClipboardList className="w-5 h-5 text-blue-700 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">جاري الجرد / مراجعة</p>
+              <p className="text-xl font-black tabular-nums text-blue-700 dark:text-blue-400">
+                {inProgressCount}
               </p>
             </div>
           </CardContent>
@@ -306,11 +330,12 @@ export default function InventoryAdjustments() {
       <DataTable
         columns={columns}
         data={adjustments}
-        searchPlaceholder="بحث في التسويات..."
+        searchPlaceholder="بحث في مستندات الجرد..."
         isLoading={isLoading}
-        emptyMessage="لا توجد تسويات"
+        emptyMessage="لا توجد مستندات جرد"
         onRowClick={(row) => navigate(`/inventory-adjustments/${row.id}`)}
       />
+
     </div>
   );
 }
