@@ -199,7 +199,10 @@ export default function InventoryAdjustments() {
       header: "",
       cell: ({ row }) => (
         <div className="flex gap-1 justify-end">
-          {row.original.status === "draft" && role === "admin" && (
+          {(row.original.status === "draft" ||
+            row.original.status === "counting") &&
+            role === "admin" && (
+
             <ConfirmDialog
               trigger={
                 <Button
