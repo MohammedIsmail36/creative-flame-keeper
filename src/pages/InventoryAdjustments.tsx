@@ -271,16 +271,29 @@ export default function InventoryAdjustments() {
 
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card className="border shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <ClipboardList className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">إجمالي التسويات</p>
+              <p className="text-xs text-muted-foreground">إجمالي المستندات</p>
               <p className="text-xl font-black tabular-nums">
                 {adjustments.length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border shadow-sm">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center">
+              <ClipboardList className="w-5 h-5 text-blue-700 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">جاري الجرد / مراجعة</p>
+              <p className="text-xl font-black tabular-nums text-blue-700 dark:text-blue-400">
+                {inProgressCount}
               </p>
             </div>
           </CardContent>
@@ -317,11 +330,12 @@ export default function InventoryAdjustments() {
       <DataTable
         columns={columns}
         data={adjustments}
-        searchPlaceholder="بحث في التسويات..."
+        searchPlaceholder="بحث في مستندات الجرد..."
         isLoading={isLoading}
-        emptyMessage="لا توجد تسويات"
+        emptyMessage="لا توجد مستندات جرد"
         onRowClick={(row) => navigate(`/inventory-adjustments/${row.id}`)}
       />
+
     </div>
   );
 }
