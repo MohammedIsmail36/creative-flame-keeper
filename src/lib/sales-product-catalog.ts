@@ -1,4 +1,4 @@
-import type { Database, Json } from "@/integrations/supabase/types";
+import type { Json } from "@/integrations/supabase/types";
 import type { LoadedItemRow } from "@/lib/document-items-mapping";
 import type { ProductWithBrand } from "@/lib/product-utils";
 
