@@ -150,7 +150,7 @@ export default function SalesReturnForm() {
         .select("id, code, name, phone, balance")
         .eq("is_active", true)
         .order("name"),
-      supabase.rpc("get_sales_product_catalog"),
+      (supabase.rpc as any)("get_sales_product_catalog"),
     ]);
     const salesCatalog = normalizeSalesProductCatalog(prodRes.data);
     setCustomers(custRes.data || []);

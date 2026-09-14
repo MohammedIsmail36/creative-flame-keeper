@@ -178,7 +178,7 @@ export default function SalesInvoiceForm() {
         .select("id, code, name, phone, balance, loyalty_points, loyalty_enabled")
         .eq("is_active", true)
         .order("name"),
-      supabase.rpc("get_sales_product_catalog"),
+      (supabase.rpc as any)("get_sales_product_catalog"),
     ]);
     const salesCatalog = normalizeSalesProductCatalog(prodRes.data);
     setCustomers(custRes.data || []);
