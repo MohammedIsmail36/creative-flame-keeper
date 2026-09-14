@@ -2,7 +2,7 @@ import type { Json } from "@/integrations/supabase/types";
 import type { LoadedItemRow } from "@/lib/document-items-mapping";
 import type { ProductWithBrand } from "@/lib/product-utils";
 
-type SalesProductCatalogRpcRow = Record<string, Json>;
+type SalesProductCatalogRpcRow = Record<string, any>;
 
 export type SalesProductCatalogItem = ProductWithBrand & {
   selling_price: number;
