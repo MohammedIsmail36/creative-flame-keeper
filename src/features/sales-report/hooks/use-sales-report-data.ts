@@ -176,7 +176,7 @@ export function useSalesReportData(
     queryKey: queryKeys.summary,
     queryFn: async ({ signal }) => {
       const { data, error } = await supabase
-        .rpc("get_sales_report_summary_filtered", {
+        .rpc("get_sales_report_summary_filtered" as any, {
           p_date_from: dateFrom,
           p_date_to: dateTo,
           p_previous_from: previousPeriod.from,
