@@ -18,14 +18,16 @@
 
 ## المرحلة 0 — تثبيت الـ Invariants واختبار النموذج على الورق (قبل أي جدول)
 وثيقة `docs/BRANCH_ACCOUNTING_MODEL.md` + اختبارات وحدة على المحرّك (منطق خالص بلا قاعدة بيانات) تغطي:
-1) بيع نقدي داخل فرع، 2) شراء آجل، 3) سداد مورد فرع من بنك مركزي، 4) شحن تحويل لم يُستلم حتى نهاية اليوم، 5) استلامه لاحقاً وجزئياً، 6) مصروف مركزي موزّع على فرعين، 7) مرتجع تحويل، 8) قيد إقفال السنة.
-معيار النجاح: **ميزانية كل فرع متوازنة + ميزانية الشركة صحيحة + Branch Clearing = صفر للشركة**. لا ننتقل للمرحلة 1 قبل نجاح الثمانية.
+1) بيع نقدي داخل فرع، 2) شراء آجل، 3) سداد مورد فرع من بنك مركزي، 4) شحن تحويل لم يُستلم حتى نهاية اليوم، 5) استلامه لاحقاً وجزئياً، 6) مصروف مركزي موزّع على فرعين، 7) مرتجع تحويل، 8) قيد إقفال السنة، 9) قيد يمس 3 فروع (اختبار خوارزمية التصفير)، 10) مرتجع بيع بتكلفة الفاتورة الأصلية، 11) مرتجع شراء بفرق سعر، 12) إعادة بناء القيمة وWAC من الحركات ومطابقتها بالأستاذ.
+معيار النجاح: **ميزانية كل فرع متوازنة + ميزانية الشركة صحيحة + Branch Clearing = صفر للشركة + قيمة مخزون كل فرع = رصيد أستاذه**. لا ننتقل للمرحلة 1 قبل نجاح الاثنتي عشرة.
 
 الـ Invariants المعلنة:
 - كل سطر قيد يحمل فرعاً حقيقياً لا يُغيَّر لأجل التوازن.
 - لكل قيد: Σمدين = Σدائن **لكل فرع** بعد سطور التصفير.
-- `Branch Clearing` (حساب نظامي) رصيده صفر على مستوى الشركة في كل تاريخ.
+- `Branch Clearing` (حساب نظامي) رصيده صفر على مستوى الشركة في كل تاريخ، وسطوره آلية فقط وتحمل الفرع المقابل.
 - `مخزون بالطريق` رصيده = المشحون غير المستلم (وليس صفراً).
+- `inventory_movements` دفتر إضافي فقط (كمية + قيمة)، وكل Projection قابل لإعادة البناء منه بنفس النتيجة.
+- كل ترحيل معاملة واحدة ذرّية، ولا يُرحَّل مستند مرتين.
 - بعد الترحيل لا يتغير `branch_id` ولا `warehouse_id`؛ التصحيح بعكس وإعادة ترحيل.
 
 ## المرحلة 1 — الهيكل التنظيمي والصلاحيات
@@ -118,6 +120,7 @@
 - جداول جديدة: `branches`, `warehouses`, `user_branches`, `product_branches`, `warehouse_stock`, `branch_inventory_valuation`, `stock_transfers`, `stock_transfer_items`, `wallets`, `branch_sequences`.
 - أعمدة مضافة: `journal_entry_lines.branch_id` + `counterparty_branch_id` + `is_auto_balancing`، `journal_entries.origin_branch_id`، `branch_id`/`warehouse_id` على رؤوس المستندات و`inventory_movements`، `wallet_id` على السندات والمصروفات، `wallets.scope`/`accounting_branch_id`، `products.branch_availability`.
 - حسابات نظامية جديدة: `1106 مخزون بالطريق`، `1107 تسوية بين الفروع (Branch Clearing)` — كلاهما `is_system = true`، و1107 ممنوع يدوياً.
-- دوال جديدة في القاعدة: `fn_apply_branch_balancing(entry_id)` (السلطة الوحيدة للتصفير)، `rebuild_warehouse_stock()`، `rebuild_branch_valuation()`.
+- دوال جديدة في القاعدة: `fn_apply_branch_balancing(entry_id)` (السلطة الوحيدة للتصفير، مطابقة زوجية مرتبة بكود الفرع)، `rebuild_warehouse_stock()`، `rebuild_branch_valuation()`، و`fn_post_stock_movement(...)` كبوابة وحيدة للمخزون بنفس صرامة `journal-writer`.
+- أعمدة الحركة: `quantity_delta`, `unit_cost`, `value_delta`, `wac_after`, `sequence_no`, `journal_entry_id`, `reversal_of_movement_id` + فهارس فريدة لمنع الترحيل المزدوج.
 - الهجرات إضافية فقط: عمود قابل للإفراغ ← تعبئة ← تحويل الكود ← إلزام لاحقاً؛ لا حذف أعمدة، و`GRANT` لكل جدول جديد مع سياسات مبنية على `journal_entry_lines.branch_id` / `user_can_access_branch` + `has_role`.
 - ملفات منطق جديدة: `src/lib/branch-balancing.ts` (معاينة فقط + اختبارات) و`src/lib/stock-transfer.ts`، ويبقى `journal-writer.ts` البوابة الوحيدة للقيود.
