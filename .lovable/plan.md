@@ -32,6 +32,7 @@
 - `branches` (كود، اسم، نوع: فرع بيع / مستودع مركزي / إدارة، بادئة الترقيم)، `warehouses` (تابع لفرع + مخزن افتراضي)، `user_branches` (فرع أو «كل الفروع»).
 - إنشاء الوضع الحالي كـ **فرع رئيسي + مخزن افتراضي** وربط كل المستخدمين والحركات التاريخية به.
 - `user_can_access_branch(branch_id)` في كل السياسات + `BranchContext` في الواجهة (الفرع يحدد ما يُرى وأي سلسلة ترقيم تُستخدم — نمط Responsibility Center).
+- **قاعدة الصلاحية المحاسبية**: الرؤية تُبنى على `journal_entry_lines.branch_id` (يرى المستخدم سطوره فقط) **لا على `origin_branch_id`** — فمستخدم فريدة يرى جانبه من تحويل بدأه المركزي دون أن يرى تفاصيل المركزي المالية. وصلاحية مستند التحويل: فرع المستخدم مُرسل أو مستقبل.
 - شاشات إدارة الفروع والمخازن.
 
 ## المرحلة 2 — البُعد المحاسبي ومحرّك موازنة الفروع (الجوهر)
@@ -80,14 +81,16 @@
 - فلتر الفرع في لوحة التحكم وكل التقارير يحترم صلاحية المستخدم + تقارير مقارنة الفروع (مبيعات، ربحية، مخزون، محافظ، مديونية).
 - **إحكام الكتابة**: منع الكتابة المباشرة إلى سطور القيود المُرحَّلة وإلى المخزون من أي مسار غير خدمة الترحيل (سياسات + تريجرات)، والقاعدة تتحقق من السلامة بينما الخدمة تنفّذ المنطق.
 - طبقة سياق واحدة (فرع/مخزن/محفظة) تُستهلك من كل الشاشات، وحذف المنطق المكرر.
-- فحوصات جديدة في شاشة سلامة البيانات: توازن كل فرع، Branch Clearing = صفر، رصيد الطريق = المشحون غير المستلم، `warehouse_stock` = مجموع الحركات.
+- فحوصات جديدة في شاشة سلامة البيانات: توازن كل فرع، Branch Clearing = صفر للشركة وأرصدة متقابلة بين الفروع، رصيد الطريق = المشحون غير المستلم، `warehouse_stock` = مجموع الحركات، `branch_inventory_valuation` لكل فرع = رصيد حساب مخزونه في الأستاذ.
+
 
 ## المراجعة بعد كل مرحلة
 تنفيذ ← فحص الأنواع والاختبارات ← تجربة عملية ← تقرير قصير ← موافقتك. العمل على **مسودة منفصلة** للمشروع تُدمج عند الموافقة.
 
 ## تفاصيل تقنية
-- جداول جديدة: `branches`, `warehouses`, `user_branches`, `product_branches`, `warehouse_stock`, `stock_transfers`, `stock_transfer_items`, `wallets`, `branch_sequences`.
-- أعمدة مضافة: `journal_entry_lines.branch_id`، `journal_entries.origin_branch_id`، `branch_id`/`warehouse_id` على رؤوس المستندات و`inventory_movements`، `wallet_id` على السندات والمصروفات، `products.branch_availability`.
-- حسابات نظامية جديدة: `1106 مخزون بالطريق`، `1107 تسوية بين الفروع (Branch Clearing)` — كلاهما `is_system = true`.
-- الهجرات إضافية فقط: عمود قابل للإفراغ ← تعبئة ← تحويل الكود ← إلزام لاحقاً؛ لا حذف أعمدة، و`GRANT` لكل جدول جديد مع سياسات `user_can_access_branch` + `has_role`.
-- ملفات منطق جديدة: `src/lib/branch-balancing.ts` (+ اختبارات) و`src/lib/stock-transfer.ts`، ويبقى `journal-writer.ts` البوابة الوحيدة للقيود.
+- جداول جديدة: `branches`, `warehouses`, `user_branches`, `product_branches`, `warehouse_stock`, `branch_inventory_valuation`, `stock_transfers`, `stock_transfer_items`, `wallets`, `branch_sequences`.
+- أعمدة مضافة: `journal_entry_lines.branch_id` + `counterparty_branch_id` + `is_auto_balancing`، `journal_entries.origin_branch_id`، `branch_id`/`warehouse_id` على رؤوس المستندات و`inventory_movements`، `wallet_id` على السندات والمصروفات، `wallets.scope`/`accounting_branch_id`، `products.branch_availability`.
+- حسابات نظامية جديدة: `1106 مخزون بالطريق`، `1107 تسوية بين الفروع (Branch Clearing)` — كلاهما `is_system = true`، و1107 ممنوع يدوياً.
+- دوال جديدة في القاعدة: `fn_apply_branch_balancing(entry_id)` (السلطة الوحيدة للتصفير)، `rebuild_warehouse_stock()`، `rebuild_branch_valuation()`.
+- الهجرات إضافية فقط: عمود قابل للإفراغ ← تعبئة ← تحويل الكود ← إلزام لاحقاً؛ لا حذف أعمدة، و`GRANT` لكل جدول جديد مع سياسات مبنية على `journal_entry_lines.branch_id` / `user_can_access_branch` + `has_role`.
+- ملفات منطق جديدة: `src/lib/branch-balancing.ts` (معاينة فقط + اختبارات) و`src/lib/stock-transfer.ts`، ويبقى `journal-writer.ts` البوابة الوحيدة للقيود.
