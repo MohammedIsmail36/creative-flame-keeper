@@ -93,8 +93,8 @@
 - **صلاحية المستند**: يراه المستخدم إذا كان فرعه هو المُرسل **أو** المستقبل.
 
 ## المرحلة 5 — المحافظ المالية بدل قائمة (نقد/بنك)
-- `wallets`: الاسم، النوع (خزنة / محفظة إلكترونية / بنك)، **`scope = company | branch`** (من يستطيع الاستخدام) + `branch_id` عند `branch`، و**`accounting_branch_id`** (من يملك الرصيد محاسبياً — الفرع الذي يُنسَب إليه سطر الـ GL)، الحساب المرتبط من الدليل الموحّد، مفعّل.
-  - مثال: بنك الأهلي `scope=company` و`accounting_branch_id=HQ`؛ خزنة فريدة `scope=branch, branch_id=Farida, accounting_branch_id=Farida`.
+- `wallets`: الاسم، النوع (خزنة / محفظة إلكترونية / بنك)، **`scope = company | branch`**، و**`accounting_branch_id`** (من يملك الرصيد محاسبياً — الفرع الذي يُنسَب إليه سطر الـ GL)، الحساب المرتبط من الدليل الموحّد، مفعّل. **لا `branch_id` منفصل**: عند `scope=branch` فالمستخدِم هو `accounting_branch_id` نفسه؛ وعند `scope=company` تستخدمها كل الفروع والرصيد يبقى على `accounting_branch_id`.
+  - مثال: بنك الأهلي `scope=company, accounting_branch_id=HQ`؛ خزنة فريدة `scope=branch, accounting_branch_id=Farida`.
 - `wallet_id` على سندات القبض والصرف والمصروفات والسداد داخل الفاتورة، وتحويل البيانات القديمة إلى «الخزنة الرئيسية» و«البنك».
 - **الدفع المركزي**: سداد فاتورة فرع B من بنك الشركة يبقى سطر البنك على فرع HQ، ويولّد المحرّك سطور Branch Clearing بين HQ وB — لا تغيير لفرع البنك.
 - إلغاء الشرط المكرر `paymentMethod === "cash" ? 1101 : 1102` في `payment-voucher.ts` و`expense-posting.ts` بدالة واحدة تقرأ حساب المحفظة.
@@ -113,9 +113,9 @@
 
 ## تفاصيل تقنية
 - جداول جديدة: `branches`, `warehouses`, `user_branches`, `product_branches`, `warehouse_stock`, `branch_inventory_valuation`, `stock_transfers`, `stock_transfer_items`, `wallets`, `branch_sequences`.
-- أعمدة مضافة: `journal_entry_lines.branch_id` + `counterparty_branch_id` + `is_auto_balancing`، `journal_entries.origin_branch_id`، `branch_id`/`warehouse_id` على رؤوس المستندات و`inventory_movements`، `wallet_id` على السندات والمصروفات، `wallets.scope`/`accounting_branch_id`، `products.branch_availability`.
+- أعمدة مضافة: `journal_entry_lines.branch_id` + `is_auto_balancing`، `journal_entries.origin_branch_id`، `branch_id`/`warehouse_id` على رؤوس المستندات و`inventory_movements`، `wallet_id` على السندات والمصروفات، `wallets.scope`/`accounting_branch_id`، `products.branch_availability`.
 - حسابات نظامية جديدة: `1106 مخزون بالطريق`، `1107 تسوية بين الفروع (Branch Clearing)` — كلاهما `is_system = true`، و1107 ممنوع يدوياً.
-- دوال جديدة في القاعدة: `fn_apply_branch_balancing(entry_id)` (السلطة الوحيدة للتصفير، مطابقة زوجية مرتبة بكود الفرع)، `rebuild_warehouse_stock()`، `rebuild_branch_valuation()`، و`fn_post_stock_movement(...)` كبوابة وحيدة للمخزون بنفس صرامة `journal-writer`.
-- أعمدة الحركة: `quantity_delta`, `unit_cost`, `value_delta`, `wac_after`, `sequence_no`, `journal_entry_id`, `reversal_of_movement_id` + فهارس فريدة لمنع الترحيل المزدوج.
+- دوال جديدة في القاعدة: `fn_apply_branch_balancing(entry_id)` (سطر 1107 واحد لكل فرع غير متوازن)، `rebuild_warehouse_stock()`، `rebuild_branch_valuation()`، و`fn_post_stock_movement(...)` كبوابة وحيدة للمخزون بنفس صرامة `journal-writer`.
+- أعمدة الحركة: `quantity_delta`, `unit_cost`, `value_delta`, `journal_entry_id`, `reversal_of_movement_id`.
 - الهجرات إضافية فقط: عمود قابل للإفراغ ← تعبئة ← تحويل الكود ← إلزام لاحقاً؛ لا حذف أعمدة، و`GRANT` لكل جدول جديد مع سياسات مبنية على `journal_entry_lines.branch_id` / `user_can_access_branch` + `has_role`.
-- ملفات منطق جديدة: `src/lib/branch-balancing.ts` (معاينة فقط + اختبارات) و`src/lib/stock-transfer.ts`، ويبقى `journal-writer.ts` البوابة الوحيدة للقيود.
+- ملف منطق جديد: `src/lib/stock-transfer.ts`، ويبقى `journal-writer.ts` البوابة الوحيدة للقيود. **لا `branch-balancing.ts`** — لا محرّك TypeScript موازٍ.
