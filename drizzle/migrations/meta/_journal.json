@@ -57,6 +57,13 @@
       "when": 1789048176070,
       "tag": "0007_inventory_count_workflow",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790040594940,
+      "tag": "0008_phase1_branches_warehouses_user_branches",
+      "breakpoints": true
     }
   ]
 }
