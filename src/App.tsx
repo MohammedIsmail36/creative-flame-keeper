@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
+import { BranchProvider } from "@/contexts/BranchContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FULL_SALES_REPORT_ROLES } from "@/features/sales-report/domain/access";
@@ -59,6 +60,7 @@ const BalanceSheet = lazy(() => import("./pages/BalanceSheet"));
 const CashFlowStatement = lazy(() => import("./pages/CashFlowStatement"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
+const Branches = lazy(() => import("./pages/Branches"));
 const Profile = lazy(() => import("./pages/Profile"));
 const SystemSetup = lazy(() => import("./pages/SystemSetup"));
 const CustomerStatement = lazy(() => import("./pages/CustomerStatement"));
@@ -129,6 +131,7 @@ const App = () => (
         <BrowserRouter basename={routerBasename}>
           <AuthProvider>
             <SettingsProvider>
+              <BranchProvider>
             <PageTitleUpdater />
             <Routes>
             <Route path="/auth" element={<Auth />} />
@@ -195,6 +198,7 @@ const App = () => (
             <Route path="/inventory-adjustments/:id" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryAdjustmentForm />)}</AppLayout></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout>{withSuspense(<SettingsPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout>{withSuspense(<UserManagement />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/branches" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout>{withSuspense(<Branches />)}</AppLayout></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><AppLayout>{withSuspense(<Profile />)}</AppLayout></ProtectedRoute>} />
             <Route path="/system-setup" element={<ProtectedRoute allowedRoles={["admin"]}><AppLayout>{withSuspense(<SystemSetup />)}</AppLayout></ProtectedRoute>} />
             <Route path="/fiscal-year-closing" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<FiscalYearClosing />)}</AppLayout></ProtectedRoute>} />
@@ -203,6 +207,7 @@ const App = () => (
             <Route path="/loyalty" element={<ProtectedRoute allowedRoles={["admin", "accountant", "sales"]}><AppLayout>{withSuspense(<LoyaltyReport />)}</AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+              </BranchProvider>
           </SettingsProvider>
         </AuthProvider>
       </BrowserRouter>

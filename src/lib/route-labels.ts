@@ -2,6 +2,7 @@ export const APP_NAME = "نظام الباقي";
 
 export const routeLabels: Record<string, string> = {
   "": "لوحة التحكم",
+  branches: "الفروع والمخازن",
   accounts: "شجرة الحسابات",
   journal: "القيود المحاسبية",
   ledger: "دفتر الأستاذ",

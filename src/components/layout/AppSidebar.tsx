@@ -402,6 +402,7 @@ const sections: MenuSection[] = [
 
 const settingsItems: MenuItem[] = [
   { title: "إدارة المستخدمين", url: "/users", icon: UserCog, roles: ["admin"] },
+  { title: "الفروع والمخازن", url: "/branches", icon: Building2, roles: ["admin"] },
   { title: "الإعدادات", url: "/settings", icon: Settings, roles: ["admin"] },
   {
     title: "إعداد النظام",
