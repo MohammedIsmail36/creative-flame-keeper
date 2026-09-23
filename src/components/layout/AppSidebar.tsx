@@ -10,6 +10,7 @@ import {
   Calculator,
   Settings,
   UserCog,
+  Building2,
   RotateCcw,
   ClipboardCheck,
   CreditCard,
@@ -37,6 +38,7 @@ import { FULL_SALES_REPORT_ROLES } from "@/features/sales-report/domain/access";
 import { FINANCE_ROLES, type AppRole } from "@/lib/role-access";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
+import { BranchSwitcher } from "@/components/layout/BranchSwitcher";
 import { useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -563,6 +565,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="py-2">
+        <BranchSwitcher collapsed={collapsed} />
         {/* The dashboard contains company-wide cost and profit metrics. */}
         {role !== "sales" && (
           <SidebarGroup className="py-0">
