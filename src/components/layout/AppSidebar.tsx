@@ -10,6 +10,7 @@ import {
   Calculator,
   Settings,
   UserCog,
+  Building2,
   RotateCcw,
   ClipboardCheck,
   CreditCard,
@@ -563,6 +564,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="py-2">
+        <BranchSwitcher collapsed={collapsed} />
         {/* The dashboard contains company-wide cost and profit metrics. */}
         {role !== "sales" && (
           <SidebarGroup className="py-0">
