@@ -3,7 +3,7 @@
 المرجع المعتمد: `docs/BRANCH_ACCOUNTING_MODEL.md` + الخطة المؤرشفة في `.lovable/plan/`.
 
 - [x] **المرحلة 0** — وثيقة النموذج المحاسبي (`docs/BRANCH_ACCOUNTING_MODEL.md`): Invariants، محرّك الموازنة، السيناريوهات الثمانية، قواعد التكلفة، معيار النجاح.
-- [ ] **المرحلة 1** — الهيكل التنظيمي والصلاحيات: `branches`, `warehouses`, `user_branches`, `user_can_access_branch`, `BranchContext`, شاشات الإدارة.
+- [x] **المرحلة 1** — الهيكل التنظيمي والصلاحيات: `branches`, `warehouses`, `user_branches`, `user_can_access_branch`, `BranchContext`, شاشات الإدارة. (Migration 0008 + بذرة HQ/MAIN + شاشة `/branches` بثلاث تبويبات + محوّل الفرع في القائمة الجانبية — تحقق عملي: إضافة فرع ومخزن بنجاح)
 - [ ] **المرحلة 2** — بُعد الفرع على سطور القيود + `fn_apply_branch_balancing` + حسابي 1106/1107 + توسيع دوال التقارير بـ `p_branch_id`.
 - [ ] **المرحلة 3** — المخزون: `inventory_movements` دفتر كمية وقيمة، `warehouse_stock`, `branch_inventory_valuation`, WAC لكل فرع، منع المخزون السالب.
 - [ ] **المرحلة 4** — الشراء المركزي و`stock_transfers` بخطوتين (نقل داخلي مقابل بين فرعين).
