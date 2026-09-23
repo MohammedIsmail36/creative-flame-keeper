@@ -38,6 +38,7 @@ import { FULL_SALES_REPORT_ROLES } from "@/features/sales-report/domain/access";
 import { FINANCE_ROLES, type AppRole } from "@/lib/role-access";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
+import { BranchSwitcher } from "@/components/layout/BranchSwitcher";
 import { useLocation } from "react-router-dom";
 import {
   Sidebar,
