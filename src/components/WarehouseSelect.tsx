@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBranches, useWarehouses } from "@/hooks/use-branches";
-import { useBranch } from "@/contexts/BranchContext";
+import { useBranchContext } from "@/contexts/BranchContext";
 
 interface Props {
   value: string;
@@ -14,7 +14,7 @@ interface Props {
 export function WarehouseSelect({ value, onChange, disabled }: Props) {
   const { data: warehouses = [] } = useWarehouses();
   const { data: branches = [] } = useBranches();
-  const { activeBranchId, canAccessBranch } = useBranch() as any;
+  const { activeBranchId, canAccessBranch } = useBranchContext();
 
   const options = useMemo(
     () =>

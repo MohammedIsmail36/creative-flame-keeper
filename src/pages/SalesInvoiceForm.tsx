@@ -25,6 +25,7 @@ import { NumberInput } from "@/components/NumberInput";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { LookupCombobox } from "@/components/LookupCombobox";
+import { WarehouseSelect } from "@/components/WarehouseSelect";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
 import {
   Plus,
@@ -127,6 +128,7 @@ export default function SalesInvoiceForm() {
   const [invoiceNumber, setInvoiceNumber] = useState<number | null>(null);
   const [postedNumber, setPostedNumber] = useState<number | null>(null);
   const [customerId, setCustomerId] = useState("");
+  const [warehouseId, setWarehouseId] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
@@ -196,6 +198,7 @@ export default function SalesInvoiceForm() {
         setInvoiceNumber(inv.invoice_number);
         setPostedNumber(inv.posted_number || null);
         setCustomerId(inv.customer_id || "");
+        setWarehouseId(inv.warehouse_id || "");
         setCustomerName(inv.customers?.name || "");
         setInvoiceDate(inv.invoice_date);
         setNotes(inv.notes || "");
@@ -303,6 +306,7 @@ export default function SalesInvoiceForm() {
 
       const payload: any = {
         customer_id: customerId || null,
+        warehouse_id: warehouseId || null,
         invoice_date: invoiceDate,
         subtotal,
         discount: invoiceDiscount,
@@ -659,6 +663,14 @@ export default function SalesInvoiceForm() {
               </div>
             )}
           </div>
+          <WarehouseSelect
+            value={warehouseId}
+            disabled={!isEditable}
+            onChange={(v) => {
+              if (v !== warehouseId && warehouseId) setIsDirty(true);
+              setWarehouseId(v);
+            }}
+          />
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">رقم المرجع</Label>
             {isEditable ? (
