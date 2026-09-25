@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { useSettings } from "@/contexts/SettingsContext";
 import { ACCOUNT_CODES, BALANCE_TOLERANCE } from "@/lib/constants";
 import { ReportPurposeBar } from "@/components/shared/ReportPurposeBar";
+import { InventoryProjectionPanel } from "@/components/inventory/InventoryProjectionPanel";
 import {
   checkDocumentsHaveJournal,
   checkEntityBalances,
@@ -410,6 +411,7 @@ export default function SystemHealthPage() {
           />
 
           <StatGrid>
+          <InventoryProjectionPanel />
             <StatCard
               icon={summary.healthy ? CheckCircle2 : AlertTriangle}
               tone={summary.healthy ? "emerald" : summary.errors > 0 ? "red" : "amber"}
