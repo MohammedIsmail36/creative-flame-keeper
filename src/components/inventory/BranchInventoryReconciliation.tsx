@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Scale } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency } from "@/lib/utils";
+const formatCurrency = (n: number) => Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 import { Badge } from "@/components/ui/badge";
 
 interface Row { branch_id: string; branch_name: string; stock_value: number; gl_value: number; difference: number }

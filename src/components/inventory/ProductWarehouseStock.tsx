@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Warehouse as WarehouseIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBranches, useWarehouses } from "@/hooks/use-branches";
-import { formatCurrency } from "@/lib/utils";
+const formatCurrency = (n: number) => Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** الكمية لكل مخزن + تكلفة متوسطة لكل فرع لصنف واحد */
 export function ProductWarehouseStock({ productId }: { productId: string }) {
