@@ -22,6 +22,8 @@ export interface JournalLineInput {
   debit: number;
   credit: number;
   description?: string | null;
+  /** بُعد الفرع على السطر — إن تُرك فارغًا تملؤه قاعدة البيانات بفرع المستند أو الفرع الرئيسي */
+  branch_id?: string | null;
 }
 
 export interface CreateJournalEntryInput {
@@ -42,6 +44,7 @@ function normalizeLines(lines: JournalLineInput[]): JournalLineInput[] {
       debit: round2(Number(l.debit || 0)),
       credit: round2(Number(l.credit || 0)),
       description: l.description ?? null,
+      branch_id: l.branch_id ?? null,
     }))
     .filter((l) => l.debit > 0 || l.credit > 0);
 }
@@ -115,7 +118,13 @@ export async function replaceJournalEntryLines(
 
 /** بناء سطور القيد العكسي من سطور قيد قائم (تبديل المدين والدائن) */
 export function reverseLines(
-  lines: { account_id: string; debit: number | string; credit: number | string; description?: string | null }[],
+  lines: {
+    account_id: string;
+    debit: number | string;
+    credit: number | string;
+    description?: string | null;
+    branch_id?: string | null;
+  }[],
   descriptionPrefix = "عكس - ",
 ): JournalLineInput[] {
   return lines.map((l) => ({
@@ -123,6 +132,7 @@ export function reverseLines(
     debit: round2(Number(l.credit || 0)),
     credit: round2(Number(l.debit || 0)),
     description: `${descriptionPrefix}${l.description ?? ""}`.trim(),
+    branch_id: l.branch_id ?? null,
   }));
 }
 
@@ -140,10 +150,12 @@ export async function createReverseJournalEntry(opts: {
   useEntryDescriptionForLines?: boolean;
   entryType?: string;
 }): Promise<string> {
+  // سطور الموازنة الآلية تُستثنى: محرّك الفروع يعيد توليدها للقيد العكسي
   const { data: origLines, error } = await supabase
     .from("journal_entry_lines")
-    .select("account_id, debit, credit, description")
-    .eq("journal_entry_id", opts.sourceEntryId);
+    .select("account_id, debit, credit, description, branch_id")
+    .eq("journal_entry_id", opts.sourceEntryId)
+    .eq("is_auto_balancing", false);
   if (error) throw error;
   if (!origLines || origLines.length === 0) {
     throw new Error("القيد الأصلي لا يحتوي سطورًا — لا يمكن إنشاء قيد عكسي");

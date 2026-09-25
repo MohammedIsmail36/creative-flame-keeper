@@ -279,6 +279,12 @@ const sections: MenuSection[] = [
             icon: Calculator,
             roles: ["admin", "accountant"],
           },
+          {
+            title: "التسوية بين الفروع",
+            url: "/reports/branch-clearing",
+            icon: Building2,
+            roles: ["admin", "accountant"],
+          },
         ],
       },
       {

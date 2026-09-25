@@ -139,6 +139,7 @@ export type Database = {
       company_settings: {
         Row: {
           address: string | null
+          branch_clearing_account_id: string | null
           business_activity: string | null
           commercial_register: string | null
           company_name: string
@@ -152,6 +153,7 @@ export type Database = {
           enable_tax: boolean
           expense_prefix: string
           fiscal_year_start: string
+          goods_in_transit_account_id: string | null
           id: string
           inventory_dead_days: number
           inventory_lead_time_days: number
@@ -190,6 +192,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          branch_clearing_account_id?: string | null
           business_activity?: string | null
           commercial_register?: string | null
           company_name?: string
@@ -203,6 +206,7 @@ export type Database = {
           enable_tax?: boolean
           expense_prefix?: string
           fiscal_year_start?: string
+          goods_in_transit_account_id?: string | null
           id?: string
           inventory_dead_days?: number
           inventory_lead_time_days?: number
@@ -241,6 +245,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          branch_clearing_account_id?: string | null
           business_activity?: string | null
           commercial_register?: string | null
           company_name?: string
@@ -254,6 +259,7 @@ export type Database = {
           enable_tax?: boolean
           expense_prefix?: string
           fiscal_year_start?: string
+          goods_in_transit_account_id?: string | null
           id?: string
           inventory_dead_days?: number
           inventory_lead_time_days?: number
@@ -291,6 +297,20 @@ export type Database = {
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "company_settings_branch_clearing_account_id_fkey"
+            columns: ["branch_clearing_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_settings_goods_in_transit_account_id_fkey"
+            columns: ["goods_in_transit_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "company_settings_purchase_tax_account_id_fkey"
             columns: ["purchase_tax_account_id"]
@@ -758,6 +778,7 @@ export type Database = {
           entry_number: number
           entry_type: string | null
           id: string
+          origin_branch_id: string | null
           posted_number: number | null
           status: string
           total_credit: number
@@ -772,6 +793,7 @@ export type Database = {
           entry_number?: number
           entry_type?: string | null
           id?: string
+          origin_branch_id?: string | null
           posted_number?: number | null
           status?: string
           total_credit?: number
@@ -786,40 +808,55 @@ export type Database = {
           entry_number?: number
           entry_type?: string | null
           id?: string
+          origin_branch_id?: string | null
           posted_number?: number | null
           status?: string
           total_credit?: number
           total_debit?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_origin_branch_id_fkey"
+            columns: ["origin_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       journal_entry_lines: {
         Row: {
           account_id: string
+          branch_id: string | null
           created_at: string
           credit: number
           debit: number
           description: string | null
           id: string
+          is_auto_balancing: boolean
           journal_entry_id: string
         }
         Insert: {
           account_id: string
+          branch_id?: string | null
           created_at?: string
           credit?: number
           debit?: number
           description?: string | null
           id?: string
+          is_auto_balancing?: boolean
           journal_entry_id: string
         }
         Update: {
           account_id?: string
+          branch_id?: string | null
           created_at?: string
           credit?: number
           debit?: number
           description?: string | null
           id?: string
+          is_auto_balancing?: boolean
           journal_entry_id?: string
         }
         Relationships: [
@@ -828,6 +865,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entry_lines_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
           {
@@ -2242,12 +2286,19 @@ export type Database = {
         Args: { p_adjustment_id: string }
         Returns: Json
       }
+      fn_apply_branch_balancing: {
+        Args: { p_entry_id: string }
+        Returns: undefined
+      }
+      fn_branch_clearing_account_id: { Args: never; Returns: string }
+      fn_main_branch_id: { Args: never; Returns: string }
       fn_validate_journal_lines_json: {
         Args: { p_lines: Json }
         Returns: number
       }
       get_account_balances: {
         Args: {
+          p_branch_id?: string
           p_date_from?: string
           p_date_to?: string
           p_only_with_activity?: boolean
@@ -2267,6 +2318,10 @@ export type Database = {
       }
       get_avg_purchase_price: { Args: { _product_id: string }; Returns: number }
       get_avg_selling_price: { Args: { _product_id: string }; Returns: number }
+      get_branch_clearing_report: {
+        Args: { p_date_from?: string; p_date_to?: string }
+        Returns: Json
+      }
       get_inventory_aging: {
         Args: { p_as_of?: string; p_dead_days?: number; p_slow_days?: number }
         Returns: Json
@@ -2301,6 +2356,7 @@ export type Database = {
       get_ledger_lines: {
         Args: {
           p_account_id?: string
+          p_branch_id?: string
           p_date_from?: string
           p_date_to?: string
           p_limit?: number

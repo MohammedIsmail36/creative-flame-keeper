@@ -64,6 +64,20 @@
       "when": 1790040594940,
       "tag": "0008_phase1_branches_warehouses_user_branches",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790310494219,
+      "tag": "0009_phase2_branch_dimension_and_balancing",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790310584317,
+      "tag": "0010_phase2_report_rpcs_branch_filter",
+      "breakpoints": true
     }
   ]
 }

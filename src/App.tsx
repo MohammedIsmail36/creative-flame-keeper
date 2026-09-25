@@ -80,6 +80,7 @@ const DebtAgingReportPage = lazy(() => import("./pages/reports/DebtAgingReportPa
 const GrowthAnalyticsPage = lazy(() => import("./pages/reports/GrowthAnalyticsPage"));
 const ProductAnalyticsPage = lazy(() => import("./pages/reports/ProductAnalyticsPage"));
 const AccountBalancesPage = lazy(() => import("./pages/reports/AccountBalancesPage"));
+const BranchClearingReport = lazy(() => import("./pages/reports/BranchClearingReport"));
 const ProfitLossPage = lazy(() => import("./pages/reports/ProfitLossPage"));
 const CommissionCalculatorPage = lazy(() => import("./pages/reports/CommissionCalculatorPage"));
 const InventoryReconciliationPage = lazy(() => import("./pages/reports/InventoryReconciliationPage"));
@@ -179,6 +180,7 @@ const App = () => (
             <Route path="/reports/growth" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<GrowthAnalyticsPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/products" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProductAnalyticsPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/balances" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<AccountBalancesPage />)}</AppLayout></ProtectedRoute>} />
+            <Route path="/reports/branch-clearing" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<BranchClearingReport />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/profit-loss" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<ProfitLossPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/commission" element={<ProtectedRoute allowedRoles={FINANCE_ROLES}><AppLayout>{withSuspense(<CommissionCalculatorPage />)}</AppLayout></ProtectedRoute>} />
             <Route path="/reports/inventory-valuation" element={<ProtectedRoute allowedRoles={["admin", "accountant"]}><AppLayout>{withSuspense(<InventoryValuationPage />)}</AppLayout></ProtectedRoute>} />

@@ -7,6 +7,8 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useBranchContext } from "@/contexts/BranchContext";
+import { withBranchFilter } from "@/lib/branch-filter";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -71,6 +73,7 @@ const isContra = (balance: number) => balance < 0;
 
 export default function BalanceSheet() {
   const { settings, currency } = useSettings();
+  const { activeBranchId } = useBranchContext();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,12 +91,15 @@ export default function BalanceSheet() {
         .eq("is_active", true)
         .eq("is_parent", false)
         .order("code"),
-      supabase
-        .from("journal_entry_lines")
-        .select(
-          "account_id, debit, credit, journal_entries!inner(entry_date, status, description)",
-        )
-        .in("journal_entries.status", ["posted", "approved"]),
+      withBranchFilter(
+        supabase
+          .from("journal_entry_lines")
+          .select(
+            "account_id, debit, credit, journal_entries!inner(entry_date, status, description)",
+          )
+          .in("journal_entries.status", ["posted", "approved"]),
+        activeBranchId,
+      ),
     ]);
     if (accountsRes.error || linesRes.error) {
       notify.error("خطأ", "فشل في تحميل بيانات الميزانية");
@@ -110,7 +116,8 @@ export default function BalanceSheet() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeBranchId]);
 
   const {
     assetRows,

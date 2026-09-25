@@ -95,6 +95,10 @@ export const ACCOUNT_CODES = {
   CUSTOMERS: "1103",
   INVENTORY: "1104",
   INPUT_VAT: "1105",
+  /** مخزون بالطريق بين الفروع — الكود الافتراضي، والمرجع الفعلي في إعدادات الشركة */
+  GOODS_IN_TRANSIT: "1109",
+  /** تسوية بين الفروع — الكود الافتراضي، والمرجع الفعلي في إعدادات الشركة */
+  BRANCH_CLEARING: "1110",
   SUPPLIERS: "2101",
   SALES_TAX: "2102",
   EQUITY: "3101",

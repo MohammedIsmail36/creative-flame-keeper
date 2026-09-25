@@ -7,6 +7,8 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useBranchContext } from "@/contexts/BranchContext";
+import { withBranchFilter } from "@/lib/branch-filter";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -57,6 +59,7 @@ interface TrialBalanceRow {
 
 export default function TrialBalance() {
   const { settings, currency, formatCurrency } = useSettings();
+  const { activeBranchId } = useBranchContext();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +96,7 @@ export default function TrialBalance() {
         accountsPromise,
         (supabase.rpc as any)("get_account_balances", {
           p_only_with_activity: true,
+          p_branch_id: activeBranchId,
         }),
       ]);
       if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
@@ -120,12 +124,15 @@ export default function TrialBalance() {
     // Fallback: raw lines (closing-aware path)
     const [accountsRes, linesRes] = await Promise.all([
       accountsPromise,
-      supabase
-        .from("journal_entry_lines")
-        .select(
-          "account_id, debit, credit, journal_entry_id, journal_entries!inner(entry_date, status, description)",
-        )
-        .in("journal_entries.status", ["posted", "approved"]),
+      withBranchFilter(
+        supabase
+          .from("journal_entry_lines")
+          .select(
+            "account_id, debit, credit, journal_entry_id, journal_entries!inner(entry_date, status, description)",
+          )
+          .in("journal_entries.status", ["posted", "approved"]),
+        activeBranchId,
+      ),
     ]);
 
     if (accountsRes.data) setAccounts(accountsRes.data as Account[]);
@@ -139,7 +146,7 @@ export default function TrialBalance() {
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.enable_fiscal_year_closing, dateFrom, dateTo]);
+  }, [settings?.enable_fiscal_year_closing, dateFrom, dateTo, activeBranchId]);
 
   const trialBalanceData = useMemo(() => {
     const from = toReportDate(dateFrom);
