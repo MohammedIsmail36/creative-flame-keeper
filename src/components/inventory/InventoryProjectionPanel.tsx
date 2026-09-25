@@ -56,7 +56,7 @@ export function InventoryProjectionPanel() {
           <StatCard icon={Warehouse} label="فروق إجمالي الصنف" value={String(data.product_total_mismatches)} tone={data.product_total_mismatches ? "red" : "emerald"} />
           <StatCard icon={Warehouse} label="أرصدة سالبة" value={String(data.negative_rows)} tone={data.negative_rows ? "red" : "emerald"} />
           {data.branches.map((b) => (
-            <StatCard key={b.branch_id} label={`قيمة مخزون ${b.name}`} value={formatCurrency(b.inventory_value)} />
+            <StatCard key={b.branch_id} icon={Warehouse} label={`قيمة مخزون ${b.name}`} value={formatCurrency(b.inventory_value)} />
           ))}
         </StatGrid>
       </CardContent>

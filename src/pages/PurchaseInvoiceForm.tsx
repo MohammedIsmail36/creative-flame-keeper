@@ -25,6 +25,7 @@ import { NumberInput } from "@/components/NumberInput";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { LookupCombobox } from "@/components/LookupCombobox";
+import { WarehouseSelect } from "@/components/WarehouseSelect";
 import { exportInvoicePdf } from "@/lib/pdf-arabic";
 import {
   Plus,
@@ -110,6 +111,7 @@ export default function PurchaseInvoiceForm() {
   const [invoiceNumber, setInvoiceNumber] = useState<number | null>(null);
   const [postedNumber, setPostedNumber] = useState<number | null>(null);
   const [supplierId, setSupplierId] = useState("");
+  const [warehouseId, setWarehouseId] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
@@ -146,6 +148,7 @@ export default function PurchaseInvoiceForm() {
         setInvoiceNumber(inv.invoice_number);
         setPostedNumber(inv.posted_number || null);
         setSupplierId(inv.supplier_id || "");
+        setWarehouseId(inv.warehouse_id || "");
         setSupplierName(inv.suppliers?.name || "");
         setInvoiceDate(inv.invoice_date);
         setNotes(inv.notes || "");
@@ -207,6 +210,7 @@ export default function PurchaseInvoiceForm() {
 
       const payload: any = {
         supplier_id: supplierId || null,
+        warehouse_id: warehouseId || null,
         invoice_date: invoiceDate,
         subtotal,
         discount: invoiceDiscount,
@@ -613,6 +617,14 @@ export default function PurchaseInvoiceForm() {
               </div>
             )}
           </div>
+          <WarehouseSelect
+            value={warehouseId}
+            disabled={!isEditable}
+            onChange={(v) => {
+              if (v !== warehouseId && warehouseId) setIsDirty(true);
+              setWarehouseId(v);
+            }}
+          />
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">رقم المرجع</Label>
             {isEditable ? (
