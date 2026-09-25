@@ -353,11 +353,15 @@ export default function PurchaseReturnForm() {
       // Any difference vs invoice price is recorded as Purchase Price Variance (5103).
       let inventoryCreditWac = 0;
       const itemWacList: { product_id: string; wac: number; qty: number }[] = [];
+      const { data: whRow } = warehouseId
+        ? await (supabase.from("warehouses") as any).select("branch_id").eq("id", warehouseId).single()
+        : { data: null };
+      const returnBranchId: string | undefined = whRow?.branch_id ?? undefined;
       for (const item of items) {
         if (!item.product_id) continue;
-        const { data: wacData } = await (supabase as any).rpc("get_avg_purchase_price", {
-          _product_id: item.product_id,
-        });
+        const { data: wacData } = returnBranchId
+          ? await (supabase as any).rpc("fn_branch_wac", { p_product_id: item.product_id, p_branch_id: returnBranchId })
+          : await (supabase as any).rpc("get_avg_purchase_price", { _product_id: item.product_id });
         const wac = Number(wacData) || 0;
         inventoryCreditWac += wac * item.quantity;
         itemWacList.push({ product_id: item.product_id, wac, qty: item.quantity });
@@ -416,7 +420,7 @@ export default function PurchaseReturnForm() {
       const jeId = await createJournalEntry({
         entryDate: returnDate,
         description: `مرتجع شراء رقم ${displayRetNum}`,
-        lines: jeLines,
+        lines: jeLines.map((l) => ({ ...l, branch_id: returnBranchId })),
         status: "posted",
       });
 
@@ -455,6 +459,7 @@ export default function PurchaseReturnForm() {
           reference_id: id,
           reference_type: "purchase_return",
           movement_date: returnDate,
+          warehouse_id: warehouseId || undefined,
         });
       }
 
