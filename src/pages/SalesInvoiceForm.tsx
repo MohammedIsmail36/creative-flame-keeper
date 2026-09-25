@@ -199,6 +199,7 @@ export default function SalesInvoiceForm() {
         setPostedNumber(inv.posted_number || null);
         setCustomerId(inv.customer_id || "");
         setWarehouseId(inv.warehouse_id || "");
+        setWarehouseId(inv.warehouse_id || "");
         setCustomerName(inv.customers?.name || "");
         setInvoiceDate(inv.invoice_date);
         setNotes(inv.notes || "");
