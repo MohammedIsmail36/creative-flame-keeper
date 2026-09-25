@@ -410,8 +410,9 @@ export default function SystemHealthPage() {
             }`}
           />
 
-          <StatGrid>
           <InventoryProjectionPanel />
+
+          <StatGrid>
             <StatCard
               icon={summary.healthy ? CheckCircle2 : AlertTriangle}
               tone={summary.healthy ? "emerald" : summary.errors > 0 ? "red" : "amber"}
