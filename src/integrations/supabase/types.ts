@@ -1338,6 +1338,7 @@ export type Database = {
           tax: number
           total: number
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1358,6 +1359,7 @@ export type Database = {
           tax?: number
           total?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1378,6 +1380,7 @@ export type Database = {
           tax?: number
           total?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -1392,6 +1395,13 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoices_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -1511,6 +1521,7 @@ export type Database = {
           tax: number
           total: number
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1530,6 +1541,7 @@ export type Database = {
           tax?: number
           total?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1549,6 +1561,7 @@ export type Database = {
           tax?: number
           total?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -1570,6 +1583,13 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_returns_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -1692,6 +1712,7 @@ export type Database = {
           tax: number
           total: number
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1714,6 +1735,7 @@ export type Database = {
           tax?: number
           total?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1736,6 +1758,7 @@ export type Database = {
           tax?: number
           total?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -1750,6 +1773,13 @@ export type Database = {
             columns: ["journal_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_invoices_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -1869,6 +1899,7 @@ export type Database = {
           tax: number
           total: number
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1888,6 +1919,7 @@ export type Database = {
           tax?: number
           total?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1907,6 +1939,7 @@ export type Database = {
           tax?: number
           total?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -1928,6 +1961,13 @@ export type Database = {
             columns: ["sales_invoice_id"]
             isOneToOne: false
             referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_returns_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -2405,6 +2445,14 @@ export type Database = {
         Returns: undefined
       }
       fn_branch_clearing_account_id: { Args: never; Returns: string }
+      fn_branch_wac: {
+        Args: { p_branch_id: string; p_product_id: string }
+        Returns: number
+      }
+      fn_document_warehouse_id: {
+        Args: { p_ref_id: string; p_ref_type: string }
+        Returns: string
+      }
       fn_main_branch_id: { Args: never; Returns: string }
       fn_main_warehouse_id: { Args: never; Returns: string }
       fn_validate_journal_lines_json: {
@@ -2437,6 +2485,7 @@ export type Database = {
         Args: { p_date_from?: string; p_date_to?: string }
         Returns: Json
       }
+      get_branch_inventory_reconciliation: { Args: never; Returns: Json }
       get_inventory_aging: {
         Args: { p_as_of?: string; p_dead_days?: number; p_slow_days?: number }
         Returns: Json

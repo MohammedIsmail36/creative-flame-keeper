@@ -54,6 +54,7 @@ import { TelegramPublishButton } from "@/components/products/TelegramPublishButt
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { notify } from "@/lib/notify";
+import { ProductWarehouseStock } from "@/components/inventory/ProductWarehouseStock";
 
 // ─────────────────────────────────────────────
 // Types
@@ -905,6 +906,8 @@ export default function ProductView() {
           </div>
         </section>
       )}
+
+      {id && <ProductWarehouseStock productId={id} />}
 
       {/* ── Tabs ── */}
       <Tabs
