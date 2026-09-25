@@ -159,7 +159,7 @@ export default function BranchClearingReport() {
           <div className="grid gap-3 sm:grid-cols-3">
             <StatCard label="إجمالي المدين" value={formatCurrency(totalDebit)} icon={Building2} size="lg" />
             <StatCard label="إجمالي الدائن" value={formatCurrency(totalCredit)} icon={Building2} size="lg" />
-            <StatCard label="صافي الشركة" value={formatCurrency(net)} icon={ArrowLeftRight} size="lg" tone={balanced ? "success" : "danger"} />
+            <StatCard label="صافي الشركة" value={formatCurrency(net)} icon={ArrowLeftRight} size="lg" tone={balanced ? "emerald" : "red"} />
           </div>
 
           <DataTable columns={columns} data={rows} showPagination={false} showSearch={false} />
