@@ -39,6 +39,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { ACCOUNT_CODES, BALANCE_TOLERANCE } from "@/lib/constants";
 import { ReportPurposeBar } from "@/components/shared/ReportPurposeBar";
 import { InventoryProjectionPanel } from "@/components/inventory/InventoryProjectionPanel";
+import { BranchInventoryReconciliation } from "@/components/inventory/BranchInventoryReconciliation";
 import {
   checkDocumentsHaveJournal,
   checkEntityBalances,
@@ -411,6 +412,7 @@ export default function SystemHealthPage() {
           />
 
           <InventoryProjectionPanel />
+          <BranchInventoryReconciliation />
 
           <StatGrid>
             <StatCard
