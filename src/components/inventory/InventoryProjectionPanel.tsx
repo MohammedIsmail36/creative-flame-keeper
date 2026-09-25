@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatCard, StatGrid } from "@/components/StatCard";
 import { notify } from "@/lib/notify";
-import { formatCurrency } from "@/lib/utils";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface ProjectionCheck {
   warehouse_mismatches: number;
@@ -16,6 +16,7 @@ interface ProjectionCheck {
 
 /** Stock-per-warehouse & value-per-branch integrity, rebuilt from the movements ledger. */
 export function InventoryProjectionPanel() {
+  const { formatCurrency } = useSettings();
   const [data, setData] = useState<ProjectionCheck | null>(null);
   const [busy, setBusy] = useState(false);
 
