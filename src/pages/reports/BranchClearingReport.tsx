@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/LoadingState";
-import { formatCurrency } from "@/lib/format";
+import { useSettings } from "@/contexts/SettingsContext";
 import type { ColumnDef } from "@tanstack/react-table";
 
 interface ClearingRow {
@@ -29,6 +29,7 @@ interface ClearingReport {
 }
 
 export default function BranchClearingReport() {
+  const { formatCurrency } = useSettings();
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -156,9 +157,9 @@ export default function BranchClearingReport() {
           </Alert>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <StatCard title="إجمالي المدين" value={formatCurrency(totalDebit)} icon={Building2} />
-            <StatCard title="إجمالي الدائن" value={formatCurrency(totalCredit)} icon={Building2} />
-            <StatCard title="صافي الشركة" value={formatCurrency(net)} icon={ArrowLeftRight} />
+            <StatCard label="إجمالي المدين" value={formatCurrency(totalDebit)} icon={Building2} size="lg" />
+            <StatCard label="إجمالي الدائن" value={formatCurrency(totalCredit)} icon={Building2} size="lg" />
+            <StatCard label="صافي الشركة" value={formatCurrency(net)} icon={ArrowLeftRight} size="lg" tone={balanced ? "success" : "danger"} />
           </div>
 
           <DataTable columns={columns} data={rows} showPagination={false} showSearch={false} />
