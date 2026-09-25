@@ -38,6 +38,7 @@ export const routeLabels: Record<string, string> = {
   "products-analytics": "تحليل المنتجات",
   aging: "أعمار الديون",
   balances: "أرصدة الحسابات",
+  "branch-clearing": "التسوية بين الفروع",
   "profit-loss": "الأرباح والخسائر",
   commission: "حاسبة العمولة",
   "inventory-reconciliation": "تسوية المخزون",

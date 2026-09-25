@@ -10,6 +10,7 @@ import { DatePickerInput } from "@/components/DatePickerInput";
 import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
+import { useBranchContext } from "@/contexts/BranchContext";
 import { ExportMenu } from "@/components/ExportMenu";
 import {
   Calculator,
@@ -53,6 +54,7 @@ const fmt = (val: number) =>
 
 export default function Ledger() {
   const { settings } = useSettings();
+  const { activeBranchId } = useBranchContext();
   const jePrefix = (settings as any)?.journal_entry_prefix || "JV-";
   const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -86,14 +88,16 @@ export default function Ledger() {
       dateTo,
       pagination.pageIndex,
       pagination.pageSize,
+      activeBranchId,
     ],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_ledger_lines", {
+      const { data, error } = await (supabase.rpc as any)("get_ledger_lines", {
         p_account_id: selectedAccountId === "all" ? null : selectedAccountId,
         p_date_from: dateFrom || null,
         p_date_to: dateTo || null,
         p_limit: pagination.pageSize,
         p_offset: pagination.pageIndex * pagination.pageSize,
+        p_branch_id: activeBranchId,
       });
       if (error) throw error;
       return data as unknown as {
@@ -246,12 +250,13 @@ export default function Ledger() {
   };
 
   const handleExportOpen = async () => {
-    const { data } = await supabase.rpc("get_ledger_lines", {
+    const { data } = await (supabase.rpc as any)("get_ledger_lines", {
       p_account_id: selectedAccountId === "all" ? null : selectedAccountId,
       p_date_from: dateFrom || null,
       p_date_to: dateTo || null,
       p_limit: 100000,
       p_offset: 0,
+      p_branch_id: activeBranchId,
     });
     const allLines = ((data as any)?.lines ?? []) as LedgerLine[];
     exportConfig.rows = allLines.map((l) => [

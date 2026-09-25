@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { StatCard } from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useBranchContext } from "@/contexts/BranchContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,6 +105,7 @@ function saveFilters(typeFilter: string, showZero: boolean) {
 
 export default function AccountBalancesReport() {
   const { currency, settings } = useSettings();
+  const { activeBranchId } = useBranchContext();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,6 +136,7 @@ export default function AccountBalancesReport() {
     const [balRes, accRes] = await Promise.all([
       (supabase.rpc as any)("get_account_balances", {
         p_only_with_activity: false,
+        p_branch_id: activeBranchId,
       }),
       supabase
         .from("accounts")
@@ -197,7 +200,7 @@ export default function AccountBalancesReport() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeBranchId]);
 
   // ── Aggregate by type ─────────────────────────────────
 
