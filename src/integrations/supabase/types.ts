@@ -97,6 +97,48 @@ export type Database = {
         }
         Relationships: []
       }
+      branch_inventory_valuation: {
+        Row: {
+          average_cost: number
+          branch_id: string
+          inventory_value: number
+          product_id: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          average_cost?: number
+          branch_id: string
+          inventory_value?: number
+          product_id: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          average_cost?: number
+          branch_id?: string
+          inventory_value?: number
+          product_id?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_inventory_valuation_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_inventory_valuation_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branches: {
         Row: {
           address: string | null
@@ -718,6 +760,7 @@ export type Database = {
       }
       inventory_movements: {
         Row: {
+          branch_id: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -726,12 +769,16 @@ export type Database = {
           notes: string | null
           product_id: string
           quantity: number
+          quantity_delta: number | null
           reference_id: string | null
           reference_type: string | null
           total_cost: number
           unit_cost: number
+          value_delta: number | null
+          warehouse_id: string | null
         }
         Insert: {
+          branch_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -740,12 +787,16 @@ export type Database = {
           notes?: string | null
           product_id: string
           quantity?: number
+          quantity_delta?: number | null
           reference_id?: string | null
           reference_type?: string | null
           total_cost?: number
           unit_cost?: number
+          value_delta?: number | null
+          warehouse_id?: string | null
         }
         Update: {
+          branch_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -754,17 +805,34 @@ export type Database = {
           notes?: string | null
           product_id?: string
           quantity?: number
+          quantity_delta?: number | null
           reference_id?: string | null
           reference_type?: string | null
           total_cost?: number
           unit_cost?: number
+          value_delta?: number | null
+          warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "inventory_movements_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inventory_movements_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -2176,6 +2244,42 @@ export type Database = {
         }
         Relationships: []
       }
+      warehouse_stock: {
+        Row: {
+          product_id: string
+          quantity: number
+          updated_at: string
+          warehouse_id: string
+        }
+        Insert: {
+          product_id: string
+          quantity?: number
+          updated_at?: string
+          warehouse_id: string
+        }
+        Update: {
+          product_id?: string
+          quantity?: number
+          updated_at?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_stock_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       warehouses: {
         Row: {
           branch_id: string
@@ -2290,8 +2394,19 @@ export type Database = {
         Args: { p_entry_id: string }
         Returns: undefined
       }
+      fn_apply_movement_projection: {
+        Args: {
+          p_branch_id: string
+          p_product_id: string
+          p_qty: number
+          p_value: number
+          p_warehouse_id: string
+        }
+        Returns: undefined
+      }
       fn_branch_clearing_account_id: { Args: never; Returns: string }
       fn_main_branch_id: { Args: never; Returns: string }
+      fn_main_warehouse_id: { Args: never; Returns: string }
       fn_validate_journal_lines_json: {
         Args: { p_lines: Json }
         Returns: number
@@ -2338,6 +2453,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_inventory_projection_check: { Args: never; Returns: Json }
       get_inventory_reorder: {
         Args: {
           p_date_from?: string
@@ -2440,6 +2556,7 @@ export type Database = {
         Args: { p_product_id: string }
         Returns: number
       }
+      rebuild_inventory_projections: { Args: never; Returns: Json }
       reopen_inventory_count: {
         Args: { p_adjustment_id: string }
         Returns: undefined
