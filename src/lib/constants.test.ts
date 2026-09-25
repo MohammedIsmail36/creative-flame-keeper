@@ -48,6 +48,8 @@ describe("ACCOUNT_CODES", () => {
       "CUSTOMERS",
       "INVENTORY",
       "INPUT_VAT",
+      "GOODS_IN_TRANSIT",
+      "BRANCH_CLEARING",
       "SUPPLIERS",
       "SALES_TAX",
       "EQUITY",

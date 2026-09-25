@@ -87,6 +87,7 @@ describe("reverseLines", () => {
       debit: 0,
       credit: 50,
       description: "عكس - مبيعات",
+      branch_id: null,
     });
     expect(out[1].debit).toBe(50);
     expect(out[1].credit).toBe(0);
