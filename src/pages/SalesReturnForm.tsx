@@ -34,6 +34,7 @@ import { NumberInput } from "@/components/NumberInput";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { LookupCombobox } from "@/components/LookupCombobox";
+import { WarehouseSelect } from "@/components/WarehouseSelect";
 import {
   Plus,
   X,
@@ -118,6 +119,7 @@ export default function SalesReturnForm() {
   const [returnNumber, setReturnNumber] = useState<number | null>(null);
   const [postedNumber, setPostedNumber] = useState<number | null>(null);
   const [customerId, setCustomerId] = useState("");
+  const [warehouseId, setWarehouseId] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [returnDate, setReturnDate] = useState(
     new Date().toISOString().split("T")[0],
@@ -168,6 +170,7 @@ export default function SalesReturnForm() {
         setReturnNumber(ret.return_number);
         setPostedNumber(ret.posted_number || null);
         setCustomerId(ret.customer_id || "");
+        setWarehouseId(ret.warehouse_id || "");
         setCustomerName(ret.customers?.name || "");
         setReturnDate(ret.return_date);
         setNotes(ret.notes || "");
@@ -222,6 +225,7 @@ export default function SalesReturnForm() {
       }
       const payload: any = {
         customer_id: customerId || null,
+        warehouse_id: warehouseId || null,
         return_date: returnDate,
         subtotal,
         discount: 0,
@@ -570,6 +574,14 @@ export default function SalesReturnForm() {
               </div>
             )}
           </div>
+          <WarehouseSelect
+            value={warehouseId}
+            disabled={!isEditable}
+            onChange={(v) => {
+              if (v !== warehouseId && warehouseId) setIsDirty(true);
+              setWarehouseId(v);
+            }}
+          />
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">
               رقم المرجع

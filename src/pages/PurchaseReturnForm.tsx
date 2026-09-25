@@ -25,6 +25,7 @@ import { NumberInput } from "@/components/NumberInput";
 import { DatePickerInput } from "@/components/DatePickerInput";
 import { Label } from "@/components/ui/label";
 import { LookupCombobox } from "@/components/LookupCombobox";
+import { WarehouseSelect } from "@/components/WarehouseSelect";
 import {
   Plus,
   X,
@@ -110,6 +111,7 @@ export default function PurchaseReturnForm() {
   const [returnNumber, setReturnNumber] = useState<number | null>(null);
   const [postedNumber, setPostedNumber] = useState<number | null>(null);
   const [supplierId, setSupplierId] = useState("");
+  const [warehouseId, setWarehouseId] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [returnDate, setReturnDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
@@ -148,6 +150,7 @@ export default function PurchaseReturnForm() {
         setReturnNumber(ret.return_number);
         setPostedNumber(ret.posted_number || null);
         setSupplierId(ret.supplier_id || "");
+        setWarehouseId(ret.warehouse_id || "");
         setSupplierName(ret.suppliers?.name || "");
         setReturnDate(ret.return_date);
         setNotes(ret.notes || "");
@@ -195,6 +198,7 @@ export default function PurchaseReturnForm() {
       }
       const payload: any = {
         supplier_id: supplierId || null,
+        warehouse_id: warehouseId || null,
         return_date: returnDate,
         subtotal,
         discount: 0,
@@ -712,6 +716,14 @@ export default function PurchaseReturnForm() {
               </div>
             )}
           </div>
+          <WarehouseSelect
+            value={warehouseId}
+            disabled={!isEditable}
+            onChange={(v) => {
+              if (v !== warehouseId && warehouseId) setIsDirty(true);
+              setWarehouseId(v);
+            }}
+          />
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">رقم المرجع</Label>
             {isEditable ? (
