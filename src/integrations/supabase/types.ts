@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -2382,6 +2382,7 @@ export type Database = {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined
       }
+      cancel_sales_return: { Args: { p_return_id: string }; Returns: Json }
       create_journal_entry: {
         Args: {
           p_description: string
@@ -2601,11 +2602,20 @@ export type Database = {
       }
       post_purchase_invoice: { Args: { p_invoice_id: string }; Returns: Json }
       post_sales_invoice: { Args: { p_invoice_id: string }; Returns: Json }
+      post_sales_return: { Args: { p_return_id: string }; Returns: Json }
       product_computed_quantity: {
         Args: { p_product_id: string }
         Returns: number
       }
       rebuild_inventory_projections: { Args: never; Returns: Json }
+      recalculate_customer_balance_internal: {
+        Args: { p_customer_id: string }
+        Returns: number
+      }
+      recalculate_customer_loyalty_internal: {
+        Args: { p_customer_id: string }
+        Returns: number
+      }
       reopen_inventory_count: {
         Args: { p_adjustment_id: string }
         Returns: undefined
