@@ -106,6 +106,13 @@
       "when": 1792269196151,
       "tag": "0014_branch_aware_sales_return_post_cancel",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1792311098597,
+      "tag": "0015_restore_safe_sales_catalog",
+      "breakpoints": true
     }
   ]
 }
