@@ -2535,6 +2535,20 @@ export type Database = {
         Args: { p_date_from?: string; p_date_to?: string }
         Returns: Json
       }
+      get_sales_product_catalog: {
+        Args: never
+        Returns: {
+          barcode: string
+          code: string
+          id: string
+          is_active: boolean
+          model_number: string
+          name: string
+          product_brands: Json
+          quantity_on_hand: number
+          selling_price: number
+        }[]
+      }
       get_sales_summary: {
         Args: { p_date_from?: string; p_date_to?: string }
         Returns: Json
