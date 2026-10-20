@@ -2394,6 +2394,10 @@ export type Database = {
         }
         Returns: string
       }
+      delete_document_draft: {
+        Args: { p_id: string; p_table: string }
+        Returns: Json
+      }
       edit_customer_payment: {
         Args: {
           p_amount: number
@@ -2643,6 +2647,14 @@ export type Database = {
           p_status?: string
         }
         Returns: string
+      }
+      save_document_draft: {
+        Args: { p_document: Json; p_id: string; p_items: Json; p_kind: string }
+        Returns: Json
+      }
+      save_sales_invoice_draft: {
+        Args: { p_invoice: Json; p_invoice_id: string; p_items: Json }
+        Returns: Json
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
