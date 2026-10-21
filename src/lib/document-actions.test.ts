@@ -10,7 +10,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-const { isPeriodLocked, invokeDocumentRpc, deleteDraftDocument } = await import(
+const { isPeriodLocked, invokeDocumentRpc, deleteDraftDocument, saveDocumentDraft } = await import(
   "./document-actions"
 );
 
@@ -86,52 +86,35 @@ describe("invokeDocumentRpc", () => {
 });
 
 describe("deleteDraftDocument", () => {
-  function mockDeletes(itemsError: unknown = null, parentError: unknown = null) {
-    const calls: Array<{ table: string; column: string; value: string }> = [];
-    from.mockImplementation((table: string) => ({
-      delete: () => ({
-        eq: (column: string, value: string) => {
-          calls.push({ table, column, value });
-          return Promise.resolve({
-            error: column === "id" ? parentError : itemsError,
-          });
-        },
-      }),
-    }));
-    return calls;
-  }
-
-  it("يحذف البنود ثم المستند بالترتيب", async () => {
-    const calls = mockDeletes();
+  it("يحذف المستند وبنوده بطلب ذري واحد", async () => {
+    rpc.mockResolvedValue({ data: { success: true }, error: null });
     await deleteDraftDocument({
       itemsTable: "sales_invoice_items",
       parentTable: "sales_invoices",
       parentKey: "invoice_id",
       id: "inv-1",
     });
-    expect(calls).toEqual([
-      { table: "sales_invoice_items", column: "invoice_id", value: "inv-1" },
-      { table: "sales_invoices", column: "id", value: "inv-1" },
-    ]);
+    expect(rpc).toHaveBeenCalledExactlyOnceWith("delete_document_draft", {
+      p_table: "sales_invoices", p_id: "inv-1",
+    });
+    expect(from).not.toHaveBeenCalled();
   });
 
   it("يدعم مفتاح المرتجعات return_id", async () => {
-    const calls = mockDeletes();
+    rpc.mockResolvedValue({ data: { success: true }, error: null });
     await deleteDraftDocument({
       itemsTable: "sales_return_items",
       parentTable: "sales_returns",
       parentKey: "return_id",
       id: "ret-2",
     });
-    expect(calls[0]).toEqual({
-      table: "sales_return_items",
-      column: "return_id",
-      value: "ret-2",
+    expect(rpc).toHaveBeenCalledWith("delete_document_draft", {
+      p_table: "sales_returns", p_id: "ret-2",
     });
   });
 
-  it("يرفع الخطأ ولا يحذف المستند إذا فشل حذف البنود", async () => {
-    const calls = mockDeletes({ message: "fk violation" });
+  it("يرفع خطأ المعاملة دون محاولة تعويض من الواجهة", async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: "fk violation" } });
     await expect(
       deleteDraftDocument({
         itemsTable: "sales_invoice_items",
@@ -140,11 +123,12 @@ describe("deleteDraftDocument", () => {
         id: "inv-1",
       }),
     ).rejects.toMatchObject({ message: "fk violation" });
-    expect(calls).toHaveLength(1);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(from).not.toHaveBeenCalled();
   });
 
   it("يرفع الخطأ إذا فشل حذف المستند نفسه", async () => {
-    mockDeletes(null, { message: "denied" });
+    rpc.mockResolvedValue({ data: { success: false, error: "denied" }, error: null });
     await expect(
       deleteDraftDocument({
         itemsTable: "purchase_return_items",
@@ -153,5 +137,24 @@ describe("deleteDraftDocument", () => {
         id: "r1",
       }),
     ).rejects.toMatchObject({ message: "denied" });
+  });
+});
+
+describe("saveDocumentDraft", () => {
+  it("يرسل الرأس والبنود والمخزن معاً ويعيد المعرّف", async () => {
+    rpc.mockResolvedValue({ data: { success: true, document_id: "draft-1" }, error: null });
+    const header = { warehouse_id: "warehouse-2", total: 300 };
+    const lines = [{ product_id: "product-1", quantity: 1, total: 300 }];
+    expect(await saveDocumentDraft("sales_return", null, header, lines)).toBe("draft-1");
+    expect(rpc).toHaveBeenCalledExactlyOnceWith("save_document_draft", {
+      p_kind: "sales_return", p_id: null, p_document: header, p_items: lines,
+    });
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("لا يعدّ فشل إدراج البنود نجاحاً", async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: "line rejected" } });
+    await expect(saveDocumentDraft("purchase_invoice", "draft-1", {}, []))
+      .rejects.toThrow("line rejected");
   });
 });
