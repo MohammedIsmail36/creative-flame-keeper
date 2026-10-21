@@ -275,7 +275,7 @@ export default function SalesInvoiceForm() {
     setRedeemDialogOpen(false);
   }
 
-  async function handleSave(opts?: { silent?: boolean; skipReload?: boolean }): Promise<boolean> {
+  async function handleSave(opts?: { silent?: boolean; skipReload?: boolean; post?: boolean }): Promise<boolean> {
     if (saving) return false;
     const errors: Record<string, string> = {};
     // Draft is permissive: keep partial work even without a customer or items.
@@ -326,9 +326,8 @@ export default function SalesInvoiceForm() {
         reduction: invoiceLevelReduction,
         base: subtotal,
       });
-      const result = await invokeDocumentRpc("save_sales_invoice_draft", {
-        p_invoice_id: id || null,
-        p_invoice: payload,
+      const result = await invokeDocumentRpc(opts?.post ? "save_and_post_document" : "save_sales_invoice_draft", {
+        ...(opts?.post ? { p_kind: "sales_invoice", p_id: id || null, p_document: payload } : { p_invoice_id: id || null, p_invoice: payload }),
         p_items: rows,
       });
       if (!result.success) {
@@ -340,6 +339,7 @@ export default function SalesInvoiceForm() {
         return false;
       }
 
+      if (opts?.post) { setSaving(false); return true; }
       if (isNew) {
         const savedId = typeof result.invoice_id === "string" ? result.invoice_id : "";
         if (!savedId) throw new Error("تم حفظ الفاتورة دون إعادة معرّفها");
@@ -382,30 +382,11 @@ export default function SalesInvoiceForm() {
       )
     )
       return;
-    // Persist any unsaved edits (e.g. invoice-level discount) before posting
-    if (isDirty && id) {
-      const saved = await handleSave({ silent: true, skipReload: true });
-      if (!saved) {
-        notify.error("تعذر الترحيل", "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل");
-        return;
-      }
-    }
-    setSaving(true);
-    try {
-      const res = await invokeDocumentRpc("post_sales_invoice", { p_invoice_id: id });
-      if (!res.success) {
-        notify.error("خطأ", res.error || "حدث خطأ أثناء الترحيل");
-        return;
-      }
-
+    const posted = await handleSave({ silent: true, skipReload: true, post: true });
+    if (!posted) return;
       notify.success("تم الترحيل", "تم ترحيل فاتورة البيع وتوليد القيد المحاسبي وتحديث المخزون");
       markClean();
       loadData();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
   }
 
   async function handleDeleteDraft() {

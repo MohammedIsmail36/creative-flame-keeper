@@ -1,5 +1,5 @@
 import { notify } from "@/lib/notify";
-import { deleteDraftDocument, invokeDocumentRpc, saveDocumentDraft } from "@/lib/document-actions";
+import { deleteDraftDocument, invokeDocumentRpc, saveDocumentDraft, saveAndPostDocument } from "@/lib/document-actions";
 import { canCancelPostedSalesDocument } from "@/lib/role-access";
 import { StatusBadge } from "@/components/StatusBadge";
 import React, { useState, useEffect } from "react";
@@ -203,7 +203,7 @@ export default function SalesReturnForm() {
     taxRate,
   });
 
-  async function handleSave(opts?: { silent?: boolean; skipReload?: boolean }): Promise<boolean> {
+  async function handleSave(opts?: { silent?: boolean; skipReload?: boolean; post?: boolean }): Promise<boolean> {
     if (saving) return false;
     const errors: Record<string, string> = {};
     // Draft is permissive: allow saving partial work.
@@ -241,8 +241,9 @@ export default function SalesReturnForm() {
           ? `تم الحفظ مع تجاهل ${droppedEmpty} سطر فارغ`
           : undefined;
 
-      const savedId = await saveDocumentDraft("sales_return", id || null, payload,
+      const savedId = await (opts?.post ? saveAndPostDocument : saveDocumentDraft)("sales_return", id || null, payload,
         buildLineItemPayloads(validItems, { reduction: payload.discount || 0, base: subtotal }));
+      if (opts?.post) { setSaving(false); return true; }
       if (!opts?.silent) {
         notify.success(isNew ? "تمت الإضافة" : "تم التحديث",
           draftSavedMsg || (isNew ? "تم إنشاء مرتجع البيع كمسودة" : "تم تحديث مرتجع البيع"));
@@ -267,30 +268,11 @@ export default function SalesReturnForm() {
       )
     )
       return;
-    // Persist any unsaved edits before posting
-    if (isDirty && id) {
-      const saved = await handleSave({ silent: true, skipReload: true });
-      if (!saved) {
-        notify.error("تعذر الترحيل", "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل");
-        return;
-      }
-    }
-    setSaving(true);
-    try {
-      const res = await invokeDocumentRpc("post_sales_return", { p_return_id: id });
-      if (!res.success) {
-        notify.error(res.isException ? "خطأ" : "غير مسموح", res.error || "تعذر ترحيل المرتجع");
-        return;
-      }
-
+    const posted = await handleSave({ silent: true, skipReload: true, post: true });
+    if (!posted) return;
       notify.success("تم الترحيل", "تم ترحيل مرتجع البيع وتحديث القيد والمخزون ورصيد العميل");
       markClean();
       loadData();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
   }
 
   async function handleCancelPosted() {
