@@ -14,7 +14,7 @@ import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { SectionHeader } from "@/components/SectionHeader";
 import { calcInvoiceTotals } from "@/lib/invoice-totals";
-import { buildLineItemRows } from "@/lib/invoice-items";
+import { buildLineItemPayloads } from "@/lib/invoice-items";
 import { useLineItems } from "@/hooks/use-line-items";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,7 +57,7 @@ import {
 } from "@/lib/product-utils";
 import { ACCOUNT_CODES } from "@/lib/constants";
 import { notify } from "@/lib/notify";
-import { deleteDraftDocument } from "@/lib/document-actions";
+import { deleteDraftDocument, saveDocumentDraft } from "@/lib/document-actions";
 
 interface Supplier {
   id: string;
@@ -211,44 +211,15 @@ export default function PurchaseReturnForm() {
 
       const draftSavedMsg = droppedEmpty > 0 ? `تم الحفظ مع تجاهل ${droppedEmpty} سطر فارغ` : undefined;
 
-      if (isNew) {
-        const { data: ret, error } = await (supabase.from("purchase_returns") as any)
-          .insert(payload)
-          .select("id")
-          .single();
-        if (error) throw error;
-        const rows = buildLineItemRows(validItems, {
-          parentKey: "return_id",
-          parentId: ret.id,
-          reduction: payload.discount || 0,
-        });
-
-        if (rows.length > 0) {
-          await (supabase.from("purchase_return_items") as any).insert(rows);
-        }
-        if (!opts?.silent) {
-          notify.success("تمت الإضافة", draftSavedMsg || "تم إنشاء مرتجع الشراء كمسودة");
-        }
-        markClean();
-        navigate(`/purchase-returns/${ret.id}`);
-      } else {
-        await (supabase.from("purchase_returns") as any).update(payload).eq("id", id);
-        await (supabase.from("purchase_return_items") as any).delete().eq("return_id", id);
-        const rows = buildLineItemRows(validItems, {
-          parentKey: "return_id",
-          parentId: id!,
-          reduction: payload.discount || 0,
-        });
-
-        if (rows.length > 0) {
-          await (supabase.from("purchase_return_items") as any).insert(rows);
-        }
-        if (!opts?.silent) {
-          notify.success("تم التحديث", draftSavedMsg || "تم تحديث مرتجع الشراء");
-        }
-        markClean();
-        if (!opts?.skipReload) loadData();
+      const savedId = await saveDocumentDraft("purchase_return", id || null, payload,
+        buildLineItemPayloads(validItems, { reduction: payload.discount || 0, base: subtotal }));
+      if (!opts?.silent) {
+        notify.success(isNew ? "تمت الإضافة" : "تم التحديث",
+          draftSavedMsg || (isNew ? "تم إنشاء مرتجع الشراء كمسودة" : "تم تحديث مرتجع الشراء"));
       }
+      markClean();
+      if (isNew) navigate(`/purchase-returns/${savedId}`);
+      else if (!opts?.skipReload) loadData();
     } catch (error: any) {
       notify.error("خطأ", error.message);
       setSaving(false);

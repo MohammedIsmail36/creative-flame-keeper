@@ -1,5 +1,5 @@
 import { notify } from "@/lib/notify";
-import { deleteDraftDocument, invokeDocumentRpc } from "@/lib/document-actions";
+import { deleteDraftDocument, invokeDocumentRpc, saveDocumentDraft } from "@/lib/document-actions";
 import { canCancelPostedSalesDocument } from "@/lib/role-access";
 import { StatusBadge } from "@/components/StatusBadge";
 import React, { useState, useEffect } from "react";
@@ -16,7 +16,7 @@ import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { SectionHeader } from "@/components/SectionHeader";
 import { calcInvoiceTotals } from "@/lib/invoice-totals";
-import { buildLineItemRows } from "@/lib/invoice-items";
+import { buildLineItemPayloads } from "@/lib/invoice-items";
 import { useLineItems } from "@/hooks/use-line-items";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -241,50 +241,15 @@ export default function SalesReturnForm() {
           ? `تم الحفظ مع تجاهل ${droppedEmpty} سطر فارغ`
           : undefined;
 
-      if (isNew) {
-        const { data: ret, error } = await (
-          supabase.from("sales_returns") as any
-        )
-          .insert(payload)
-          .select("id")
-          .single();
-        if (error) throw error;
-        const rows = buildLineItemRows(validItems, {
-          parentKey: "return_id",
-          parentId: ret.id,
-          reduction: payload.discount || 0,
-        });
-
-        if (rows.length > 0) {
-          await (supabase.from("sales_return_items") as any).insert(rows);
-        }
-        if (!opts?.silent) {
-          notify.success("تمت الإضافة", draftSavedMsg || "تم إنشاء مرتجع البيع كمسودة");
-        }
-        markClean();
-        navigate(`/sales-returns/${ret.id}`);
-      } else {
-        await (supabase.from("sales_returns") as any)
-          .update(payload)
-          .eq("id", id);
-        await (supabase.from("sales_return_items") as any)
-          .delete()
-          .eq("return_id", id);
-        const rows = buildLineItemRows(validItems, {
-          parentKey: "return_id",
-          parentId: id!,
-          reduction: payload.discount || 0,
-        });
-
-        if (rows.length > 0) {
-          await (supabase.from("sales_return_items") as any).insert(rows);
-        }
-        if (!opts?.silent) {
-          notify.success("تم التحديث", draftSavedMsg || "تم تحديث مرتجع البيع");
-        }
-        markClean();
-        if (!opts?.skipReload) loadData();
+      const savedId = await saveDocumentDraft("sales_return", id || null, payload,
+        buildLineItemPayloads(validItems, { reduction: payload.discount || 0, base: subtotal }));
+      if (!opts?.silent) {
+        notify.success(isNew ? "تمت الإضافة" : "تم التحديث",
+          draftSavedMsg || (isNew ? "تم إنشاء مرتجع البيع كمسودة" : "تم تحديث مرتجع البيع"));
       }
+      markClean();
+      if (isNew) navigate(`/sales-returns/${savedId}`);
+      else if (!opts?.skipReload) loadData();
     } catch (error: any) {
       notify.error("خطأ", error.message);
       setSaving(false);

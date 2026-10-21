@@ -16,7 +16,7 @@ import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { SectionHeader } from "@/components/SectionHeader";
 import { calcInvoiceTotals } from "@/lib/invoice-totals";
-import { buildLineItemRows } from "@/lib/invoice-items";
+import { buildLineItemPayloads } from "@/lib/invoice-items";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,7 @@ import {
 } from "@/lib/product-utils";
 import { ACCOUNT_CODES } from "@/lib/constants";
 import { notify } from "@/lib/notify";
-import { invokeDocumentRpc, deleteDraftDocument } from "@/lib/document-actions";
+import { invokeDocumentRpc, deleteDraftDocument, saveDocumentDraft } from "@/lib/document-actions";
 
 interface Supplier {
   id: string;
@@ -223,47 +223,15 @@ export default function PurchaseInvoiceForm() {
 
       const draftSavedMsg = droppedEmpty > 0 ? `تم الحفظ مع تجاهل ${droppedEmpty} سطر فارغ` : undefined;
 
-      if (isNew) {
-        const { data: inv, error } = await (supabase.from("purchase_invoices" as any) as any)
-          .insert(payload)
-          .select("id")
-          .single();
-        if (error) throw error;
-        const rows = buildLineItemRows(validItems, {
-          parentKey: "invoice_id",
-          parentId: inv.id,
-          reduction: invoiceLevelReduction,
-          base: subtotal,
-        });
-
-        if (rows.length > 0) {
-          await (supabase.from("purchase_invoice_items" as any) as any).insert(rows);
-        }
-        if (!opts?.silent) {
-          notify.success("تمت الإضافة", draftSavedMsg || "تم إنشاء فاتورة الشراء كمسودة");
-        }
-        markClean();
-        navigate(`/purchases/${inv.id}`);
-      } else {
-        const { error } = await (supabase.from("purchase_invoices" as any) as any).update(payload).eq("id", id);
-        if (error) throw error;
-        await (supabase.from("purchase_invoice_items" as any) as any).delete().eq("invoice_id", id);
-        const rows = buildLineItemRows(validItems, {
-          parentKey: "invoice_id",
-          parentId: id!,
-          reduction: invoiceLevelReduction,
-          base: subtotal,
-        });
-
-        if (rows.length > 0) {
-          await (supabase.from("purchase_invoice_items" as any) as any).insert(rows);
-        }
-        if (!opts?.silent) {
-          notify.success("تم التحديث", draftSavedMsg || "تم تحديث فاتورة الشراء");
-        }
-        markClean();
-        if (!opts?.skipReload) loadData();
+      const savedId = await saveDocumentDraft("purchase_invoice", id || null, payload,
+        buildLineItemPayloads(validItems, { reduction: invoiceLevelReduction, base: subtotal }));
+      if (!opts?.silent) {
+        notify.success(isNew ? "تمت الإضافة" : "تم التحديث",
+          draftSavedMsg || (isNew ? "تم إنشاء فاتورة الشراء كمسودة" : "تم تحديث فاتورة الشراء"));
       }
+      markClean();
+      if (isNew) navigate(`/purchases/${savedId}`);
+      else if (!opts?.skipReload) loadData();
     } catch (error: any) {
       notify.error("خطأ", error.message);
       setSaving(false);

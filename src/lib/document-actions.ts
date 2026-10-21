@@ -56,20 +56,23 @@ export interface DeleteDraftOptions {
   id: string;
 }
 
-/** حذف مسودة مستند: بنوده أولًا ثم المستند نفسه (يرفع الخطأ للمُستدعي). */
-export async function deleteDraftDocument({
-  itemsTable,
-  parentTable,
-  parentKey,
-  id,
-}: DeleteDraftOptions): Promise<void> {
-  const { error: itemsError } = await (supabase.from(itemsTable as any) as any)
-    .delete()
-    .eq(parentKey, id);
-  if (itemsError) throw itemsError;
+/** حفظ الرأس والبنود في معاملة واحدة؛ لا كتابة مباشرة من النموذج. */
+export async function saveDocumentDraft(
+  kind: "sales_invoice" | "purchase_invoice" | "sales_return" | "purchase_return",
+  id: string | null,
+  document: Record<string, unknown>,
+  items: Record<string, unknown>[],
+): Promise<string> {
+  const result = await invokeDocumentRpc("save_document_draft", {
+    p_kind: kind, p_id: id, p_document: document, p_items: items,
+  });
+  if (!result.success) throw new Error(result.error || "تعذر حفظ المسودة");
+  if (typeof result.document_id !== "string") throw new Error("لم يتم إرجاع معرّف المستند");
+  return result.document_id;
+}
 
-  const { error: parentError } = await (supabase.from(parentTable as any) as any)
-    .delete()
-    .eq("id", id);
-  if (parentError) throw parentError;
+/** القاعدة تتحقق من المسودة وتحذف الرأس والبنود معاً. */
+export async function deleteDraftDocument({ parentTable, id }: DeleteDraftOptions): Promise<void> {
+  const result = await invokeDocumentRpc("delete_document_draft", { p_table: parentTable, p_id: id });
+  if (!result.success) throw new Error(result.error || "تعذر حذف المسودة");
 }
