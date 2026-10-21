@@ -120,6 +120,20 @@
       "when": 1792474412546,
       "tag": "0016_atomic_document_draft_gateways",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792559763279,
+      "tag": "0017_atomic_save_and_post_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792559796314,
+      "tag": "0018_complete_purchase_balance_in_post_transaction",
+      "breakpoints": true
     }
   ]
 }

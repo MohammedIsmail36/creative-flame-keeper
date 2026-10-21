@@ -16,7 +16,7 @@ import { FormFieldError } from "@/components/FormFieldError";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { SectionHeader } from "@/components/SectionHeader";
 import { calcInvoiceTotals } from "@/lib/invoice-totals";
-import { buildLineItemRows } from "@/lib/invoice-items";
+import { buildLineItemPayloads } from "@/lib/invoice-items";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,7 @@ import {
 } from "@/lib/product-utils";
 import { ACCOUNT_CODES } from "@/lib/constants";
 import { notify } from "@/lib/notify";
-import { invokeDocumentRpc, deleteDraftDocument } from "@/lib/document-actions";
+import { invokeDocumentRpc, deleteDraftDocument, saveDocumentDraft, saveAndPostDocument } from "@/lib/document-actions";
 
 interface Supplier {
   id: string;
@@ -178,7 +178,7 @@ export default function PurchaseInvoiceForm() {
   const { subtotal, hasLineDiscount, hasInvoiceDiscount, discountMode, afterDiscount, taxAmount, grandTotal } =
     calcInvoiceTotals({ items, invoiceDiscount, showTax, taxRate });
 
-  async function handleSave(opts?: { silent?: boolean; skipReload?: boolean }): Promise<boolean> {
+  async function handleSave(opts?: { silent?: boolean; skipReload?: boolean; post?: boolean }): Promise<boolean> {
     if (saving) return false;
     const errors: Record<string, string> = {};
     // Draft is permissive: keep partial work even without a supplier or items.
@@ -223,47 +223,16 @@ export default function PurchaseInvoiceForm() {
 
       const draftSavedMsg = droppedEmpty > 0 ? `تم الحفظ مع تجاهل ${droppedEmpty} سطر فارغ` : undefined;
 
-      if (isNew) {
-        const { data: inv, error } = await (supabase.from("purchase_invoices" as any) as any)
-          .insert(payload)
-          .select("id")
-          .single();
-        if (error) throw error;
-        const rows = buildLineItemRows(validItems, {
-          parentKey: "invoice_id",
-          parentId: inv.id,
-          reduction: invoiceLevelReduction,
-          base: subtotal,
-        });
-
-        if (rows.length > 0) {
-          await (supabase.from("purchase_invoice_items" as any) as any).insert(rows);
-        }
-        if (!opts?.silent) {
-          notify.success("تمت الإضافة", draftSavedMsg || "تم إنشاء فاتورة الشراء كمسودة");
-        }
-        markClean();
-        navigate(`/purchases/${inv.id}`);
-      } else {
-        const { error } = await (supabase.from("purchase_invoices" as any) as any).update(payload).eq("id", id);
-        if (error) throw error;
-        await (supabase.from("purchase_invoice_items" as any) as any).delete().eq("invoice_id", id);
-        const rows = buildLineItemRows(validItems, {
-          parentKey: "invoice_id",
-          parentId: id!,
-          reduction: invoiceLevelReduction,
-          base: subtotal,
-        });
-
-        if (rows.length > 0) {
-          await (supabase.from("purchase_invoice_items" as any) as any).insert(rows);
-        }
-        if (!opts?.silent) {
-          notify.success("تم التحديث", draftSavedMsg || "تم تحديث فاتورة الشراء");
-        }
-        markClean();
-        if (!opts?.skipReload) loadData();
+      const savedId = await (opts?.post ? saveAndPostDocument : saveDocumentDraft)("purchase_invoice", id || null, payload,
+        buildLineItemPayloads(validItems, { reduction: invoiceLevelReduction, base: subtotal }));
+      if (opts?.post) { setSaving(false); return true; }
+      if (!opts?.silent) {
+        notify.success(isNew ? "تمت الإضافة" : "تم التحديث",
+          draftSavedMsg || (isNew ? "تم إنشاء فاتورة الشراء كمسودة" : "تم تحديث فاتورة الشراء"));
       }
+      markClean();
+      if (isNew) navigate(`/purchases/${savedId}`);
+      else if (!opts?.skipReload) loadData();
     } catch (error: any) {
       notify.error("خطأ", error.message);
       setSaving(false);
@@ -292,32 +261,11 @@ export default function PurchaseInvoiceForm() {
       )
     )
       return;
-    // Persist any unsaved edits (e.g. invoice-level discount) before posting
-    if (isDirty && id) {
-      const saved = await handleSave({ silent: true, skipReload: true });
-      if (!saved) {
-        notify.error("تعذر الترحيل", "فشل حفظ التعديلات غير المحفوظة — لم تتم عملية الترحيل");
-        return;
-      }
-    }
-    setSaving(true);
-    try {
-      const res = await invokeDocumentRpc("post_purchase_invoice", { p_invoice_id: id });
-      if (!res.success) {
-        notify.error("خطأ", res.error || "حدث خطأ أثناء الترحيل");
-        return;
-      }
-
-      await recalculateEntityBalance("supplier", supplierId);
-
+    const posted = await handleSave({ silent: true, skipReload: true, post: true });
+    if (!posted) return;
       notify.success("تم الترحيل", "تم ترحيل فاتورة الشراء وتوليد القيد المحاسبي وتحديث المخزون");
       markClean();
       loadData();
-    } catch (error: any) {
-      notify.error("خطأ", error.message);
-    } finally {
-      setSaving(false);
-    }
   }
 
   async function handleDeleteDraft() {

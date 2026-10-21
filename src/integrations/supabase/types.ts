@@ -2648,6 +2648,10 @@ export type Database = {
         }
         Returns: string
       }
+      save_and_post_document: {
+        Args: { p_document: Json; p_id: string; p_items: Json; p_kind: string }
+        Returns: Json
+      }
       save_document_draft: {
         Args: { p_document: Json; p_id: string; p_items: Json; p_kind: string }
         Returns: Json
