@@ -57,19 +57,30 @@ export interface DeleteDraftOptions {
 }
 
 /** حفظ الرأس والبنود في معاملة واحدة؛ لا كتابة مباشرة من النموذج. */
-export async function saveDocumentDraft(
-  kind: "sales_invoice" | "purchase_invoice" | "sales_return" | "purchase_return",
+type DocumentKind = "sales_invoice" | "purchase_invoice" | "sales_return" | "purchase_return";
+
+async function persistDocument(
+  rpc: string,
+  kind: DocumentKind,
   id: string | null,
   document: Record<string, unknown>,
   items: Record<string, unknown>[],
 ): Promise<string> {
-  const result = await invokeDocumentRpc("save_document_draft", {
+  const result = await invokeDocumentRpc(rpc, {
     p_kind: kind, p_id: id, p_document: document, p_items: items,
   });
   if (!result.success) throw new Error(result.error || "تعذر حفظ المسودة");
   if (typeof result.document_id !== "string") throw new Error("لم يتم إرجاع معرّف المستند");
   return result.document_id;
 }
+
+export const saveDocumentDraft = (kind: DocumentKind, id: string | null,
+  document: Record<string, unknown>, items: Record<string, unknown>[]) =>
+  persistDocument("save_document_draft", kind, id, document, items);
+
+export const saveAndPostDocument = (kind: DocumentKind, id: string | null,
+  document: Record<string, unknown>, items: Record<string, unknown>[]) =>
+  persistDocument("save_and_post_document", kind, id, document, items);
 
 /** القاعدة تتحقق من المسودة وتحذف الرأس والبنود معاً. */
 export async function deleteDraftDocument({ parentTable, id }: DeleteDraftOptions): Promise<void> {
