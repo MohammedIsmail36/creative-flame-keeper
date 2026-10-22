@@ -4,3 +4,4 @@
 - Database integration tests for financial gateways run inside rolled-back transactions so fixtures never remain in company data.
 - Financial actions must commit document state, journals, inventory, allocations, numbering, and affected balances in one database transaction; browser-side compensation is not rollback.
 - Keep browser calculations for immediate previews only; authoritative financial validation and mutations belong in shared database gateways to avoid duplicated rules and partial commits.
+- Document forms persist header and items through shared draft gateways; supported posting paths submit edits and posting together and raise on posting rejection so draft changes roll back too.

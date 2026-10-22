@@ -10,7 +10,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-const { isPeriodLocked, invokeDocumentRpc, deleteDraftDocument, saveDocumentDraft } = await import(
+const { isPeriodLocked, invokeDocumentRpc, deleteDraftDocument, saveDocumentDraft, saveAndPostDocument } = await import(
   "./document-actions"
 );
 
@@ -156,5 +156,25 @@ describe("saveDocumentDraft", () => {
     rpc.mockResolvedValue({ data: null, error: { message: "line rejected" } });
     await expect(saveDocumentDraft("purchase_invoice", "draft-1", {}, []))
       .rejects.toThrow("line rejected");
+  });
+});
+
+describe("saveAndPostDocument", () => {
+  it("يحفظ التعديلات ويرحلها بطلب واحد دون حفظ منفصل", async () => {
+    rpc.mockResolvedValue({ data: { success: true, document_id: "draft-1" }, error: null });
+    const document = { warehouse_id: "warehouse-2", total: 300 };
+    const items = [{ product_id: "product-1", quantity: 1, total: 300 }];
+    expect(await saveAndPostDocument("purchase_invoice", "draft-1", document, items)).toBe("draft-1");
+    expect(rpc).toHaveBeenCalledExactlyOnceWith("save_and_post_document", {
+      p_kind: "purchase_invoice", p_id: "draft-1", p_document: document, p_items: items,
+    });
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("لا يؤكد نجاح الترحيل عند رفض المعاملة", async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: "insufficient stock" } });
+    await expect(saveAndPostDocument("sales_invoice", "draft-1", {}, []))
+      .rejects.toThrow("insufficient stock");
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
 });
